@@ -1,0 +1,123 @@
+services:
+  db:
+    image: postgres:15-alpine
+    restart: always
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-postgres}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-postgres}
+      POSTGRES_DB: ${POSTGRES_DB:-yufeed}
+    ports:
+      - "127.0.0.1:5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  redis:
+    image: redis:7-alpine
+    restart: always
+    ports:
+      - "127.0.0.1:6379:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  opensearch:
+    image: opensearchproject/opensearch:2.11.0
+    restart: always
+    environment:
+      - discovery.type=single-node
+      - bootstrap.memory_lock=true
+      - "OPENSEARCH_JAVA_OPTS=-Xms512m -Xmx512m"
+      - DISABLE_SECURITY_PLUGIN=true 
+    ports:
+      - "127.0.0.1:9200:9200"
+    volumes:
+      - opensearch_data:/usr/share/opensearch/data
+    ulimits:
+      memlock:
+        soft: -1
+        hard: -1
+      nofile:
+        soft: 65536
+        hard: 65536
+
+  mailhog:
+    image: mailhog/mailhog
+    restart: always
+    ports:
+      - "127.0.0.1:1025:1025" # SMTP
+      - "127.0.0.1:8025:8025" # UI
+
+  backend:
+    build: ./backend
+    restart: always
+    command: uvicorn src.main:app --host 0.0.0.0 --port 8000 --reload
+    volumes:
+      - ./backend:/app
+    ports:
+      - "127.0.0.1:8000:8000"
+    env_file:
+      - .env
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      opensearch:
+        condition: service_started
+
+  worker:
+    build: ./backend
+    restart: always
+    # Assuming celery is set up in src.worker or similar. 
+    # Validating src/worker.py content previously showed it was a script.
+    # We might need to adjust this command if the user hasn't set up Celery app yet.
+    # But for now, we will use the existing worker script if it's standalone, 
+    # OR if we are migrating to Celery, we run celery.
+    # For this MVP, based on the previous worker.py, it was a Loop.
+    # The PROMPT requested "worker (Celery)".
+    # So I should probably update the worker code to be Celery compatible or run the existing script for now?
+    # The user asked for "worker (Celery)". I need to ENSURE Celery is used.
+    # I will stick to the plan: setup worker (Celery) is a TODO.
+    # So I will configure this to run a celery worker command, assuming I will fix the code next.
+    command: celery -A src.worker.celery_app worker --loglevel=info
+    volumes:
+      - ./backend:/app
+    env_file:
+      - .env
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+
+  frontend:
+    build: 
+      context: ./frontend
+      dockerfile: Dockerfile
+    restart: always
+    ports:
+      - "127.0.0.1:3000:3000"
+    env_file:
+      - .env
+    # For development, we might want to mount volume, but multi-stage build makes it tricky.
+    # Usually for dev we run `npm run dev` locally or map volumes.
+    # For this dockerized deliverable, I'll stick to the built image 
+    # OR use a dev stage. The Dockerfile provided is for prod.
+    # let's map source for dev experience if possible or keep as is.
+    # The prompt asked for "dockerized monorepo", usually implies running it all in docker.
+    # I will leave as is (production-like build) for stability, or update to dev if requested.
+    # But usually one wants hot-reload. 
+    # I will modify the docker-compose to override command for dev if possible?
+    # No, let's stick to the Dockerfile I wrote (prod build).
+    # IF the user wants dev, they can use `npm run dev` locally as per plan.
+
+volumes:
+  postgres_data:
+  opensearch_data:
