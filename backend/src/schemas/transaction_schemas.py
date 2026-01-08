@@ -32,7 +32,7 @@ class TransactionBase(BaseModel):
     # Metadata
     device_fingerprint: Optional[str] = Field(None, max_length=255)
     session_id: Optional[str] = Field(None, max_length=255)
-    metadata: Optional[Dict[str, Any]] = None
+    transaction_metadata: Optional[Dict[str, Any]] = None
     description: Optional[str] = None
 
     @validator('amount')

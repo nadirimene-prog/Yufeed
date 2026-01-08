@@ -41,7 +41,7 @@ class Transaction(Base):
     # Metadata
     device_fingerprint = Column(String(255))
     session_id = Column(String(255))
-    metadata = Column(JSONB)
+    transaction_metadata = Column(JSONB)
     description = Column(Text)
 
     created_at = Column(DateTime, default=datetime.utcnow)

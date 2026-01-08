@@ -89,6 +89,7 @@ from src.api.impact import router as impact_router
 from src.api.query import router as query_router
 from src.api.transactions import router as transactions_router
 from src.api.alerts import router as alerts_router
+from src.api.monitoring_dashboard import router as monitoring_router
 
 app.include_router(api_router)
 app.include_router(compliance_router)
@@ -96,3 +97,4 @@ app.include_router(impact_router)
 app.include_router(query_router)
 app.include_router(transactions_router)
 app.include_router(alerts_router)
+app.include_router(monitoring_router)

@@ -8,8 +8,11 @@ from sqlalchemy import func, and_, or_
 from typing import List, Optional
 from datetime import datetime, timedelta
 import uuid
+import logging
 
 from src.database import get_db
+
+logger = logging.getLogger(__name__)
 from src.models.transaction_models import (
     Transaction, Alert, Case, MonitoringRule,
     UserRiskProfile, FeatureValue
@@ -370,10 +373,10 @@ def process_transaction(transaction_id: int, db: Session):
     2. Evaluate monitoring rules
     3. Update user risk profile
     4. Generate alerts if needed
-
-    NOTE: This is a placeholder. Full implementation will be in the
-    rules engine and risk scoring services.
     """
+    from src.services.rules_engine import RulesEngine
+    from src.services.risk_scoring import RiskScoringService
+
     transaction = db.query(Transaction).filter(
         Transaction.id == transaction_id
     ).first()
@@ -381,25 +384,33 @@ def process_transaction(transaction_id: int, db: Session):
     if not transaction:
         return
 
-    # Placeholder: Basic risk scoring
-    # TODO: Implement full risk scoring service
-    risk_score = calculate_basic_risk_score(transaction)
-    transaction.risk_score = risk_score
+    try:
+        # 1. Calculate risk score
+        risk_service = RiskScoringService(db)
+        risk_score = risk_service.score_transaction(transaction_id)
 
-    if risk_score < 30:
-        transaction.risk_level = 'low'
-    elif risk_score < 60:
-        transaction.risk_level = 'medium'
-    elif risk_score < 80:
-        transaction.risk_level = 'high'
-    else:
-        transaction.risk_level = 'critical'
+        transaction.risk_score = risk_score
+        transaction.risk_level = risk_service.get_risk_level(risk_score)
+        db.commit()
 
-    db.commit()
+        # 2. Evaluate monitoring rules
+        rules_engine = RulesEngine(db)
+        alerts = rules_engine.evaluate_transaction(transaction_id)
 
-    # TODO: Evaluate monitoring rules
-    # TODO: Update user risk profile
-    # TODO: Generate alerts
+        # 3. Evaluate velocity rules for the user
+        velocity_alerts = rules_engine.evaluate_velocity_rules(transaction.user_id)
+
+        # 4. Update user risk profile
+        risk_service.update_user_risk_profile(transaction.user_id)
+
+        logger.info(
+            f"Processed transaction {transaction.transaction_id}: "
+            f"risk_score={risk_score}, alerts={len(alerts) + len(velocity_alerts)}"
+        )
+
+    except Exception as e:
+        logger.error(f"Error processing transaction {transaction_id}: {e}")
+        db.rollback()
 
 
 def calculate_basic_risk_score(transaction: Transaction) -> float:
