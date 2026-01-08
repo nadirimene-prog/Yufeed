@@ -93,6 +93,8 @@ from src.api.monitoring_dashboard import router as monitoring_router
 from src.api.ai_agents import router as ai_agents_router
 from src.api.cases import router as cases_router
 from src.api.risk_profiles import router as risk_profiles_router
+from src.api.monitoring_rules import router as monitoring_rules_router
+from src.api.network_analysis import router as network_router
 
 app.include_router(api_router)
 app.include_router(compliance_router)
@@ -104,3 +106,5 @@ app.include_router(monitoring_router)
 app.include_router(ai_agents_router)
 app.include_router(cases_router)
 app.include_router(risk_profiles_router)
+app.include_router(monitoring_rules_router)
+app.include_router(network_router)
