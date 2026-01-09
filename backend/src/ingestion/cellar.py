@@ -23,15 +23,20 @@ class CellarClient:
     SPARQL_ENDPOINT = "http://publications.europa.eu/webapi/rdf/sparql"
     BASE_URL = "http://publications.europa.eu/resource/cellar"
 
-    def __init__(self, redis_url: str = "redis://localhost:6379/0", enable_cache: bool = True):
+    def __init__(self, redis_url: str = None, enable_cache: bool = True):
         """
         Initialize Cellar client with optional Redis caching.
 
         Args:
-            redis_url: Redis connection URL for caching
+            redis_url: Redis connection URL for caching (defaults to REDIS_URL env var or localhost)
             enable_cache: Whether to enable Redis caching (default: True)
         """
         self.client = httpx.Client(timeout=60.0)
+
+        # Use environment variable if redis_url not provided
+        if redis_url is None:
+            redis_url = os.getenv("REDIS_URL", "redis://localhost:6379/0")
+
         self.cache = CelexCache(redis_url=redis_url) if enable_cache else None
 
         if self.cache and self.cache.is_connected():
