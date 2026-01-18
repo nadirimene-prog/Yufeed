@@ -2,17 +2,19 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Scale, Search, List, Bell, Sparkles } from "lucide-react";
+import { Scale, Search, List, Bell, Sparkles, Brain, Shield, FileText, Network } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 export default function Navbar() {
     const pathname = usePathname();
 
     const links = [
+        { href: "/aml-officer", label: "AI Officer", icon: Brain, highlight: true },
         { href: "/search", label: "Search", icon: Search },
-        { href: "/query", label: "Ask AI", icon: Sparkles },
-        { href: "/watchlists", label: "Watchlists", icon: List },
         { href: "/alerts", label: "Alerts", icon: Bell },
+        { href: "/cases", label: "Cases", icon: FileText },
+        { href: "/network", label: "Network", icon: Network },
+        { href: "/watchlists", label: "Watchlists", icon: List },
     ];
 
     return (
@@ -28,18 +30,24 @@ export default function Navbar() {
                     {links.map((link) => {
                         const isActive = pathname.startsWith(link.href);
                         const Icon = link.icon;
+                        const isHighlight = 'highlight' in link && link.highlight;
                         return (
                             <Link
                                 key={link.href}
                                 href={link.href}
                                 className={cn(
-                                    "flex items-center space-x-2 rounded-md px-3 py-2 text-sm font-medium transition-colors hover:bg-gray-100 dark:hover:bg-gray-800",
+                                    "flex items-center space-x-2 rounded-md px-3 py-2 text-sm font-medium transition-colors",
+                                    isHighlight && !isActive
+                                        ? "bg-indigo-50 text-indigo-700 hover:bg-indigo-100 dark:bg-indigo-900/30 dark:text-indigo-400 dark:hover:bg-indigo-900/50"
+                                        : "hover:bg-gray-100 dark:hover:bg-gray-800",
                                     isActive
-                                        ? "bg-gray-100 text-gray-900 dark:bg-gray-800 dark:text-gray-50"
-                                        : "text-gray-600 hover:text-gray-900 dark:text-gray-400 dark:hover:text-gray-50"
+                                        ? isHighlight
+                                            ? "bg-indigo-100 text-indigo-900 dark:bg-indigo-900/50 dark:text-indigo-300"
+                                            : "bg-gray-100 text-gray-900 dark:bg-gray-800 dark:text-gray-50"
+                                        : !isHighlight && "text-gray-600 hover:text-gray-900 dark:text-gray-400 dark:hover:text-gray-50"
                                 )}
                             >
-                                <Icon className="h-4 w-4" />
+                                <Icon className={cn("h-4 w-4", isHighlight && "text-indigo-600 dark:text-indigo-400")} />
                                 <span>{link.label}</span>
                             </Link>
                         );

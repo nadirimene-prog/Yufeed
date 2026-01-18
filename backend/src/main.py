@@ -97,6 +97,7 @@ from src.api.monitoring_rules import router as monitoring_rules_router
 from src.api.network_analysis import router as network_router
 from src.api.reporting import router as reporting_router
 from src.api.celex import router as celex_router
+from src.api.aml_officer import router as aml_officer_router
 
 app.include_router(api_router)
 app.include_router(compliance_router)
@@ -112,3 +113,4 @@ app.include_router(monitoring_rules_router)
 app.include_router(network_router)
 app.include_router(reporting_router)
 app.include_router(celex_router)
+app.include_router(aml_officer_router)
