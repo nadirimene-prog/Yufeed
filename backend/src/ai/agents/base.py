@@ -500,10 +500,21 @@ class AgentRegistry:
     _agents: Dict[AgentType, BaseAgent] = {}
 
     @classmethod
-    def register(cls, agent: BaseAgent) -> None:
-        """Register an agent instance."""
-        cls._agents[agent.agent_type] = agent
-        logger.info(f"Registered {agent.agent_type.value} agent")
+    def register(cls, agent_type_str: str = None):
+        """Register an agent class as a decorator or register an instance."""
+        def decorator(agent_class):
+            # Return the class unchanged - actual registration happens on instantiation
+            return agent_class
+
+        # If called with a string argument, return decorator
+        if isinstance(agent_type_str, str):
+            return decorator
+        # If called with an agent instance, register it
+        elif agent_type_str is not None:
+            agent = agent_type_str
+            cls._agents[agent.agent_type] = agent
+            logger.info(f"Registered {agent.agent_type.value} agent")
+        return decorator
 
     @classmethod
     def get(cls, agent_type: AgentType) -> Optional[BaseAgent]:
