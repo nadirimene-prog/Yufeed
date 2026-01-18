@@ -1,7 +1,7 @@
 import logging
 import datetime
 from sqlalchemy.orm import Session
-from src.models import LegalDocument, LegalVersion, AlertEvent, AlertEventType, VersionKind
+from src.models import LegalDocument, LegalVersion, AlertEventType, VersionKind
 from src.ingestion.cellar import CellarClient
 from src.ingestion.rss import RSSFetcher
 from src.ingestion.content_extractor import ContentExtractor
@@ -121,13 +121,13 @@ class IngestionProcessor:
             except Exception as e:
                 logger.warning(f"Failed to fetch relations for {celex}: {e}")
 
-        # Create Alert
-        alert = AlertEvent(
-            doc_id=new_doc.id,
-            event_type=AlertEventType.NEW_DOC,
-            detected_at=datetime.datetime.utcnow()
-        )
-        self.db.add(alert)
+        # Create Alert - REMOVED (Legacy AlertEvent model missing)
+        # alert = AlertEvent(
+        #     doc_id=new_doc.id,
+        #     event_type=AlertEventType.NEW_DOC,
+        #     detected_at=datetime.datetime.utcnow()
+        # )
+        # self.db.add(alert)
 
         # Create Initial Version
         version = LegalVersion(
@@ -152,12 +152,12 @@ class IngestionProcessor:
              doc.title = entry.get("title")
              doc.last_modified = datetime.datetime.utcnow()
              
-             alert = AlertEvent(
-                doc_id=doc.id,
-                event_type=AlertEventType.UPDATED_DOC,
-                detected_at=datetime.datetime.utcnow()
-            )
-             self.db.add(alert)
+             # alert = AlertEvent(
+             #    doc_id=doc.id,
+             #    event_type=AlertEventType.UPDATED_DOC,
+             #    detected_at=datetime.datetime.utcnow()
+             # )
+             # self.db.add(alert)
              self.db.commit()
 
     def _parse_date(self, date_obj):

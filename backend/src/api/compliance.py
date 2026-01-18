@@ -9,8 +9,10 @@ from src.database import get_db
 from src.models import models
 from src.models.annotation import Annotation
 from src.schemas import schemas
+from src.schemas import compliance as comp_schemas
 from src.ai.analyzer import analyze_document
 from pydantic import BaseModel
+from src.models import compliance as comp_models
 
 router = APIRouter(prefix="/compliance", tags=["compliance"])
 
@@ -224,3 +226,110 @@ def get_upcoming_deadlines(
     ).order_by(models.LegalDocument.implementation_deadline).all()
     
     return [schemas.LegalDocumentRead.from_orm(doc) for doc in docs]
+
+# --- KYC/KYB Endpoints ---
+
+@router.post("/kyc", response_model=comp_schemas.KYCProfileRead)
+def create_kyc_profile(
+    profile: comp_schemas.KYCProfileCreate,
+    db: Session = Depends(get_db)
+):
+    """
+    Submit a new KYC application.
+    """
+    db_profile = comp_models.KYCProfile(
+        **profile.model_dump(exclude={"type"}),
+        status=comp_models.ComplianceStatus.PENDING,
+        risk_level=comp_models.RiskLevel.LOW # Default, to be updated by risk engine
+    )
+    db.add(db_profile)
+    db.commit()
+    db.refresh(db_profile)
+    return db_profile
+
+@router.post("/kyb", response_model=comp_schemas.KYBProfileRead)
+def create_kyb_profile(
+    profile: comp_schemas.KYBProfileCreate,
+    db: Session = Depends(get_db)
+):
+    """
+    Submit a new KYB application.
+    """
+    db_profile = comp_models.KYBProfile(
+        **profile.model_dump(exclude={"type"}),
+        status=comp_models.ComplianceStatus.PENDING,
+        risk_level=comp_models.RiskLevel.LOW
+    )
+    db.add(db_profile)
+    db.commit()
+    db.refresh(db_profile)
+    return db_profile
+
+@router.get("/cases", response_model=List[comp_schemas.ComplianceProfileRead])
+def get_compliance_cases(
+    skip: int = 0,
+    limit: int = 100,
+    status: Optional[str] = None,
+    type: Optional[str] = None,
+    db: Session = Depends(get_db)
+):
+    """
+    Get list of compliance cases (KYC/KYB) for the dashboard.
+    """
+    query = db.query(comp_models.ComplianceProfile)
+    
+    if status:
+        query = query.filter(comp_models.ComplianceProfile.status == status)
+    
+    if type:
+        query = query.filter(comp_models.ComplianceProfile.type == type)
+        
+    profiles = query.order_by(comp_models.ComplianceProfile.created_at.desc()).offset(skip).limit(limit).all()
+    return profiles
+
+@router.get("/cases/{id}", response_model=comp_schemas.ComplianceProfileRead)
+def get_compliance_case(
+    id: int,
+    db: Session = Depends(get_db)
+):
+    """
+    Get detailed view of a compliance case.
+    """
+    profile = db.query(comp_models.ComplianceProfile).filter(comp_models.ComplianceProfile.id == id).first()
+    if not profile:
+        raise HTTPException(status_code=404, detail="Case not found")
+        
+    # Polymorphic load should handle specific fields, but Pydantic might need help if strict
+    # Ideally, we return the specific type (KYC or KYB) but the response model is generic Read
+    # for list views. For detail views, we might want to return the specific subclass.
+    # However, ComplianceProfileRead contains fields from both or we can genericize.
+    # Let's verify if ComplianceProfileRead handles subclass fields. 
+    # Actually, polymorphic response models in FastAPI can be tricky.
+    # For now, we return as is, assuming the client handles common fields + extra data if available.
+    
+    return profile
+
+@router.post("/cases/{id}/review", response_model=comp_schemas.ComplianceProfileRead)
+def review_compliance_case(
+    id: int,
+    review: comp_schemas.ReviewAction,
+    db: Session = Depends(get_db)
+):
+    """
+    Approve or Reject a compliance case.
+    """
+    profile = db.query(comp_models.ComplianceProfile).filter(comp_models.ComplianceProfile.id == id).first()
+    if not profile:
+        raise HTTPException(status_code=404, detail="Case not found")
+    
+    if review.action == "approve":
+        profile.status = comp_models.ComplianceStatus.APPROVED
+    elif review.action == "reject":
+        profile.status = comp_models.ComplianceStatus.REJECTED
+        
+    # Log the reason/note (could be added to a "ReviewHistory" table later)
+    # For now we just update status
+    
+    db.commit()
+    db.refresh(profile)
+    return profile

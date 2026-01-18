@@ -1,4 +1,4 @@
-from sqlalchemy import Column, Integer, String, DateTime, Enum, ForeignKey, Text, Table, ARRAY
+from sqlalchemy import Column, Integer, String, DateTime, Enum, ForeignKey, Text, Table, ARRAY, JSON
 from sqlalchemy.orm import relationship
 from sqlalchemy.dialects.postgresql import JSONB
 import enum
@@ -57,19 +57,19 @@ class LegalDocument(Base):
     risk_level = Column(String, default="unknown")  # RiskLevel enum
     implementation_deadline = Column(DateTime, nullable=True)
     jurisdictional_scope = Column(String, nullable=True)  # e.g., "EU-wide", "Member State"
-    obligations_json = Column(JSONB, nullable=True)  # Extracted obligations
+    obligations_json = Column(JSON().with_variant(JSONB(), "postgresql"), nullable=True)  # Extracted obligations
     ai_summary = Column(Text, nullable=True)  # AI-generated summary
     analyzed_at = Column(DateTime, nullable=True)  # When AI analysis was performed
 
     # Document Content Fields
     full_text = Column(Text, nullable=True)  # Extracted full text content
-    article_breakdown = Column(JSONB, nullable=True)  # Structured articles
+    article_breakdown = Column(JSON().with_variant(JSONB(), "postgresql"), nullable=True)  # Structured articles
     content_extraction_method = Column(String, nullable=True)  # html, pdf, xml
     content_extracted_at = Column(DateTime, nullable=True)  # When content was extracted
     word_count = Column(Integer, nullable=True)  # Document word count
     
     versions = relationship("LegalVersion", back_populates="document")
-    alert_events = relationship("AlertEvent", back_populates="document")
+    # alert_events = relationship("AlertEvent", back_populates="document")
     
     # Relationships for LegalRelation
     relations_from = relationship("LegalRelation", foreign_keys="[LegalRelation.from_doc_id]", back_populates="from_document")
@@ -99,26 +99,4 @@ class LegalRelation(Base):
     from_document = relationship("LegalDocument", foreign_keys=[from_doc_id], back_populates="relations_from")
     to_document = relationship("LegalDocument", foreign_keys=[to_doc_id], back_populates="relations_to")
 
-class Watchlist(Base):
-    __tablename__ = "watchlists"
-
-    id = Column(Integer, primary_key=True, index=True)
-    name = Column(String, nullable=False)
-    mode = Column(String, default="email")
-    rss_url = Column(String, nullable=True)
-    query_json = Column(JSONB, nullable=False)
-    curated_celex_json = Column(JSONB, nullable=True)
-    recipients_json = Column(JSONB, nullable=True)
-    schedule = Column(String, default="daily") # cron string or simple identifier
-
-class AlertEvent(Base):
-    __tablename__ = "alert_events"
-
-    id = Column(Integer, primary_key=True, index=True)
-    doc_id = Column(Integer, ForeignKey("legal_documents.id"))
-    watchlist_id = Column(Integer, ForeignKey("watchlists.id"), nullable=True)
-    event_type = Column(String, nullable=False)
-    detected_at = Column(DateTime, default=datetime.utcnow)
-    
-    document = relationship("LegalDocument", back_populates="alert_events")
-    watchlist = relationship("Watchlist")
+# Transaction Monitoring and Rule Engine models are located in transaction_models.py

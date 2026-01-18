@@ -52,31 +52,63 @@ def get_document(celex: str, db: Session = Depends(get_db)):
         raise HTTPException(status_code=404, detail="Document not found")
     return db_doc
 
-@router.post("/watchlists", response_model=schemas.WatchlistRead)
-def create_watchlist(watchlist: schemas.WatchlistCreate, db: Session = Depends(get_db)):
-    db_watchlist = models.Watchlist(**watchlist.model_dump()) 
-    db.add(db_watchlist)
+# --- Monitoring Rules Management ---
+
+@router.post("/rules", response_model=schemas.MonitoringRuleRead)
+def create_rule(rule: schemas.MonitoringRuleCreate, db: Session = Depends(get_db)):
+    db_rule = models.MonitoringRule(**rule.model_dump())
+    db.add(db_rule)
     db.commit()
-    db.refresh(db_watchlist)
-    return db_watchlist
+    db.refresh(db_rule)
+    return db_rule
 
-@router.get("/watchlists", response_model=List[schemas.WatchlistRead])
-def read_watchlists(skip: int = 0, limit: int = 100, db: Session = Depends(get_db)):
-    return db.query(models.Watchlist).offset(skip).limit(limit).all()
+@router.get("/rules", response_model=List[schemas.MonitoringRuleRead])
+def read_rules(skip: int = 0, limit: int = 100, db: Session = Depends(get_db)):
+    return db.query(models.MonitoringRule).offset(skip).limit(limit).all()
 
-@router.get("/watchlists/{id}/alerts", response_model=List[schemas.AlertEventRead])
-def read_watchlist_alerts(id: int, skip: int = 0, limit: int = 100, db: Session = Depends(get_db)):
-    # Verify watchlist exists
-    watchlist = db.query(models.Watchlist).filter(models.Watchlist.id == id).first()
-    if not watchlist:
-        raise HTTPException(status_code=404, detail="Watchlist not found")
-        
-    return db.query(models.AlertEvent).filter(models.AlertEvent.watchlist_id == id).offset(skip).limit(limit).all()
+@router.get("/rules/{rule_id}", response_model=schemas.MonitoringRuleRead)
+def get_rule(rule_id: str, db: Session = Depends(get_db)):
+    db_rule = db.query(models.MonitoringRule).filter(models.MonitoringRule.rule_id == rule_id).first()
+    if not db_rule:
+        raise HTTPException(status_code=404, detail="Rule not found")
+    return db_rule
 
-@router.get("/alerts", response_model=List[schemas.AlertEventRead])
-def read_all_alerts(skip: int = 0, limit: int = 100, db: Session = Depends(get_db)):
-    alerts = db.query(models.AlertEvent).order_by(models.AlertEvent.detected_at.desc()).offset(skip).limit(limit).all()
-    return alerts
+# --- Transaction Alerts Management ---
+
+@router.get("/alerts", response_model=List[schemas.AlertRead])
+def read_alerts(
+    status: Optional[str] = None,
+    severity: Optional[str] = None,
+    skip: int = 0,
+    limit: int = 50,
+    db: Session = Depends(get_db)
+):
+    query = db.query(models.Alert)
+    if status:
+        query = query.filter(models.Alert.status == status)
+    if severity:
+        query = query.filter(models.Alert.severity == severity)
+    
+    return query.order_by(models.Alert.created_at.desc()).offset(skip).limit(limit).all()
+
+@router.get("/alerts/{alert_id}", response_model=schemas.AlertRead)
+def get_alert_detail(alert_id: str, db: Session = Depends(get_db)):
+    alert = db.query(models.Alert).filter(models.Alert.alert_id == alert_id).first()
+    if not alert:
+        raise HTTPException(status_code=404, detail="Alert not found")
+    return alert
+
+@router.post("/alerts/{alert_id}/action")
+def take_alert_action(alert_id: str, action: Dict[str, str], db: Session = Depends(get_db)):
+    alert = db.query(models.Alert).filter(models.Alert.alert_id == alert_id).first()
+    if not alert:
+        raise HTTPException(status_code=404, detail="Alert not found")
+    
+    # Simple status update for now
+    alert.status = action.get("status", alert.status)
+    alert.resolution_notes = action.get("notes", alert.resolution_notes)
+    db.commit()
+    return {"status": "success", "new_status": alert.status}
 
 @router.get("/documents/{celex}/versions")
 def get_document_versions(celex: str, db: Session = Depends(get_db)) -> Dict[str, Any]:

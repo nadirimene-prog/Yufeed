@@ -109,10 +109,10 @@ services:
       - "127.0.0.1:3000:3000"
     env_file:
       - .env
-    # For development, we might want to mount volume, but multi-stage build makes it tricky.
-    # Usually for dev we run `npm run dev` locally or map volumes.
-    # For this dockerized deliverable, I'll stick to the built image 
-    # OR use a dev stage. The Dockerfile provided is for prod.
+    command: npm run dev
+    volumes:
+      - ./frontend:/app
+      - /app/node_modules
     # let's map source for dev experience if possible or keep as is.
     # The prompt asked for "dockerized monorepo", usually implies running it all in docker.
     # I will leave as is (production-like build) for stability, or update to dev if requested.

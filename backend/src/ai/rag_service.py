@@ -6,11 +6,14 @@ and get AI-powered answers based on the document corpus.
 """
 
 from typing import List, Dict, Any, Optional
-from anthropic import Anthropic
+from anthropic import Anthropic, AsyncAnthropic
 from sqlalchemy.orm import Session
 from src.models.models import LegalDocument
 from src.search import search_documents as opensearch_documents
 import os
+import logging
+
+logger = logging.getLogger(__name__)
 
 
 class RAGService:
@@ -22,14 +25,15 @@ class RAGService:
     2. Generation: Use Claude to synthesize an answer from retrieved documents
     """
 
-    def __init__(self):
+    def __init__(self, db: Optional[Session] = None):
         api_key = os.getenv("ANTHROPIC_API_KEY")
-        self.client = Anthropic(api_key=api_key) if api_key else None
+        self.client = AsyncAnthropic(api_key=api_key) if api_key else None
+        self.db = db
 
-    def answer_query(
+    async def answer_query(
         self,
         query: str,
-        db: Session,
+        db: Optional[Session] = None,
         max_documents: int = 5,
         filters: Optional[Dict[str, Any]] = None
     ) -> Dict[str, Any]:
@@ -45,6 +49,10 @@ class RAGService:
         Returns:
             Dict containing answer, sources, and metadata
         """
+        db = db or self.db
+        if not db:
+            raise ValueError("Database session is required for RAGService")
+
         # Step 1: Retrieve relevant documents
         retrieved_docs = self._retrieve_documents(
             query=query,
@@ -63,7 +71,7 @@ class RAGService:
 
         # Step 2: Generate answer using Claude
         if self.client:
-            answer_data = self._generate_answer(query, retrieved_docs)
+            answer_data = await self._generate_answer(query, retrieved_docs)
         else:
             answer_data = self._fallback_answer(query, retrieved_docs)
 
@@ -101,18 +109,15 @@ class RAGService:
 
         # Search OpenSearch
         search_results = opensearch_documents(
-            query=query,
-            limit=max_documents,
+            q=query,
+            size=max_documents,
             compliance_domain=filters.get("compliance_domain"),
             risk_level=filters.get("risk_level")
         )
 
         # Enrich with database data
         enriched_docs = []
-        for hit in search_results.get("hits", {}).get("hits", []):
-            source = hit["_source"]
-            source["_score"] = hit["_score"]
-
+        for source in search_results.get("results", []):
             # Get full document from database for additional context
             doc = db.query(LegalDocument).filter(
                 LegalDocument.celex == source["celex"]
@@ -125,19 +130,32 @@ class RAGService:
                 source["compliance_domain"] = doc.compliance_domain
                 source["risk_level"] = doc.risk_level
 
-                enriched_docs.append(source)
+            enriched_docs.append(source)
 
         return enriched_docs
 
-    def _generate_answer(self, query: str, documents: List[Dict[str, Any]]) -> Dict[str, Any]:
+    async def _generate_answer(self, query: str, documents: List[Dict[str, Any]]) -> Dict[str, Any]:
         """
         Generate an answer using Claude with retrieved documents as context.
         """
+        if not self.client:
+            logger.info("RAGService operating in Demo Mode (no API key)")
+            return {
+                "answer": (
+                    "I am currently operating in **Demo Mode** because no `ANTHROPIC_API_KEY` was found. "
+                    "In a live environment, I would analyze the retrieved legal documents to provide a precise answer. "
+                    "\n\n**Retrieved Documents:**\n" + 
+                    "\n".join([f"- {d['title']} ({d['celex']})" for d in documents[:3]])
+                ),
+                "confidence": "low",
+                "model": "demo-fallback"
+            }
+
         prompt = self._build_rag_prompt(query, documents)
 
         try:
-            message = self.client.messages.create(
-                model="claude-sonnet-4-20250514",
+            message = await self.client.messages.create(
+                model="claude-3-5-sonnet-20240620",
                 max_tokens=2000,
                 temperature=0.3,
                 messages=[{
@@ -155,11 +173,11 @@ class RAGService:
             return {
                 "answer": answer_text,
                 "confidence": confidence,
-                "model": "claude-sonnet-4"
+                "model": "claude-3-5-sonnet"
             }
 
         except Exception as e:
-            print(f"RAG generation error: {e}")
+            logger.error(f"RAG generation error: {e}")
             return self._fallback_answer(query, documents)
 
     def _fallback_answer(self, query: str, documents: List[Dict[str, Any]]) -> Dict[str, Any]:
@@ -167,7 +185,10 @@ class RAGService:
         Fallback answer when AI is unavailable.
         Returns a summary of retrieved documents.
         """
-        answer_parts = [f"Found {len(documents)} relevant document(s):\n"]
+        answer_parts = [
+            "⚠️ **Demo Mode**: No `ANTHROPIC_API_KEY` configured. Showing retrieved documents without AI analysis.\n",
+            f"Found {len(documents)} relevant document(s):\n"
+        ]
 
         for i, doc in enumerate(documents[:3], 1):
             answer_parts.append(f"\n{i}. {doc['title']} ({doc['celex']})")
@@ -238,6 +259,32 @@ Answer:"""
 
         return prompt
 
+    async def ask(
+        self,
+        question: str,
+        max_documents: int = 5,
+        conversation_history: Optional[List[Dict[str, str]]] = None,
+        filters: Optional[Dict[str, Any]] = None
+    ) -> Dict[str, Any]:
+        """
+        Public API for asking a question.
+        Matches the orchestrator's expectations.
+        """
+        response = await self.answer_query(
+            query=question,
+            max_documents=max_documents,
+            filters=filters
+        )
+
+        # Add follow-up questions
+        response["followup_questions"] = self.suggest_followup_questions(
+            query=question,
+            answer=response["answer"],
+            documents=response.get("sources", [])
+        )
+
+        return response
+
     def suggest_followup_questions(
         self,
         query: str,
@@ -283,14 +330,13 @@ class ConversationManager:
         self.rag_service = RAGService()
         self.conversation_history: List[Dict[str, str]] = []
 
-    def ask(self, query: str, filters: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
+    async def ask(self, query: str, filters: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
         """
         Process a query in the context of the conversation.
         """
         # TODO: In production, enhance query with conversation context
-        response = self.rag_service.answer_query(
-            query=query,
-            db=self.db,
+        response = await self.rag_service.ask(
+            question=query,
             filters=filters
         )
 

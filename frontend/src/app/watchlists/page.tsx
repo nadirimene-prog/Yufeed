@@ -3,18 +3,7 @@
 import { useEffect, useState } from "react";
 import { Plus, Trash2, Mail, Clock, ShieldCheck, FileText, Rss } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { getWatchlists, createWatchlist } from "@/lib/api";
-
-interface Watchlist {
-    id: number;
-    name: string;
-    mode: string;
-    rss_url: string | null;
-    query_json: any;
-    curated_celex_json: any;
-    recipients_json: any;
-    schedule: string;
-}
+import { getWatchlists, createWatchlist, type Watchlist, type WatchlistCreate } from "@/lib/api";
 
 export default function WatchlistsPage() {
     const [watchlists, setWatchlists] = useState<Watchlist[]>([]);
@@ -25,7 +14,7 @@ export default function WatchlistsPage() {
         mode: "email",
         rss_url: "",
         query_json: {},
-        curated_celex_json: null,
+        curated_celex_json: undefined,
         recipients_json: [""],
         schedule: "daily"
     });
@@ -58,7 +47,7 @@ export default function WatchlistsPage() {
                 mode: "email",
                 rss_url: "",
                 query_json: {},
-                curated_celex_json: null,
+                curated_celex_json: undefined,
                 recipients_json: [""],
                 schedule: "daily"
             });

@@ -20,7 +20,7 @@ from typing import Any, Dict, List, Optional
 import xml.etree.ElementTree as ET
 from xml.dom import minidom
 
-from .base import BaseAgent, AgentContext, AgentResult, AgentRegistry
+from .base import BaseAgent, AgentContext, AgentResult, AgentRegistry, AgentType
 
 logger = logging.getLogger(__name__)
 
@@ -271,12 +271,19 @@ Important:
 - Flag any information gaps
 """
 
+    @property
+    def agent_type(self) -> AgentType:
+        return AgentType.SAR
+
+    @property
+    def system_prompt(self) -> str:
+        return self.SAR_NARRATIVE_PROMPT
+
     def __init__(self):
-        super().__init__(
-            agent_id="sar_agent",
-            name="SAR Filing Agent",
-            description="Generates SAR narratives and prepares regulatory filings"
-        )
+        super().__init__()
+        self.agent_id = "sar_agent"
+        self.name = "SAR Filing Agent"
+        self.description = "Generates SAR narratives and prepares regulatory filings"
 
     async def process(self, context: AgentContext) -> AgentResult:
         """

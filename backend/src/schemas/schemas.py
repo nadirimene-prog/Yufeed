@@ -32,33 +32,67 @@ class NotificationConfig(BaseModel):
     email: bool = True
     push: bool = False
 
-class WatchlistBase(BaseModel):
+# --- Monitoring Rule Schemas ---
+class MonitoringRuleBase(BaseModel):
+    rule_id: str
     name: str
-    mode: str = "email"
-    rss_url: Optional[str] = None
-    query_json: Dict[str, Any]
-    curated_celex_json: Optional[Dict[str, Any]] = None # Using Dict to store generic list/map
-    recipients_json: Optional[Dict[str, Any]] = None
-    schedule: str = "daily"
+    description: Optional[str] = None
+    category: str
+    severity: str
+    priority: int = 3
+    enabled: bool = True
+    is_template: bool = False
+    conditions_json: Dict[str, Any]
+    aggregation_json: Optional[Dict[str, Any]] = None
+    regulatory_source_id: Optional[int] = None
+    regulation_article: Optional[str] = None
+    regulatory_requirement: Optional[str] = None
 
-class WatchlistCreate(WatchlistBase):
+class MonitoringRuleCreate(MonitoringRuleBase):
     pass
 
-class WatchlistRead(WatchlistBase):
+class MonitoringRuleRead(MonitoringRuleBase):
     id: int
+    alert_count: int
+    true_positive_rate: Optional[float]
+    false_positive_rate: Optional[float]
+    created_at: datetime
+    updated_at: datetime
 
     class Config:
-        orm_mode = True
+        from_attributes = True
 
-class AlertEventRead(BaseModel):
+# --- Alert & Rule Hit Schemas ---
+class RuleHitRead(BaseModel):
     id: int
-    event_type: str
-    detected_at: datetime
-    doc_id: int
-    watchlist_id: Optional[int] = None
+    rule_id: int
+    trigger_values: Dict[str, Any]
+    matched_conditions: List[Dict[str, Any]]
+    hit_at: datetime
 
     class Config:
-        orm_mode = True
+        from_attributes = True
+
+class AlertRead(BaseModel):
+    id: int
+    alert_id: str
+    alert_type: str
+    severity: str
+    status: str
+    priority: int
+    transaction_id: Optional[int]
+    user_id: str
+    description: Optional[str]
+    risk_score: Optional[float]
+    matched_rules_data: Optional[Dict[str, Any]]
+    evidence: Optional[Dict[str, Any]]
+    related_regulations: Optional[List[int]]
+    regulation_context: Optional[str]
+    created_at: datetime
+    rule_hits: List[RuleHitRead] = []
+
+    class Config:
+        from_attributes = True
 
 # Search Schemas
 class SearchResultItem(BaseModel):

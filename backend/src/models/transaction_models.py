@@ -4,7 +4,7 @@ Phase 1: Foundation for transaction monitoring, alerts, and case management.
 """
 from sqlalchemy import (
     Column, Integer, String, Text, DateTime, Numeric, Boolean,
-    ForeignKey, ARRAY
+    ForeignKey, ARRAY, JSON
 )
 from sqlalchemy.dialects.postgresql import INET, JSONB
 from sqlalchemy.orm import relationship
@@ -29,19 +29,19 @@ class Transaction(Base):
     status = Column(String(50), default='completed')  # 'pending', 'completed', 'flagged', 'blocked'
 
     # Geographic data
-    ip_address = Column(INET)
+    ip_address = Column(String(45).with_variant(INET(), "postgresql"))
     country_code = Column(String(2))
     geo_location = Column(String(255))
 
     # Risk data
     risk_score = Column(Numeric(5, 2))
     risk_level = Column(String(20))  # 'low', 'medium', 'high', 'critical'
-    risk_factors = Column(JSONB)
+    risk_factors = Column(JSON().with_variant(JSONB(), "postgresql"))
 
     # Metadata
     device_fingerprint = Column(String(255))
     session_id = Column(String(255))
-    transaction_metadata = Column(JSONB)
+    transaction_metadata = Column(JSON().with_variant(JSONB(), "postgresql"))
     description = Column(Text)
 
     created_at = Column(DateTime, default=datetime.utcnow)
@@ -63,8 +63,7 @@ class Alert(Base):
     # Triggered by
     transaction_id = Column(Integer, ForeignKey('transactions.id'), nullable=True)
     user_id = Column(String(255), index=True)
-    rule_id = Column(String(255))
-
+    
     # Status workflow
     status = Column(String(50), default='pending')  # 'pending', 'in_review', 'escalated', 'resolved', 'false_positive'
     assigned_to = Column(String(255))
@@ -73,11 +72,11 @@ class Alert(Base):
     # Alert details
     description = Column(Text)
     risk_score = Column(Numeric(5, 2))
-    matched_rules = Column(JSONB)
-    evidence = Column(JSONB)
+    matched_rules_data = Column(JSON().with_variant(JSONB(), "postgresql"))  # Summary of matches
+    evidence = Column(JSON().with_variant(JSONB(), "postgresql"))
 
     # REGULATORY CONTEXT (Yufeed Innovation)
-    related_regulations = Column(JSONB)  # Array of LegalDocument IDs
+    related_regulations = Column(JSON().with_variant(JSONB(), "postgresql"))  # Array of LegalDocument IDs
     regulation_context = Column(Text)  # AI-generated explanation
 
     # Resolution
@@ -96,6 +95,7 @@ class Alert(Base):
 
     # Relationships
     transaction = relationship("Transaction", back_populates="alerts")
+    rule_hits = relationship("RuleHit", back_populates="alert")
 
 
 class Case(Base):
@@ -122,17 +122,17 @@ class Case(Base):
     summary = Column(Text)
 
     # Related entities (using PostgreSQL arrays)
-    related_alert_ids = Column(ARRAY(Integer))
-    related_transaction_ids = Column(ARRAY(Integer))
-    related_users = Column(ARRAY(String(255)))
+    related_alert_ids = Column(JSON().with_variant(ARRAY(Integer), "postgresql"))
+    related_transaction_ids = Column(JSON().with_variant(ARRAY(Integer), "postgresql"))
+    related_users = Column(JSON().with_variant(ARRAY(String(255)), "postgresql"))
 
     # REGULATORY LINKAGE (Yufeed Innovation)
-    applicable_regulation_ids = Column(ARRAY(Integer))  # LegalDocument IDs
-    regulatory_violations = Column(JSONB)
+    applicable_regulation_ids = Column(JSON().with_variant(ARRAY(Integer), "postgresql"))  # LegalDocument IDs
+    regulatory_violations = Column(JSON().with_variant(JSONB(), "postgresql"))
 
     # Evidence
-    evidence = Column(JSONB)
-    attachments = Column(JSONB)
+    evidence = Column(JSON().with_variant(JSONB(), "postgresql"))
+    attachments = Column(JSON().with_variant(JSONB(), "postgresql"))
 
     # Timeline
     opened_at = Column(DateTime, default=datetime.utcnow)
@@ -147,7 +147,7 @@ class Case(Base):
 
 
 class MonitoringRule(Base):
-    """Monitoring rule model with regulatory basis."""
+    """Monitoring rule model with advanced logic and regulatory basis."""
     __tablename__ = "monitoring_rules"
 
     id = Column(Integer, primary_key=True)
@@ -155,21 +155,27 @@ class MonitoringRule(Base):
     name = Column(String(500), nullable=False)
     description = Column(Text)
 
-    # Rule type
+    # Rule type and priority
     category = Column(String(100))  # 'velocity', 'structuring', 'unusual_behavior', 'sanctions'
     severity = Column(String(20), default='medium')
+    priority = Column(Integer, default=3)
 
-    # Rule logic (JSON-based DSL)
-    conditions = Column(JSONB, nullable=False)
-    thresholds = Column(JSONB)
+    # Rule logic - Sardine-inspired nested logic
+    # Schema: { "logic": "AND", "conditions": [ { "field": "amount", "operator": ">", "value": 1000 }, ... ] }
+    conditions_json = Column(JSON().with_variant(JSONB(), "postgresql"), nullable=False)
+    
+    # Aggregation requirements (e.g., lookback periods)
+    # Schema: { "window_size": "24h", "metric": "sum", "field": "amount" }
+    aggregation_json = Column(JSON().with_variant(JSONB(), "postgresql"))
 
     # Regulatory basis (YUFEED INNOVATION)
     regulatory_source_id = Column(Integer, ForeignKey('legal_documents.id'), nullable=True)
     regulation_article = Column(String(255))
     regulatory_requirement = Column(Text)
 
-    # Status
+    # Status and Versioning
     enabled = Column(Boolean, default=True)
+    is_template = Column(Boolean, default=False)
     version = Column(Integer, default=1)
 
     # Performance tracking
@@ -183,6 +189,26 @@ class MonitoringRule(Base):
 
     # Relationships
     regulatory_source = relationship("LegalDocument", foreign_keys=[regulatory_source_id])
+    hits = relationship("RuleHit", back_populates="rule")
+
+
+class RuleHit(Base):
+    """Records specific rule hits for an alert/transaction."""
+    __tablename__ = "rule_hits"
+
+    id = Column(Integer, primary_key=True)
+    alert_id = Column(Integer, ForeignKey('alerts.id'), nullable=False)
+    rule_id = Column(Integer, ForeignKey('monitoring_rules.id'), nullable=False)
+    
+    # Captured data at time of hit
+    trigger_values = Column(JSON().with_variant(JSONB(), "postgresql")) 
+    matched_conditions = Column(JSON().with_variant(JSONB(), "postgresql"))
+    
+    hit_at = Column(DateTime, default=datetime.utcnow)
+
+    # Relationships
+    alert = relationship("Alert", back_populates="rule_hits")
+    rule = relationship("MonitoringRule", back_populates="hits")
 
 
 class UserRiskProfile(Base):
@@ -195,7 +221,7 @@ class UserRiskProfile(Base):
     # Computed risk
     overall_risk_score = Column(Numeric(5, 2))
     risk_level = Column(String(20))  # 'low', 'medium', 'high', 'critical'
-    risk_factors = Column(JSONB)
+    risk_factors = Column(JSON().with_variant(JSONB(), "postgresql"))
 
     # Behavioral patterns
     transaction_velocity_30d = Column(Integer)
@@ -210,7 +236,7 @@ class UserRiskProfile(Base):
 
     # Geographic risk
     primary_country = Column(String(2))
-    high_risk_jurisdictions = Column(ARRAY(String(2)))
+    high_risk_jurisdictions = Column(JSON().with_variant(ARRAY(String(2)), "postgresql"))
 
     # Alerts history
     total_alerts = Column(Integer, default=0)
@@ -220,7 +246,7 @@ class UserRiskProfile(Base):
     # Sanctions screening
     sanctions_screened_at = Column(DateTime)
     sanctions_match = Column(Boolean, default=False)
-    sanctions_details = Column(JSONB)
+    sanctions_details = Column(JSON().with_variant(JSONB(), "postgresql"))
 
     # Account metadata
     account_created_at = Column(DateTime)
@@ -241,7 +267,7 @@ class FeatureValue(Base):
 
     # Feature data
     feature_name = Column(String(255), nullable=False)
-    feature_value = Column(JSONB, nullable=False)
+    feature_value = Column(JSON().with_variant(JSONB(), "postgresql"), nullable=False)
     feature_type = Column(String(50))  # 'numeric', 'categorical', 'boolean', 'text'
 
     # Metadata

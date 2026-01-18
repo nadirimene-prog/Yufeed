@@ -25,7 +25,7 @@ interface NetworkGraphProps {
 
 export default function NetworkGraph({ nodes, edges }: NetworkGraphProps) {
   const [graphData, setGraphData] = useState<any>(null);
-  const fgRef = useRef<any>();
+  const fgRef = useRef<any>(null);
 
   useEffect(() => {
     if (!nodes || !edges) return;
@@ -33,11 +33,10 @@ export default function NetworkGraph({ nodes, edges }: NetworkGraphProps) {
     // Transform data for react-force-graph format
     const transformedData = {
       nodes: nodes.map(node => ({
-        id: node.id,
+        ...node,
         name: node.id,
         val: node.transaction_count,
         color: getNodeColor(node.risk_score),
-        ...node
       })),
       links: edges.map(edge => ({
         source: edge.from,
@@ -128,7 +127,7 @@ export default function NetworkGraph({ nodes, edges }: NetworkGraphProps) {
         d3VelocityDecay={0.3}
         cooldownTicks={100}
         onNodeClick={(node: any) => {
-          console.log('Node clicked:', node);
+          // Node click handler removed during cleanup
         }}
       />
 

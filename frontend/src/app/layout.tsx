@@ -1,11 +1,21 @@
 import type { Metadata } from "next";
-import { Inter } from "next/font/google";
+import { Inter, JetBrains_Mono } from "next/font/google";
 import "./globals.css";
-import Navbar from "@/components/navbar";
+import Header from "@/components/header";
+import Sidebar from "@/components/sidebar";
 import { cn } from "@/lib/utils";
 import ToastProvider from "@/components/ToastProvider";
+import { CommandMenu } from "@/components/command-menu";
 
-const inter = Inter({ subsets: ["latin"] });
+const inter = Inter({
+    subsets: ["latin"],
+    variable: "--font-sans",
+});
+
+const jetbrainsMono = JetBrains_Mono({
+    subsets: ["latin"],
+    variable: "--font-mono",
+});
 
 export const metadata: Metadata = {
     title: "EU Legal Monitor",
@@ -18,12 +28,20 @@ export default function RootLayout({
     children: React.ReactNode;
 }>) {
     return (
-        <html lang="en" className="antialiased">
-            <body className={cn(inter.className, "min-h-screen bg-gray-50 dark:bg-gray-950 text-gray-900 dark:text-gray-100")}>
-                <Navbar />
-                <main className="container mx-auto py-6 px-4">
-                    {children}
-                </main>
+        <html lang="en" className="antialiased" suppressHydrationWarning>
+            <body className={cn(
+                inter.variable,
+                jetbrainsMono.variable,
+                "flex h-screen overflow-hidden bg-background text-foreground font-sans"
+            )}>
+                <CommandMenu />
+                <Sidebar />
+                <div className="relative flex flex-col flex-1 overflow-y-auto overflow-x-hidden">
+                    <Header />
+                    <main className="container mx-auto py-6 px-4 md:px-8 max-w-7xl">
+                        {children}
+                    </main>
+                </div>
                 <ToastProvider />
             </body>
         </html>

@@ -29,19 +29,38 @@ interface NetworkEdge {
 
 interface NetworkAnalysis {
   user_id: string;
-  depth: number;
-  days: number;
   network_size: number;
-  transaction_count: number;
-  total_volume: number;
-  network_risk_score: number;
-  nodes: NetworkNode[];
-  edges: NetworkEdge[];
+  connection_count: number;
+  depth_analyzed: number;
+  period_days: number;
+  network: {
+    nodes: string[];
+    node_details: Record<string, {
+      user_id: string;
+      risk_level: string;
+      risk_score: number;
+      total_alerts: number;
+    }>;
+    edges: {
+      source: string;
+      target: string;
+      type: string;
+      amount: number;
+      currency: string;
+      timestamp: string;
+      transaction_id: string;
+    }[];
+  };
   risk_indicators: {
     circular_flows: any[];
-    shared_attributes: any[];
+    shared_attributes: {
+      shared_ips?: Record<string, string[]>;
+      shared_devices?: Record<string, string[]>;
+    };
     suspicious_clusters: any[];
   };
+  network_risk_score: number;
+  risk_level: string;
 }
 
 interface FraudRing {
@@ -92,8 +111,8 @@ export default function NetworkAnalysisPage() {
     try {
       const res = await fetch(`${API_URL}/api/network/fraud-rings/detect`);
       const data = await res.json();
-      setFraudRings(data.fraud_rings || []);
-      toast.success(`Found ${data.fraud_rings?.length || 0} potential fraud rings`, { id: toastId });
+      setFraudRings(data.rings || []);
+      toast.success(`Found ${data.rings?.length || 0} potential fraud rings`, { id: toastId });
     } catch (error) {
       console.error('Error detecting fraud rings:', error);
       toast.error('Failed to detect fraud rings', { id: toastId });
@@ -119,21 +138,19 @@ export default function NetworkAnalysisPage() {
         <div className="flex gap-4 mb-6">
           <button
             onClick={() => setActiveTab('user')}
-            className={`px-6 py-3 rounded-lg font-medium transition ${
-              activeTab === 'user'
-                ? 'bg-blue-600 text-white'
-                : 'bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700'
-            }`}
+            className={`px-6 py-3 rounded-lg font-medium transition ${activeTab === 'user'
+              ? 'bg-blue-600 text-white'
+              : 'bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700'
+              }`}
           >
             User Network Analysis
           </button>
           <button
             onClick={() => setActiveTab('rings')}
-            className={`px-6 py-3 rounded-lg font-medium transition ${
-              activeTab === 'rings'
-                ? 'bg-blue-600 text-white'
-                : 'bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700'
-            }`}
+            className={`px-6 py-3 rounded-lg font-medium transition ${activeTab === 'rings'
+              ? 'bg-blue-600 text-white'
+              : 'bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700'
+              }`}
           >
             Fraud Ring Detection
           </button>
@@ -227,22 +244,22 @@ export default function NetworkAnalysisPage() {
                     color="blue"
                   />
                   <MetricCard
-                    title="Transactions"
-                    value={networkData.transaction_count}
+                    title="Connections"
+                    value={networkData.connection_count}
                     icon={<Activity className="h-5 w-5" />}
                     color="green"
                   />
                   <MetricCard
-                    title="Total Volume"
-                    value={networkData.total_volume.toLocaleString()}
-                    icon={<Activity className="h-5 w-5" />}
+                    title="Depth"
+                    value={networkData.depth_analyzed}
+                    icon={<Network className="h-5 w-5" />}
                     color="purple"
                   />
                   <MetricCard
                     title="Risk Score"
                     value={networkData.network_risk_score.toFixed(0)}
                     icon={<AlertTriangle className="h-5 w-5" />}
-                    color={networkData.network_risk_score >= 70 ? 'red' : networkData.network_risk_score >= 40 ? 'orange' : 'green'}
+                    color={networkData.network_risk_score >= 75 ? 'red' : networkData.network_risk_score >= 50 ? 'orange' : 'green'}
                   />
                 </div>
 
@@ -251,111 +268,135 @@ export default function NetworkAnalysisPage() {
                   <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">
                     Network Visualization
                   </h3>
-                  <NetworkGraph nodes={networkData.nodes} edges={networkData.edges} />
+                  <NetworkGraph
+                    nodes={networkData.network.nodes.map(id => ({
+                      id,
+                      ...networkData.network.node_details[id]
+                    }))}
+                    edges={networkData.network.edges.map(e => ({
+                      from: e.source,
+                      to: e.target,
+                      transaction_count: 1, // We don't have this aggregated in raw response
+                      total_amount: e.amount,
+                      latest_transaction: e.timestamp
+                    }))}
+                  />
                 </div>
 
                 {/* Risk Indicators */}
                 {(networkData.risk_indicators.circular_flows.length > 0 ||
                   networkData.risk_indicators.shared_attributes.length > 0 ||
                   networkData.risk_indicators.suspicious_clusters.length > 0) && (
-                  <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg p-6">
-                    <h3 className="text-lg font-semibold text-red-900 dark:text-red-300 mb-4">
-                      Risk Indicators Detected
-                    </h3>
+                    <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg p-6">
+                      <h3 className="text-lg font-semibold text-red-900 dark:text-red-300 mb-4">
+                        Risk Indicators Detected
+                      </h3>
 
-                    <div className="space-y-4">
-                      {networkData.risk_indicators.circular_flows.length > 0 && (
-                        <div>
-                          <p className="text-sm font-medium text-red-800 dark:text-red-400 mb-2">
-                            Circular Transaction Flows ({networkData.risk_indicators.circular_flows.length})
-                          </p>
-                          <div className="space-y-2">
-                            {networkData.risk_indicators.circular_flows.map((flow: any, idx: number) => (
-                              <div key={idx} className="p-3 bg-white dark:bg-gray-800 rounded-lg">
-                                <p className="text-sm text-gray-900 dark:text-white font-mono">
-                                  {flow.path.join(' → ')}
-                                </p>
-                                <p className="text-xs text-gray-600 dark:text-gray-400 mt-1">
-                                  {flow.transaction_count} transactions, {flow.total_amount.toLocaleString()} EUR
-                                </p>
-                              </div>
-                            ))}
+                      <div className="space-y-4">
+                        {networkData.risk_indicators.circular_flows.length > 0 && (
+                          <div>
+                            <p className="text-sm font-medium text-red-800 dark:text-red-400 mb-2">
+                              Circular Transaction Flows ({networkData.risk_indicators.circular_flows.length})
+                            </p>
+                            <div className="space-y-2">
+                              {networkData.risk_indicators.circular_flows.map((flow: any, idx: number) => (
+                                <div key={idx} className="p-3 bg-white dark:bg-gray-800 rounded-lg">
+                                  <p className="text-sm text-gray-900 dark:text-white font-mono">
+                                    {flow.path.join(' → ')}
+                                  </p>
+                                  <p className="text-xs text-gray-600 dark:text-gray-400 mt-1">
+                                    {flow.transaction_count} transactions, {flow.total_amount.toLocaleString()} EUR
+                                  </p>
+                                </div>
+                              ))}
+                            </div>
                           </div>
-                        </div>
-                      )}
+                        )}
 
-                      {networkData.risk_indicators.shared_attributes.length > 0 && (
-                        <div>
-                          <p className="text-sm font-medium text-red-800 dark:text-red-400 mb-2">
-                            Shared Attributes ({networkData.risk_indicators.shared_attributes.length})
-                          </p>
-                          <div className="space-y-2">
-                            {networkData.risk_indicators.shared_attributes.map((attr: any, idx: number) => (
-                              <div key={idx} className="p-3 bg-white dark:bg-gray-800 rounded-lg">
-                                <p className="text-sm text-gray-900 dark:text-white">
-                                  {attr.attribute_type}: <span className="font-mono">{attr.value}</span>
-                                </p>
-                                <p className="text-xs text-gray-600 dark:text-gray-400 mt-1">
-                                  Shared by: {attr.user_ids.join(', ')}
-                                </p>
-                              </div>
-                            ))}
+                        {Object.keys(networkData.risk_indicators.shared_attributes || {}).length > 0 && (
+                          <div>
+                            <p className="text-sm font-medium text-red-800 dark:text-red-400 mb-2">
+                              Shared Attributes
+                            </p>
+                            <div className="space-y-4">
+                              {networkData.risk_indicators.shared_attributes.shared_ips && Object.entries(networkData.risk_indicators.shared_attributes.shared_ips).map(([ip, users], idx) => (
+                                <div key={`ip-${idx}`} className="p-3 bg-white dark:bg-gray-800 rounded-lg">
+                                  <p className="text-sm text-gray-900 dark:text-white">
+                                    Shared IP: <span className="font-mono">{ip}</span>
+                                  </p>
+                                  <p className="text-xs text-gray-600 dark:text-gray-400 mt-1">
+                                    Shared by: {users.join(', ')}
+                                  </p>
+                                </div>
+                              ))}
+                              {networkData.risk_indicators.shared_attributes.shared_devices && Object.entries(networkData.risk_indicators.shared_attributes.shared_devices).map(([device, users], idx) => (
+                                <div key={`dev-${idx}`} className="p-3 bg-white dark:bg-gray-800 rounded-lg">
+                                  <p className="text-sm text-gray-900 dark:text-white">
+                                    Shared Device: <span className="font-mono text-[10px]">{device}</span>
+                                  </p>
+                                  <p className="text-xs text-gray-600 dark:text-gray-400 mt-1">
+                                    Shared by: {users.join(', ')}
+                                  </p>
+                                </div>
+                              ))}
+                            </div>
                           </div>
-                        </div>
-                      )}
+                        )}
 
-                      {networkData.risk_indicators.suspicious_clusters.length > 0 && (
-                        <div>
-                          <p className="text-sm font-medium text-red-800 dark:text-red-400 mb-2">
-                            Suspicious Clusters ({networkData.risk_indicators.suspicious_clusters.length})
-                          </p>
-                          <div className="space-y-2">
-                            {networkData.risk_indicators.suspicious_clusters.map((cluster: any, idx: number) => (
-                              <div key={idx} className="p-3 bg-white dark:bg-gray-800 rounded-lg">
-                                <p className="text-sm text-gray-900 dark:text-white">
-                                  Cluster of {cluster.member_count} users
-                                </p>
-                                <p className="text-xs text-gray-600 dark:text-gray-400 mt-1">
-                                  Risk Score: {cluster.cluster_risk_score.toFixed(0)}
-                                </p>
-                              </div>
-                            ))}
+                        {networkData.risk_indicators.suspicious_clusters.length > 0 && (
+                          <div>
+                            <p className="text-sm font-medium text-red-800 dark:text-red-400 mb-2">
+                              Suspicious Clusters ({networkData.risk_indicators.suspicious_clusters.length})
+                            </p>
+                            <div className="space-y-2">
+                              {networkData.risk_indicators.suspicious_clusters.map((cluster: any, idx: number) => (
+                                <div key={idx} className="p-3 bg-white dark:bg-gray-800 rounded-lg">
+                                  <p className="text-sm text-gray-900 dark:text-white">
+                                    Cluster of {cluster.member_count} users
+                                  </p>
+                                  <p className="text-xs text-gray-600 dark:text-gray-400 mt-1">
+                                    Risk Score: {cluster.cluster_risk_score.toFixed(0)}
+                                  </p>
+                                </div>
+                              ))}
+                            </div>
                           </div>
-                        </div>
-                      )}
+                        )}
+                      </div>
                     </div>
-                  </div>
-                )}
+                  )}
 
                 {/* Network Nodes */}
                 <div className="bg-white dark:bg-gray-800 rounded-lg shadow p-6">
                   <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">
-                    Network Nodes ({networkData.nodes.length})
+                    Network Nodes ({networkData.network.nodes.length})
                   </h3>
 
                   <div className="space-y-2">
-                    {networkData.nodes.map((node, idx) => (
-                      <div
-                        key={idx}
-                        className="p-3 border border-gray-200 dark:border-gray-700 rounded-lg flex items-center justify-between"
-                      >
-                        <div>
-                          <p className="text-sm font-mono text-gray-900 dark:text-white">{node.id}</p>
-                          <p className="text-xs text-gray-600 dark:text-gray-400">
-                            {node.transaction_count} txs, {node.total_amount.toLocaleString()} EUR
-                          </p>
+                    {networkData.network.nodes.map((nodeId, idx) => {
+                      const details = networkData.network.node_details[nodeId];
+                      return (
+                        <div
+                          key={idx}
+                          className="p-3 border border-gray-200 dark:border-gray-700 rounded-lg flex items-center justify-between"
+                        >
+                          <div>
+                            <p className="text-sm font-mono text-gray-900 dark:text-white">{nodeId}</p>
+                            <p className="text-xs text-gray-600 dark:text-gray-400">
+                              Risk Level: {details?.risk_level || 'unknown'}
+                            </p>
+                          </div>
+                          {details?.risk_score !== undefined && (
+                            <span className={`text-sm font-semibold ${details.risk_score >= 75 ? 'text-red-600' :
+                              details.risk_score >= 50 ? 'text-orange-600' :
+                                'text-green-600'
+                              }`}>
+                              Score: {details.risk_score.toFixed(0)}
+                            </span>
+                          )}
                         </div>
-                        {node.risk_score !== undefined && (
-                          <span className={`text-sm font-semibold ${
-                            node.risk_score >= 70 ? 'text-red-600' :
-                            node.risk_score >= 40 ? 'text-orange-600' :
-                            'text-green-600'
-                          }`}>
-                            Risk: {node.risk_score.toFixed(0)}
-                          </span>
-                        )}
-                      </div>
-                    ))}
+                      );
+                    })}
                   </div>
                 </div>
               </div>

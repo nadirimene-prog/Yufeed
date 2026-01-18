@@ -2,6 +2,7 @@
 
 import { use, useEffect, useState } from "react";
 import DocTabs from "@/components/doc-tabs";
+import { TimelineView } from "@/components/doc/timeline-view";
 import { ArrowLeft } from "lucide-react";
 import Link from "next/link";
 import { getDocument } from "@/lib/api";
@@ -87,11 +88,10 @@ export default function DocPage({ params }: { params: Promise<{ celex: string }>
                             </span>
                         )}
                         {document.risk_level && (
-                            <span className={`rounded px-2 py-0.5 text-xs font-semibold uppercase ${
-                                document.risk_level === 'high' ? 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200' :
+                            <span className={`rounded px-2 py-0.5 text-xs font-semibold uppercase ${document.risk_level === 'high' ? 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200' :
                                 document.risk_level === 'medium' ? 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200' :
-                                'bg-gray-100 text-gray-800 dark:bg-gray-900 dark:text-gray-200'
-                            }`}>
+                                    'bg-gray-100 text-gray-800 dark:bg-gray-900 dark:text-gray-200'
+                                }`}>
                                 {document.risk_level} Risk
                             </span>
                         )}
@@ -103,7 +103,14 @@ export default function DocPage({ params }: { params: Promise<{ celex: string }>
                 </div>
             </div>
 
-            <DocTabs document={document} celex={celex} />
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+                <div className="lg:col-span-2">
+                    <DocTabs document={document} celex={celex} />
+                </div>
+                <div className="lg:col-span-1 space-y-6">
+                    <TimelineView celex={celex} />
+                </div>
+            </div>
         </div>
     );
 }

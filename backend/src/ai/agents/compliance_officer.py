@@ -22,7 +22,7 @@ from datetime import datetime, timedelta
 from enum import Enum
 from typing import Any, Dict, List, Optional
 
-from .base import BaseAgent, AgentContext, AgentResult, AgentRegistry
+from .base import BaseAgent, AgentContext, AgentResult, AgentRegistry, AgentType
 
 logger = logging.getLogger(__name__)
 
@@ -381,12 +381,19 @@ Provide a comprehensive impact assessment:
 }}
 """
 
+    @property
+    def agent_type(self) -> AgentType:
+        return AgentType.COMPLIANCE_OFFICER
+
+    @property
+    def system_prompt(self) -> str:
+        return self.BRIEFING_PROMPT
+
     def __init__(self):
-        super().__init__(
-            agent_id="compliance_officer",
-            name="AI Compliance Officer",
-            description="Your autonomous compliance partner for EU AML/CFT"
-        )
+        super().__init__()
+        self.agent_id = "compliance_officer"
+        self.name = "AI Compliance Officer"
+        self.description = "Your autonomous compliance partner for EU AML/CFT"
 
     async def process(self, context: AgentContext) -> AgentResult:
         """

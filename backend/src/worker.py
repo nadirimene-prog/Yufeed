@@ -5,7 +5,7 @@ from celery.schedules import crontab
 from src.config import settings
 from src.database import SessionLocal
 from src.ingestion.manager import IngestionManager
-from src.email import send_email
+from src.email_service import send_email
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)

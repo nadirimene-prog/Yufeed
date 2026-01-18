@@ -2,7 +2,7 @@
 Impact Assessment models for regulatory compliance.
 Helps AMLROs understand how regulations affect their operations.
 """
-from sqlalchemy import Column, Integer, String, DateTime, ForeignKey, Text, Enum as SQLEnum, Boolean
+from sqlalchemy import Column, Integer, String, DateTime, ForeignKey, Text, Enum as SQLEnum, Boolean, JSON
 from sqlalchemy.orm import relationship
 from sqlalchemy.dialects.postgresql import JSONB
 import enum
@@ -59,12 +59,12 @@ class ImpactAssessment(Base):
     executive_summary = Column(Text, nullable=True)  # AI-generated summary for executives
 
     # Affected areas (array of BusinessArea enums)
-    affected_areas_json = Column(JSONB, nullable=True)  # List of affected business areas
+    affected_areas_json = Column(JSON().with_variant(JSONB(), "postgresql"), nullable=True)  # List of affected business areas
 
     # Analysis details
-    key_changes = Column(JSONB, nullable=True)  # List of key changes introduced
-    new_obligations = Column(JSONB, nullable=True)  # New obligations created
-    modified_obligations = Column(JSONB, nullable=True)  # Changes to existing obligations
+    key_changes = Column(JSON().with_variant(JSONB(), "postgresql"), nullable=True)  # List of key changes introduced
+    new_obligations = Column(JSON().with_variant(JSONB(), "postgresql"), nullable=True)  # New obligations created
+    modified_obligations = Column(JSON().with_variant(JSONB(), "postgresql"), nullable=True)  # Changes to existing obligations
 
     # Resource estimates
     estimated_effort_hours = Column(Integer, nullable=True)  # Total effort estimate
@@ -112,8 +112,8 @@ class ActionItem(Base):
     completed_at = Column(DateTime, nullable=True)
 
     # Dependencies
-    depends_on_action_ids = Column(JSONB, nullable=True)  # List of action IDs this depends on
-    blocks_action_ids = Column(JSONB, nullable=True)  # List of action IDs blocked by this
+    depends_on_action_ids = Column(JSON().with_variant(JSONB(), "postgresql"), nullable=True)  # List of action IDs this depends on
+    blocks_action_ids = Column(JSON().with_variant(JSONB(), "postgresql"), nullable=True)  # List of action IDs blocked by this
 
     # Notes and progress
     notes = Column(Text, nullable=True)

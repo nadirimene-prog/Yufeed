@@ -280,10 +280,13 @@ class BaseAgent(ABC, Generic[T]):
     ):
         """Initialize the agent with Claude API client."""
         self.api_key = api_key or os.getenv("ANTHROPIC_API_KEY")
-        if not self.api_key:
-            raise ValueError("ANTHROPIC_API_KEY is required")
-
-        self.client = Anthropic(api_key=self.api_key)
+        self.is_configured = bool(self.api_key)
+        
+        if not self.is_configured:
+            logger.warning(f"ANTHROPIC_API_KEY not found for {self.agent_type.value} agent. Operating in Demo Mode.")
+            self.client = None
+        else:
+            self.client = Anthropic(api_key=self.api_key)
         self.model = model or self.DEFAULT_MODEL
         self.enable_caching = enable_caching
         self._cache: Dict[str, AgentResult] = {}
@@ -375,6 +378,9 @@ class BaseAgent(ABC, Generic[T]):
             "content": user_prompt
         })
 
+        if not self.is_configured:
+            return self._generate_mock_response(user_prompt)
+
         try:
             response = self.client.messages.create(
                 model=self.model,
@@ -432,6 +438,45 @@ class BaseAgent(ABC, Generic[T]):
         except Exception as e:
             logger.error(f"{self.agent_type.value} agent error: {e}")
             raise
+
+    def _generate_mock_response(self, user_prompt: str) -> Dict[str, Any]:
+        """Generate a mock response when API key is missing."""
+        logger.info(f"Generating mock response for {self.agent_type.value} agent")
+        
+        # Simple generic mock response based on agent type
+        mock_data = {
+            "critical_findings": ["Demo Mode: No API key configured"],
+            "recommendation": "investigate",
+            "confidence": 0.5,
+            "summary": f"This is a demo response from the {self.agent_type.value} agent. Please configure ANTHROPIC_API_KEY for real AI analysis.",
+            "detailed_analysis": "In a production environment with a valid API key, this would contain a deep-dive analysis of the regulatory implications and risk factors. Currently, the system is operating in demonstration mode.",
+            "risk_score": 50.0,
+            "red_flags": ["DEMO_MODE_ACTIVE"],
+            "next_steps": ["Configure ANTHROPIC_API_KEY", "Verify system connectivity"],
+            "citations": [
+                {
+                    "source_type": "internal",
+                    "reference": "System Configuration Manual",
+                    "excerpt": "Ensure all required environment variables are set."
+                }
+            ],
+            "reasoning": [
+                {
+                    "description": "System check",
+                    "evidence": ["Missing API key"],
+                    "conclusion": "Operating in fallback mode",
+                    "confidence": 1.0
+                }
+            ]
+        }
+        
+        mock_data["_meta"] = {
+            "processing_time_ms": 100,
+            "tokens_used": 0,
+            "model_used": "demo-fallback"
+        }
+        
+        return mock_data
 
     def build_reasoning_chain(
         self,
