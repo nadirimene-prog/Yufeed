@@ -12,6 +12,7 @@ import Link from "next/link";
 import { DataTable } from "@/components/ui/data-table";
 import { ColumnDef } from "@tanstack/react-table";
 import { Button } from "@/components/ui/button";
+import { handleApiError, type ApiError } from "@/lib/api-error-handler";
 
 // Define columns for High Risk Docs
 const highRiskColumns: ColumnDef<any>[] = [
@@ -60,6 +61,7 @@ export default function DashboardPage() {
     const [highRiskDocs, setHighRiskDocs] = useState<any[]>([]);
     const [upcomingDeadlines, setUpcomingDeadlines] = useState<any[]>([]);
     const [loading, setLoading] = useState(true);
+    const [error, setError] = useState<string | null>(null);
 
     useEffect(() => {
         const fetchData = async () => {
@@ -82,8 +84,13 @@ export default function DashboardPage() {
                 setMetrics(metricsData);
                 setHighRiskDocs(highRisk && highRisk.length > 0 ? highRisk : mockHighRiskDocs);
                 setUpcomingDeadlines(deadlines);
-            } catch (error) {
-                console.error("Failed to load dashboard data:", error);
+                setError(null);
+            } catch (err) {
+                const apiError = handleApiError(err, {
+                    context: 'Dashboard - fetchData',
+                    customMessage: 'Failed to load dashboard data'
+                });
+                setError(apiError.message);
             } finally {
                 setLoading(false);
             }
@@ -109,6 +116,28 @@ export default function DashboardPage() {
                 <div className="grid gap-6 lg:grid-cols-2">
                     <CardSkeleton />
                     <CardSkeleton />
+                </div>
+            </div>
+        );
+    }
+
+    if (error) {
+        return (
+            <div className="flex min-h-[400px] items-center justify-center">
+                <div className="rounded-lg border border-red-200 bg-red-50 p-6 dark:border-red-800 dark:bg-red-900/10">
+                    <div className="flex items-center gap-3">
+                        <AlertCircle className="h-5 w-5 text-red-600 dark:text-red-400" />
+                        <div>
+                            <h3 className="font-semibold text-red-900 dark:text-red-200">Error Loading Dashboard</h3>
+                            <p className="mt-1 text-sm text-red-700 dark:text-red-300">{error}</p>
+                            <button
+                                onClick={() => window.location.reload()}
+                                className="mt-3 text-sm font-medium text-red-600 hover:text-red-700 dark:text-red-400 dark:hover:text-red-300"
+                            >
+                                Try again
+                            </button>
+                        </div>
+                    </div>
                 </div>
             </div>
         );
