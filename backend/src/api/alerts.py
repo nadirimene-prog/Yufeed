@@ -75,8 +75,11 @@ def list_alerts(
     List alerts with filtering options.
 
     Supports pagination and multiple filter criteria for alert triage.
+    Uses eager loading to prevent N+1 queries when accessing related transactions.
     """
-    query = db.query(Alert)
+    query = db.query(Alert).options(
+        joinedload(Alert.transaction)
+    )
 
     # Apply filters
     if status:
@@ -122,8 +125,11 @@ def list_pending_alerts(
     Get all pending alerts that need triage.
 
     Ordered by priority and creation date.
+    Uses eager loading to prevent N+1 queries.
     """
-    alerts = db.query(Alert).filter(
+    alerts = db.query(Alert).options(
+        joinedload(Alert.transaction)
+    ).filter(
         Alert.status == 'pending'
     ).order_by(
         Alert.priority.asc(),
@@ -143,8 +149,11 @@ def list_critical_alerts(
     Get all critical severity alerts.
 
     Requires immediate attention.
+    Uses eager loading to prevent N+1 queries.
     """
-    alerts = db.query(Alert).filter(
+    alerts = db.query(Alert).options(
+        joinedload(Alert.transaction)
+    ).filter(
         Alert.severity == 'critical'
     ).order_by(
         Alert.created_at.desc()
@@ -357,8 +366,12 @@ def list_sar_filed_alerts(
 ):
     """
     Get all alerts that resulted in SAR filings.
+
+    Uses eager loading to prevent N+1 queries.
     """
-    alerts = db.query(Alert).filter(
+    alerts = db.query(Alert).options(
+        joinedload(Alert.transaction)
+    ).filter(
         Alert.sar_filed == True
     ).order_by(
         Alert.sar_filed_at.desc()

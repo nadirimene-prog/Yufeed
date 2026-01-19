@@ -323,6 +323,8 @@ def get_case_alerts(
 ):
     """
     Get all alerts related to a case.
+
+    Uses eager loading to prevent N+1 queries when accessing transactions.
     """
     case = db.query(Case).filter(Case.case_id == case_id).first()
 
@@ -332,7 +334,9 @@ def get_case_alerts(
     if not case.related_alert_ids:
         return []
 
-    alerts = db.query(Alert).filter(
+    alerts = db.query(Alert).options(
+        joinedload(Alert.transaction)
+    ).filter(
         Alert.id.in_(case.related_alert_ids)
     ).all()
 
@@ -346,6 +350,8 @@ def get_case_transactions(
 ):
     """
     Get all transactions related to a case.
+
+    Uses eager loading to prevent N+1 queries when accessing alerts.
     """
     case = db.query(Case).filter(Case.case_id == case_id).first()
 
@@ -355,7 +361,9 @@ def get_case_transactions(
     if not case.related_transaction_ids:
         return []
 
-    transactions = db.query(Transaction).filter(
+    transactions = db.query(Transaction).options(
+        joinedload(Transaction.alerts)
+    ).filter(
         Transaction.id.in_(case.related_transaction_ids)
     ).all()
 

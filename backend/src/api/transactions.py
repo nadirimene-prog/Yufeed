@@ -142,8 +142,11 @@ def list_transactions(
     List transactions with filtering options.
 
     Supports pagination and multiple filter criteria.
+    Uses eager loading to prevent N+1 queries when accessing alerts.
     """
-    query = db.query(Transaction)
+    query = db.query(Transaction).options(
+        joinedload(Transaction.alerts)
+    )
 
     # Apply filters
     if user_id:
@@ -184,8 +187,14 @@ def get_transaction(
     transaction_id: str,
     db: Session = Depends(get_db)
 ):
-    """Get a single transaction by ID."""
-    transaction = db.query(Transaction).filter(
+    """
+    Get a single transaction by ID.
+
+    Uses eager loading to prevent N+1 queries when accessing alerts.
+    """
+    transaction = db.query(Transaction).options(
+        joinedload(Transaction.alerts)
+    ).filter(
         Transaction.transaction_id == transaction_id
     ).first()
 
@@ -249,10 +258,14 @@ def get_user_transaction_history(
 ):
     """
     Get transaction history for a specific user.
+
+    Uses eager loading to prevent N+1 queries when accessing alerts.
     """
     start_date = datetime.utcnow() - timedelta(days=days)
 
-    transactions = db.query(Transaction).filter(
+    transactions = db.query(Transaction).options(
+        joinedload(Transaction.alerts)
+    ).filter(
         and_(
             Transaction.user_id == user_id,
             Transaction.timestamp >= start_date
@@ -270,8 +283,12 @@ def get_user_alerts(
 ):
     """
     Get all alerts for a specific user.
+
+    Uses eager loading to prevent N+1 queries when accessing transactions.
     """
-    query = db.query(Alert).filter(Alert.user_id == user_id)
+    query = db.query(Alert).options(
+        joinedload(Alert.transaction)
+    ).filter(Alert.user_id == user_id)
 
     if status:
         query = query.filter(Alert.status == status)
