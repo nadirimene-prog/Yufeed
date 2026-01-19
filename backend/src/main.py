@@ -2,9 +2,12 @@ from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.middleware.trustedhost import TrustedHostMiddleware
 from fastapi.responses import Response
+from slowapi.errors import RateLimitExceeded
 import os
 import logging
 from typing import List
+
+from src.middleware import limiter, custom_rate_limit_handler, configure_redis_storage
 
 logger = logging.getLogger(__name__)
 
@@ -13,6 +16,12 @@ app = FastAPI(
     docs_url="/api/docs",
     redoc_url="/api/redoc"
 )
+
+# Add rate limiter state to app
+app.state.limiter = limiter
+
+# Add rate limit exceeded exception handler
+app.add_exception_handler(RateLimitExceeded, custom_rate_limit_handler)
 
 
 def validate_origins(origins_str: str) -> List[str]:
@@ -169,15 +178,27 @@ def health_check():
 def startup_event():
     from src.database import engine, Base
     from src.search import init_indices
-    
+    from src.config import settings
+
     # Create tables
     Base.metadata.create_all(bind=engine)
-    
+
     # Init search
     try:
         init_indices()
     except Exception as e:
         print(f"Warning: OpenSearch init failed: {e}")
+
+    # Configure rate limiter with Redis (if available)
+    try:
+        redis_url = getattr(settings, "REDIS_URL", None)
+        if redis_url:
+            configure_redis_storage(redis_url)
+            logger.info("Rate limiter configured with Redis backend")
+        else:
+            logger.warning("Redis URL not configured, using in-memory rate limiting")
+    except Exception as e:
+        logger.warning(f"Failed to configure Redis for rate limiting: {e}. Using in-memory storage.")
 
 from src.api.auth import router as auth_router
 from src.api.endpoints import router as api_router

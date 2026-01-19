@@ -17,6 +17,9 @@ python-multipart
 python-jose[cryptography]
 passlib[bcrypt]
 
+# Rate Limiting
+slowapi
+
 celery
 anthropic==0.40.0
 python-dateutil==2.8.2

@@ -7,15 +7,12 @@ Uses python-jose for JWT encoding/decoding.
 from datetime import datetime, timedelta
 from typing import Optional, Dict, Any
 from jose import JWTError, jwt
-from passlib.context import CryptContext
+import bcrypt
 import logging
 
 from src.config import settings
 
 logger = logging.getLogger(__name__)
-
-# Password hashing configuration
-pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 
 # JWT Configuration
 SECRET_KEY = getattr(settings, "SECRET_KEY", "your-secret-key-change-in-production")
@@ -141,8 +138,16 @@ class PasswordHandler:
 
         Returns:
             Hashed password string
+
+        Note:
+            Bcrypt has a maximum password length of 72 bytes.
+            Longer passwords will be truncated.
         """
-        return pwd_context.hash(password)
+        # Convert to bytes and hash
+        password_bytes = password.encode('utf-8')
+        salt = bcrypt.gensalt(rounds=12)
+        hashed = bcrypt.hashpw(password_bytes, salt)
+        return hashed.decode('utf-8')
 
     @staticmethod
     def verify_password(plain_password: str, hashed_password: str) -> bool:
@@ -156,7 +161,9 @@ class PasswordHandler:
         Returns:
             True if password matches, False otherwise
         """
-        return pwd_context.verify(plain_password, hashed_password)
+        password_bytes = plain_password.encode('utf-8')
+        hashed_bytes = hashed_password.encode('utf-8')
+        return bcrypt.checkpw(password_bytes, hashed_bytes)
 
 
 def create_token_response(user_id: str, email: str, role: str = "user") -> Dict[str, str]:

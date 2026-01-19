@@ -3,7 +3,7 @@ Authentication API Endpoints
 
 Handles user login, token refresh, and user registration.
 """
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, status, Request
 from fastapi.security import OAuth2PasswordRequestForm
 from pydantic import BaseModel, EmailStr
 from sqlalchemy.orm import Session
@@ -17,6 +17,7 @@ from src.auth.jwt_handler import (
     create_token_response
 )
 from src.auth.dependencies import get_current_user, CurrentUser
+from src.middleware import limiter, RateLimits
 
 logger = logging.getLogger(__name__)
 
@@ -58,7 +59,9 @@ class UserProfile(BaseModel):
 
 
 @router.post("/register", response_model=TokenResponse, status_code=status.HTTP_201_CREATED)
+@limiter.limit(RateLimits.AUTH_REGISTER)
 def register(
+    request: Request,
     user_data: UserRegister,
     db: Session = Depends(get_db)
 ):
@@ -99,7 +102,9 @@ def register(
 
 
 @router.post("/login", response_model=TokenResponse)
+@limiter.limit(RateLimits.AUTH_LOGIN)
 def login(
+    request: Request,
     login_data: UserLogin,
     db: Session = Depends(get_db)
 ):
@@ -146,7 +151,9 @@ def login(
 
 
 @router.post("/token", response_model=TokenResponse)
+@limiter.limit(RateLimits.AUTH_LOGIN)
 def login_oauth(
+    request: Request,
     form_data: OAuth2PasswordRequestForm = Depends(),
     db: Session = Depends(get_db)
 ):
@@ -161,11 +168,13 @@ def login_oauth(
         password=form_data.password
     )
 
-    return login(login_data, db)
+    return login(request, login_data, db)
 
 
 @router.post("/refresh", response_model=TokenResponse)
+@limiter.limit(RateLimits.AUTH_REFRESH)
 def refresh_token(
+    request: Request,
     refresh_data: TokenRefresh,
     db: Session = Depends(get_db)
 ):
@@ -218,7 +227,9 @@ def refresh_token(
 
 
 @router.get("/me", response_model=UserProfile)
+@limiter.limit(RateLimits.READ)
 def get_current_user_profile(
+    request: Request,
     current_user: CurrentUser = Depends(get_current_user)
 ):
     """
@@ -240,7 +251,9 @@ def get_current_user_profile(
 
 
 @router.post("/logout")
+@limiter.limit(RateLimits.UPDATE)
 def logout(
+    request: Request,
     current_user: CurrentUser = Depends(get_current_user)
 ):
     """
