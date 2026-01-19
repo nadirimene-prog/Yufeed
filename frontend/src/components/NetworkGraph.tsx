@@ -7,6 +7,35 @@ import { motion } from 'framer-motion';
 // Dynamically import ForceGraph2D to avoid SSR issues
 const ForceGraph2D = dynamic(() => import('react-force-graph-2d'), { ssr: false });
 
+interface GraphNode {
+  id: string;
+  name: string;
+  val: number;
+  color: string;
+  type: string;
+  transaction_count: number;
+  total_amount: number;
+  risk_score?: number;
+}
+
+interface GraphLink {
+  source: string;
+  target: string;
+  value: number;
+  transaction_count: number;
+  total_amount: number;
+}
+
+interface GraphData {
+  nodes: GraphNode[];
+  links: GraphLink[];
+}
+
+interface ForceGraphInstance {
+  zoom: (zoom: number, duration?: number) => void;
+  zoomToFit: (duration?: number, padding?: number) => void;
+}
+
 interface NetworkGraphProps {
   nodes: Array<{
     id: string;
@@ -24,8 +53,8 @@ interface NetworkGraphProps {
 }
 
 export default function NetworkGraph({ nodes, edges }: NetworkGraphProps) {
-  const [graphData, setGraphData] = useState<any>(null);
-  const fgRef = useRef<any>(null);
+  const [graphData, setGraphData] = useState<GraphData | null>(null);
+  const fgRef = useRef<ForceGraphInstance | null>(null);
 
   useEffect(() => {
     if (!nodes || !edges) return;
@@ -74,7 +103,7 @@ export default function NetworkGraph({ nodes, edges }: NetworkGraphProps) {
       <ForceGraph2D
         ref={fgRef}
         graphData={graphData}
-        nodeLabel={(node: any) => `
+        nodeLabel={(node: GraphNode) => `
           <div style="padding: 8px; background: rgba(0,0,0,0.8); color: white; border-radius: 4px; font-size: 12px;">
             <strong>${node.id}</strong><br/>
             Transactions: ${node.transaction_count}<br/>
@@ -82,7 +111,7 @@ export default function NetworkGraph({ nodes, edges }: NetworkGraphProps) {
             ${node.risk_score ? `Risk: ${node.risk_score.toFixed(0)}` : ''}
           </div>
         `}
-        linkLabel={(link: any) => `
+        linkLabel={(link: GraphLink) => `
           <div style="padding: 8px; background: rgba(0,0,0,0.8); color: white; border-radius: 4px; font-size: 12px;">
             ${link.source.id} → ${link.target.id}<br/>
             Transactions: ${link.transaction_count}<br/>
@@ -90,7 +119,7 @@ export default function NetworkGraph({ nodes, edges }: NetworkGraphProps) {
           </div>
         `}
         nodeRelSize={6}
-        nodeCanvasObject={(node: any, ctx, globalScale) => {
+        nodeCanvasObject={(node: GraphNode, ctx: CanvasRenderingContext2D, globalScale: number) => {
           const label = node.id;
           const fontSize = 12 / globalScale;
           ctx.font = `${fontSize}px Sans-Serif`;
@@ -119,14 +148,14 @@ export default function NetworkGraph({ nodes, edges }: NetworkGraphProps) {
           ctx.fillText(label, node.x, node.y + 8 + bckgDimensions[1] / 2);
         }}
         linkColor={() => '#6b7280'}
-        linkWidth={(link: any) => Math.sqrt(link.value)}
+        linkWidth={(link: GraphLink) => Math.sqrt(link.value)}
         linkDirectionalArrowLength={3}
         linkDirectionalArrowRelPos={1}
         linkCurvature={0.25}
         d3AlphaDecay={0.02}
         d3VelocityDecay={0.3}
         cooldownTicks={100}
-        onNodeClick={(node: any) => {
+        onNodeClick={(node: GraphNode) => {
           // Node click handler removed during cleanup
         }}
       />

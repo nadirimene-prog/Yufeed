@@ -33,8 +33,9 @@ export default function ImpactAssessmentComponent({ celex }: ImpactAssessmentPro
             const data = await getImpactAssessment(celex);
             setAssessment(data);
             setError(null);
-        } catch (err: any) {
-            if (err.response?.status === 404) {
+        } catch (err: unknown) {
+            const error = err as { response?: { status?: number } };
+            if (error.response?.status === 404) {
                 setError("not_found");
             } else {
                 setError("error");
@@ -56,7 +57,7 @@ export default function ImpactAssessmentComponent({ celex }: ImpactAssessmentPro
         }
     };
 
-    const handleUpdateAction = async (actionId: number, updates: any) => {
+    const handleUpdateAction = async (actionId: number, updates: Partial<{ status: string; notes: string }>) => {
         try {
             await updateActionItem(actionId, updates);
             await loadAssessment();
@@ -269,7 +270,14 @@ export default function ImpactAssessmentComponent({ celex }: ImpactAssessmentPro
     );
 }
 
-function MetricCard({ icon, label, value, color }: any) {
+interface MetricCardProps {
+    icon: React.ReactNode;
+    label: string;
+    value: string | number;
+    color: 'blue' | 'purple' | 'orange' | 'green';
+}
+
+function MetricCard({ icon, label, value, color }: MetricCardProps) {
     const colors = {
         blue: "bg-blue-50 dark:bg-blue-900/20 text-blue-600",
         purple: "bg-purple-50 dark:bg-purple-900/20 text-purple-600",
@@ -288,7 +296,13 @@ function MetricCard({ icon, label, value, color }: any) {
     );
 }
 
-function RequirementCard({ icon, label, required }: any) {
+interface RequirementCardProps {
+    icon: React.ReactNode;
+    label: string;
+    required: boolean;
+}
+
+function RequirementCard({ icon, label, required }: RequirementCardProps) {
     return (
         <div className={`rounded-lg p-4 border-2 ${required ? 'border-orange-300 bg-orange-50 dark:bg-orange-900/20' : 'border-gray-200 bg-gray-50 dark:bg-gray-900/20'}`}>
             <div className="flex items-center gap-2">
@@ -306,7 +320,23 @@ function RequirementCard({ icon, label, required }: any) {
     );
 }
 
-function ActionItemCard({ action, onUpdate, statusIcon }: any) {
+interface ActionItem {
+    id: number;
+    title: string;
+    priority: 1 | 2 | 3 | 4 | 5;
+    status: string;
+    deadline: string;
+    responsible_party?: string;
+    description?: string;
+}
+
+interface ActionItemCardProps {
+    action: ActionItem;
+    onUpdate: (actionId: number, updates: Partial<{ status: string; notes: string }>) => void;
+    statusIcon: React.ReactNode;
+}
+
+function ActionItemCard({ action, onUpdate, statusIcon }: ActionItemCardProps) {
     const priorityColors = {
         1: "border-l-red-500 bg-red-50/50 dark:bg-red-900/10",
         2: "border-l-orange-500 bg-orange-50/50 dark:bg-orange-900/10",

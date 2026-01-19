@@ -6,8 +6,25 @@ import { FileText, Clock, Link as LinkIcon, Download, Eye, Brain, Target } from 
 import { RiskBadge, ComplianceDomainBadge } from "./compliance-badges";
 import ImpactAssessmentComponent from "./impact-assessment";
 
+interface EUDocument {
+    celex: string;
+    eli?: string;
+    publication_date?: string;
+    entry_into_force_date?: string;
+    status?: string;
+    type?: string;
+    jurisdictional_scope?: string;
+    last_modified?: string;
+    analyzed_at?: string;
+    compliance_domain?: string;
+    risk_level?: string;
+    ai_summary?: string;
+    implementation_deadline?: string;
+    obligations_json?: Record<string, string | number | boolean>;
+}
+
 interface DocTabsProps {
-    document: any;
+    document: EUDocument;
     celex: string;
 }
 
