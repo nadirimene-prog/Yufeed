@@ -1,7 +1,11 @@
 import operator
+import re
+import logging
 from typing import Any, Dict, List, Optional, Union
 from datetime import datetime, timedelta
 from decimal import Decimal
+
+logger = logging.getLogger(__name__)
 
 class RuleEngine:
     """
@@ -79,8 +83,7 @@ class RuleEngine:
         try:
             return cls.evaluate_condition(rule_conditions, transaction_data)
         except Exception as e:
-            # In production, log this error
-            print(f"Rule evaluation error: {e}")
+            logger.error(f"Rule evaluation error: {e}", exc_info=True)
             return False
 
 # Example usage/test placeholder
