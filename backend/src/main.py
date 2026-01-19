@@ -1,7 +1,12 @@
 from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.middleware.trustedhost import TrustedHostMiddleware
 from fastapi.responses import Response
 import os
+import logging
+from typing import List
+
+logger = logging.getLogger(__name__)
 
 app = FastAPI(
     title="EU Legal Monitoring MVP",
@@ -9,13 +14,75 @@ app = FastAPI(
     redoc_url="/api/redoc"
 )
 
-# Get allowed origins from environment or use defaults
-ALLOWED_ORIGINS = os.getenv(
-    "ALLOWED_ORIGINS",
-    "http://localhost:3000,http://127.0.0.1:3000"
-).split(",")
 
-# Add CORS middleware to allow frontend access
+def validate_origins(origins_str: str) -> List[str]:
+    """
+    Validate and sanitize CORS origins from environment variable.
+
+    Args:
+        origins_str: Comma-separated list of allowed origins
+
+    Returns:
+        List of validated origin URLs
+
+    Raises:
+        ValueError: If invalid origin format detected in production
+    """
+    origins = [origin.strip() for origin in origins_str.split(",") if origin.strip()]
+    validated_origins = []
+
+    for origin in origins:
+        # Check for valid URL format
+        if not origin.startswith(("http://", "https://")):
+            logger.warning(f"Invalid origin format (missing scheme): {origin}")
+            continue
+
+        # In production, reject wildcards
+        if "*" in origin and os.getenv("ENVIRONMENT", "development") == "production":
+            logger.error(f"Wildcard origins not allowed in production: {origin}")
+            raise ValueError(
+                "Wildcard CORS origins are not allowed in production environment"
+            )
+
+        # Reject suspicious patterns
+        if origin.count("://") > 1:
+            logger.warning(f"Suspicious origin format (multiple schemes): {origin}")
+            continue
+
+        # Validate localhost only in development
+        if "localhost" in origin or "127.0.0.1" in origin:
+            if os.getenv("ENVIRONMENT", "development") == "production":
+                logger.warning(f"Localhost origin rejected in production: {origin}")
+                continue
+
+        validated_origins.append(origin)
+        logger.info(f"CORS origin allowed: {origin}")
+
+    if not validated_origins:
+        # Fallback to safe defaults for development
+        default_origins = ["http://localhost:3000", "http://127.0.0.1:3000"]
+        logger.warning(
+            f"No valid origins configured, using defaults: {default_origins}"
+        )
+        return default_origins
+
+    return validated_origins
+
+
+# Get and validate allowed origins
+try:
+    ALLOWED_ORIGINS = validate_origins(
+        os.getenv("ALLOWED_ORIGINS", "http://localhost:3000,http://127.0.0.1:3000")
+    )
+except ValueError as e:
+    logger.critical(f"CORS configuration error: {e}")
+    # In production, fail fast with invalid CORS config
+    if os.getenv("ENVIRONMENT") == "production":
+        raise
+    # In development, use safe defaults
+    ALLOWED_ORIGINS = ["http://localhost:3000"]
+
+# Add CORS middleware with validated origins
 app.add_middleware(
     CORSMiddleware,
     allow_origins=ALLOWED_ORIGINS,
@@ -24,6 +91,35 @@ app.add_middleware(
     allow_headers=["Content-Type", "Authorization"],  # Explicit headers
     expose_headers=["X-Request-ID"],
 )
+
+
+# Request Size Limit Middleware (prevent DoS attacks)
+@app.middleware("http")
+async def limit_request_size(request: Request, call_next):
+    """
+    Limit request body size to prevent DoS attacks.
+
+    Maximum sizes:
+    - Default: 10MB for most requests
+    - File uploads: Should use streaming (not covered here)
+    """
+    max_size = int(os.getenv("MAX_REQUEST_SIZE", 10 * 1024 * 1024))  # 10MB default
+
+    content_length = request.headers.get("content-length")
+
+    if content_length:
+        content_length = int(content_length)
+        if content_length > max_size:
+            logger.warning(
+                f"Request size {content_length} bytes exceeds limit {max_size} bytes"
+            )
+            return Response(
+                content="Request body too large",
+                status_code=413,
+                headers={"Retry-After": "3600"}  # Suggest retry after 1 hour
+            )
+
+    return await call_next(request)
 
 
 # Security Headers Middleware
