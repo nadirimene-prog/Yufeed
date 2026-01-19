@@ -13,6 +13,10 @@ pydantic-settings
 jinja2
 python-multipart
 
+# Authentication
+python-jose[cryptography]
+passlib[bcrypt]
+
 celery
 anthropic==0.40.0
 python-dateutil==2.8.2

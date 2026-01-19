@@ -179,6 +179,7 @@ def startup_event():
     except Exception as e:
         print(f"Warning: OpenSearch init failed: {e}")
 
+from src.api.auth import router as auth_router
 from src.api.endpoints import router as api_router
 from src.api.compliance import router as compliance_router
 from src.api.impact import router as impact_router
@@ -195,6 +196,10 @@ from src.api.reporting import router as reporting_router
 from src.api.celex import router as celex_router
 from src.api.aml_officer import router as aml_officer_router
 
+# Register authentication routes first
+app.include_router(auth_router, prefix="/api")
+
+# Register other routes
 app.include_router(api_router)
 app.include_router(compliance_router)
 app.include_router(impact_router)
