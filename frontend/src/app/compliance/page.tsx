@@ -3,7 +3,7 @@
 import React, { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { ComplianceProfile } from '@/types/compliance';
-import RiskBadge from '@/components/compliance/RiskBadge';
+import { RiskBadge } from '@/components/ui/risk-badge';
 import StatusChip from '@/components/compliance/StatusChip';
 
 export default function ComplianceDashboard() {
