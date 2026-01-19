@@ -30,12 +30,12 @@ class Transaction(Base):
 
     # Geographic data
     ip_address = Column(String(45).with_variant(INET(), "postgresql"))
-    country_code = Column(String(2))
+    country_code = Column(String(2), index=True)  # Indexed for country-based filtering
     geo_location = Column(String(255))
 
     # Risk data
     risk_score = Column(Numeric(5, 2))
-    risk_level = Column(String(20))  # 'low', 'medium', 'high', 'critical'
+    risk_level = Column(String(20), index=True)  # Indexed for risk-based filtering
     risk_factors = Column(JSON().with_variant(JSONB(), "postgresql"))
 
     # Metadata
@@ -61,12 +61,12 @@ class Alert(Base):
     severity = Column(String(20), nullable=False)  # 'low', 'medium', 'high', 'critical'
 
     # Triggered by
-    transaction_id = Column(Integer, ForeignKey('transactions.id'), nullable=True)
+    transaction_id = Column(Integer, ForeignKey('transactions.id'), nullable=True, index=True)  # Indexed for joins
     user_id = Column(String(255), index=True)
-    
+
     # Status workflow
-    status = Column(String(50), default='pending')  # 'pending', 'in_review', 'escalated', 'resolved', 'false_positive'
-    assigned_to = Column(String(255))
+    status = Column(String(50), default='pending', index=True)  # Indexed for status filtering
+    assigned_to = Column(String(255), index=True)  # Indexed for assignment queries
     priority = Column(Integer, default=3)  # 1 (highest) to 5 (lowest)
 
     # Alert details
@@ -86,11 +86,11 @@ class Alert(Base):
     resolved_at = Column(DateTime)
 
     # SAR filing
-    sar_filed = Column(Boolean, default=False)
+    sar_filed = Column(Boolean, default=False, index=True)  # Indexed for SAR queries
     sar_id = Column(String(255))
     sar_filed_at = Column(DateTime)
 
-    created_at = Column(DateTime, default=datetime.utcnow)
+    created_at = Column(DateTime, default=datetime.utcnow, index=True)  # Indexed for date range queries
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
 
     # Relationships
@@ -109,11 +109,11 @@ class Case(Base):
     subject_id = Column(String(255), index=True)
 
     # Status
-    status = Column(String(50), default='open')  # 'open', 'in_progress', 'escalated', 'closed'
-    priority = Column(String(20), default='medium')  # 'low', 'medium', 'high', 'critical'
+    status = Column(String(50), default='open', index=True)  # Indexed for status filtering
+    priority = Column(String(20), default='medium', index=True)  # Indexed for priority sorting
 
     # Assignment
-    assigned_to = Column(String(255))
+    assigned_to = Column(String(255), index=True)  # Indexed for assignment queries
     team = Column(String(100))
 
     # Content
