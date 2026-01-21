@@ -505,3 +505,244 @@ def get_alert_regulatory_context(
         "alert_type": alert.alert_type,
         "severity": alert.severity
     }
+
+
+# ============================================================================
+# UNIFIED ALERT QUEUE
+# ============================================================================
+
+@router.get("/unified", response_model=dict)
+def get_unified_alerts(
+    group_by: Optional[str] = Query(None, enum=["customer", "type"]),
+    types: Optional[List[str]] = Query(None),
+    status: Optional[str] = None,
+    severity: Optional[str] = None,
+    customer_id: Optional[str] = None,
+    skip: int = Query(0, ge=0),
+    limit: int = Query(50, ge=1, le=200),
+    db: Session = Depends(get_db)
+):
+    """
+    Get unified alert queue with optional grouping.
+
+    Supports grouping by customer (for customer-centric investigation)
+    or by alert type (for categorical triage).
+
+    Returns:
+        - items: List of alerts (or grouped alerts)
+        - type_counts: Alert counts by type for filter tabs
+        - total: Total count matching filters
+    """
+    # Base query
+    query = db.query(Alert).options(joinedload(Alert.transaction))
+
+    # Apply filters
+    if types:
+        query = query.filter(Alert.alert_type.in_(types))
+    if status:
+        query = query.filter(Alert.status == status)
+    if severity:
+        query = query.filter(Alert.severity == severity)
+    if customer_id:
+        query = query.filter(Alert.user_id == customer_id)
+
+    # Get type counts (before pagination)
+    type_counts_query = db.query(
+        Alert.alert_type,
+        func.count(Alert.id).label('count')
+    ).filter(Alert.status.in_(['pending', 'in_review', 'escalated']))
+
+    if customer_id:
+        type_counts_query = type_counts_query.filter(Alert.user_id == customer_id)
+
+    type_counts = {row.alert_type: row.count for row in type_counts_query.group_by(Alert.alert_type).all()}
+
+    # Total count
+    total = query.count()
+
+    if group_by == "customer":
+        # Group alerts by customer
+        return _get_customer_grouped_alerts(query, skip, limit, type_counts, total, db)
+    elif group_by == "type":
+        # Group alerts by type
+        return _get_type_grouped_alerts(query, skip, limit, type_counts, total, db)
+    else:
+        # Chronological list
+        alerts = query.order_by(
+            Alert.priority.asc(),
+            Alert.created_at.desc()
+        ).offset(skip).limit(limit).all()
+
+        return {
+            "items": [_alert_to_dict(a) for a in alerts],
+            "type_counts": type_counts,
+            "total": total,
+            "skip": skip,
+            "limit": limit
+        }
+
+
+def _get_customer_grouped_alerts(query, skip: int, limit: int, type_counts: dict, total: int, db: Session):
+    """Group alerts by customer with risk context."""
+    from src.models.transaction_models import UserRiskProfile
+
+    # Get unique customer IDs with pending alerts
+    customer_subquery = query.with_entities(Alert.user_id).distinct()
+    customer_ids = [row[0] for row in customer_subquery.offset(skip).limit(limit).all()]
+
+    customer_groups = []
+    for user_id in customer_ids:
+        if not user_id:
+            continue
+
+        # Get customer alerts
+        customer_alerts = query.filter(Alert.user_id == user_id).order_by(
+            Alert.priority.asc(),
+            Alert.created_at.desc()
+        ).all()
+
+        # Get risk profile
+        risk_profile = db.query(UserRiskProfile).filter(
+            UserRiskProfile.user_id == user_id
+        ).first()
+
+        customer_groups.append({
+            "customer_id": user_id,
+            "customer_name": f"Customer {user_id[:8]}",  # Placeholder
+            "risk_level": risk_profile.risk_level if risk_profile else "unknown",
+            "risk_score": risk_profile.overall_risk_score if risk_profile else 0,
+            "alert_count": len(customer_alerts),
+            "critical_count": sum(1 for a in customer_alerts if a.severity == 'critical'),
+            "high_count": sum(1 for a in customer_alerts if a.severity == 'high'),
+            "alerts": [_alert_to_dict(a) for a in customer_alerts[:5]]  # First 5 alerts
+        })
+
+    # Sort by risk score descending
+    customer_groups.sort(key=lambda x: x['risk_score'], reverse=True)
+
+    return {
+        "customer_groups": customer_groups,
+        "type_counts": type_counts,
+        "total": total,
+        "total_customers": len(customer_groups),
+        "skip": skip,
+        "limit": limit
+    }
+
+
+def _get_type_grouped_alerts(query, skip: int, limit: int, type_counts: dict, total: int, db: Session):
+    """Group alerts by type."""
+    type_groups = {}
+
+    for alert_type, count in type_counts.items():
+        type_alerts = query.filter(Alert.alert_type == alert_type).order_by(
+            Alert.priority.asc(),
+            Alert.created_at.desc()
+        ).limit(10).all()
+
+        type_groups[alert_type] = {
+            "alert_type": alert_type,
+            "count": count,
+            "critical_count": sum(1 for a in type_alerts if a.severity == 'critical'),
+            "alerts": [_alert_to_dict(a) for a in type_alerts[:5]]
+        }
+
+    return {
+        "type_groups": type_groups,
+        "type_counts": type_counts,
+        "total": total,
+        "skip": skip,
+        "limit": limit
+    }
+
+
+def _alert_to_dict(alert: Alert) -> dict:
+    """Convert alert to dictionary with relevant fields."""
+    return {
+        "id": alert.id,
+        "alert_id": alert.alert_id,
+        "alert_type": alert.alert_type,
+        "severity": alert.severity,
+        "status": alert.status,
+        "priority": alert.priority,
+        "user_id": alert.user_id,
+        "description": alert.description,
+        "assigned_to": alert.assigned_to,
+        "created_at": alert.created_at.isoformat() if alert.created_at else None,
+        "updated_at": alert.updated_at.isoformat() if alert.updated_at else None,
+        "transaction_id": alert.transaction_id,
+        "sar_filed": alert.sar_filed,
+        "regulation_context": alert.regulation_context,
+        "ai_triage_score": getattr(alert, 'ai_triage_score', None),
+        "ai_recommendation": getattr(alert, 'ai_recommendation', None)
+    }
+
+
+# ============================================================================
+# BULK OPERATIONS
+# ============================================================================
+
+@router.post("/bulk/triage", response_model=dict)
+def bulk_triage_alerts(
+    alert_ids: List[str],
+    action: str,  # 'assign', 'escalate', 'resolve', 'false_positive'
+    assigned_to: Optional[str] = None,
+    resolution_notes: Optional[str] = None,
+    resolved_by: Optional[str] = None,
+    db: Session = Depends(get_db)
+):
+    """
+    Perform bulk operations on multiple alerts.
+
+    Actions:
+    - assign: Assign alerts to an analyst
+    - escalate: Escalate all alerts
+    - resolve: Resolve all alerts
+    - false_positive: Mark all as false positive
+    """
+    if not alert_ids:
+        raise HTTPException(status_code=400, detail="No alert IDs provided")
+
+    alerts = db.query(Alert).filter(Alert.alert_id.in_(alert_ids)).all()
+
+    if not alerts:
+        raise HTTPException(status_code=404, detail="No alerts found")
+
+    updated_count = 0
+    now = datetime.utcnow()
+
+    for alert in alerts:
+        if action == 'assign' and assigned_to:
+            alert.assigned_to = assigned_to
+            alert.status = 'in_review'
+            updated_count += 1
+
+        elif action == 'escalate':
+            alert.status = 'escalated'
+            alert.priority = max(1, alert.priority - 1)
+            updated_count += 1
+
+        elif action == 'resolve' and resolution_notes and resolved_by:
+            alert.status = 'resolved'
+            alert.resolution_notes = resolution_notes
+            alert.resolved_by = resolved_by
+            alert.resolved_at = now
+            updated_count += 1
+
+        elif action == 'false_positive' and resolved_by:
+            alert.status = 'false_positive'
+            alert.resolution_status = 'false_positive'
+            alert.resolved_by = resolved_by
+            alert.resolved_at = now
+            updated_count += 1
+
+        alert.updated_at = now
+
+    db.commit()
+
+    return {
+        "action": action,
+        "requested": len(alert_ids),
+        "updated": updated_count,
+        "alert_ids": [a.alert_id for a in alerts]
+    }
