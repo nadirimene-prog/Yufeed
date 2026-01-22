@@ -8,6 +8,7 @@ import logging
 from typing import List
 
 from src.middleware import limiter, custom_rate_limit_handler, configure_redis_storage
+from src.audit.middleware import audit_log_middleware
 
 logger = logging.getLogger(__name__)
 
@@ -170,6 +171,9 @@ async def add_security_headers(request: Request, call_next):
 
     return response
 
+# Audit logging middleware (append-only for mutations)
+app.middleware("http")(audit_log_middleware)
+
 @app.get("/health")
 def health_check():
     return {"status": "ok"}
@@ -216,6 +220,7 @@ from src.api.network_analysis import router as network_router
 from src.api.reporting import router as reporting_router
 from src.api.celex import router as celex_router
 from src.api.aml_officer import router as aml_officer_router
+from src.api.audit import router as audit_router
 
 # Register authentication routes first
 app.include_router(auth_router, prefix="/api")
@@ -236,3 +241,4 @@ app.include_router(network_router)
 app.include_router(reporting_router)
 app.include_router(celex_router)
 app.include_router(aml_officer_router)
+app.include_router(audit_router)

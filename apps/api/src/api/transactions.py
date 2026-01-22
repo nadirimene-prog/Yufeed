@@ -22,6 +22,7 @@ from src.schemas.transaction_schemas import (
     AlertResponse, UserRiskProfileResponse,
     TransactionStatistics
 )
+from src.audit.recorders import record_event
 
 router = APIRouter(prefix="/api/transactions", tags=["transactions"])
 
@@ -59,6 +60,21 @@ def ingest_transaction(
     # Create transaction record
     db_transaction = Transaction(**transaction.dict())
     db.add(db_transaction)
+
+    tx_type = (transaction.transaction_type or "").lower()
+    event_type = "txn_crypto" if "crypto" in tx_type or "onchain" in tx_type else "txn_fiat"
+    record_event(
+        db,
+        event_type=event_type,
+        entity_type="transaction",
+        entity_id=transaction.transaction_id,
+        payload={
+            "user_id": transaction.user_id,
+            "amount": float(transaction.amount),
+            "currency": transaction.currency,
+            "transaction_type": transaction.transaction_type,
+        },
+    )
     db.commit()
     db.refresh(db_transaction)
 
@@ -107,6 +123,24 @@ def ingest_transactions_batch(
     # Bulk insert
     db_transactions = [Transaction(**t.dict()) for t in new_transactions]
     db.bulk_save_objects(db_transactions, return_defaults=True)
+    db.commit()
+
+    # Record immutable events
+    for tx in new_transactions:
+        tx_type = (tx.transaction_type or "").lower()
+        event_type = "txn_crypto" if "crypto" in tx_type or "onchain" in tx_type else "txn_fiat"
+        record_event(
+            db,
+            event_type=event_type,
+            entity_type="transaction",
+            entity_id=tx.transaction_id,
+            payload={
+                "user_id": tx.user_id,
+                "amount": float(tx.amount),
+                "currency": tx.currency,
+                "transaction_type": tx.transaction_type,
+            },
+        )
     db.commit()
 
     # Trigger background processing for each transaction
@@ -240,6 +274,13 @@ def update_transaction(
         setattr(transaction, field, value)
 
     transaction.updated_at = datetime.utcnow()
+    record_event(
+        db,
+        event_type="transaction.updated",
+        entity_type="transaction",
+        entity_id=transaction.transaction_id,
+        payload={"changes": update_dict},
+    )
     db.commit()
     db.refresh(transaction)
 

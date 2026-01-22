@@ -15,6 +15,7 @@ from src.models.models import LegalDocument
 from src.schemas.transaction_schemas import (
     CaseCreate, CaseUpdate, CaseResponse
 )
+from src.audit.recorders import record_event, record_decision
 
 router = APIRouter(prefix="/api/cases", tags=["cases"])
 
@@ -47,6 +48,17 @@ def create_case(
     )
 
     db.add(db_case)
+    record_event(
+        db,
+        event_type="case.created",
+        entity_type="case",
+        entity_id=case_id,
+        payload={
+            "case_type": case.case_type,
+            "subject_type": case.subject_type,
+            "subject_id": case.subject_id,
+        },
+    )
     db.commit()
     db.refresh(db_case)
 
@@ -108,6 +120,21 @@ Initial Evidence:
     # Update alert
     alert.status = 'in_review'
 
+    record_event(
+        db,
+        event_type="case.created",
+        entity_type="case",
+        entity_id=case_id,
+        source="alert",
+        payload={"alert_id": alert.alert_id, "user_id": alert.user_id},
+    )
+    record_event(
+        db,
+        event_type="alert.updated",
+        entity_type="alert",
+        entity_id=alert.alert_id,
+        payload={"status": "in_review"},
+    )
     db.commit()
     db.refresh(db_case)
 
@@ -190,6 +217,13 @@ def update_case(
         setattr(case, field, value)
 
     case.updated_at = datetime.utcnow()
+    record_event(
+        db,
+        event_type="case.updated",
+        entity_type="case",
+        entity_id=case.case_id,
+        payload={"changes": update_dict},
+    )
     db.commit()
     db.refresh(case)
 
@@ -224,6 +258,13 @@ def assign_case(
         case.status = 'in_progress'
 
     case.updated_at = datetime.utcnow()
+    record_event(
+        db,
+        event_type="case.assigned",
+        entity_type="case",
+        entity_id=case.case_id,
+        payload={"assigned_to": assigned_to, "team": team, "status": case.status},
+    )
     db.commit()
     db.refresh(case)
 
@@ -263,6 +304,13 @@ def escalate_case(
         case.summary = f"[ESCALATED] {escalation_notes}"
 
     case.updated_at = datetime.utcnow()
+    record_event(
+        db,
+        event_type="case.escalated",
+        entity_type="case",
+        entity_id=case.case_id,
+        payload={"priority": case.priority, "notes": escalation_notes},
+    )
     db.commit()
     db.refresh(case)
 
@@ -301,6 +349,19 @@ def close_case(
     case.closed_at = datetime.utcnow()
     case.updated_at = datetime.utcnow()
 
+    event_record = record_event(
+        db,
+        event_type="case.closed",
+        entity_type="case",
+        entity_id=case.case_id,
+        payload={"outcome": outcome, "notes": outcome_notes},
+    )
+    record_decision(
+        db,
+        decision=outcome,
+        event_id=event_record.event_id,
+        evidence={"outcome_notes": outcome_notes},
+    )
     db.commit()
     db.refresh(case)
 
@@ -448,6 +509,13 @@ def add_alert_to_case(
     alert.status = 'in_review'
 
     case.updated_at = datetime.utcnow()
+    record_event(
+        db,
+        event_type="case.alert_added",
+        entity_type="case",
+        entity_id=case.case_id,
+        payload={"alert_id": alert.alert_id},
+    )
     db.commit()
 
     return {
@@ -478,6 +546,13 @@ def add_evidence(
     case.evidence[evidence_key] = evidence_value
     case.updated_at = datetime.utcnow()
 
+    record_event(
+        db,
+        event_type="case.evidence_added",
+        entity_type="case",
+        entity_id=case.case_id,
+        payload={"evidence_key": evidence_key},
+    )
     db.commit()
 
     return {

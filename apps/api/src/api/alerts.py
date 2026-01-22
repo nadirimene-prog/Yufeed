@@ -15,6 +15,7 @@ from src.schemas.transaction_schemas import (
     AlertCreate, AlertUpdate, AlertResponse,
     AlertStatistics
 )
+from src.audit.recorders import record_event, record_decision
 
 router = APIRouter(prefix="/api/alerts", tags=["alerts"])
 
@@ -51,6 +52,24 @@ def create_alert(
     )
 
     db.add(db_alert)
+    event_record = record_event(
+        db,
+        event_type="alert.created",
+        entity_type="alert",
+        entity_id=alert_id,
+        payload={
+            "alert_type": alert.alert_type,
+            "severity": alert.severity,
+            "user_id": alert.user_id,
+            "transaction_id": alert.transaction_id,
+        },
+    )
+    record_decision(
+        db,
+        decision="alert",
+        event_id=event_record.event_id,
+        evidence=alert.evidence,
+    )
     db.commit()
     db.refresh(db_alert)
 
@@ -196,6 +215,13 @@ def update_alert(
         setattr(alert, field, value)
 
     alert.updated_at = datetime.utcnow()
+    record_event(
+        db,
+        event_type="alert.updated",
+        entity_type="alert",
+        entity_id=alert.alert_id,
+        payload={"changes": update_dict},
+    )
     db.commit()
     db.refresh(alert)
 
@@ -224,6 +250,13 @@ def assign_alert(
     alert.status = 'in_review'
     alert.updated_at = datetime.utcnow()
 
+    record_event(
+        db,
+        event_type="alert.assigned",
+        entity_type="alert",
+        entity_id=alert.alert_id,
+        payload={"assigned_to": assigned_to},
+    )
     db.commit()
     db.refresh(alert)
 
@@ -255,6 +288,13 @@ def escalate_alert(
 
     alert.updated_at = datetime.utcnow()
 
+    record_event(
+        db,
+        event_type="alert.escalated",
+        entity_type="alert",
+        entity_id=alert.alert_id,
+        payload={"notes": escalation_notes},
+    )
     db.commit()
     db.refresh(alert)
 
@@ -286,6 +326,18 @@ def resolve_alert(
     alert.resolved_at = datetime.utcnow()
     alert.updated_at = datetime.utcnow()
 
+    record_event(
+        db,
+        event_type="alert.resolved",
+        entity_type="alert",
+        entity_id=alert.alert_id,
+        payload={"resolution_status": resolution_status, "resolved_by": resolved_by},
+    )
+    record_decision(
+        db,
+        decision=resolution_status,
+        evidence={"notes": resolution_notes},
+    )
     db.commit()
     db.refresh(alert)
 
@@ -316,6 +368,13 @@ def mark_false_positive(
     alert.resolved_at = datetime.utcnow()
     alert.updated_at = datetime.utcnow()
 
+    record_event(
+        db,
+        event_type="alert.false_positive",
+        entity_type="alert",
+        entity_id=alert.alert_id,
+        payload={"resolved_by": resolved_by},
+    )
     db.commit()
     db.refresh(alert)
 
@@ -352,6 +411,18 @@ def file_sar(
     alert.resolution_status = 'sar_filed'
     alert.updated_at = datetime.utcnow()
 
+    record_event(
+        db,
+        event_type="alert.sar_filed",
+        entity_type="alert",
+        entity_id=alert.alert_id,
+        payload={"sar_id": sar_id, "filed_by": filed_by},
+    )
+    record_decision(
+        db,
+        decision="sar_filed",
+        evidence={"sar_id": sar_id},
+    )
     db.commit()
     db.refresh(alert)
 
