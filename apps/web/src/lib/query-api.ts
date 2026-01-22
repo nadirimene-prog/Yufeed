@@ -1,9 +1,7 @@
 /**
  * API client for Natural Language Query features
  */
-import axios from 'axios';
-
-const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
+import apiClient from "./http";
 
 export interface SourceDocument {
     celex: string;
@@ -43,26 +41,26 @@ export interface QuerySuggestions {
 }
 
 export async function askQuestion(request: QueryRequest): Promise<QueryResponse> {
-    const response = await axios.post(`${API_URL}/query/ask`, request);
+    const response = await apiClient.post(`/query/ask`, request);
     return response.data;
 }
 
 export async function conversationTurn(request: ConversationRequest): Promise<QueryResponse> {
-    const response = await axios.post(`${API_URL}/query/conversation`, request);
+    const response = await apiClient.post(`/query/conversation`, request);
     return response.data;
 }
 
 export async function clearConversation(conversationId: string): Promise<void> {
-    await axios.delete(`${API_URL}/query/conversation/${conversationId}`);
+    await apiClient.delete(`/query/conversation/${conversationId}`);
 }
 
 export async function getQuerySuggestions(domain?: string): Promise<QuerySuggestions> {
     const params = domain ? `?domain=${domain}` : '';
-    const response = await axios.get(`${API_URL}/query/suggestions${params}`);
+    const response = await apiClient.get(`/query/suggestions${params}`);
     return response.data;
 }
 
 export async function queryHealthCheck(): Promise<{ status: string; ai_available: boolean; active_conversations: number }> {
-    const response = await axios.get(`${API_URL}/query/health`);
+    const response = await apiClient.get(`/query/health`);
     return response.data;
 }

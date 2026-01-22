@@ -3,7 +3,11 @@ import json
 import asyncio
 import logging
 from typing import Dict, Any, Optional
-from aiokafka import AIOKafkaProducer
+
+try:
+    from aiokafka import AIOKafkaProducer
+except Exception:  # pragma: no cover - optional dependency in dev
+    AIOKafkaProducer = None
 
 logger = logging.getLogger(__name__)
 
@@ -13,6 +17,8 @@ class EventBus:
         self.producer: AIOKafkaProducer | None = None
 
     async def start(self):
+        if AIOKafkaProducer is None:
+            raise RuntimeError("aiokafka is not installed. Install aiokafka or disable the event bus.")
         self.producer = AIOKafkaProducer(bootstrap_servers=self.bootstrap_servers)
         await self.producer.start()
 

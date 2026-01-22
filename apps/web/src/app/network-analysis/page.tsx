@@ -5,6 +5,7 @@ import { Network, Search, AlertTriangle, Users, Activity } from 'lucide-react';
 import { motion } from 'framer-motion';
 import toast from 'react-hot-toast';
 import dynamic from 'next/dynamic';
+import { fetchWithAuth } from '@/lib/auth';
 
 // Dynamically import NetworkGraph to avoid SSR issues
 const NetworkGraph = dynamic(() => import('@/components/NetworkGraph'), { ssr: false });
@@ -91,7 +92,7 @@ export default function NetworkAnalysisPage() {
     const toastId = toast.loading('Analyzing network...');
     setLoading(true);
     try {
-      const res = await fetch(
+      const res = await fetchWithAuth(
         `${API_URL}/api/network/analyze/${userId}?depth=${depth}&days=${days}`
       );
       const data = await res.json();
@@ -109,7 +110,7 @@ export default function NetworkAnalysisPage() {
     const toastId = toast.loading('Scanning for fraud rings...');
     setLoading(true);
     try {
-      const res = await fetch(`${API_URL}/api/network/fraud-rings/detect`);
+      const res = await fetchWithAuth(`${API_URL}/api/network/fraud-rings/detect`);
       const data = await res.json();
       setFraudRings(data.rings || []);
       toast.success(`Found ${data.rings?.length || 0} potential fraud rings`, { id: toastId });

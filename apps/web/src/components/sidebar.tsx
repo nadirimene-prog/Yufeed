@@ -1,28 +1,34 @@
 "use client";
 
 import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import {
     Scale, Search, List, Bell, Brain, FileText, Network,
-    Settings, LogOut, ChevronLeft, ChevronRight, LayoutDashboard, ShieldCheck
+    Settings, LogOut, ChevronLeft, ChevronRight, LayoutDashboard, ShieldCheck, Zap,
+    Route, Link2
 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { clearAuthTokens } from "@/lib/auth";
 import { useState } from "react";
 
 export default function Sidebar() {
     const pathname = usePathname();
+    const router = useRouter();
     const [collapsed, setCollapsed] = useState(false);
 
     const links = [
         { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
         { href: "/aml-officer", label: "AI Officer", icon: Brain, highlight: true },
         { href: "/compliance", label: "KYC/KYB", icon: ShieldCheck },
+        { href: "/decisioning", label: "Decisioning", icon: Zap },
         { href: "/search", label: "Search", icon: Search },
         { href: "/alerts", label: "Alerts", icon: Bell },
         { href: "/cases", label: "Cases", icon: FileText },
         { href: "/audit", label: "Audit Trail", icon: List },
         { href: "/network-analysis", label: "Network", icon: Network },
         { href: "/transaction-monitoring/dashboard", label: "Monitoring", icon: ShieldCheck },
+        { href: "/travel-rule", label: "Travel Rule", icon: Route },
+        { href: "/onchain-risk", label: "On-chain Risk", icon: Link2 },
     ];
 
     const toggleCollapse = () => setCollapsed(!collapsed);
@@ -42,7 +48,7 @@ export default function Sidebar() {
                     </div>
                     {!collapsed && (
                         <span className="font-bold text-lg text-sidebar-foreground tracking-tight">
-                            EU Monitor
+                            YuFeed Risk OS
                         </span>
                     )}
                 </Link>
@@ -96,6 +102,19 @@ export default function Sidebar() {
                         <Settings className="h-5 w-5" />
                         {!collapsed && <span>Settings</span>}
                     </Link>
+                    <button
+                        onClick={() => {
+                            clearAuthTokens();
+                            router.push("/login");
+                        }}
+                        className={cn(
+                            "mt-1 flex w-full items-center gap-3 px-3 py-2 text-sm font-medium text-sidebar-foreground/70 hover:bg-sidebar-accent/50 rounded-md transition-colors",
+                            collapsed && "justify-center px-2"
+                        )}
+                    >
+                        <LogOut className="h-5 w-5" />
+                        {!collapsed && <span>Logout</span>}
+                    </button>
                 </div>
             </div>
         </aside>

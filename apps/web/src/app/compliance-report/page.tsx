@@ -5,6 +5,7 @@ import { BarChart3, TrendingUp, AlertTriangle, FileText, Clock, CheckCircle, Dow
 import { BarChart, Bar, PieChart, Pie, Cell, LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
 import { motion } from 'framer-motion';
 import toast from 'react-hot-toast';
+import { fetchWithAuth } from '@/lib/auth';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
 
@@ -64,7 +65,7 @@ export default function ComplianceReportPage() {
         date_to: dateRange.to
       });
 
-      const res = await fetch(`${API_URL}/api/reporting/dashboard?${params}`);
+      const res = await fetchWithAuth(`${API_URL}/api/reporting/dashboard?${params}`);
       const data = await res.json();
       setMetrics(data);
       setLoading(false);
@@ -83,7 +84,7 @@ export default function ComplianceReportPage() {
         format: 'json'
       });
 
-      const res = await fetch(`${API_URL}/api/reporting/export?${params}`);
+      const res = await fetchWithAuth(`${API_URL}/api/reporting/export?${params}`);
       const data = await res.json();
 
       const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });

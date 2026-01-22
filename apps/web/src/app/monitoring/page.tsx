@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { AlertCircle, Clock, AlertTriangle, TrendingUp, Activity, Shield, CheckCircle, XCircle } from 'lucide-react';
+import { fetchWithAuth } from '@/lib/auth';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
 
@@ -56,17 +57,17 @@ export default function MonitoringDashboard() {
   const fetchData = async () => {
     try {
       // Fetch realtime metrics
-      const metricsRes = await fetch(`${API_URL}/api/monitoring/metrics/realtime`);
+      const metricsRes = await fetchWithAuth(`${API_URL}/api/monitoring/metrics/realtime`);
       const metricsData = await metricsRes.json();
       setMetrics(metricsData);
 
       // Fetch pending alerts
-      const alertsRes = await fetch(`${API_URL}/api/alerts/pending?limit=10`);
+      const alertsRes = await fetchWithAuth(`${API_URL}/api/alerts/pending?limit=10`);
       const alertsData = await alertsRes.json();
       setAlerts(alertsData);
 
       // Fetch recent transactions
-      const txRes = await fetch(`${API_URL}/api/transactions/?limit=10`);
+      const txRes = await fetchWithAuth(`${API_URL}/api/transactions/?limit=10`);
       const txData = await txRes.json();
       setRecentTransactions(txData);
 

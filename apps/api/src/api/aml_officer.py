@@ -21,12 +21,18 @@ from src.database import get_db
 from src.ai.orchestrator import get_aml_officer, AMLOfficer, WorkflowType
 from src.ai.agents.base import AgentContext, ActionRecommendation
 from src.integrations.sanctions import SanctionsService, SanctionsListType
+from src.auth.dependencies import require_any_role
+from src.utils.event_bus import publish_event_safe
 
 import logging
 
 logger = logging.getLogger(__name__)
 
-router = APIRouter(prefix="/aml-officer", tags=["AI AML Officer"])
+router = APIRouter(
+    prefix="/aml-officer",
+    tags=["AI AML Officer"],
+    dependencies=[Depends(require_any_role(["admin", "compliance", "analyst", "aml_officer"]))],
+)
 
 
 # =============================================================================
@@ -442,6 +448,19 @@ async def prepare_sar(
             related_transactions=request.related_transactions
         )
 
+        publish_event_safe(
+            "events.raw",
+            {
+                "event_type": "sar.draft.prepared",
+                "entity_type": "case",
+                "entity_id": str(request.case_id),
+                "source": "aml_officer",
+                "payload": {
+                    "case_id": request.case_id,
+                },
+            },
+        )
+
         return {
             "success": True,
             "sar_draft": sar_draft
@@ -516,6 +535,39 @@ async def screen_sanctions(
             additional_info=additional_info if additional_info else None
         )
 
+        publish_event_safe(
+            "events.raw",
+            {
+                "event_type": "sanctions.screened",
+                "entity_type": "counterparty",
+                "entity_id": request.name,
+                "source": "aml_officer",
+                "payload": {
+                    "screened_name": request.name,
+                    "is_hit": result.is_hit,
+                    "match_count": len(result.matches),
+                    "highest_score": result.highest_score,
+                    "lists_checked": [l.value for l in result.lists_checked],
+                },
+            },
+        )
+        if result.is_hit:
+            publish_event_safe(
+                "events.raw",
+                {
+                    "event_type": "sanctions.hit",
+                    "entity_type": "counterparty",
+                    "entity_id": request.name,
+                    "source": "aml_officer",
+                    "payload": {
+                        "screened_name": request.name,
+                        "match_count": len(result.matches),
+                        "highest_score": result.highest_score,
+                        "lists_checked": [l.value for l in result.lists_checked],
+                    },
+                },
+            )
+
         return SanctionsScreenResponse(
             screened_name=result.screened_name,
             screened_at=result.screened_at.isoformat(),
@@ -547,6 +599,20 @@ async def batch_screen_sanctions(
         results = await service.screen_batch(
             names=request.names,
             max_concurrent=request.max_concurrent
+        )
+
+        publish_event_safe(
+            "events.raw",
+            {
+                "event_type": "sanctions.batch.screened",
+                "entity_type": "counterparty",
+                "source": "aml_officer",
+                "payload": {
+                    "total_screened": len(request.names),
+                    "hits": sum(1 for r in results if r.is_hit),
+                    "clear": sum(1 for r in results if not r.is_hit),
+                },
+            },
         )
 
         return {

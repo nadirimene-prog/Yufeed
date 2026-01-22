@@ -54,6 +54,10 @@ def get_db():
         yield db
         # Commit if no exceptions occurred
         db.commit()
+    except HTTPException:
+        if db:
+            db.rollback()
+        raise
     except exc.OperationalError as e:
         # Database connection issues (DB down, network issues, etc.)
         logger.error(f"Database connection error: {e}", exc_info=True)

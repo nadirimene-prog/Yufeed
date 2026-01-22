@@ -21,7 +21,7 @@ class TransactionBase(BaseModel):
     transaction_type: Optional[str] = Field(None, max_length=50)
     counterparty_id: Optional[str] = Field(None, max_length=255)
     counterparty_name: Optional[str] = Field(None, max_length=500)
-    timestamp: datetime
+    timestamp: datetime = Field(default_factory=datetime.utcnow)
     status: str = Field(default='completed', max_length=50)
 
     # Geographic data
@@ -239,6 +239,96 @@ class MonitoringRuleResponse(MonitoringRuleBase):
 
     class Config:
         from_attributes = True
+
+
+# ============================================================================
+# RULE VERSIONING SCHEMAS
+# ============================================================================
+
+class RuleVersionCreate(BaseModel):
+    """Schema for creating a pending rule version."""
+    name: Optional[str] = None
+    description: Optional[str] = None
+    category: Optional[str] = None
+    severity: Optional[str] = None
+    enabled: Optional[bool] = None
+    conditions: Optional[Dict[str, Any]] = None
+    thresholds: Optional[Dict[str, Any]] = None
+    notes: Optional[str] = None
+
+
+class RuleVersionResponse(BaseModel):
+    """Schema for rule version response."""
+    id: int
+    rule_id: int
+    version_number: int
+    status: str
+    name: str
+    description: Optional[str] = None
+    category: Optional[str] = None
+    severity: str
+    priority: int
+    conditions: Dict[str, Any]
+    thresholds: Optional[Dict[str, Any]] = None
+    enabled: bool
+    created_by: Optional[str] = None
+    created_at: datetime
+    approved_by: Optional[str] = None
+    approved_at: Optional[datetime] = None
+    notes: Optional[str] = None
+
+    class Config:
+        from_attributes = True
+
+
+# ============================================================================
+# RULE SIMULATION & BACKTEST SCHEMAS
+# ============================================================================
+
+class RuleSimulationRequest(BaseModel):
+    """Schema for simulating a rule against a payload or transaction."""
+    transaction_id: Optional[int] = None
+    payload: Dict[str, Any] = Field(default_factory=dict)
+
+
+class RuleSimulationResponse(BaseModel):
+    """Schema for rule simulation response."""
+    rule_id: str
+    transaction_id: Optional[str] = None
+    would_trigger: bool
+    logic: str
+    condition_results: List[Dict[str, Any]]
+    evaluated_at: datetime
+
+
+class RuleBacktestRequest(BaseModel):
+    """Schema for rule backtest parameters."""
+    start_date: Optional[datetime] = None
+    end_date: Optional[datetime] = None
+    limit: int = Field(500, ge=1, le=5000)
+    sample_size: int = Field(5, ge=0, le=50)
+
+
+class RuleBacktestSample(BaseModel):
+    """Schema for backtest sample rows."""
+    transaction_id: str
+    amount: Decimal
+    currency: str
+    transaction_type: Optional[str] = None
+    country_code: Optional[str] = None
+    timestamp: datetime
+    would_trigger: bool
+
+
+class RuleBacktestResponse(BaseModel):
+    """Schema for rule backtest response."""
+    rule_id: str
+    total_transactions: int
+    matches: int
+    match_rate: float
+    evaluated_at: datetime
+    window: Dict[str, Optional[datetime]]
+    samples: List[RuleBacktestSample]
 
 
 # ============================================================================

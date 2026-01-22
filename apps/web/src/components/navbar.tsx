@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Scale, Search, List, Bell, Sparkles, Brain, Shield, FileText, Network } from "lucide-react";
+import { Scale, Search, List, Bell, Sparkles, Brain, Shield, FileText, Network, Zap } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 export default function Navbar() {
@@ -10,6 +10,7 @@ export default function Navbar() {
 
     const links = [
         { href: "/aml-officer", label: "AI Officer", icon: Brain, highlight: true },
+        { href: "/decisioning", label: "Decisioning", icon: Zap },
         { href: "/search", label: "Search", icon: Search },
         { href: "/alerts", label: "Alerts", icon: Bell },
         { href: "/cases", label: "Cases", icon: FileText },
@@ -23,7 +24,7 @@ export default function Navbar() {
                 <Link href="/" className="mr-8 flex items-center space-x-2">
                     <Scale className="h-6 w-6 text-blue-600 dark:text-blue-400" />
                     <span className="hidden font-bold sm:inline-block text-gray-900 dark:text-gray-100">
-                        EU Monitor
+                        YuFeed Risk OS
                     </span>
                 </Link>
                 <div className="flex items-center space-x-4">

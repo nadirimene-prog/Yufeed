@@ -20,6 +20,33 @@ You can start editing the page by modifying `app/page.tsx`. The page auto-update
 
 This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
 
+## Authentication (Frontend)
+
+The web app reads a bearer token from browser storage and attaches it to all API requests.
+
+Token storage keys (preferred): `access_token` (and optional `refresh_token`).
+
+Quick usage with the helper:
+
+```ts
+import { loginWithPassword, setAuthTokens, clearAuthTokens } from "@/lib/auth";
+
+// Login and persist tokens
+await loginWithPassword("user@example.com", "password123");
+
+// Or manually set tokens (e.g. if you already have them)
+setAuthTokens({
+  access_token: "<jwt>",
+  refresh_token: "<refresh>",
+  token_type: "bearer",
+});
+
+// Logout
+clearAuthTokens();
+```
+
+If you need to override the API base URL, set `NEXT_PUBLIC_API_URL`.
+
 ## Learn More
 
 To learn more about Next.js, take a look at the following resources:

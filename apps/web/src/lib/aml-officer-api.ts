@@ -10,9 +10,7 @@
  * - SAR preparation
  */
 
-import axios from "axios";
-
-const API_BASE = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
+import apiClient from "./http";
 
 // =============================================================================
 // TYPES
@@ -194,8 +192,8 @@ export const amlOfficerApi = {
   async investigateAlert(
     request: InvestigationRequest
   ): Promise<InvestigationResult> {
-    const response = await axios.post<InvestigationResult>(
-      `${API_BASE}/aml-officer/investigate`,
+    const response = await apiClient.post<InvestigationResult>(
+      `/aml-officer/investigate`,
       request
     );
     return response.data;
@@ -221,8 +219,8 @@ export const amlOfficerApi = {
       error_message?: string;
     }>;
   }> {
-    const response = await axios.post(
-      `${API_BASE}/aml-officer/investigate/batch`,
+    const response = await apiClient.post(
+      `/aml-officer/investigate/batch`,
       { alerts, max_concurrent: maxConcurrent }
     );
     return response.data;
@@ -236,8 +234,8 @@ export const amlOfficerApi = {
    * Get the daily compliance briefing
    */
   async getDailyBriefing(lookbackHours: number = 24): Promise<DailyBriefing> {
-    const response = await axios.get<DailyBriefing>(
-      `${API_BASE}/aml-officer/briefing/daily`,
+    const response = await apiClient.get<DailyBriefing>(
+      `/aml-officer/briefing/daily`,
       { params: { lookback_hours: lookbackHours } }
     );
     return response.data;
@@ -251,8 +249,8 @@ export const amlOfficerApi = {
    * Ask a compliance question
    */
   async askQuestion(request: ComplianceQuestion): Promise<ComplianceAnswer> {
-    const response = await axios.post<ComplianceAnswer>(
-      `${API_BASE}/aml-officer/ask`,
+    const response = await apiClient.post<ComplianceAnswer>(
+      `/aml-officer/ask`,
       request
     );
     return response.data;
@@ -269,7 +267,7 @@ export const amlOfficerApi = {
     count: number;
     alerts: ProactiveAlert[];
   }> {
-    const response = await axios.get(`${API_BASE}/aml-officer/alerts/proactive`);
+    const response = await apiClient.get(`/aml-officer/alerts/proactive`);
     return response.data;
   },
 
@@ -283,8 +281,8 @@ export const amlOfficerApi = {
   async screenSanctions(
     request: SanctionsScreenRequest
   ): Promise<SanctionsScreenResult> {
-    const response = await axios.post<SanctionsScreenResult>(
-      `${API_BASE}/aml-officer/sanctions/screen`,
+    const response = await apiClient.post<SanctionsScreenResult>(
+      `/aml-officer/sanctions/screen`,
       request
     );
     return response.data;
@@ -301,8 +299,8 @@ export const amlOfficerApi = {
     clear: number;
     results: SanctionsScreenResult[];
   }> {
-    const response = await axios.post(
-      `${API_BASE}/aml-officer/sanctions/screen/batch`,
+    const response = await apiClient.post(
+      `/aml-officer/sanctions/screen/batch`,
       request
     );
     return response.data;
@@ -317,8 +315,8 @@ export const amlOfficerApi = {
     last_updated: string;
     status: string;
   }> {
-    const response = await axios.get(
-      `${API_BASE}/aml-officer/sanctions/statistics`
+    const response = await apiClient.get(
+      `/aml-officer/sanctions/statistics`
     );
     return response.data;
   },
@@ -339,7 +337,7 @@ export const amlOfficerApi = {
     success: boolean;
     sar_draft: Record<string, unknown>;
   }> {
-    const response = await axios.post(`${API_BASE}/aml-officer/sar/prepare`, {
+    const response = await apiClient.post(`/aml-officer/sar/prepare`, {
       case_id: caseId,
       case_data: caseData,
       related_alerts: relatedAlerts,
@@ -359,7 +357,7 @@ export const amlOfficerApi = {
       description: string;
     }>;
   }> {
-    const response = await axios.get(`${API_BASE}/aml-officer/sar/templates`);
+    const response = await apiClient.get(`/aml-officer/sar/templates`);
     return response.data;
   },
 
@@ -375,7 +373,7 @@ export const amlOfficerApi = {
     components: Record<string, string>;
     timestamp: string;
   }> {
-    const response = await axios.get(`${API_BASE}/aml-officer/health`);
+    const response = await apiClient.get(`/aml-officer/health`);
     return response.data;
   },
 
@@ -383,8 +381,8 @@ export const amlOfficerApi = {
    * Get the capabilities of the AI AML Officer
    */
   async getCapabilities(): Promise<AMLOfficerCapabilities> {
-    const response = await axios.get<AMLOfficerCapabilities>(
-      `${API_BASE}/aml-officer/capabilities`
+    const response = await apiClient.get<AMLOfficerCapabilities>(
+      `/aml-officer/capabilities`
     );
     return response.data;
   },

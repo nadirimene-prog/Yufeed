@@ -6,6 +6,7 @@ import Link from 'next/link';
 import { ComplianceProfile } from '@/types/compliance';
 import { RiskBadge } from '@/components/ui/risk-badge';
 import StatusChip from '@/components/compliance/StatusChip';
+import { fetchWithAuth } from '@/lib/auth';
 
 export default function CaseDetailPage() {
     const params = useParams();
@@ -18,7 +19,7 @@ export default function CaseDetailPage() {
         const fetchCase = async () => {
             try {
                 const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
-                const res = await fetch(`${apiUrl}/compliance/cases/${params.id}`);
+                const res = await fetchWithAuth(`${apiUrl}/compliance/cases/${params.id}`);
                 if (res.ok) {
                     const data = await res.json();
                     setCaseDetails(data);
@@ -41,7 +42,7 @@ export default function CaseDetailPage() {
         setReviewing(true);
         try {
             const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
-            const res = await fetch(`${apiUrl}/compliance/cases/${params.id}/review`, {
+            const res = await fetchWithAuth(`${apiUrl}/compliance/cases/${params.id}/review`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ action }),

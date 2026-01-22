@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react';
 import { useSearchParams, useRouter } from 'next/navigation';
 import { FileText, AlertTriangle, CheckCircle, Download, Send } from 'lucide-react';
+import { fetchWithAuth } from '@/lib/auth';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
 
@@ -56,7 +57,7 @@ export default function SARPreparePage() {
 
     setPreparing(true);
     try {
-      const res = await fetch(`${API_URL}/api/compliance/sar/prepare`, {
+      const res = await fetchWithAuth(`${API_URL}/api/compliance/sar/prepare`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -82,7 +83,7 @@ export default function SARPreparePage() {
     if (!sarData) return;
 
     try {
-      const res = await fetch(`${API_URL}/api/compliance/sar/file`, {
+      const res = await fetchWithAuth(`${API_URL}/api/compliance/sar/file`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({

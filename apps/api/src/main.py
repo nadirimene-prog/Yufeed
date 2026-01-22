@@ -221,6 +221,10 @@ from src.api.reporting import router as reporting_router
 from src.api.celex import router as celex_router
 from src.api.aml_officer import router as aml_officer_router
 from src.api.audit import router as audit_router
+from src.api.features import router as features_router
+from src.api.decisioning import router as decisioning_router
+from src.api.onchain_risk import router as onchain_router
+from src.api.travel_rule import router as travel_rule_router
 
 # Register authentication routes first
 app.include_router(auth_router, prefix="/api")
@@ -242,3 +246,7 @@ app.include_router(reporting_router)
 app.include_router(celex_router)
 app.include_router(aml_officer_router)
 app.include_router(audit_router)
+app.include_router(features_router)
+app.include_router(decisioning_router)
+app.include_router(onchain_router)
+app.include_router(travel_rule_router)

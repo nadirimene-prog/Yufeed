@@ -25,6 +25,7 @@ def main() -> None:
             },
             source="seed",
         )
+        db.flush()
         decision = record_decision(
             db,
             decision="alert",

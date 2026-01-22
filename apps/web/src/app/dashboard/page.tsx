@@ -13,6 +13,7 @@ import { DataTable } from "@/components/ui/data-table";
 import { ColumnDef } from "@tanstack/react-table";
 import { Button } from "@/components/ui/button";
 import { handleApiError, type ApiError } from "@/lib/api-error-handler";
+import { getAuthToken } from "@/lib/auth";
 
 // Define columns for High Risk Docs
 const highRiskColumns: ColumnDef<any>[] = [
@@ -62,8 +63,19 @@ export default function DashboardPage() {
     const [upcomingDeadlines, setUpcomingDeadlines] = useState<any[]>([]);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
+    const [authReady, setAuthReady] = useState(false);
+    const [hasToken, setHasToken] = useState(false);
 
     useEffect(() => {
+        setHasToken(!!getAuthToken());
+        setAuthReady(true);
+    }, []);
+
+    useEffect(() => {
+        if (!hasToken) {
+            setLoading(false);
+            return;
+        }
         const fetchData = async () => {
             try {
                 const [metricsData, highRisk, deadlines] = await Promise.all([
@@ -97,7 +109,17 @@ export default function DashboardPage() {
         };
 
         fetchData();
-    }, []);
+    }, [hasToken]);
+
+    if (authReady && !hasToken) {
+        return (
+            <div className="min-h-screen bg-gray-50 dark:bg-gray-900 flex items-center justify-center p-6">
+                <div className="text-sm text-gray-500 dark:text-gray-400">
+                    No session found. Please sign in at /login.
+                </div>
+            </div>
+        );
+    }
 
     if (loading) {
         return (

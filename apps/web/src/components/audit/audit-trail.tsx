@@ -5,6 +5,7 @@ import AuditFilters, { AuditFilters as Filters } from "./audit-filters";
 import AuditTable, { AuditLog } from "./audit-table";
 import AuditDetail from "./audit-detail";
 import { TableSkeleton } from "@/components/ui/skeleton";
+import { fetchWithAuth } from "@/lib/auth";
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
 
@@ -23,6 +24,9 @@ export default function AuditTrail() {
   const [page, setPage] = useState(0);
   const pageSize = 25;
   const [selectedLog, setSelectedLog] = useState<AuditLog | null>(null);
+  const [caseId, setCaseId] = useState("");
+  const [exporting, setExporting] = useState(false);
+  const [exportError, setExportError] = useState<string | null>(null);
 
   useEffect(() => {
     fetchLogs();
@@ -41,7 +45,7 @@ export default function AuditTrail() {
       if (filters.entityType !== "all") params.set("entity_type", filters.entityType);
       if (filters.actorId) params.set("actor_id", filters.actorId);
 
-      const res = await fetch(`${API_URL}/api/audit/logs?${params.toString()}`);
+      const res = await fetchWithAuth(`${API_URL}/api/audit/logs?${params.toString()}`);
       if (!res.ok) throw new Error(`Failed to load logs (${res.status})`);
       const data = await res.json();
       setLogs(data);
@@ -49,6 +53,38 @@ export default function AuditTrail() {
       setError(err instanceof Error ? err.message : "Failed to load audit logs");
     } finally {
       setLoading(false);
+    }
+  };
+
+  const exportCaseEvidence = async () => {
+    const trimmed = caseId.trim();
+    if (!trimmed) {
+      setExportError("Enter a case ID to export evidence.");
+      return;
+    }
+    setExporting(true);
+    setExportError(null);
+    try {
+      const res = await fetchWithAuth(`${API_URL}/api/reporting/evidence/case/${trimmed}`);
+      if (!res.ok) {
+        throw new Error(`Evidence export failed (${res.status})`);
+      }
+      const data = await res.json();
+      const blob = new Blob([JSON.stringify(data, null, 2)], {
+        type: "application/json",
+      });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.href = url;
+      link.download = `case-evidence-${trimmed}.json`;
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      URL.revokeObjectURL(url);
+    } catch (err) {
+      setExportError(err instanceof Error ? err.message : "Failed to export evidence");
+    } finally {
+      setExporting(false);
     }
   };
 
@@ -87,6 +123,39 @@ export default function AuditTrail() {
             Refresh
           </button>
         </div>
+      </div>
+
+      <div className="rounded-md border border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-950 p-4">
+        <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
+          <div>
+            <h2 className="text-sm font-semibold text-gray-900 dark:text-gray-100">
+              Evidence Export
+            </h2>
+            <p className="text-xs text-gray-600 dark:text-gray-400">
+              Download an immutable evidence bundle for a case.
+            </p>
+          </div>
+          <div className="flex flex-col sm:flex-row sm:items-center gap-2">
+            <input
+              value={caseId}
+              onChange={(event) => setCaseId(event.target.value)}
+              placeholder="Case ID"
+              className="px-3 py-2 text-sm rounded-md border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-950 text-gray-900 dark:text-gray-100 w-full sm:w-64"
+            />
+            <button
+              onClick={exportCaseEvidence}
+              disabled={exporting}
+              className="px-3 py-2 text-sm rounded-md border border-gray-300 dark:border-gray-700 bg-gray-900 text-white disabled:opacity-60"
+            >
+              {exporting ? "Preparing..." : "Download JSON"}
+            </button>
+          </div>
+        </div>
+        {exportError ? (
+          <div className="mt-3 text-xs text-red-600 dark:text-red-400">
+            {exportError}
+          </div>
+        ) : null}
       </div>
 
       <AuditFilters filters={filters} onChange={setFilters} />

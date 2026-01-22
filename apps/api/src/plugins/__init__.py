@@ -8,3 +8,6 @@ class BaseRiskPlugin(ABC):
     async def score_address(self, address: str) -> Dict[str, Any]:
         """Score a blockchain address."""
         raise NotImplementedError
+
+
+__all__ = ["BaseRiskPlugin"]

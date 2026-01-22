@@ -163,6 +163,52 @@ class RulesEngine:
             logger.warning(f"Unknown operator: {operator}")
             return False
 
+    def _build_transaction_like(self, payload: Dict[str, Any]):
+        """
+        Build a lightweight transaction-like object for simulation.
+        """
+        class TransactionLike:
+            pass
+
+        tx = TransactionLike()
+        for key, value in payload.items():
+            setattr(tx, key, value)
+        return tx
+
+    def evaluate_rule_details(self, transaction: Transaction, rule: MonitoringRule):
+        """
+        Evaluate a rule and return condition-level results.
+        """
+        conditions = rule.conditions.get("conditions", []) if rule.conditions else []
+        logic = rule.conditions.get("logic", "AND") if rule.conditions else "AND"
+
+        results = []
+        for condition in conditions:
+            results.append({
+                "condition": condition,
+                "passed": self._evaluate_condition(transaction, condition)
+            })
+
+        if not conditions:
+            return False, results, logic
+
+        if logic == "AND":
+            would_trigger = all(item["passed"] for item in results)
+        elif logic == "OR":
+            would_trigger = any(item["passed"] for item in results)
+        else:
+            logger.warning(f"Unknown logic operator: {logic}")
+            would_trigger = False
+
+        return would_trigger, results, logic
+
+    def simulate_rule(self, rule: MonitoringRule, payload: Dict[str, Any]):
+        """
+        Evaluate a rule against a payload without writing alerts.
+        """
+        transaction_like = self._build_transaction_like(payload)
+        return self.evaluate_rule_details(transaction_like, rule)
+
     def _create_alert(self, transaction: Transaction, rule: MonitoringRule) -> Alert:
         """
         Create an alert when a rule is triggered.

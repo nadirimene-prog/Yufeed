@@ -10,10 +10,20 @@ from datetime import datetime
 import uuid
 
 from src.database import get_db
-from src.models.transaction_models import MonitoringRule, Alert
+from src.auth.dependencies import require_any_role, CurrentUser
+from src.models.transaction_models import MonitoringRule, Alert, RuleVersion
 from src.models.models import LegalDocument
 from src.schemas.transaction_schemas import (
-    MonitoringRuleCreate, MonitoringRuleUpdate, MonitoringRuleResponse
+    MonitoringRuleCreate,
+    MonitoringRuleUpdate,
+    MonitoringRuleResponse,
+    RuleVersionCreate,
+    RuleVersionResponse,
+    RuleSimulationRequest,
+    RuleSimulationResponse,
+    RuleBacktestRequest,
+    RuleBacktestResponse,
+    RuleBacktestSample,
 )
 from src.services.rules_engine import RuleBuilder
 
@@ -47,12 +57,40 @@ def create_rule(
     # Create rule
     db_rule = MonitoringRule(
         rule_id=rule_id,
-        **rule.dict()
+        name=rule.name,
+        description=rule.description,
+        category=rule.category,
+        severity=rule.severity,
+        conditions_json=rule.conditions,
+        aggregation_json=rule.thresholds,
+        regulatory_source_id=rule.regulatory_source_id,
+        regulation_article=rule.regulation_article,
+        regulatory_requirement=rule.regulatory_requirement,
+        enabled=rule.enabled,
     )
 
     db.add(db_rule)
     db.commit()
     db.refresh(db_rule)
+
+    version = RuleVersion(
+        rule_id=db_rule.id,
+        version_number=db_rule.version,
+        status="approved",
+        name=db_rule.name,
+        description=db_rule.description,
+        category=db_rule.category,
+        severity=db_rule.severity,
+        priority=db_rule.priority,
+        conditions_json=db_rule.conditions_json,
+        aggregation_json=db_rule.aggregation_json,
+        enabled=db_rule.enabled,
+        created_by=db_rule.created_by,
+        approved_by=db_rule.created_by,
+        approved_at=datetime.utcnow(),
+    )
+    db.add(version)
+    db.commit()
 
     return db_rule
 
@@ -124,16 +162,44 @@ def update_rule(
 
     # Update fields
     update_dict = update_data.dict(exclude_unset=True)
+    conditions_changed = False
+    thresholds_changed = False
     for field, value in update_dict.items():
-        setattr(rule, field, value)
+        if field == "conditions":
+            rule.conditions_json = value
+            conditions_changed = True
+        elif field == "thresholds":
+            rule.aggregation_json = value
+            thresholds_changed = True
+        else:
+            setattr(rule, field, value)
 
     # Increment version if conditions changed
-    if 'conditions' in update_dict or 'thresholds' in update_dict:
+    if conditions_changed or thresholds_changed:
         rule.version += 1
 
     rule.updated_at = datetime.utcnow()
     db.commit()
     db.refresh(rule)
+
+    version = RuleVersion(
+        rule_id=rule.id,
+        version_number=rule.version,
+        status="approved",
+        name=rule.name,
+        description=rule.description,
+        category=rule.category,
+        severity=rule.severity,
+        priority=rule.priority,
+        conditions_json=rule.conditions_json,
+        aggregation_json=rule.aggregation_json,
+        enabled=rule.enabled,
+        created_by=rule.created_by,
+        approved_by=rule.created_by,
+        approved_at=datetime.utcnow(),
+    )
+    db.add(version)
+    db.commit()
 
     return rule
 
@@ -256,6 +322,245 @@ def test_rule(
             },
             "note": "Provide transaction_id parameter to test against actual transaction"
         }
+
+
+# ============================================================================
+# RULE VERSIONING & APPROVALS
+# ============================================================================
+
+@router.get("/{rule_id}/versions", response_model=List[RuleVersionResponse])
+def list_rule_versions(
+    rule_id: str,
+    db: Session = Depends(get_db)
+):
+    rule = db.query(MonitoringRule).filter(
+        MonitoringRule.rule_id == rule_id
+    ).first()
+    if not rule:
+        raise HTTPException(status_code=404, detail="Rule not found")
+
+    versions = db.query(RuleVersion).filter(
+        RuleVersion.rule_id == rule.id
+    ).order_by(RuleVersion.version_number.desc()).all()
+
+    return versions
+
+
+@router.get("/versions", response_model=List[RuleVersionResponse])
+def list_versions(
+    status: Optional[str] = None,
+    db: Session = Depends(get_db)
+):
+    query = db.query(RuleVersion)
+    if status:
+        query = query.filter(RuleVersion.status == status)
+    return query.order_by(RuleVersion.created_at.desc()).all()
+
+
+@router.post("/{rule_id}/versions", response_model=RuleVersionResponse)
+def create_rule_version(
+    rule_id: str,
+    request: RuleVersionCreate,
+    db: Session = Depends(get_db),
+    _: CurrentUser = Depends(require_any_role(["admin", "compliance", "aml_officer", "auditor", "user"]))
+):
+    rule = db.query(MonitoringRule).filter(
+        MonitoringRule.rule_id == rule_id
+    ).first()
+    if not rule:
+        raise HTTPException(status_code=404, detail="Rule not found")
+
+    next_version = rule.version + 1
+    version = RuleVersion(
+        rule_id=rule.id,
+        version_number=next_version,
+        status="pending",
+        name=request.name or rule.name,
+        description=request.description if request.description is not None else rule.description,
+        category=request.category if request.category is not None else rule.category,
+        severity=request.severity if request.severity is not None else rule.severity,
+        priority=rule.priority,
+        conditions_json=request.conditions if request.conditions is not None else rule.conditions_json,
+        aggregation_json=request.thresholds if request.thresholds is not None else rule.aggregation_json,
+        enabled=request.enabled if request.enabled is not None else rule.enabled,
+        created_by=rule.created_by,
+        notes=request.notes,
+    )
+    db.add(version)
+    db.commit()
+    db.refresh(version)
+    return version
+
+
+@router.post("/versions/{version_id}/approve", response_model=RuleVersionResponse)
+def approve_rule_version(
+    version_id: int,
+    db: Session = Depends(get_db),
+    _: CurrentUser = Depends(require_any_role(["admin", "compliance", "aml_officer"]))
+):
+    version = db.query(RuleVersion).filter(
+        RuleVersion.id == version_id
+    ).first()
+    if not version:
+        raise HTTPException(status_code=404, detail="Rule version not found")
+    if version.status != "pending":
+        raise HTTPException(status_code=400, detail="Rule version is not pending")
+
+    rule = db.query(MonitoringRule).filter(MonitoringRule.id == version.rule_id).first()
+    if not rule:
+        raise HTTPException(status_code=404, detail="Rule not found")
+
+    rule.name = version.name
+    rule.description = version.description
+    rule.category = version.category
+    rule.severity = version.severity
+    rule.priority = version.priority
+    rule.conditions_json = version.conditions_json
+    rule.aggregation_json = version.aggregation_json
+    rule.enabled = version.enabled
+    rule.version = version.version_number
+    rule.updated_at = datetime.utcnow()
+
+    version.status = "approved"
+    version.approved_at = datetime.utcnow()
+
+    db.commit()
+    db.refresh(version)
+    return version
+
+
+@router.post("/versions/{version_id}/reject", response_model=RuleVersionResponse)
+def reject_rule_version(
+    version_id: int,
+    db: Session = Depends(get_db),
+    _: CurrentUser = Depends(require_any_role(["admin", "compliance", "aml_officer"]))
+):
+    version = db.query(RuleVersion).filter(
+        RuleVersion.id == version_id
+    ).first()
+    if not version:
+        raise HTTPException(status_code=404, detail="Rule version not found")
+    if version.status != "pending":
+        raise HTTPException(status_code=400, detail="Rule version is not pending")
+
+    version.status = "rejected"
+    version.approved_at = datetime.utcnow()
+    db.commit()
+    db.refresh(version)
+    return version
+
+
+@router.post("/{rule_id}/simulate", response_model=RuleSimulationResponse)
+def simulate_rule(
+    rule_id: str,
+    request: RuleSimulationRequest,
+    db: Session = Depends(get_db)
+):
+    """
+    Simulate a rule against a payload or an existing transaction.
+
+    Returns condition-level evaluation without creating alerts.
+    """
+    from src.services.rules_engine import RulesEngine
+    from src.models.transaction_models import Transaction
+
+    rule = db.query(MonitoringRule).filter(
+        MonitoringRule.rule_id == rule_id
+    ).first()
+
+    if not rule:
+        raise HTTPException(status_code=404, detail="Rule not found")
+
+    engine = RulesEngine(db)
+
+    if request.transaction_id is not None:
+        transaction = db.query(Transaction).filter(
+            Transaction.id == request.transaction_id
+        ).first()
+
+        if not transaction:
+            raise HTTPException(status_code=404, detail="Transaction not found")
+
+        would_trigger, condition_results, logic = engine.evaluate_rule_details(transaction, rule)
+        transaction_id = transaction.transaction_id
+    else:
+        would_trigger, condition_results, logic = engine.simulate_rule(rule, request.payload)
+        transaction_id = None
+
+    return RuleSimulationResponse(
+        rule_id=rule_id,
+        transaction_id=transaction_id,
+        would_trigger=would_trigger,
+        logic=logic,
+        condition_results=condition_results,
+        evaluated_at=datetime.utcnow()
+    )
+
+
+@router.post("/{rule_id}/backtest", response_model=RuleBacktestResponse)
+def backtest_rule(
+    rule_id: str,
+    request: RuleBacktestRequest,
+    db: Session = Depends(get_db)
+):
+    """
+    Backtest a rule across historical transactions.
+
+    Returns summary stats and sample matched transactions.
+    """
+    from src.services.rules_engine import RulesEngine
+    from src.models.transaction_models import Transaction
+
+    rule = db.query(MonitoringRule).filter(
+        MonitoringRule.rule_id == rule_id
+    ).first()
+
+    if not rule:
+        raise HTTPException(status_code=404, detail="Rule not found")
+
+    query = db.query(Transaction)
+    if request.start_date:
+        query = query.filter(Transaction.timestamp >= request.start_date)
+    if request.end_date:
+        query = query.filter(Transaction.timestamp <= request.end_date)
+
+    transactions = query.order_by(Transaction.timestamp.desc()).limit(request.limit).all()
+
+    engine = RulesEngine(db)
+
+    matches = 0
+    samples: List[RuleBacktestSample] = []
+
+    for transaction in transactions:
+        would_trigger = engine._evaluate_rule(transaction, rule)
+        if would_trigger:
+            matches += 1
+            if len(samples) < request.sample_size:
+                samples.append(RuleBacktestSample(
+                    transaction_id=transaction.transaction_id,
+                    amount=transaction.amount,
+                    currency=transaction.currency,
+                    transaction_type=transaction.transaction_type,
+                    country_code=transaction.country_code,
+                    timestamp=transaction.timestamp,
+                    would_trigger=would_trigger
+                ))
+
+    total = len(transactions)
+    match_rate = (matches / total * 100) if total > 0 else 0.0
+
+    return RuleBacktestResponse(
+        rule_id=rule_id,
+        total_transactions=total,
+        matches=matches,
+        match_rate=round(match_rate, 2),
+        evaluated_at=datetime.utcnow(),
+        window={
+            "start_date": request.start_date,
+            "end_date": request.end_date
+        },
+        samples=samples
+    )
 
 
 # ============================================================================

@@ -29,7 +29,7 @@ def list_audit_logs(
     entity_id: Optional[str] = None,
     action: Optional[str] = None,
     db: Session = Depends(get_db),
-    _: CurrentUser = Depends(require_any_role(["admin", "compliance", "auditor"]))
+    _: CurrentUser = Depends(require_any_role(["admin", "compliance", "auditor", "user"]))
 ):
     query = db.query(AuditLog)
 
@@ -50,7 +50,7 @@ def list_audit_logs(
 def get_audit_log(
     audit_id: str,
     db: Session = Depends(get_db),
-    _: CurrentUser = Depends(require_any_role(["admin", "compliance", "auditor"]))
+    _: CurrentUser = Depends(require_any_role(["admin", "compliance", "auditor", "user"]))
 ):
     log = db.query(AuditLog).filter(AuditLog.audit_id == audit_id).first()
     if not log:
@@ -62,7 +62,7 @@ def get_audit_log(
 def create_event(
     event: EventCreate,
     db: Session = Depends(get_db),
-    _: CurrentUser = Depends(require_any_role(["admin", "compliance", "auditor"]))
+    _: CurrentUser = Depends(require_any_role(["admin", "compliance", "auditor", "user"]))
 ):
     event_id = event.event_id or uuid.uuid4().hex
     record = EventRecord(
@@ -84,7 +84,7 @@ def create_event(
 def get_event(
     event_id: str,
     db: Session = Depends(get_db),
-    _: CurrentUser = Depends(require_any_role(["admin", "compliance", "auditor"]))
+    _: CurrentUser = Depends(require_any_role(["admin", "compliance", "auditor", "user"]))
 ):
     record = db.query(EventRecord).filter(EventRecord.event_id == event_id).first()
     if not record:
@@ -96,7 +96,7 @@ def get_event(
 def create_decision(
     decision: DecisionCreate,
     db: Session = Depends(get_db),
-    _: CurrentUser = Depends(require_any_role(["admin", "compliance", "auditor"]))
+    _: CurrentUser = Depends(require_any_role(["admin", "compliance", "auditor", "user"]))
 ):
     decision_id = decision.decision_id or uuid.uuid4().hex
     record = DecisionRecord(
@@ -119,7 +119,7 @@ def create_decision(
 def get_decision(
     decision_id: str,
     db: Session = Depends(get_db),
-    _: CurrentUser = Depends(require_any_role(["admin", "compliance", "auditor"]))
+    _: CurrentUser = Depends(require_any_role(["admin", "compliance", "auditor", "user"]))
 ):
     record = db.query(DecisionRecord).filter(
         DecisionRecord.decision_id == decision_id

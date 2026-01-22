@@ -190,6 +190,66 @@ class MonitoringRule(Base):
     # Relationships
     regulatory_source = relationship("LegalDocument", foreign_keys=[regulatory_source_id])
     hits = relationship("RuleHit", back_populates="rule")
+    versions = relationship("RuleVersion", back_populates="rule", cascade="all, delete-orphan")
+
+    @property
+    def conditions(self):
+        return self.conditions_json
+
+    @conditions.setter
+    def conditions(self, value):
+        self.conditions_json = value
+
+    @property
+    def thresholds(self):
+        return self.aggregation_json
+
+    @thresholds.setter
+    def thresholds(self, value):
+        self.aggregation_json = value
+
+
+class RuleVersion(Base):
+    """Immutable version snapshots for monitoring rules."""
+    __tablename__ = "rule_versions"
+
+    id = Column(Integer, primary_key=True)
+    rule_id = Column(Integer, ForeignKey("monitoring_rules.id"), nullable=False, index=True)
+    version_number = Column(Integer, nullable=False)
+    status = Column(String(50), default="pending")  # draft | pending | approved | rejected
+
+    name = Column(String(500), nullable=False)
+    description = Column(Text)
+    category = Column(String(100))
+    severity = Column(String(20), default="medium")
+    priority = Column(Integer, default=3)
+    conditions_json = Column(JSON().with_variant(JSONB(), "postgresql"), nullable=False)
+    aggregation_json = Column(JSON().with_variant(JSONB(), "postgresql"))
+    enabled = Column(Boolean, default=True)
+
+    created_by = Column(String(255))
+    created_at = Column(DateTime, default=datetime.utcnow)
+    approved_by = Column(String(255))
+    approved_at = Column(DateTime)
+    notes = Column(Text)
+
+    rule = relationship("MonitoringRule", back_populates="versions")
+
+    @property
+    def conditions(self):
+        return self.conditions_json
+
+    @conditions.setter
+    def conditions(self, value):
+        self.conditions_json = value
+
+    @property
+    def thresholds(self):
+        return self.aggregation_json
+
+    @thresholds.setter
+    def thresholds(self, value):
+        self.aggregation_json = value
 
 
 class RuleHit(Base):

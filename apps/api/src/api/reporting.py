@@ -18,6 +18,7 @@ from src.models.models import LegalDocument
 from src.audit.models import AuditLog, EventRecord, DecisionRecord
 from src.compliance.sar_filing import SARFilingSystem, UARFilingSystem
 from src.auth.dependencies import require_any_role, CurrentUser
+from src.utils.event_bus import publish_event_safe
 
 router = APIRouter(prefix="/api/reporting", tags=["reporting"])
 
@@ -29,7 +30,8 @@ router = APIRouter(prefix="/api/reporting", tags=["reporting"])
 @router.post("/sar/prepare/{case_id}")
 def prepare_sar(
     case_id: str,
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
+    _: CurrentUser = Depends(require_any_role(["admin", "compliance", "analyst", "aml_officer"]))
 ):
     """
     Prepare Suspicious Activity Report from a case.
@@ -40,6 +42,18 @@ def prepare_sar(
 
     try:
         sar = sar_system.prepare_sar(case_id)
+        publish_event_safe(
+            "events.raw",
+            {
+                "event_type": "sar.prepared",
+                "entity_type": "case",
+                "entity_id": case_id,
+                "source": "reporting",
+                "payload": {
+                    "case_id": case_id,
+                },
+            },
+        )
         return sar
 
     except Exception as e:
@@ -51,7 +65,8 @@ def file_sar(
     case_id: str,
     jurisdiction: str = Query("EU", regex="^(US|EU|INTL)$"),
     dry_run: bool = Query(True),
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
+    _: CurrentUser = Depends(require_any_role(["admin", "compliance", "aml_officer"]))
 ):
     """
     File SAR with regulatory authority.
@@ -76,6 +91,21 @@ def file_sar(
                 case.outcome_notes = f"SAR filed: {result['filing_reference']}"
                 db.commit()
 
+        publish_event_safe(
+            "events.raw",
+            {
+                "event_type": "sar.filed",
+                "entity_type": "case",
+                "entity_id": case_id,
+                "source": "reporting",
+                "payload": {
+                    "case_id": case_id,
+                    "jurisdiction": jurisdiction,
+                    "dry_run": dry_run,
+                    "filing_reference": result.get("filing_reference"),
+                },
+            },
+        )
         return result
 
     except Exception as e:
@@ -85,7 +115,8 @@ def file_sar(
 @router.post("/uar/prepare/{alert_id}")
 def prepare_uar(
     alert_id: int,
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
+    _: CurrentUser = Depends(require_any_role(["admin", "compliance", "analyst", "aml_officer"]))
 ):
     """
     Prepare Unusual Activity Report from an alert.
@@ -94,6 +125,18 @@ def prepare_uar(
 
     try:
         uar = uar_system.prepare_uar(alert_id)
+        publish_event_safe(
+            "events.raw",
+            {
+                "event_type": "uar.prepared",
+                "entity_type": "alert",
+                "entity_id": str(alert_id),
+                "source": "reporting",
+                "payload": {
+                    "alert_id": alert_id,
+                },
+            },
+        )
         return uar
 
     except Exception as e:
