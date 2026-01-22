@@ -38,6 +38,15 @@ This document defines specialized AI agents that will work on different aspects 
 
 ---
 
+## Phase 4 Agents (Enterprise Polish)
+
+To cover Phase 4 deliverables, two additional agents are defined:
+
+- AGENT-ENTERPRISE-FE: Mobile UX, theming/branding, sanctions UI, currency display, frontend performance
+- AGENT-ENTERPRISE-BE: Currency services, sanctions screening, performance optimization, tenant isolation, custom domains
+
+---
+
 ## Agent 1: AGENT-REALTIME
 
 ### Mission
@@ -2262,6 +2271,60 @@ Infrastructure setup and optimization.
 
 ---
 
+## Agent 9: AGENT-ENTERPRISE-FE
+
+### Mission
+Deliver Phase 4 enterprise polish on the frontend: mobile responsiveness, white-label theming, currency normalization UI, sanctions match explanations, and large-list performance.
+
+### Responsibilities
+1. Mobile navigation and touch interactions
+2. Responsive charts and layouts
+3. Theming/branding system (CSS variables)
+4. Currency normalization display + tooltips
+5. Sanctions match explanation UI
+6. Frontend performance (lazy loading, virtualization)
+
+### Assigned Tasks
+
+- [ ] Implement mobile navigation (hamburger + quick actions)
+- [ ] Optimize charts and tables for small screens
+- [ ] Add mobile-specific alert actions and touch gestures
+- [ ] Build CSS-variable theming with org-level overrides
+- [ ] Create branding settings UI (logo/colors) + preview
+- [ ] Normalize currency display across alerts/transactions
+- [ ] Add currency comparison tooltips (base vs original)
+- [ ] Build sanctions match explanation UI
+- [ ] Add virtual scrolling + lazy loading for large lists
+
+---
+
+## Agent 10: AGENT-ENTERPRISE-BE
+
+### Mission
+Deliver Phase 4 enterprise backend capabilities: currency normalization, enhanced sanctions screening, performance optimization, and white-label/multi-tenant support.
+
+### Responsibilities
+1. Currency conversion service (ECB rates) + base currency settings
+2. Sanctions screening enhancements (SWIFT/BIC, watchlists, updates)
+3. Performance optimization (query tuning, caching, WebSocket batching)
+4. White-label backend (branding config API, custom domains, tenant isolation)
+
+### Assigned Tasks
+
+- [ ] Create currency conversion service + scheduled ECB rate sync
+- [ ] Add organization base currency settings + API
+- [ ] Normalize amounts in API responses
+- [ ] Implement SWIFT/BIC screening + watchlist expansion
+- [ ] Build watchlist update pipeline + real-time notifications
+- [ ] Add match explanation data to sanctions endpoints
+- [ ] Optimize high-traffic queries and add indexes as needed
+- [ ] Implement Redis caching for heavy endpoints
+- [ ] Batch WebSocket events with backpressure controls
+- [ ] Enforce tenant isolation on all queries
+- [ ] Implement custom domain support + branding config API
+
+---
+
 ## Coordination Protocol
 
 ### Daily Standups
@@ -2279,6 +2342,10 @@ Each agent reports:
 | AI → Backend | AGENT-AI, AGENT-BACKEND | Service interfaces |
 | Reports → Backend | AGENT-REPORTS, AGENT-BACKEND | Data access patterns |
 | Compliance → Backend | AGENT-COMPLIANCE, AGENT-BACKEND | Model changes |
+| Enterprise UI → Backend | AGENT-ENTERPRISE-FE, AGENT-ENTERPRISE-BE | Currency, branding, sanctions API contracts |
+| White-label → Infra | AGENT-ENTERPRISE-BE, AGENT-INFRA | Custom domains + tenant isolation |
+| Performance → Realtime | AGENT-ENTERPRISE-BE, AGENT-REALTIME | WebSocket batching + latency budgets |
+
 
 ### Code Review Process
 1. Agent completes task
@@ -2306,14 +2373,15 @@ Each agent reports:
 ### Task Execution Order
 
 ```
-Week 1-2: AGENT-REALTIME + AGENT-BACKEND (foundation)
-Week 2-3: AGENT-FRONTEND (build on APIs)
-Week 3-4: AGENT-AI (parallel to frontend)
-Week 5-6: AGENT-REPORTS + AGENT-COMPLIANCE
-Week 7-8: AGENT-TESTING + AGENT-INFRA (hardening)
+Week 1-4: AGENT-REALTIME + AGENT-BACKEND + AGENT-FRONTEND (Phase 1)
+Week 5-8: AGENT-AI (Phase 2) + ongoing integration
+Week 9-12: AGENT-REPORTS + AGENT-COMPLIANCE (Phase 3)
+Week 13-16: AGENT-ENTERPRISE-BE + AGENT-ENTERPRISE-FE (Phase 4)
+Ongoing: AGENT-TESTING + AGENT-INFRA (all phases)
 ```
+
 
 ---
 
-*Document Version: 1.0*
-*Last Updated: January 2025*
+*Document Version: 1.1*
+*Last Updated: January 22, 2026*
