@@ -12,6 +12,7 @@ import uuid
 from src.database import get_db
 from src.auth.dependencies import require_any_role, CurrentUser
 from src.models.transaction_models import MonitoringRule, Alert, RuleVersion
+from src.audit.models import AuditLog
 from src.models.models import LegalDocument
 from src.schemas.transaction_schemas import (
     MonitoringRuleCreate,
@@ -153,55 +154,10 @@ def update_rule(
 
     Can update conditions, thresholds, severity, and regulatory linkage.
     """
-    rule = db.query(MonitoringRule).filter(
-        MonitoringRule.rule_id == rule_id
-    ).first()
-
-    if not rule:
-        raise HTTPException(status_code=404, detail="Rule not found")
-
-    # Update fields
-    update_dict = update_data.dict(exclude_unset=True)
-    conditions_changed = False
-    thresholds_changed = False
-    for field, value in update_dict.items():
-        if field == "conditions":
-            rule.conditions = value
-            conditions_changed = True
-        elif field == "thresholds":
-            rule.thresholds = value
-            thresholds_changed = True
-        else:
-            setattr(rule, field, value)
-
-    # Increment version if conditions changed
-    if conditions_changed or thresholds_changed:
-        rule.version += 1
-
-    rule.updated_at = datetime.utcnow()
-    db.commit()
-    db.refresh(rule)
-
-    version = RuleVersion(
-        rule_id=rule.id,
-        version_number=rule.version,
-        status="approved",
-        name=rule.name,
-        description=rule.description,
-        category=rule.category,
-        severity=rule.severity,
-        priority=rule.priority,
-        conditions=rule.conditions,
-        thresholds=rule.thresholds,
-        enabled=rule.enabled,
-        created_by=rule.created_by,
-        approved_by=rule.created_by,
-        approved_at=datetime.utcnow(),
+    raise HTTPException(
+        status_code=403,
+        detail="Direct edits are disabled. Submit a rule version for approval."
     )
-    db.add(version)
-    db.commit()
-
-    return rule
 
 
 @router.delete("/{rule_id}")
@@ -389,6 +345,25 @@ def create_rule_version(
     db.add(version)
     db.commit()
     db.refresh(version)
+
+    audit_entry = AuditLog(
+        audit_id=uuid.uuid4().hex,
+        actor_id=_.user_id,
+        actor_email=_.email,
+        actor_role=_.role,
+        actor_type="user",
+        action="submit",
+        method="POST",
+        path=f"/api/monitoring-rules/{rule_id}/versions",
+        entity_type="rule_version",
+        entity_id=str(version.id),
+        status_code=200,
+        changes={"notes": request.notes, "version_number": version.version_number},
+        metadata_json={"rule_id": rule_id},
+    )
+    db.add(audit_entry)
+    db.commit()
+
     return version
 
 
@@ -426,6 +401,25 @@ def approve_rule_version(
 
     db.commit()
     db.refresh(version)
+
+    audit_entry = AuditLog(
+        audit_id=uuid.uuid4().hex,
+        actor_id=_.user_id,
+        actor_email=_.email,
+        actor_role=_.role,
+        actor_type="user",
+        action="approve",
+        method="POST",
+        path=f"/api/monitoring-rules/versions/{version_id}/approve",
+        entity_type="rule_version",
+        entity_id=str(version.id),
+        status_code=200,
+        changes={"status": "approved", "version_number": version.version_number},
+        metadata_json={"rule_id": rule.rule_id},
+    )
+    db.add(audit_entry)
+    db.commit()
+
     return version
 
 
@@ -447,6 +441,25 @@ def reject_rule_version(
     version.approved_at = datetime.utcnow()
     db.commit()
     db.refresh(version)
+
+    audit_entry = AuditLog(
+        audit_id=uuid.uuid4().hex,
+        actor_id=_.user_id,
+        actor_email=_.email,
+        actor_role=_.role,
+        actor_type="user",
+        action="reject",
+        method="POST",
+        path=f"/api/monitoring-rules/versions/{version_id}/reject",
+        entity_type="rule_version",
+        entity_id=str(version.id),
+        status_code=200,
+        changes={"status": "rejected", "version_number": version.version_number},
+        metadata_json={"rule_id": rule.rule_id},
+    )
+    db.add(audit_entry)
+    db.commit()
+
     return version
 
 

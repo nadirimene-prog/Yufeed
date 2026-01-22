@@ -14,11 +14,13 @@ from src.database import get_db
 from src.models.transaction_models import (
     Transaction, Alert, Case, MonitoringRule, UserRiskProfile
 )
+from src.models.travel_rule import TravelRuleRequestRecord
 from src.models.models import LegalDocument
 from src.audit.models import AuditLog, EventRecord, DecisionRecord
 from src.compliance.sar_filing import SARFilingSystem, UARFilingSystem
 from src.auth.dependencies import require_any_role, CurrentUser
 from src.utils.event_bus import publish_event_safe
+from src.models.travel_rule import TravelRuleRequestRecord
 
 router = APIRouter(prefix="/api/reporting", tags=["reporting"])
 
@@ -320,6 +322,223 @@ def export_case_evidence(
         "events": [_model_to_dict(e) for e in events],
         "decisions": [_model_to_dict(d) for d in decisions],
         "audit_logs": [_model_to_dict(l) for l in audit_logs],
+    }
+
+
+@router.get("/evidence/decision/{decision_id}")
+def export_decision_evidence(
+    decision_id: str,
+    db: Session = Depends(get_db),
+    _: CurrentUser = Depends(require_any_role(["admin", "compliance", "auditor"]))
+):
+    """
+    Export an evidence bundle for a decision.
+    """
+    def _model_to_dict(obj):
+        data = {}
+        for attr in sa_inspect(obj).mapper.column_attrs:
+            key = attr.key
+            value = getattr(obj, key)
+            if isinstance(value, datetime):
+                value = value.isoformat()
+            elif isinstance(value, Decimal):
+                value = float(value)
+            data[key] = value
+        if "metadata_json" in data:
+            data["metadata"] = data.pop("metadata_json")
+        return data
+
+    decision = db.query(DecisionRecord).filter(
+        DecisionRecord.decision_id == decision_id
+    ).first()
+    if not decision:
+        raise HTTPException(status_code=404, detail="Decision not found")
+
+    event = db.query(EventRecord).filter(
+        EventRecord.event_id == decision.event_id
+    ).first()
+
+    transaction = None
+    alerts = []
+    if event and event.entity_type == "transaction":
+        transaction = db.query(Transaction).filter(
+            Transaction.transaction_id == event.entity_id
+        ).first()
+        if transaction:
+            alerts = db.query(Alert).filter(Alert.transaction_id == transaction.id).all()
+
+    audit_logs = db.query(AuditLog).filter(
+        or_(
+            and_(AuditLog.entity_type == "decision", AuditLog.entity_id == decision.decision_id),
+            and_(AuditLog.entity_type == "event", AuditLog.entity_id == decision.event_id),
+        )
+    ).order_by(AuditLog.created_at.desc()).all()
+
+    return {
+        "export_id": f"EVID-{datetime.utcnow().strftime('%Y%m%d')}-{decision.decision_id}",
+        "exported_at": datetime.utcnow().isoformat(),
+        "decision": _model_to_dict(decision),
+        "event": _model_to_dict(event) if event else None,
+        "transaction": _model_to_dict(transaction) if transaction else None,
+        "alerts": [_model_to_dict(a) for a in alerts],
+        "audit_logs": [_model_to_dict(l) for l in audit_logs],
+    }
+
+
+@router.get("/evidence/travel-rule/{request_id}")
+def export_travel_rule_evidence(
+    request_id: str,
+    db: Session = Depends(get_db),
+    _: CurrentUser = Depends(require_any_role(["admin", "compliance", "auditor"]))
+):
+    """
+    Export an evidence bundle for a travel rule request.
+    """
+    def _model_to_dict(obj):
+        data = {}
+        for attr in sa_inspect(obj).mapper.column_attrs:
+            key = attr.key
+            value = getattr(obj, key)
+            if isinstance(value, datetime):
+                value = value.isoformat()
+            elif isinstance(value, Decimal):
+                value = float(value)
+            data[key] = value
+        return data
+
+    request = db.query(TravelRuleRequestRecord).filter(
+        TravelRuleRequestRecord.request_id == request_id
+    ).first()
+    if not request:
+        raise HTTPException(status_code=404, detail="Travel rule request not found")
+
+    audit_logs = db.query(AuditLog).filter(
+        and_(AuditLog.entity_type == "travel_rule_request", AuditLog.entity_id == request_id)
+    ).order_by(AuditLog.created_at.desc()).all()
+
+    return {
+        "export_id": f"EVID-{datetime.utcnow().strftime('%Y%m%d')}-{request.request_id}",
+        "exported_at": datetime.utcnow().isoformat(),
+        "travel_rule_request": _model_to_dict(request),
+        "audit_logs": [_model_to_dict(l) for l in audit_logs],
+    }
+
+
+# ============================================================================
+# COMPLIANCE OFFICER HOME DASHBOARD
+# ============================================================================
+
+@router.get("/dashboard/home")
+def compliance_home_dashboard(
+    db: Session = Depends(get_db),
+    _: CurrentUser = Depends(require_any_role(["admin", "compliance", "auditor", "user"]))
+):
+    """
+    Aggregated home dashboard metrics for Compliance Officer.
+    """
+    now = datetime.utcnow()
+    last_24h = now - timedelta(hours=24)
+    last_30d = now - timedelta(days=30)
+
+    total_docs = db.query(func.count(LegalDocument.id)).scalar() or 0
+    rules_total = db.query(func.count(MonitoringRule.id)).scalar() or 0
+    rules_with_celex = db.query(func.count(MonitoringRule.id)).filter(
+        MonitoringRule.regulatory_source_id.isnot(None)
+    ).scalar() or 0
+    celex_covered = db.query(func.count(func.distinct(MonitoringRule.regulatory_source_id))).filter(
+        MonitoringRule.regulatory_source_id.isnot(None)
+    ).scalar() or 0
+
+    celex_coverage_pct = round((celex_covered / total_docs * 100), 2) if total_docs > 0 else 0
+    rules_coverage_pct = round((rules_with_celex / rules_total * 100), 2) if rules_total > 0 else 0
+
+    mapped_ids_subq = db.query(MonitoringRule.regulatory_source_id).filter(
+        MonitoringRule.regulatory_source_id.isnot(None)
+    ).subquery()
+
+    uncovered_docs = db.query(LegalDocument).filter(
+        ~LegalDocument.id.in_(mapped_ids_subq)
+    ).order_by(LegalDocument.publication_date.desc()).limit(5).all()
+
+    rules_without_celex = db.query(MonitoringRule).filter(
+        MonitoringRule.regulatory_source_id.is_(None)
+    ).order_by(MonitoringRule.updated_at.desc()).limit(5).all()
+
+    pending_alerts = db.query(func.count(Alert.id)).filter(Alert.status == "pending").scalar() or 0
+    critical_alerts = db.query(func.count(Alert.id)).filter(Alert.severity == "critical").scalar() or 0
+    open_cases = db.query(func.count(Case.id)).filter(Case.status.in_(["open", "in_progress"])).scalar() or 0
+
+    decisions_24h = db.query(func.count(DecisionRecord.id)).filter(
+        DecisionRecord.created_at >= last_24h
+    ).scalar() or 0
+    decision_breakdown_rows = db.query(
+        DecisionRecord.decision,
+        func.count(DecisionRecord.id).label("count")
+    ).filter(DecisionRecord.created_at >= last_24h).group_by(DecisionRecord.decision).all()
+    decision_breakdown = {row.decision: row.count for row in decision_breakdown_rows}
+
+    sar_filed_30d = db.query(func.count(Case.id)).filter(
+        Case.outcome == "sar_filed",
+        Case.closed_at >= last_30d
+    ).scalar() or 0
+
+    travel_pending = db.query(func.count(TravelRuleRequestRecord.id)).filter(
+        TravelRuleRequestRecord.status == "pending"
+    ).scalar() or 0
+    travel_submitted = db.query(func.count(TravelRuleRequestRecord.id)).filter(
+        TravelRuleRequestRecord.status == "submitted"
+    ).scalar() or 0
+
+    onchain_checks = db.query(func.count(EventRecord.id)).filter(
+        EventRecord.event_type == "onchain_risk_check",
+        EventRecord.created_at >= last_24h
+    ).scalar() or 0
+
+    def _doc_to_dict(doc):
+        return {
+            "id": doc.id,
+            "celex": doc.celex,
+            "title": doc.title,
+            "risk_level": doc.risk_level,
+            "compliance_domain": doc.compliance_domain,
+        }
+
+    def _rule_to_dict(rule):
+        return {
+            "rule_id": rule.rule_id,
+            "name": rule.name,
+            "severity": rule.severity,
+            "category": rule.category,
+        }
+
+    return {
+        "coverage": {
+            "total_documents": total_docs,
+            "celex_covered": celex_covered,
+            "celex_coverage_pct": celex_coverage_pct,
+            "rules_total": rules_total,
+            "rules_with_celex": rules_with_celex,
+            "rules_coverage_pct": rules_coverage_pct,
+        },
+        "coverage_gaps": {
+            "celex_without_rules": [_doc_to_dict(doc) for doc in uncovered_docs],
+            "rules_without_celex": [_rule_to_dict(rule) for rule in rules_without_celex],
+        },
+        "risk_ops": {
+            "pending_alerts": pending_alerts,
+            "critical_alerts": critical_alerts,
+            "open_cases": open_cases,
+        },
+        "decisions": {
+            "last_24h_total": decisions_24h,
+            "breakdown": decision_breakdown,
+        },
+        "reporting": {
+            "sar_filed_30d": sar_filed_30d,
+            "travel_pending": travel_pending,
+            "travel_submitted": travel_submitted,
+            "onchain_checks_24h": onchain_checks,
+        },
     }
 
     transaction_volume = db.query(

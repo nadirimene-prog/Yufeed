@@ -5,7 +5,7 @@ import { usePathname, useRouter } from "next/navigation";
 import {
     Scale, Search, List, Bell, Brain, FileText, Network,
     Settings, LogOut, ChevronLeft, ChevronRight, LayoutDashboard, ShieldCheck, Zap,
-    Route, Link2
+    Route, Link2, Cpu
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { clearAuthTokens } from "@/lib/auth";
@@ -29,6 +29,7 @@ export default function Sidebar() {
         { href: "/transaction-monitoring/dashboard", label: "Monitoring", icon: ShieldCheck },
         { href: "/travel-rule", label: "Travel Rule", icon: Route },
         { href: "/onchain-risk", label: "On-chain Risk", icon: Link2 },
+        { href: "/model-registry", label: "Model Registry", icon: Cpu },
     ];
 
     const toggleCollapse = () => setCollapsed(!collapsed);

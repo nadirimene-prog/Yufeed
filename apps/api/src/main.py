@@ -9,6 +9,11 @@ from typing import List
 
 from src.middleware import limiter, custom_rate_limit_handler, configure_redis_storage
 from src.audit.middleware import audit_log_middleware
+from src.monitoring.metrics import PrometheusMiddleware, metrics_endpoint, api_info
+from src.monitoring.logging_config import setup_logging, LoggingMiddleware
+
+# Initialize structured logging
+setup_logging()
 
 logger = logging.getLogger(__name__)
 
@@ -171,8 +176,20 @@ async def add_security_headers(request: Request, call_next):
 
     return response
 
+# Monitoring middleware - Prometheus metrics
+app.add_middleware(PrometheusMiddleware)
+
+# Logging middleware - structured logging with request IDs
+app.add_middleware(LoggingMiddleware)
+
 # Audit logging middleware (append-only for mutations)
 app.middleware("http")(audit_log_middleware)
+
+# Metrics endpoint
+@app.get("/metrics")
+def metrics():
+    """Prometheus metrics endpoint"""
+    return metrics_endpoint()
 
 @app.get("/health")
 def health_check():
@@ -183,6 +200,14 @@ def startup_event():
     from src.database import engine, Base
     from src.search import init_indices
     from src.config import settings
+    import os
+
+    # Set API info metric
+    version = os.getenv("API_VERSION", "1.0.0")
+    environment = os.getenv("ENVIRONMENT", "development")
+    api_info.labels(version=version, environment=environment).set(1)
+
+    logger.info("Starting YuFeed API", version=version, environment=environment)
 
     # Create tables
     Base.metadata.create_all(bind=engine)
@@ -191,7 +216,7 @@ def startup_event():
     try:
         init_indices()
     except Exception as e:
-        print(f"Warning: OpenSearch init failed: {e}")
+        logger.warning("OpenSearch initialization failed", error=str(e))
 
     # Configure rate limiter with Redis (if available)
     try:
@@ -225,6 +250,7 @@ from src.api.features import router as features_router
 from src.api.decisioning import router as decisioning_router
 from src.api.onchain_risk import router as onchain_router
 from src.api.travel_rule import router as travel_rule_router
+from src.api.model_registry import router as model_registry_router
 
 # Register authentication routes first
 app.include_router(auth_router, prefix="/api")
@@ -250,3 +276,4 @@ app.include_router(features_router)
 app.include_router(decisioning_router)
 app.include_router(onchain_router)
 app.include_router(travel_rule_router)
+app.include_router(model_registry_router)

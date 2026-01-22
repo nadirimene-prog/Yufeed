@@ -1,0 +1,49 @@
+global:
+  scrape_interval: 15s
+  evaluation_interval: 15s
+  external_labels:
+    cluster: 'yufeed-dev'
+    environment: 'development'
+
+# Alerting configuration
+alerting:
+  alertmanagers:
+    - static_configs:
+        - targets:
+            - alertmanager:9093
+
+# Load rules once and periodically evaluate them
+rule_files:
+  - "alerts.yml"
+
+# Scrape configurations
+scrape_configs:
+  # YuFeed API metrics
+  - job_name: 'yufeed-api'
+    static_configs:
+      - targets: ['host.docker.internal:8000']
+    metrics_path: '/metrics'
+    scrape_interval: 10s
+    scrape_timeout: 5s
+
+  # Prometheus self-monitoring
+  - job_name: 'prometheus'
+    static_configs:
+      - targets: ['localhost:9090']
+
+  # Redis exporter (if using redis_exporter)
+  - job_name: 'redis'
+    static_configs:
+      - targets: ['host.docker.internal:6379']
+    metrics_path: '/metrics'
+
+  # PostgreSQL exporter (if using postgres_exporter)
+  - job_name: 'postgres'
+    static_configs:
+      - targets: ['host.docker.internal:9187']
+
+  # OpenSearch metrics (if exposed)
+  - job_name: 'opensearch'
+    static_configs:
+      - targets: ['host.docker.internal:9200']
+    metrics_path: '/_prometheus/metrics'

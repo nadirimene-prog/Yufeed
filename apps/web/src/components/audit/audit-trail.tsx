@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
+import { useSearchParams } from "next/navigation";
 import AuditFilters, { AuditFilters as Filters } from "./audit-filters";
 import AuditTable, { AuditLog } from "./audit-table";
 import AuditDetail from "./audit-detail";
@@ -13,6 +14,7 @@ const DEFAULT_FILTERS: Filters = {
   search: "",
   action: "all",
   entityType: "all",
+  entityId: "",
   actorId: "",
 };
 
@@ -27,11 +29,33 @@ export default function AuditTrail() {
   const [caseId, setCaseId] = useState("");
   const [exporting, setExporting] = useState(false);
   const [exportError, setExportError] = useState<string | null>(null);
+  const searchParams = useSearchParams();
 
   useEffect(() => {
     fetchLogs();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [filters, page]);
+
+  useEffect(() => {
+    const entityType = searchParams.get("entity_type");
+    const entityId = searchParams.get("entity_id");
+    const action = searchParams.get("action");
+    const actorId = searchParams.get("actor_id");
+    const search = searchParams.get("search");
+
+    if (entityType || entityId || action || actorId || search) {
+      setFilters((prev) => ({
+        ...prev,
+        entityType: entityType || prev.entityType,
+        entityId: entityId || prev.entityId,
+        action: action || prev.action,
+        actorId: actorId || prev.actorId,
+        search: search || prev.search,
+      }));
+      setPage(0);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [searchParams]);
 
   const fetchLogs = async () => {
     setLoading(true);
@@ -43,6 +67,7 @@ export default function AuditTrail() {
       });
       if (filters.action !== "all") params.set("action", filters.action);
       if (filters.entityType !== "all") params.set("entity_type", filters.entityType);
+      if (filters.entityId) params.set("entity_id", filters.entityId);
       if (filters.actorId) params.set("actor_id", filters.actorId);
 
       const res = await fetchWithAuth(`${API_URL}/api/audit/logs?${params.toString()}`);

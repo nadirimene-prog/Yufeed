@@ -44,6 +44,8 @@ type RuleVersion = {
     enabled: boolean;
     created_at: string;
     notes?: string | null;
+    conditions?: Record<string, any>;
+    thresholds?: Record<string, any> | null;
 };
 
 export default function RuleManagementPage() {
@@ -59,6 +61,7 @@ export default function RuleManagementPage() {
     const [overview, setOverview] = useState<any | null>(null);
     const [topRules, setTopRules] = useState<any[]>([]);
     const [pendingVersions, setPendingVersions] = useState<RuleVersion[]>([]);
+    const [activeVersion, setActiveVersion] = useState<RuleVersion | null>(null);
 
     const [editName, setEditName] = useState("");
     const [editDescription, setEditDescription] = useState("");
@@ -243,6 +246,7 @@ export default function RuleManagementPage() {
             await fetchRules();
             await fetchOverview();
             await fetchTopRules();
+            setActiveVersion(null);
         } catch (err) {
             setError(err instanceof Error ? err.message : "Failed to approve version");
         }
@@ -256,6 +260,7 @@ export default function RuleManagementPage() {
             });
             if (!res.ok) throw new Error(await res.text());
             await fetchPendingVersions();
+            setActiveVersion(null);
         } catch (err) {
             setError(err instanceof Error ? err.message : "Failed to reject version");
         }
@@ -447,6 +452,12 @@ export default function RuleManagementPage() {
                                     </div>
                                     <div className="flex gap-2">
                                         <button
+                                            onClick={() => setActiveVersion(version)}
+                                            className="rounded-lg border border-gray-200 px-3 py-1 text-xs font-semibold text-gray-600 hover:bg-gray-50 dark:border-gray-800 dark:text-gray-300 dark:hover:bg-gray-900"
+                                        >
+                                            Review
+                                        </button>
+                                        <button
                                             onClick={() => handleApproveVersion(version.id)}
                                             className="rounded-lg bg-green-600 px-3 py-1 text-xs font-semibold text-white hover:bg-green-700"
                                         >
@@ -463,6 +474,12 @@ export default function RuleManagementPage() {
                                 {version.notes ? (
                                     <div className="text-xs text-gray-500">Note: {version.notes}</div>
                                 ) : null}
+                                <a
+                                    href={`/audit?entity_type=rule_version&entity_id=${version.id}`}
+                                    className="text-xs text-blue-600 hover:text-blue-700"
+                                >
+                                    View audit trail
+                                </a>
                             </div>
                         ))
                     ) : (
@@ -655,14 +672,87 @@ export default function RuleManagementPage() {
                                     disabled={saving}
                                     className="rounded-lg border border-blue-200 px-4 py-2 text-sm font-medium text-blue-700 hover:bg-blue-50 disabled:opacity-50 dark:border-blue-900/50 dark:text-blue-200 dark:hover:bg-blue-900/20"
                                 >
-                                    Submit for Approval
+                                    {saving ? "Submitting..." : "Submit for Approval"}
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {activeVersion && (
+                <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
+                    <div className="w-full max-w-3xl rounded-2xl bg-white p-6 shadow-xl dark:bg-gray-950">
+                        <div className="flex items-center justify-between">
+                            <div>
+                                <h3 className="text-xl font-semibold text-gray-900 dark:text-white">Review Version</h3>
+                                <p className="text-sm text-gray-500">Version {activeVersion.version_number}</p>
+                            </div>
+                            <button
+                                onClick={() => setActiveVersion(null)}
+                                className="text-sm text-gray-500 hover:text-gray-700 dark:text-gray-400"
+                            >
+                                Close
+                            </button>
+                        </div>
+
+                        <div className="mt-4 grid gap-4 md:grid-cols-2 text-sm">
+                            <div>
+                                <div className="text-xs uppercase text-gray-500">Name</div>
+                                <div className="text-gray-900 dark:text-white">{activeVersion.name}</div>
+                            </div>
+                            <div>
+                                <div className="text-xs uppercase text-gray-500">Severity</div>
+                                <div className="text-gray-900 dark:text-white">{activeVersion.severity}</div>
+                            </div>
+                            <div>
+                                <div className="text-xs uppercase text-gray-500">Category</div>
+                                <div className="text-gray-900 dark:text-white">{activeVersion.category || "uncategorized"}</div>
+                            </div>
+                            <div>
+                                <div className="text-xs uppercase text-gray-500">Enabled</div>
+                                <div className="text-gray-900 dark:text-white">{activeVersion.enabled ? "Yes" : "No"}</div>
+                            </div>
+                        </div>
+
+                        <div className="mt-4 grid gap-4 md:grid-cols-2">
+                            <div>
+                                <div className="text-xs uppercase text-gray-500 mb-2">Conditions</div>
+                                <pre className="rounded-lg bg-gray-950 text-gray-100 text-xs p-3 max-h-64 overflow-auto">
+                                    {JSON.stringify(activeVersion.conditions || {}, null, 2)}
+                                </pre>
+                            </div>
+                            <div>
+                                <div className="text-xs uppercase text-gray-500 mb-2">Thresholds</div>
+                                <pre className="rounded-lg bg-gray-950 text-gray-100 text-xs p-3 max-h-64 overflow-auto">
+                                    {JSON.stringify(activeVersion.thresholds || {}, null, 2)}
+                                </pre>
+                            </div>
+                        </div>
+
+                        {activeVersion.notes ? (
+                            <div className="mt-4 text-xs text-gray-500">Note: {activeVersion.notes}</div>
+                        ) : null}
+
+                        <div className="mt-6 flex items-center justify-between">
+                            <a
+                                href={`/audit?entity_type=rule_version&entity_id=${activeVersion.id}`}
+                                className="text-xs text-blue-600 hover:text-blue-700"
+                            >
+                                View audit trail
+                            </a>
+                            <div className="flex gap-2">
+                                <button
+                                    onClick={() => handleRejectVersion(activeVersion.id)}
+                                    className="rounded-lg border border-gray-200 px-4 py-2 text-sm text-gray-600 hover:bg-gray-50 dark:border-gray-800 dark:text-gray-300 dark:hover:bg-gray-900"
+                                >
+                                    Reject
                                 </button>
                                 <button
-                                    onClick={handleSave}
-                                    disabled={saving}
-                                    className="rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700 disabled:opacity-50"
+                                    onClick={() => handleApproveVersion(activeVersion.id)}
+                                    className="rounded-lg bg-green-600 px-4 py-2 text-sm font-medium text-white hover:bg-green-700"
                                 >
-                                    {saving ? "Saving..." : "Save Changes"}
+                                    Approve
                                 </button>
                             </div>
                         </div>

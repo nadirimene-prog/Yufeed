@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Send, CheckCircle2 } from "lucide-react";
 import { fetchWithAuth } from "@/lib/auth";
 
@@ -34,6 +34,25 @@ export default function TravelRulePage() {
     const [submitLoading, setSubmitLoading] = useState(false);
     const [error, setError] = useState<string | null>(null);
     const [result, setResult] = useState<TravelRuleResponse | null>(null);
+    const [inbox, setInbox] = useState<TravelRuleResponse[]>([]);
+    const [inboxLoading, setInboxLoading] = useState(false);
+
+    const fetchInbox = async () => {
+        setInboxLoading(true);
+        try {
+            const res = await fetchWithAuth(`${API_URL}/api/travel-rule/requests`);
+            if (!res.ok) throw new Error(await res.text());
+            setInbox(await res.json());
+        } catch {
+            setInbox([]);
+        } finally {
+            setInboxLoading(false);
+        }
+    };
+
+    useEffect(() => {
+        fetchInbox();
+    }, []);
 
     const handleCreate = async () => {
         setLoading(true);
@@ -66,6 +85,7 @@ export default function TravelRulePage() {
             });
             if (!res.ok) throw new Error(await res.text());
             setResult(await res.json());
+            fetchInbox();
         } catch (err) {
             setError(err instanceof Error ? err.message : "Failed to create travel rule request");
         } finally {
@@ -83,6 +103,7 @@ export default function TravelRulePage() {
             });
             if (!res.ok) throw new Error(await res.text());
             setResult(await res.json());
+            fetchInbox();
         } catch (err) {
             setError(err instanceof Error ? err.message : "Failed to submit travel rule request");
         } finally {
@@ -245,6 +266,51 @@ export default function TravelRulePage() {
                             </div>
                         ) : (
                             <p className="text-xs text-gray-500">Create a Travel Rule request to see the payload.</p>
+                        )}
+                    </div>
+                </div>
+
+                <div className="rounded-2xl border border-gray-200 bg-white p-6 dark:border-gray-800 dark:bg-gray-950">
+                    <div className="flex items-center justify-between">
+                        <h2 className="text-sm font-semibold text-gray-900 dark:text-white">Travel Rule Inbox</h2>
+                        <button
+                            onClick={fetchInbox}
+                            className="text-xs text-gray-500 hover:text-gray-700"
+                        >
+                            Refresh
+                        </button>
+                    </div>
+                    <div className="mt-4 space-y-3 text-sm">
+                        {inboxLoading ? (
+                            <div className="text-xs text-gray-500">Loading requests...</div>
+                        ) : inbox.length ? (
+                            inbox.map((item) => (
+                                <div key={item.request_id} className="rounded-lg border border-gray-100 px-3 py-2 dark:border-gray-800">
+                                    <div className="flex items-center justify-between">
+                                        <div className="font-medium text-gray-900 dark:text-white">{item.request_id}</div>
+                                        <span className="text-xs text-gray-500">{item.status}</span>
+                                    </div>
+                                    <div className="text-xs text-gray-500">
+                                        {item.payload?.originator?.name} → {item.payload?.beneficiary?.name} • {item.payload?.amount} {item.payload?.currency}
+                                    </div>
+                                    <div className="mt-2 flex items-center gap-3 text-xs">
+                                        <a
+                                            href={`/audit?entity_type=travel_rule_request&entity_id=${item.request_id}`}
+                                            className="text-blue-600 hover:text-blue-700"
+                                        >
+                                            View audit
+                                        </a>
+                                        <a
+                                            href={`${API_URL}/api/reporting/evidence/travel-rule/${item.request_id}`}
+                                            className="text-gray-500 hover:text-gray-700"
+                                        >
+                                            Evidence JSON
+                                        </a>
+                                    </div>
+                                </div>
+                            ))
+                        ) : (
+                            <div className="text-xs text-gray-500">No requests yet.</div>
                         )}
                     </div>
                 </div>

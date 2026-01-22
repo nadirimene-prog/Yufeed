@@ -3,6 +3,8 @@ Risk OS Decisioning API
 Unified event normalization and low-latency decision endpoint.
 """
 from typing import Any, Dict, List, Optional
+import asyncio
+import uuid
 
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel, Field
@@ -15,6 +17,9 @@ from src.services.event_normalizer import normalize_event
 from src.services.rules_engine import RulesEngine
 from src.services.risk_scoring import RiskScoringService
 from src.models.transaction_models import Transaction
+from src.models.transaction_models import Alert
+from src.plugins.registry import get_plugin, register_plugin
+from src.plugins.onchain import get_default_onchain_plugin
 
 router = APIRouter(prefix="/api/decisioning", tags=["decisioning"])
 
@@ -124,6 +129,7 @@ def decide(
     risk_level: Optional[str] = None
     alerts: List[str] = []
     reason_codes: List[str] = []
+    onchain_evidence: Optional[Dict[str, Any]] = None
 
     transaction: Optional[Transaction] = None
     if request.transaction_id is not None:
@@ -148,6 +154,37 @@ def decide(
 
         risk_service.update_user_risk_profile(transaction.user_id)
 
+    # On-chain risk scoring for crypto events / wallet addresses
+    wallet_address = None
+    if isinstance(request.payload, dict):
+        wallet_address = request.payload.get("wallet_address") or request.payload.get("address")
+    if normalized.event_type in {"txn_crypto", "onchain_risk_check"} or wallet_address:
+        plugin = get_plugin("mock-onchain")
+        if not plugin:
+            plugin = get_default_onchain_plugin()
+            register_plugin("mock-onchain", plugin)
+        if wallet_address:
+            try:
+                onchain_result = asyncio.run(plugin.score_address(wallet_address))
+                onchain_evidence = onchain_result
+                onchain_level = onchain_result.get("risk_level")
+                if onchain_level in {"high", "critical"}:
+                    alert_id = f"ALT-ONCHAIN-{uuid.uuid4().hex[:8].upper()}"
+                    alert = Alert(
+                        alert_id=alert_id,
+                        alert_type="onchain_risk",
+                        severity=onchain_level,
+                        user_id=request.payload.get("user_id") if isinstance(request.payload, dict) else None,
+                        description="On-chain risk score exceeded threshold",
+                        evidence=onchain_result,
+                    )
+                    db.add(alert)
+                    db.commit()
+                    alerts.append(alert_id)
+                    reason_codes.append("ONCHAIN-RISK")
+            except Exception as exc:
+                onchain_evidence = {"error": str(exc)}
+
     decision = "allow"
     if alerts:
         decision = "alert"
@@ -158,6 +195,7 @@ def decide(
         "risk_score": risk_score,
         "risk_level": risk_level,
         "alerts": alerts,
+        "onchain": onchain_evidence,
     }
 
     decision_record = record_decision(

@@ -9,6 +9,8 @@ from src.auth.dependencies import require_any_role, CurrentUser
 from src.audit.recorders import record_event
 from src.database import get_db
 from sqlalchemy.orm import Session
+from src.models.travel_rule import TravelRuleRequestRecord
+from src.audit.models import AuditLog
 
 router = APIRouter(prefix="/api/travel-rule", tags=["travel-rule"])
 
@@ -37,9 +39,6 @@ class TravelRuleResponse(BaseModel):
     payload: TravelRuleRequest
 
 
-_REQUESTS: Dict[str, TravelRuleResponse] = {}
-
-
 @router.post("/requests", response_model=TravelRuleResponse)
 def create_travel_rule_request(
     request: TravelRuleRequest,
@@ -54,7 +53,19 @@ def create_travel_rule_request(
         payload=request,
     )
 
-    _REQUESTS[request_id] = response
+    db_request = TravelRuleRequestRecord(
+        request_id=request_id,
+        transaction_id=request.transaction_id,
+        amount=str(request.amount),
+        currency=request.currency,
+        asset=request.asset,
+        originator=request.originator.model_dump(),
+        beneficiary=request.beneficiary.model_dump(),
+        message=request.message,
+        status="pending",
+    )
+    db.add(db_request)
+    db.commit()
 
     record_event(
         db,
@@ -65,28 +76,127 @@ def create_travel_rule_request(
         metadata={"request_id": request_id, "status": "pending"},
     )
 
+    audit_entry = AuditLog(
+        audit_id=uuid.uuid4().hex,
+        actor_id=_.user_id,
+        actor_email=_.email,
+        actor_role=_.role,
+        actor_type="user",
+        action="create",
+        method="POST",
+        path="/api/travel-rule/requests",
+        entity_type="travel_rule_request",
+        entity_id=request_id,
+        status_code=200,
+        changes={"status": "pending", "transaction_id": request.transaction_id},
+    )
+    db.add(audit_entry)
+    db.commit()
+
     return response
+
+
+@router.get("/requests", response_model=list[TravelRuleResponse])
+def list_travel_rule_requests(
+    status: Optional[str] = None,
+    db: Session = Depends(get_db),
+    _: CurrentUser = Depends(require_any_role(["admin", "compliance", "aml_officer", "auditor", "user"]))
+):
+    query = db.query(TravelRuleRequestRecord)
+    if status:
+        query = query.filter(TravelRuleRequestRecord.status == status)
+    rows = query.order_by(TravelRuleRequestRecord.created_at.desc()).all()
+    responses = []
+    for row in rows:
+        responses.append(
+            TravelRuleResponse(
+                request_id=row.request_id,
+                status=row.status,
+                created_at=row.created_at,
+                payload=TravelRuleRequest(
+                    transaction_id=row.transaction_id,
+                    amount=float(row.amount),
+                    currency=row.currency,
+                    asset=row.asset,
+                    originator=Party(**(row.originator or {})),
+                    beneficiary=Party(**(row.beneficiary or {})),
+                    message=row.message,
+                ),
+            )
+        )
+    return responses
 
 
 @router.get("/requests/{request_id}", response_model=TravelRuleResponse)
 def get_travel_rule_request(
     request_id: str,
+    db: Session = Depends(get_db),
     _: CurrentUser = Depends(require_any_role(["admin", "compliance", "aml_officer", "auditor"]))
 ):
-    response = _REQUESTS.get(request_id)
-    if not response:
+    row = db.query(TravelRuleRequestRecord).filter(
+        TravelRuleRequestRecord.request_id == request_id
+    ).first()
+    if not row:
         raise HTTPException(status_code=404, detail="Travel rule request not found")
-    return response
+    return TravelRuleResponse(
+        request_id=row.request_id,
+        status=row.status,
+        created_at=row.created_at,
+        payload=TravelRuleRequest(
+            transaction_id=row.transaction_id,
+            amount=float(row.amount),
+            currency=row.currency,
+            asset=row.asset,
+            originator=Party(**(row.originator or {})),
+            beneficiary=Party(**(row.beneficiary or {})),
+            message=row.message,
+        ),
+    )
 
 
 @router.post("/requests/{request_id}/submit", response_model=TravelRuleResponse)
 def submit_travel_rule_request(
     request_id: str,
+    db: Session = Depends(get_db),
     _: CurrentUser = Depends(require_any_role(["admin", "compliance", "aml_officer", "user"]))
 ):
-    response = _REQUESTS.get(request_id)
-    if not response:
+    row = db.query(TravelRuleRequestRecord).filter(
+        TravelRuleRequestRecord.request_id == request_id
+    ).first()
+    if not row:
         raise HTTPException(status_code=404, detail="Travel rule request not found")
-    updated = response.copy(update={"status": "submitted"})
-    _REQUESTS[request_id] = updated
-    return updated
+    row.status = "submitted"
+    row.submitted_at = datetime.utcnow()
+    db.commit()
+    db.refresh(row)
+
+    audit_entry = AuditLog(
+        audit_id=uuid.uuid4().hex,
+        actor_id=_.user_id,
+        actor_email=_.email,
+        actor_role=_.role,
+        actor_type="user",
+        action="submit",
+        method="POST",
+        path=f"/api/travel-rule/requests/{request_id}/submit",
+        entity_type="travel_rule_request",
+        entity_id=request_id,
+        status_code=200,
+        changes={"status": "submitted"},
+    )
+    db.add(audit_entry)
+    db.commit()
+    return TravelRuleResponse(
+        request_id=row.request_id,
+        status=row.status,
+        created_at=row.created_at,
+        payload=TravelRuleRequest(
+            transaction_id=row.transaction_id,
+            amount=float(row.amount),
+            currency=row.currency,
+            asset=row.asset,
+            originator=Party(**(row.originator or {})),
+            beneficiary=Party(**(row.beneficiary or {})),
+            message=row.message,
+        ),
+    )

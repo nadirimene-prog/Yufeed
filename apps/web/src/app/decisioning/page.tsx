@@ -542,6 +542,12 @@ export default function DecisioningPage() {
                                                 </div>
                                             </div>
                                         ) : null}
+                                        <a
+                                            href={`${API_URL}/api/reporting/evidence/decision/${decisionResult.decision_id}`}
+                                            className="text-xs text-blue-600 hover:text-blue-700"
+                                        >
+                                            Download decision evidence
+                                        </a>
                                     </div>
                                 ) : (
                                     "No decision run yet."
