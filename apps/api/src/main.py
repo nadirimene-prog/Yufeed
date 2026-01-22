@@ -195,6 +195,12 @@ def metrics():
 def health_check():
     return {"status": "ok"}
 
+@app.get("/cache/stats")
+def cache_stats():
+    """Cache statistics and effectiveness monitoring"""
+    from src.cache.cache_warmer import cache_warmer
+    return cache_warmer.get_cache_stats()
+
 @app.on_event("startup")
 def startup_event():
     from src.database import engine, Base
@@ -208,6 +214,13 @@ def startup_event():
     api_info.labels(version=version, environment=environment).set(1)
 
     logger.info("Starting YuFeed API", version=version, environment=environment)
+
+    # Setup distributed tracing
+    try:
+        from src.monitoring.tracing import setup_tracing
+        setup_tracing(app, engine)
+    except Exception as e:
+        logger.warning(f"Failed to setup tracing: {e}")
 
     # Create tables
     Base.metadata.create_all(bind=engine)
@@ -228,6 +241,13 @@ def startup_event():
             logger.warning("Redis URL not configured, using in-memory rate limiting")
     except Exception as e:
         logger.warning(f"Failed to configure Redis for rate limiting: {e}. Using in-memory storage.")
+
+    # Warm up cache
+    try:
+        from src.cache.cache_warmer import cache_warmer
+        cache_warmer.warm_all()
+    except Exception as e:
+        logger.warning(f"Cache warming failed: {e}")
 
 from src.api.auth import router as auth_router
 from src.api.endpoints import router as api_router
