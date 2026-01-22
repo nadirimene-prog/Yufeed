@@ -31,7 +31,7 @@ class AuditLog(Base):
     request_id = Column(String(64), index=True)
 
     changes = Column(JSON().with_variant(JSONB(), "postgresql"))
-    metadata = Column(JSON().with_variant(JSONB(), "postgresql"))
+    metadata_json = Column("metadata", JSON().with_variant(JSONB(), "postgresql"))
 
     created_at = Column(DateTime, default=datetime.utcnow, index=True)
 
@@ -47,7 +47,7 @@ class EventRecord(Base):
     entity_id = Column(String(255), index=True)
     source = Column(String(100))
     payload = Column(JSON().with_variant(JSONB(), "postgresql"))
-    metadata = Column(JSON().with_variant(JSONB(), "postgresql"))
+    metadata_json = Column("metadata", JSON().with_variant(JSONB(), "postgresql"))
     created_at = Column(DateTime, default=datetime.utcnow, index=True)
 
 
@@ -63,5 +63,5 @@ class DecisionRecord(Base):
     rule_version = Column(String(50))
     model_version = Column(String(50))
     evidence = Column(JSON().with_variant(JSONB(), "postgresql"))
-    metadata = Column(JSON().with_variant(JSONB(), "postgresql"))
+    metadata_json = Column("metadata", JSON().with_variant(JSONB(), "postgresql"))
     created_at = Column(DateTime, default=datetime.utcnow, index=True)

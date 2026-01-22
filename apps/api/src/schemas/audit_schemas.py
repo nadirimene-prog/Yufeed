@@ -22,11 +22,12 @@ class AuditLogResponse(BaseModel):
     status_code: Optional[int] = None
     request_id: Optional[str] = None
     changes: Optional[Dict[str, Any]] = None
-    metadata: Optional[Dict[str, Any]] = None
+    metadata: Optional[Dict[str, Any]] = Field(None, alias="metadata_json")
     created_at: datetime
 
     class Config:
         from_attributes = True
+        populate_by_name = True
 
 
 class EventCreate(BaseModel):
@@ -42,9 +43,11 @@ class EventCreate(BaseModel):
 class EventResponse(EventCreate):
     event_id: str
     created_at: datetime
+    metadata: Optional[Dict[str, Any]] = Field(None, alias="metadata_json")
 
     class Config:
         from_attributes = True
+        populate_by_name = True
 
 
 class DecisionCreate(BaseModel):
@@ -61,6 +64,8 @@ class DecisionCreate(BaseModel):
 class DecisionResponse(DecisionCreate):
     decision_id: str
     created_at: datetime
+    metadata: Optional[Dict[str, Any]] = Field(None, alias="metadata_json")
 
     class Config:
         from_attributes = True
+        populate_by_name = True

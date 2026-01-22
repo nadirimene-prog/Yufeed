@@ -25,7 +25,7 @@ def record_event(
         entity_id=entity_id,
         source=source,
         payload=payload,
-        metadata=metadata,
+        metadata_json=metadata,
     )
     db.add(record)
     return record
@@ -50,7 +50,7 @@ def record_decision(
         rule_version=rule_version,
         model_version=model_version,
         evidence=evidence,
-        metadata=metadata,
+        metadata_json=metadata,
     )
     db.add(record)
     return record

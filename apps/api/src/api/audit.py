@@ -72,7 +72,7 @@ def create_event(
         entity_id=event.entity_id,
         source=event.source,
         payload=event.payload,
-        metadata=event.metadata,
+        metadata_json=event.metadata,
     )
     db.add(record)
     db.commit()
@@ -107,7 +107,7 @@ def create_decision(
         rule_version=decision.rule_version,
         model_version=decision.model_version,
         evidence=decision.evidence,
-        metadata=decision.metadata,
+        metadata_json=decision.metadata,
     )
     db.add(record)
     db.commit()

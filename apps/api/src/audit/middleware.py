@@ -140,7 +140,7 @@ async def audit_log_middleware(request: Request, call_next) -> Response:
         status_code=response.status_code,
         request_id=request.headers.get("x-request-id"),
         changes=changes,
-        metadata=metadata,
+        metadata_json=metadata,
     )
 
     try:
