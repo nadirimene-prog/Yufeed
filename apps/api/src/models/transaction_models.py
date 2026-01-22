@@ -162,11 +162,11 @@ class MonitoringRule(Base):
 
     # Rule logic - Sardine-inspired nested logic
     # Schema: { "logic": "AND", "conditions": [ { "field": "amount", "operator": ">", "value": 1000 }, ... ] }
-    conditions_json = Column(JSON().with_variant(JSONB(), "postgresql"), nullable=False)
+    conditions = Column("conditions", JSON().with_variant(JSONB(), "postgresql"), nullable=False)
     
     # Aggregation requirements (e.g., lookback periods)
     # Schema: { "window_size": "24h", "metric": "sum", "field": "amount" }
-    aggregation_json = Column(JSON().with_variant(JSONB(), "postgresql"))
+    thresholds = Column("thresholds", JSON().with_variant(JSONB(), "postgresql"))
 
     # Regulatory basis (YUFEED INNOVATION)
     regulatory_source_id = Column(Integer, ForeignKey('legal_documents.id'), nullable=True)
@@ -192,22 +192,6 @@ class MonitoringRule(Base):
     hits = relationship("RuleHit", back_populates="rule")
     versions = relationship("RuleVersion", back_populates="rule", cascade="all, delete-orphan")
 
-    @property
-    def conditions(self):
-        return self.conditions_json
-
-    @conditions.setter
-    def conditions(self, value):
-        self.conditions_json = value
-
-    @property
-    def thresholds(self):
-        return self.aggregation_json
-
-    @thresholds.setter
-    def thresholds(self, value):
-        self.aggregation_json = value
-
 
 class RuleVersion(Base):
     """Immutable version snapshots for monitoring rules."""
@@ -223,8 +207,8 @@ class RuleVersion(Base):
     category = Column(String(100))
     severity = Column(String(20), default="medium")
     priority = Column(Integer, default=3)
-    conditions_json = Column(JSON().with_variant(JSONB(), "postgresql"), nullable=False)
-    aggregation_json = Column(JSON().with_variant(JSONB(), "postgresql"))
+    conditions = Column("conditions", JSON().with_variant(JSONB(), "postgresql"), nullable=False)
+    thresholds = Column("thresholds", JSON().with_variant(JSONB(), "postgresql"))
     enabled = Column(Boolean, default=True)
 
     created_by = Column(String(255))
@@ -235,21 +219,6 @@ class RuleVersion(Base):
 
     rule = relationship("MonitoringRule", back_populates="versions")
 
-    @property
-    def conditions(self):
-        return self.conditions_json
-
-    @conditions.setter
-    def conditions(self, value):
-        self.conditions_json = value
-
-    @property
-    def thresholds(self):
-        return self.aggregation_json
-
-    @thresholds.setter
-    def thresholds(self, value):
-        self.aggregation_json = value
 
 
 class RuleHit(Base):

@@ -61,8 +61,8 @@ def create_rule(
         description=rule.description,
         category=rule.category,
         severity=rule.severity,
-        conditions_json=rule.conditions,
-        aggregation_json=rule.thresholds,
+        conditions=rule.conditions,
+        thresholds=rule.thresholds,
         regulatory_source_id=rule.regulatory_source_id,
         regulation_article=rule.regulation_article,
         regulatory_requirement=rule.regulatory_requirement,
@@ -82,8 +82,8 @@ def create_rule(
         category=db_rule.category,
         severity=db_rule.severity,
         priority=db_rule.priority,
-        conditions_json=db_rule.conditions_json,
-        aggregation_json=db_rule.aggregation_json,
+        conditions=db_rule.conditions,
+        thresholds=db_rule.thresholds,
         enabled=db_rule.enabled,
         created_by=db_rule.created_by,
         approved_by=db_rule.created_by,
@@ -166,10 +166,10 @@ def update_rule(
     thresholds_changed = False
     for field, value in update_dict.items():
         if field == "conditions":
-            rule.conditions_json = value
+            rule.conditions = value
             conditions_changed = True
         elif field == "thresholds":
-            rule.aggregation_json = value
+            rule.thresholds = value
             thresholds_changed = True
         else:
             setattr(rule, field, value)
@@ -191,8 +191,8 @@ def update_rule(
         category=rule.category,
         severity=rule.severity,
         priority=rule.priority,
-        conditions_json=rule.conditions_json,
-        aggregation_json=rule.aggregation_json,
+        conditions=rule.conditions,
+        thresholds=rule.thresholds,
         enabled=rule.enabled,
         created_by=rule.created_by,
         approved_by=rule.created_by,
@@ -380,8 +380,8 @@ def create_rule_version(
         category=request.category if request.category is not None else rule.category,
         severity=request.severity if request.severity is not None else rule.severity,
         priority=rule.priority,
-        conditions_json=request.conditions if request.conditions is not None else rule.conditions_json,
-        aggregation_json=request.thresholds if request.thresholds is not None else rule.aggregation_json,
+        conditions=request.conditions if request.conditions is not None else rule.conditions,
+        thresholds=request.thresholds if request.thresholds is not None else rule.thresholds,
         enabled=request.enabled if request.enabled is not None else rule.enabled,
         created_by=rule.created_by,
         notes=request.notes,
@@ -415,8 +415,8 @@ def approve_rule_version(
     rule.category = version.category
     rule.severity = version.severity
     rule.priority = version.priority
-    rule.conditions_json = version.conditions_json
-    rule.aggregation_json = version.aggregation_json
+    rule.conditions = version.conditions
+    rule.thresholds = version.thresholds
     rule.enabled = version.enabled
     rule.version = version.version_number
     rule.updated_at = datetime.utcnow()
