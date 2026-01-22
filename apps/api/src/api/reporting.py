@@ -5,14 +5,17 @@ Regulatory reporting, analytics, and audit trails.
 from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.orm import Session
 from sqlalchemy import func, and_, or_
+from sqlalchemy.inspection import inspect as sa_inspect
 from typing import Optional
 from datetime import datetime, timedelta
+from decimal import Decimal
 
 from src.database import get_db
 from src.models.transaction_models import (
     Transaction, Alert, Case, MonitoringRule, UserRiskProfile
 )
 from src.models.models import LegalDocument
+from src.audit.models import AuditLog, EventRecord, DecisionRecord
 from src.compliance.sar_filing import SARFilingSystem, UARFilingSystem
 
 router = APIRouter(prefix="/api/reporting", tags=["reporting"])
@@ -198,6 +201,81 @@ def get_compliance_dashboard(
     high_risk_users = db.query(func.count(UserRiskProfile.id)).filter(
         UserRiskProfile.risk_level.in_(['high', 'critical'])
     ).scalar() or 0
+
+
+# ============================================================================
+# EVIDENCE EXPORTS (RISK OS)
+# ============================================================================
+
+@router.get("/evidence/case/{case_id}")
+def export_case_evidence(
+    case_id: str,
+    db: Session = Depends(get_db)
+):
+    """
+    Export an evidence bundle for a case.
+
+    Includes case, related alerts/transactions, events, decisions, and audit logs.
+    """
+    def _model_to_dict(obj):
+        data = {}
+        for attr in sa_inspect(obj).mapper.column_attrs:
+            key = attr.key
+            value = getattr(obj, key)
+            if isinstance(value, datetime):
+                value = value.isoformat()
+            elif isinstance(value, Decimal):
+                value = float(value)
+            data[key] = value
+        if "metadata_json" in data:
+            data["metadata"] = data.pop("metadata_json")
+        return data
+
+    case = db.query(Case).filter(Case.case_id == case_id).first()
+    if not case:
+        raise HTTPException(status_code=404, detail="Case not found")
+
+    related_alert_ids = case.related_alert_ids or []
+    related_tx_ids = case.related_transaction_ids or []
+
+    alerts = db.query(Alert).filter(Alert.id.in_(related_alert_ids)).all() if related_alert_ids else []
+    transactions = db.query(Transaction).filter(Transaction.id.in_(related_tx_ids)).all() if related_tx_ids else []
+
+    # Collect entity IDs for event lookup
+    alert_entity_ids = [a.alert_id for a in alerts]
+    tx_entity_ids = [t.transaction_id for t in transactions]
+
+    events = db.query(EventRecord).filter(
+        or_(
+            and_(EventRecord.entity_type == "case", EventRecord.entity_id == case.case_id),
+            and_(EventRecord.entity_type == "alert", EventRecord.entity_id.in_(alert_entity_ids or ["__none__"])),
+            and_(EventRecord.entity_type == "transaction", EventRecord.entity_id.in_(tx_entity_ids or ["__none__"])),
+        )
+    ).all()
+
+    event_ids = [e.event_id for e in events]
+    decisions = db.query(DecisionRecord).filter(
+        DecisionRecord.event_id.in_(event_ids or ["__none__"])
+    ).all()
+
+    audit_logs = db.query(AuditLog).filter(
+        or_(
+            and_(AuditLog.entity_type == "case", AuditLog.entity_id == case.case_id),
+            and_(AuditLog.entity_type == "alert", AuditLog.entity_id.in_(alert_entity_ids or ["__none__"])),
+            and_(AuditLog.entity_type == "transaction", AuditLog.entity_id.in_(tx_entity_ids or ["__none__"])),
+        )
+    ).order_by(AuditLog.created_at.desc()).all()
+
+    return {
+        "export_id": f"EVID-{datetime.utcnow().strftime('%Y%m%d')}-{case.case_id}",
+        "exported_at": datetime.utcnow().isoformat(),
+        "case": _model_to_dict(case),
+        "alerts": [_model_to_dict(a) for a in alerts],
+        "transactions": [_model_to_dict(t) for t in transactions],
+        "events": [_model_to_dict(e) for e in events],
+        "decisions": [_model_to_dict(d) for d in decisions],
+        "audit_logs": [_model_to_dict(l) for l in audit_logs],
+    }
 
     transaction_volume = db.query(
         func.sum(Transaction.amount)
