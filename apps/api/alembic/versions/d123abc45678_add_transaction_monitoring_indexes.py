@@ -20,49 +20,67 @@ depends_on: Union[str, Sequence[str], None] = None
 
 def upgrade() -> None:
     """Upgrade schema - Add performance indexes for transaction monitoring."""
+    bind = op.get_bind()
+    inspector = sa.inspect(bind)
+
+    def _existing_indexes(table: str) -> set:
+        return {idx["name"] for idx in inspector.get_indexes(table)}
+
+    def _create_index(name: str, table: str, columns: list):
+        if name not in _existing_indexes(table):
+            op.create_index(name, table, columns)
 
     # Transaction indexes
-    op.create_index('ix_transactions_country_code', 'transactions', ['country_code'])
-    op.create_index('ix_transactions_risk_level', 'transactions', ['risk_level'])
+    _create_index('ix_transactions_country_code', 'transactions', ['country_code'])
+    _create_index('ix_transactions_risk_level', 'transactions', ['risk_level'])
 
     # Alert indexes
-    op.create_index('ix_alerts_transaction_id', 'alerts', ['transaction_id'])
-    op.create_index('ix_alerts_status', 'alerts', ['status'])
-    op.create_index('ix_alerts_assigned_to', 'alerts', ['assigned_to'])
-    op.create_index('ix_alerts_sar_filed', 'alerts', ['sar_filed'])
-    op.create_index('ix_alerts_created_at', 'alerts', ['created_at'])
+    _create_index('ix_alerts_transaction_id', 'alerts', ['transaction_id'])
+    _create_index('ix_alerts_status', 'alerts', ['status'])
+    _create_index('ix_alerts_assigned_to', 'alerts', ['assigned_to'])
+    _create_index('ix_alerts_sar_filed', 'alerts', ['sar_filed'])
+    _create_index('ix_alerts_created_at', 'alerts', ['created_at'])
 
     # Case indexes
-    op.create_index('ix_cases_status', 'cases', ['status'])
-    op.create_index('ix_cases_priority', 'cases', ['priority'])
-    op.create_index('ix_cases_assigned_to', 'cases', ['assigned_to'])
+    _create_index('ix_cases_status', 'cases', ['status'])
+    _create_index('ix_cases_priority', 'cases', ['priority'])
+    _create_index('ix_cases_assigned_to', 'cases', ['assigned_to'])
 
     # Composite indexes for common query patterns
-    op.create_index('ix_alerts_status_severity', 'alerts', ['status', 'severity'])
-    op.create_index('ix_alerts_user_status', 'alerts', ['user_id', 'status'])
-    op.create_index('ix_transactions_user_timestamp', 'transactions', ['user_id', 'timestamp'])
+    _create_index('ix_alerts_status_severity', 'alerts', ['status', 'severity'])
+    _create_index('ix_alerts_user_status', 'alerts', ['user_id', 'status'])
+    _create_index('ix_transactions_user_timestamp', 'transactions', ['user_id', 'timestamp'])
 
 
 def downgrade() -> None:
     """Downgrade schema - Remove transaction monitoring indexes."""
+    bind = op.get_bind()
+    inspector = sa.inspect(bind)
+
+    def _existing_indexes(table: str) -> set:
+        return {idx["name"] for idx in inspector.get_indexes(table)}
+
+    def _drop_index(name: str, table: str):
+        if name in _existing_indexes(table):
+            op.drop_index(name, table)
 
     # Drop composite indexes
-    op.drop_index('ix_transactions_user_timestamp', 'transactions')
-    op.drop_index('ix_alerts_user_status', 'alerts')
-    op.drop_index('ix_alerts_status_severity', 'alerts')
+    _drop_index('ix_transactions_user_timestamp', 'transactions')
+    _drop_index('ix_alerts_user_status', 'alerts')
+    _drop_index('ix_alerts_status_severity', 'alerts')
 
     # Drop case indexes
-    op.drop_index('ix_cases_assigned_to', 'cases')
-    op.drop_index('ix_cases_priority', 'cases')
-    op.drop_index('ix_cases_status', 'cases')
+    _drop_index('ix_cases_assigned_to', 'cases')
+    _drop_index('ix_cases_priority', 'cases')
+    _drop_index('ix_cases_status', 'cases')
 
     # Drop alert indexes
-    op.drop_index('ix_alerts_created_at', 'alerts')
-    op.drop_index('ix_alerts_sar_filed', 'alerts')
-    op.drop_index('ix_alerts_assigned_to', 'alerts')
-    op.drop_index('ix_alerts_status', 'alerts')
-    op.drop_index('ix_alerts_transaction_id', 'alerts')
+    _drop_index('ix_alerts_created_at', 'alerts')
+    _drop_index('ix_alerts_sar_filed', 'alerts')
+    _drop_index('ix_alerts_assigned_to', 'alerts')
+    _drop_index('ix_alerts_status', 'alerts')
+    _drop_index('ix_alerts_transaction_id', 'alerts')
 
     # Drop transaction indexes
-    op.drop_index('ix_transactions_risk_level', 'transactions')
-    op.drop_index('ix_transactions_country_code', 'transactions')
+    _drop_index('ix_transactions_risk_level', 'transactions')
+    _drop_index('ix_transactions_country_code', 'transactions')

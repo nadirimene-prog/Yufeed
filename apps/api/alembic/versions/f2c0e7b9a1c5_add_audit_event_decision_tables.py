@@ -20,6 +20,9 @@ depends_on: Union[str, Sequence[str], None] = None
 
 def upgrade() -> None:
     """Upgrade schema - add audit/event/decision tables with immutability."""
+    bind = op.get_bind()
+    dialect = bind.dialect.name
+
     op.create_table(
         "audit_logs",
         sa.Column("id", sa.Integer(), primary_key=True),
@@ -78,20 +81,18 @@ def upgrade() -> None:
         sa.Column("metadata", sa.JSON(), nullable=True),
         sa.Column("created_at", sa.DateTime(), nullable=False),
     )
-    op.create_foreign_key(
-        "fk_decision_records_event_id_event_records",
-        "decision_records",
-        "event_records",
-        ["event_id"],
-        ["event_id"],
-    )
+    if dialect == "postgresql":
+        op.create_foreign_key(
+            "fk_decision_records_event_id_event_records",
+            "decision_records",
+            "event_records",
+            ["event_id"],
+            ["event_id"],
+        )
     op.create_index("ix_decision_records_decision_id", "decision_records", ["decision_id"], unique=True)
     op.create_index("ix_decision_records_event_id", "decision_records", ["event_id"])
     op.create_index("ix_decision_records_decision", "decision_records", ["decision"])
     op.create_index("ix_decision_records_created_at", "decision_records", ["created_at"])
-
-    bind = op.get_bind()
-    dialect = bind.dialect.name
 
     if dialect == "postgresql":
         op.execute(
@@ -156,7 +157,8 @@ def downgrade() -> None:
             op.execute(f"DROP TRIGGER IF EXISTS {table}_immutable_update;")
             op.execute(f"DROP TRIGGER IF EXISTS {table}_immutable_delete;")
 
-    op.drop_constraint("fk_decision_records_event_id_event_records", "decision_records", type_="foreignkey")
+    if dialect == "postgresql":
+        op.drop_constraint("fk_decision_records_event_id_event_records", "decision_records", type_="foreignkey")
     op.drop_index("ix_decision_records_created_at", table_name="decision_records")
     op.drop_index("ix_decision_records_decision", table_name="decision_records")
     op.drop_index("ix_decision_records_event_id", table_name="decision_records")
