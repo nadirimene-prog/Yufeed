@@ -20,6 +20,7 @@ export default function Sidebar() {
         { href: "/search", label: "Search", icon: Search },
         { href: "/alerts", label: "Alerts", icon: Bell },
         { href: "/cases", label: "Cases", icon: FileText },
+        { href: "/audit", label: "Audit Trail", icon: List },
         { href: "/network-analysis", label: "Network", icon: Network },
         { href: "/transaction-monitoring/dashboard", label: "Monitoring", icon: ShieldCheck },
     ];

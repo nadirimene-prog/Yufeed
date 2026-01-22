@@ -17,6 +17,7 @@ from src.models.transaction_models import (
 from src.models.models import LegalDocument
 from src.audit.models import AuditLog, EventRecord, DecisionRecord
 from src.compliance.sar_filing import SARFilingSystem, UARFilingSystem
+from src.auth.dependencies import require_any_role, CurrentUser
 
 router = APIRouter(prefix="/api/reporting", tags=["reporting"])
 
@@ -210,7 +211,8 @@ def get_compliance_dashboard(
 @router.get("/evidence/case/{case_id}")
 def export_case_evidence(
     case_id: str,
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
+    _: CurrentUser = Depends(require_any_role(["admin", "compliance", "auditor"]))
 ):
     """
     Export an evidence bundle for a case.
