@@ -16,6 +16,7 @@ from src.models.transaction_models import (
     Transaction, Alert, MonitoringRule, UserRiskProfile
 )
 from src.models.models import LegalDocument
+from src.audit.recorders import record_event, record_decision
 
 logger = logging.getLogger(__name__)
 
@@ -216,6 +217,29 @@ class RulesEngine:
         )
 
         self.db.add(alert)
+
+        event_record = record_event(
+            self.db,
+            event_type="rule.triggered",
+            entity_type="transaction",
+            entity_id=transaction.transaction_id,
+            payload={
+                "rule_id": rule.rule_id,
+                "rule_name": rule.name,
+                "severity": rule.severity,
+                "transaction_id": transaction.transaction_id,
+            },
+            metadata={"rule_version": rule.version},
+        )
+        record_decision(
+            self.db,
+            decision="alert",
+            event_id=event_record.event_id,
+            reason_codes=[rule.rule_id],
+            rule_version=str(rule.version) if rule.version is not None else None,
+            evidence=evidence,
+            metadata={"rule_name": rule.name, "severity": rule.severity},
+        )
 
         # Update transaction status
         if rule.severity in ['critical', 'high']:

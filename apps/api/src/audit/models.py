@@ -2,7 +2,7 @@
 Audit, Event, and Decision Models (append-only)
 """
 from datetime import datetime
-from sqlalchemy import Column, Integer, String, DateTime, JSON
+from sqlalchemy import Column, Integer, String, DateTime, JSON, ForeignKey
 from sqlalchemy.dialects.postgresql import JSONB
 
 from src.database import Base
@@ -57,7 +57,7 @@ class DecisionRecord(Base):
 
     id = Column(Integer, primary_key=True)
     decision_id = Column(String(64), unique=True, nullable=False, index=True)
-    event_id = Column(String(64), index=True)
+    event_id = Column(String(64), ForeignKey("event_records.event_id"), index=True)
     decision = Column(String(20), nullable=False, index=True)  # allow|block|step_up|alert
     reason_codes = Column(JSON().with_variant(JSONB(), "postgresql"))
     rule_version = Column(String(50))
