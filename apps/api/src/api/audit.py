@@ -5,6 +5,7 @@ import uuid
 from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.orm import Session
 from typing import List, Optional
+from datetime import datetime
 
 from src.database import get_db
 from src.audit.models import AuditLog, EventRecord, DecisionRecord
@@ -14,10 +15,41 @@ from src.schemas.audit_schemas import (
     EventResponse,
     DecisionCreate,
     DecisionResponse,
+    DecisionListItem,
+    DecisionListResponse,
 )
 from src.auth.dependencies import require_any_role, CurrentUser
+from sqlalchemy import func
 
 router = APIRouter(prefix="/api/audit", tags=["audit"])
+
+
+@router.get("/", response_model=List[AuditLogResponse])
+def list_audit_logs_compat(
+    skip: int = Query(0, ge=0),
+    limit: int = Query(100, ge=1, le=1000),
+    actor_id: Optional[str] = None,
+    entity_type: Optional[str] = None,
+    entity_id: Optional[str] = None,
+    action: Optional[str] = None,
+    db: Session = Depends(get_db),
+    _: CurrentUser = Depends(require_any_role(["admin", "compliance", "auditor", "user"]))
+):
+    """
+    Backwards-compatible audit log listing endpoint.
+
+    Alias for /api/audit/logs.
+    """
+    return list_audit_logs(
+        skip=skip,
+        limit=limit,
+        actor_id=actor_id,
+        entity_type=entity_type,
+        entity_id=entity_id,
+        action=action,
+        db=db,
+        _=_
+    )
 
 
 @router.get("/logs", response_model=List[AuditLogResponse])
@@ -127,3 +159,85 @@ def get_decision(
     if not record:
         raise HTTPException(status_code=404, detail="Decision not found")
     return record
+
+
+@router.get("/decisions", response_model=DecisionListResponse)
+def list_decisions(
+    skip: int = Query(0, ge=0),
+    limit: int = Query(50, ge=1, le=500),
+    decision: Optional[str] = None,
+    event_type: Optional[str] = None,
+    entity_type: Optional[str] = None,
+    entity_id: Optional[str] = None,
+    event_id: Optional[str] = None,
+    decision_id: Optional[str] = None,
+    created_from: Optional[datetime] = None,
+    created_to: Optional[datetime] = None,
+    db: Session = Depends(get_db),
+    _: CurrentUser = Depends(require_any_role(["admin", "compliance", "auditor", "user"]))
+):
+    query = db.query(DecisionRecord, EventRecord).outerjoin(
+        EventRecord, DecisionRecord.event_id == EventRecord.event_id
+    )
+
+    if decision:
+        query = query.filter(DecisionRecord.decision == decision)
+    if event_id:
+        query = query.filter(DecisionRecord.event_id == event_id)
+    if decision_id:
+        query = query.filter(DecisionRecord.decision_id == decision_id)
+    if created_from:
+        query = query.filter(DecisionRecord.created_at >= created_from)
+    if created_to:
+        query = query.filter(DecisionRecord.created_at <= created_to)
+    if event_type:
+        query = query.filter(EventRecord.event_type == event_type)
+    if entity_type:
+        query = query.filter(EventRecord.entity_type == entity_type)
+    if entity_id:
+        query = query.filter(EventRecord.entity_id == entity_id)
+
+    count_query = db.query(func.count(DecisionRecord.id))
+    if event_type or entity_type or entity_id:
+        count_query = count_query.outerjoin(
+            EventRecord, DecisionRecord.event_id == EventRecord.event_id
+        )
+
+    if decision:
+        count_query = count_query.filter(DecisionRecord.decision == decision)
+    if event_id:
+        count_query = count_query.filter(DecisionRecord.event_id == event_id)
+    if decision_id:
+        count_query = count_query.filter(DecisionRecord.decision_id == decision_id)
+    if created_from:
+        count_query = count_query.filter(DecisionRecord.created_at >= created_from)
+    if created_to:
+        count_query = count_query.filter(DecisionRecord.created_at <= created_to)
+    if event_type:
+        count_query = count_query.filter(EventRecord.event_type == event_type)
+    if entity_type:
+        count_query = count_query.filter(EventRecord.entity_type == entity_type)
+    if entity_id:
+        count_query = count_query.filter(EventRecord.entity_id == entity_id)
+
+    total = count_query.scalar() or 0
+    rows = query.order_by(DecisionRecord.created_at.desc()).offset(skip).limit(limit).all()
+    items: List[DecisionListItem] = []
+    for decision_record, event_record in rows:
+        items.append(
+            DecisionListItem(
+                decision_id=decision_record.decision_id,
+                event_id=decision_record.event_id,
+                decision=decision_record.decision,
+                reason_codes=decision_record.reason_codes,
+                rule_version=decision_record.rule_version,
+                model_version=decision_record.model_version,
+                created_at=decision_record.created_at,
+                event_type=getattr(event_record, "event_type", None) if event_record else None,
+                entity_type=getattr(event_record, "entity_type", None) if event_record else None,
+                entity_id=getattr(event_record, "entity_id", None) if event_record else None,
+                source=getattr(event_record, "source", None) if event_record else None,
+            )
+        )
+
+    return DecisionListResponse(total=total, items=items)

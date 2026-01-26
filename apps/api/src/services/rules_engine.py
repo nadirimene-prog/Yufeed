@@ -119,6 +119,17 @@ class RulesEngine:
         if not all([field, operator]):
             return False
 
+        operator_aliases = {
+            "==": "equals",
+            "=": "equals",
+            "!=": "not_equals",
+            ">": "greater_than",
+            ">=": "greater_than_or_equal",
+            "<": "less_than",
+            "<=": "less_than_or_equal",
+        }
+        operator = operator_aliases.get(operator, operator)
+
         # Get transaction field value
         tx_value = getattr(transaction, field, None)
 
@@ -246,17 +257,17 @@ class RulesEngine:
 
         # Create alert
         alert = Alert(
+            tenant_id=transaction.tenant_id,
             alert_id=alert_id,
             alert_type=rule.category or 'compliance_violation',
             severity=rule.severity,
             transaction_id=transaction.id,
             user_id=transaction.user_id,
-            rule_id=rule.rule_id,
             status='pending',
             priority=self._calculate_priority(rule.severity),
             description=f"Rule triggered: {rule.name}",
             risk_score=transaction.risk_score,
-            matched_rules={rule.rule_id: rule.name},
+            matched_rules_data={rule.rule_id: rule.name},
             evidence=evidence,
             related_regulations=related_regulations,
             regulation_context=regulation_context
@@ -469,17 +480,17 @@ Article Reference: {rule.regulation_article or 'General compliance'}
                 regulation_context = f"Velocity monitoring required by {legal_doc.celex}: {rule.regulatory_requirement}"
 
         alert = Alert(
+            tenant_id=transactions[0].tenant_id,
             alert_id=alert_id,
             alert_type='velocity',
             severity=rule.severity,
             transaction_id=None,  # Multiple transactions
             user_id=user_id,
-            rule_id=rule.rule_id,
             status='pending',
             priority=self._calculate_priority(rule.severity),
             description=f"Velocity rule triggered: {rule.name} - {transaction_count} transactions totaling {total_amount}",
             risk_score=min(100, transaction_count * 5),  # Simple scoring
-            matched_rules={rule.rule_id: rule.name},
+            matched_rules_data={rule.rule_id: rule.name},
             evidence=evidence,
             related_regulations=related_regulations,
             regulation_context=regulation_context

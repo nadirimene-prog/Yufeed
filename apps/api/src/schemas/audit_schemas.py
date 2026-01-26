@@ -69,3 +69,25 @@ class DecisionResponse(DecisionCreate):
     class Config:
         from_attributes = True
         populate_by_name = True
+
+
+class DecisionListItem(BaseModel):
+    decision_id: str
+    event_id: Optional[str] = None
+    decision: str
+    reason_codes: Optional[List[str]] = None
+    rule_version: Optional[str] = None
+    model_version: Optional[str] = None
+    created_at: datetime
+    event_type: Optional[str] = None
+    entity_type: Optional[str] = None
+    entity_id: Optional[str] = None
+    source: Optional[str] = None
+
+    class Config:
+        from_attributes = True
+
+
+class DecisionListResponse(BaseModel):
+    total: int
+    items: List[DecisionListItem]

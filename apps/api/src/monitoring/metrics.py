@@ -4,9 +4,40 @@ Phase 4A: Task 2.1 - Prometheus Metrics Integration
 """
 import time
 from typing import Callable
-from prometheus_client import Counter, Histogram, Gauge, generate_latest, CONTENT_TYPE_LATEST
 from fastapi import Request, Response
 from starlette.middleware.base import BaseHTTPMiddleware
+
+try:
+    from prometheus_client import Counter, Histogram, Gauge, generate_latest, CONTENT_TYPE_LATEST
+    PROMETHEUS_AVAILABLE = True
+except ImportError:
+    PROMETHEUS_AVAILABLE = False
+    CONTENT_TYPE_LATEST = "text/plain; version=0.0.4"
+
+    class _NoOpMetric:
+        def labels(self, *args, **kwargs):
+            return self
+
+        def inc(self, *args, **kwargs):
+            return None
+
+        def observe(self, *args, **kwargs):
+            return None
+
+        def set(self, *args, **kwargs):
+            return None
+
+    def Counter(*args, **kwargs):
+        return _NoOpMetric()
+
+    def Histogram(*args, **kwargs):
+        return _NoOpMetric()
+
+    def Gauge(*args, **kwargs):
+        return _NoOpMetric()
+
+    def generate_latest():
+        return b"# prometheus metrics disabled\n"
 
 
 # ============================================================================
@@ -172,6 +203,8 @@ class PrometheusMiddleware(BaseHTTPMiddleware):
     """
 
     async def dispatch(self, request: Request, call_next: Callable) -> Response:
+        if not PROMETHEUS_AVAILABLE:
+            return await call_next(request)
         # Skip metrics endpoint itself
         if request.url.path == "/metrics":
             return await call_next(request)
@@ -291,6 +324,8 @@ def metrics_endpoint() -> Response:
     """
     Endpoint to expose Prometheus metrics.
     """
+    if not PROMETHEUS_AVAILABLE:
+        return Response(content="metrics disabled\n", media_type="text/plain")
     return Response(
         content=generate_latest(),
         media_type=CONTENT_TYPE_LATEST

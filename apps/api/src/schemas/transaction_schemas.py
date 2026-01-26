@@ -123,6 +123,11 @@ class AlertResponse(AlertBase):
     sar_filed: bool
     sar_id: Optional[str] = None
     sar_filed_at: Optional[datetime] = None
+    # Phase 4B: ML Triage fields
+    ml_prediction: Optional[str] = None
+    ml_confidence: Optional[Decimal] = None
+    ml_model_version: Optional[str] = None
+    ml_features_snapshot: Optional[Dict[str, Any]] = None
     created_at: datetime
     updated_at: datetime
 

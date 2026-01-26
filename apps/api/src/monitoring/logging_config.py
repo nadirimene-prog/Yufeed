@@ -4,10 +4,21 @@ Phase 4A: Task 2.2 - Structured Logging
 """
 import logging
 import sys
-import structlog
-from pythonjsonlogger import jsonlogger
-from contextvars import ContextVar
 from typing import Any, Dict
+try:
+    import structlog
+    STRUCTLOG_AVAILABLE = True
+except ImportError:
+    structlog = None
+    STRUCTLOG_AVAILABLE = False
+
+try:
+    from pythonjsonlogger import jsonlogger
+    JSON_LOGGER_AVAILABLE = True
+except ImportError:
+    jsonlogger = None
+    JSON_LOGGER_AVAILABLE = False
+from contextvars import ContextVar
 from datetime import datetime
 
 # Context variables for correlation IDs
@@ -81,6 +92,8 @@ def configure_structlog():
     """
     Configure structlog for structured JSON logging.
     """
+    if not STRUCTLOG_AVAILABLE:
+        return
     # Determine if running in production
     is_production = get_environment() == "production"
 
@@ -139,8 +152,7 @@ def configure_stdlib_logging():
     # Create handler with JSON formatter for production
     handler = logging.StreamHandler(sys.stdout)
 
-    if environment == "production":
-        # JSON formatter for production logs
+    if environment == "production" and JSON_LOGGER_AVAILABLE:
         formatter = jsonlogger.JsonFormatter(
             fmt="%(timestamp)s %(level)s %(name)s %(message)s",
             rename_fields={
@@ -150,7 +162,6 @@ def configure_stdlib_logging():
             }
         )
     else:
-        # Standard formatter for development
         formatter = logging.Formatter(
             fmt="%(asctime)s [%(levelname)s] %(name)s: %(message)s",
             datefmt="%Y-%m-%d %H:%M:%S"
@@ -172,15 +183,65 @@ def setup_logging():
     Main function to set up all logging configuration.
     Call this at application startup.
     """
+    _patch_logger_for_kwargs()
     configure_stdlib_logging()
     configure_structlog()
+
+
+def _patch_logger_for_kwargs():
+    """
+    Allow stdlib loggers to accept extra keyword arguments without crashing.
+    """
+    if getattr(logging.Logger._log, "_yufeed_kwargs_patch", False):
+        return
+
+    original_log = logging.Logger._log
+
+    def _log(self, level, msg, args, exc_info=None, extra=None, stack_info=False, stacklevel=1, **kwargs):
+        if kwargs:
+            msg = f"{msg} | {kwargs}"
+        return original_log(
+            self,
+            level,
+            msg,
+            args,
+            exc_info=exc_info,
+            extra=extra,
+            stack_info=stack_info,
+            stacklevel=stacklevel,
+        )
+
+    _log._yufeed_kwargs_patch = True
+    logging.Logger._log = _log
 
 
 # ============================================================================
 # LOGGING HELPERS
 # ============================================================================
 
-def get_logger(name: str) -> structlog.BoundLogger:
+class _FallbackLogger:
+    def __init__(self, name: str):
+        self._logger = logging.getLogger(name)
+
+    def _log(self, level: int, event: str, **kwargs: Any):
+        if kwargs:
+            event = f"{event} | {kwargs}"
+        self._logger.log(level, event)
+
+    def info(self, event: str, **kwargs: Any):
+        self._log(logging.INFO, event, **kwargs)
+
+    def warning(self, event: str, **kwargs: Any):
+        self._log(logging.WARNING, event, **kwargs)
+
+    def error(self, event: str, **kwargs: Any):
+        exc_info = kwargs.pop("exc_info", False)
+        if kwargs:
+            event = f"{event} | {kwargs}"
+        self._logger.error(event, exc_info=exc_info)
+
+
+def get_logger(name: str) -> Any:
     """
     Get a structured logger instance.
 
@@ -188,7 +249,9 @@ def get_logger(name: str) -> structlog.BoundLogger:
         logger = get_logger(__name__)
         logger.info("user_login", user_id="12345", ip_address="1.2.3.4")
     """
-    return structlog.get_logger(name)
+    if STRUCTLOG_AVAILABLE:
+        return structlog.get_logger(name)
+    return _FallbackLogger(name)
 
 
 def set_request_id(request_id: str):

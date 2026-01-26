@@ -15,14 +15,28 @@ from src.models.transaction_models import (
     RuleHit,
 )
 
+class BaseSQLAlchemyFactory(factory.alchemy.SQLAlchemyModelFactory):
+    """Base factory that accepts sqlalchemy_session in create kwargs."""
 
-class TransactionFactory(factory.alchemy.SQLAlchemyModelFactory):
+    class Meta:
+        abstract = True
+
+    @classmethod
+    def _create(cls, model_class, *args, **kwargs):
+        session = kwargs.pop("sqlalchemy_session", None)
+        if session is not None:
+            cls._meta.sqlalchemy_session = session
+        return super()._create(model_class, *args, **kwargs)
+
+
+class TransactionFactory(BaseSQLAlchemyFactory):
     """Factory for creating test Transaction instances."""
 
     class Meta:
         model = Transaction
         sqlalchemy_session_persistence = "commit"
 
+    tenant_id = factory.LazyFunction(lambda: "default")
     transaction_id = factory.LazyFunction(lambda: f"txn_{uuid.uuid4().hex[:12]}")
     user_id = factory.LazyFunction(lambda: f"user_{uuid.uuid4().hex[:8]}")
     amount = factory.Faker("pydecimal", left_digits=5, right_digits=2, positive=True, min_value=1, max_value=100000)
@@ -61,13 +75,14 @@ class TransactionFactory(factory.alchemy.SQLAlchemyModelFactory):
     updated_at = factory.LazyFunction(datetime.utcnow)
 
 
-class AlertFactory(factory.alchemy.SQLAlchemyModelFactory):
+class AlertFactory(BaseSQLAlchemyFactory):
     """Factory for creating test Alert instances."""
 
     class Meta:
         model = Alert
         sqlalchemy_session_persistence = "commit"
 
+    tenant_id = factory.LazyAttribute(lambda obj: obj.transaction.tenant_id if obj.transaction else "default")
     alert_id = factory.LazyFunction(lambda: f"alert_{uuid.uuid4().hex[:12]}")
     alert_type = factory.Faker("random_element", elements=[
         "velocity",
@@ -118,13 +133,14 @@ class AlertFactory(factory.alchemy.SQLAlchemyModelFactory):
     updated_at = factory.LazyFunction(datetime.utcnow)
 
 
-class CaseFactory(factory.alchemy.SQLAlchemyModelFactory):
+class CaseFactory(BaseSQLAlchemyFactory):
     """Factory for creating test Case instances."""
 
     class Meta:
         model = Case
         sqlalchemy_session_persistence = "commit"
 
+    tenant_id = factory.LazyFunction(lambda: "default")
     case_id = factory.LazyFunction(lambda: f"case_{uuid.uuid4().hex[:12]}")
     case_type = factory.Faker("random_element", elements=["investigation", "sar_preparation", "audit"])
     subject_type = factory.Faker("random_element", elements=["user", "transaction", "pattern"])
@@ -175,13 +191,14 @@ class CaseFactory(factory.alchemy.SQLAlchemyModelFactory):
     updated_at = factory.LazyFunction(datetime.utcnow)
 
 
-class MonitoringRuleFactory(factory.alchemy.SQLAlchemyModelFactory):
+class MonitoringRuleFactory(BaseSQLAlchemyFactory):
     """Factory for creating test MonitoringRule instances."""
 
     class Meta:
         model = MonitoringRule
         sqlalchemy_session_persistence = "commit"
 
+    tenant_id = factory.LazyFunction(lambda: "default")
     rule_id = factory.LazyFunction(lambda: f"rule_{uuid.uuid4().hex[:12]}")
     name = factory.Faker("sentence")
     description = factory.Faker("paragraph")
@@ -234,13 +251,14 @@ class MonitoringRuleFactory(factory.alchemy.SQLAlchemyModelFactory):
     updated_at = factory.LazyFunction(datetime.utcnow)
 
 
-class RuleHitFactory(factory.alchemy.SQLAlchemyModelFactory):
+class RuleHitFactory(BaseSQLAlchemyFactory):
     """Factory for creating test RuleHit instances."""
 
     class Meta:
         model = RuleHit
         sqlalchemy_session_persistence = "commit"
 
+    tenant_id = factory.LazyAttribute(lambda obj: obj.alert.tenant_id if obj.alert else "default")
     alert = factory.SubFactory(AlertFactory)
     rule = factory.SubFactory(MonitoringRuleFactory)
 

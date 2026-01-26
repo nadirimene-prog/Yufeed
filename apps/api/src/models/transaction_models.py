@@ -18,6 +18,7 @@ class Transaction(Base):
     __tablename__ = "transactions"
 
     id = Column(Integer, primary_key=True)
+    tenant_id = Column(String(255), nullable=False, index=True)  # Multi-tenancy support
     transaction_id = Column(String(255), unique=True, nullable=False, index=True)
     user_id = Column(String(255), nullable=False, index=True)
     amount = Column(Numeric(15, 2), nullable=False)
@@ -56,6 +57,7 @@ class Alert(Base):
     __tablename__ = "alerts"
 
     id = Column(Integer, primary_key=True)
+    tenant_id = Column(String(255), nullable=False, index=True)  # Multi-tenancy support
     alert_id = Column(String(255), unique=True, nullable=False, index=True)
     alert_type = Column(String(100), nullable=False)  # 'velocity', 'structuring', 'unusual_pattern', etc.
     severity = Column(String(20), nullable=False)  # 'low', 'medium', 'high', 'critical'
@@ -90,6 +92,12 @@ class Alert(Base):
     sar_id = Column(String(255))
     sar_filed_at = Column(DateTime)
 
+    # ML Triage (Phase 4B: Task 4.4)
+    ml_prediction = Column(String(50))  # 'false_positive', 'true_positive', 'uncertain'
+    ml_confidence = Column(Numeric(5, 4))  # 0.0000 to 1.0000
+    ml_model_version = Column(String(50))  # Model version identifier
+    ml_features_snapshot = Column(JSON().with_variant(JSONB(), "postgresql"))  # Features used for prediction
+
     created_at = Column(DateTime, default=datetime.utcnow, index=True)  # Indexed for date range queries
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
 
@@ -103,6 +111,7 @@ class Case(Base):
     __tablename__ = "cases"
 
     id = Column(Integer, primary_key=True)
+    tenant_id = Column(String(255), nullable=False, index=True)  # Multi-tenancy support
     case_id = Column(String(255), unique=True, nullable=False, index=True)
     case_type = Column(String(100))  # 'investigation', 'sar_preparation', 'audit'
     subject_type = Column(String(50))  # 'user', 'transaction', 'pattern'
@@ -151,6 +160,7 @@ class MonitoringRule(Base):
     __tablename__ = "monitoring_rules"
 
     id = Column(Integer, primary_key=True)
+    tenant_id = Column(String(255), nullable=False, index=True)  # Multi-tenancy support
     rule_id = Column(String(255), unique=True, nullable=False, index=True)
     name = Column(String(500), nullable=False)
     description = Column(Text)
@@ -198,6 +208,7 @@ class RuleVersion(Base):
     __tablename__ = "rule_versions"
 
     id = Column(Integer, primary_key=True)
+    tenant_id = Column(String(255), nullable=False, index=True)  # Multi-tenancy support
     rule_id = Column(Integer, ForeignKey("monitoring_rules.id"), nullable=False, index=True)
     version_number = Column(Integer, nullable=False)
     status = Column(String(50), default="pending")  # draft | pending | approved | rejected
@@ -226,6 +237,7 @@ class RuleHit(Base):
     __tablename__ = "rule_hits"
 
     id = Column(Integer, primary_key=True)
+    tenant_id = Column(String(255), nullable=False, index=True)  # Multi-tenancy support
     alert_id = Column(Integer, ForeignKey('alerts.id'), nullable=False)
     rule_id = Column(Integer, ForeignKey('monitoring_rules.id'), nullable=False)
     
@@ -245,6 +257,7 @@ class UserRiskProfile(Base):
     __tablename__ = "user_risk_profiles"
 
     id = Column(Integer, primary_key=True)
+    tenant_id = Column(String(255), nullable=False, index=True)  # Multi-tenancy support
     user_id = Column(String(255), unique=True, nullable=False, index=True)
 
     # Computed risk
@@ -291,6 +304,7 @@ class FeatureValue(Base):
     __tablename__ = "feature_values"
 
     id = Column(Integer, primary_key=True)
+    tenant_id = Column(String(255), nullable=False, index=True)  # Multi-tenancy support
     entity_type = Column(String(50), nullable=False)  # 'transaction', 'user', 'session'
     entity_id = Column(String(255), nullable=False)
 

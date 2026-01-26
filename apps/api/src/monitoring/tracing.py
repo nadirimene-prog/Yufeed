@@ -3,16 +3,22 @@ OpenTelemetry distributed tracing configuration.
 Phase 4A: Task 2.3 - OpenTelemetry Tracing
 """
 import logging
-from opentelemetry import trace
-from opentelemetry.sdk.trace import TracerProvider
-from opentelemetry.sdk.trace.export import BatchSpanProcessor
-from opentelemetry.sdk.resources import Resource, SERVICE_NAME, SERVICE_VERSION
-from opentelemetry.exporter.jaeger.thrift import JaegerExporter
-from opentelemetry.instrumentation.fastapi import FastAPIInstrumentor
-from opentelemetry.instrumentation.sqlalchemy import SQLAlchemyInstrumentor
-from opentelemetry.instrumentation.httpx import HTTPXClientInstrumentor
-from opentelemetry.instrumentation.redis import RedisInstrumentor
 import os
+
+try:
+    from opentelemetry import trace
+    from opentelemetry.sdk.trace import TracerProvider
+    from opentelemetry.sdk.trace.export import BatchSpanProcessor
+    from opentelemetry.sdk.resources import Resource, SERVICE_NAME, SERVICE_VERSION
+    from opentelemetry.exporter.jaeger.thrift import JaegerExporter
+    from opentelemetry.instrumentation.fastapi import FastAPIInstrumentor
+    from opentelemetry.instrumentation.sqlalchemy import SQLAlchemyInstrumentor
+    from opentelemetry.instrumentation.httpx import HTTPXClientInstrumentor
+    from opentelemetry.instrumentation.redis import RedisInstrumentor
+    TRACE_AVAILABLE = True
+except ImportError:
+    trace = None
+    TRACE_AVAILABLE = False
 
 logger = logging.getLogger(__name__)
 
@@ -25,6 +31,9 @@ def setup_tracing(app, engine):
         app: FastAPI application instance
         engine: SQLAlchemy engine instance
     """
+    if not TRACE_AVAILABLE:
+        logger.warning("OpenTelemetry not installed; tracing disabled")
+        return
     try:
         # Get configuration from environment
         service_name = os.getenv("SERVICE_NAME", "yufeed-api")
@@ -113,6 +122,8 @@ def get_tracer(name: str = __name__):
             span.set_attribute("operation_type", "risk_calculation")
             # ... do work ...
     """
+    if not TRACE_AVAILABLE:
+        return _NoopTracer()
     return trace.get_tracer(name)
 
 
@@ -145,6 +156,8 @@ def traced(
             return result
     """
     def decorator(func: Callable) -> Callable:
+        if not TRACE_AVAILABLE:
+            return func
         @wraps(func)
         def wrapper(*args, **kwargs):
             tracer = get_tracer(func.__module__)
@@ -203,6 +216,8 @@ def add_span_attributes(attributes: dict):
                 "currency": "USD"
             })
     """
+    if not TRACE_AVAILABLE:
+        return
     span = trace.get_current_span()
     if span:
         for key, value in attributes.items():
@@ -225,6 +240,8 @@ def add_span_event(name: str, attributes: Optional[dict] = None):
             "rule_name": "High Value Transaction"
         })
     """
+    if not TRACE_AVAILABLE:
+        return
     span = trace.get_current_span()
     if span:
         span.add_event(name, attributes=attributes or {})
@@ -237,8 +254,32 @@ def record_exception(exception: Exception):
     Args:
         exception: The exception to record
     """
+    if not TRACE_AVAILABLE:
+        return
     span = trace.get_current_span()
     if span:
         span.record_exception(exception)
         span.set_attribute("error", str(exception))
         span.set_attribute("error_type", type(exception).__name__)
+
+
+class _NoopSpan:
+    def __enter__(self):
+        return self
+
+    def __exit__(self, exc_type, exc, tb):
+        return False
+
+    def set_attribute(self, *args, **kwargs):
+        return None
+
+    def record_exception(self, *args, **kwargs):
+        return None
+
+    def add_event(self, *args, **kwargs):
+        return None
+
+
+class _NoopTracer:
+    def start_as_current_span(self, *args, **kwargs):
+        return _NoopSpan()

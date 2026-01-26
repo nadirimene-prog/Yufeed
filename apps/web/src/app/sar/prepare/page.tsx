@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, Suspense } from 'react';
 import { useSearchParams, useRouter } from 'next/navigation';
 import { FileText, AlertTriangle, CheckCircle, Download, Send } from 'lucide-react';
 import { fetchWithAuth } from '@/lib/auth';
@@ -30,7 +30,7 @@ interface SARData {
   case_details: any;
 }
 
-export default function SARPreparePage() {
+function SARPrepareContent() {
   const searchParams = useSearchParams();
   const router = useRouter();
   const [sarData, setSarData] = useState<SARData | null>(null);
@@ -410,5 +410,17 @@ export default function SARPreparePage() {
         </div>
       </div>
     </div>
+  );
+}
+
+export default function SARPreparePage() {
+  return (
+    <Suspense fallback={
+      <div className="flex items-center justify-center min-h-screen">
+        <div className="animate-pulse text-white/50">Loading SAR preparation...</div>
+      </div>
+    }>
+      <SARPrepareContent />
+    </Suspense>
   );
 }

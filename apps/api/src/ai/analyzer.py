@@ -121,7 +121,56 @@ Respond with ONLY the risk level (high, medium, or low)."""
         return RiskLevel.UNKNOWN.value
 
 
-def extract_obligations(title: str, celex: str) -> List[Dict[str, str]]:
+def _truncate_text(text: str, max_chars: int) -> str:
+    if not text:
+        return ""
+    if len(text) <= max_chars:
+        return text
+    return text[:max_chars].rsplit(" ", 1)[0] + "..."
+
+
+def _select_article_excerpts(article_breakdown: Optional[List[Dict[str, Any]]]) -> List[str]:
+    if not article_breakdown:
+        return []
+
+    scored: List[tuple[int, str]] = []
+    for article in article_breakdown:
+        if not isinstance(article, dict):
+            continue
+        number = article.get("number") or article.get("article") or ""
+        title = article.get("title") or ""
+        content = article.get("content") or article.get("text") or ""
+        if not content:
+            continue
+
+        content_lower = content.lower()
+        score = 0
+        if "shall" in content_lower:
+            score += 2
+        if "must" in content_lower:
+            score += 2
+        if "required" in content_lower:
+            score += 1
+        if "obligation" in content_lower:
+            score += 1
+
+        excerpt = _truncate_text(content, 900)
+        header = f"Article {number}".strip()
+        if title:
+            header = f"{header}: {title}" if header else title
+        entry = f"{header}\n{excerpt}".strip()
+        scored.append((score, entry))
+
+    scored.sort(key=lambda item: item[0], reverse=True)
+    return [entry for _, entry in scored[:12]]
+
+
+def extract_obligations(
+    title: str,
+    celex: str,
+    full_text: Optional[str] = None,
+    article_breakdown: Optional[List[Dict[str, Any]]] = None,
+) -> List[Dict[str, str]]:
     """
     Extract specific obligations/requirements from the document.
     Returns: List of obligations with text and article reference
@@ -130,23 +179,35 @@ def extract_obligations(title: str, celex: str) -> List[Dict[str, str]]:
         return []
     
     try:
-        prompt = f"""Extract the key compliance obligations from this EU regulation that banks must follow.
+        excerpts = _select_article_excerpts(article_breakdown)
+        context = ""
+        if excerpts:
+            context = "Relevant excerpts:\\n" + "\\n\\n".join(excerpts)
+        elif full_text:
+            context = "Excerpt:\\n" + _truncate_text(full_text, 8000)
+
+        prompt = f"""Extract the key compliance obligations from this EU regulation that banks or regulated entities must follow.
 
 Document: {celex}
 Title: {title}
 
+{context}
+
 For each obligation, provide:
-1. The specific requirement (what must be done)
-2. Article reference if mentioned in title
-3. Deadline/timeframe if mentioned
+1. obligation: the specific requirement (clear, actionable)
+2. article: article or section reference (if available)
+3. deadline: specific date or timeframe if stated
+4. applicability: who/what this applies to (e.g., PSP, VASP, banks)
+5. source_excerpt: a short supporting excerpt (max 200 chars)
 
 Format as JSON array:
 [
-  {{"obligation": "Banks must...", "article": "Article 5", "deadline": "18 months"}},
+  {{"obligation": "Banks must...", "article": "Article 5", "deadline": "2026-01-01", "applicability": "banks", "source_excerpt": "…"}},
   ...
 ]
 
-Extract 3-5 most important obligations. If title doesn't contain specific obligations, return empty array []."""
+Extract 3-7 obligations if available. If no obligations are present, return [].
+Respond with JSON only."""
 
         message = client.messages.create(
             model="claude-3-sonnet-20240229",  # Better for complex extraction
@@ -263,11 +324,18 @@ def analyze_document(doc_data: Dict[str, Any]) -> Dict[str, Any]:
     celex = doc_data.get("celex", "")
     title = doc_data.get("title", "")
     pub_date = doc_data.get("publication_date")
+    full_text = doc_data.get("full_text")
+    article_breakdown = doc_data.get("article_breakdown")
     
     # Run all analyses
     compliance_domain = classify_document(title, celex)
     risk_level = assess_risk_level(title, celex, compliance_domain)
-    obligations = extract_obligations(title, celex)
+    obligations = extract_obligations(
+        title,
+        celex,
+        full_text=full_text,
+        article_breakdown=article_breakdown if isinstance(article_breakdown, list) else None,
+    )
     deadline = extract_deadline(title, pub_date)
     summary = generate_summary(title, celex)
     

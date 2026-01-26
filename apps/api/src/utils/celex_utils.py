@@ -79,7 +79,7 @@ SECTOR_CODES = {
 }
 
 
-def normalize_celex(input_str: str) -> Optional[str]:
+def normalize_celex(input_str: str, log: bool = True) -> Optional[str]:
     """
     Normalize various CELEX input formats to standard format.
 
@@ -150,7 +150,8 @@ def normalize_celex(input_str: str) -> Optional[str]:
         logger.info(f"Normalized '{input_str}' to {celex}")
         return celex
 
-    logger.warning(f"Could not normalize CELEX input: '{input_str}'")
+        if log:
+            logger.warning(f"Could not normalize CELEX input: '{input_str}'")
     return None
 
 

@@ -16,11 +16,18 @@ interface GraphNode {
   transaction_count: number;
   total_amount: number;
   risk_score?: number;
+  // Added by d3-force at runtime
+  x?: number;
+  y?: number;
+  vx?: number;
+  vy?: number;
+  fx?: number | null;
+  fy?: number | null;
 }
 
 interface GraphLink {
-  source: string;
-  target: string;
+  source: string | { id: string };
+  target: string | { id: string };
   value: number;
   transaction_count: number;
   total_amount: number;
@@ -100,6 +107,7 @@ export default function NetworkGraph({ nodes, edges }: NetworkGraphProps) {
       transition={{ duration: 0.5 }}
       className="w-full h-96 bg-white dark:bg-gray-900 rounded-lg border border-gray-200 dark:border-gray-700 overflow-hidden"
     >
+      {/* @ts-expect-error - ForceGraph2D types are incompatible with our custom node/link types */}
       <ForceGraph2D
         ref={fgRef}
         graphData={graphData}
@@ -111,15 +119,21 @@ export default function NetworkGraph({ nodes, edges }: NetworkGraphProps) {
             ${node.risk_score ? `Risk: ${node.risk_score.toFixed(0)}` : ''}
           </div>
         `}
-        linkLabel={(link: GraphLink) => `
-          <div style="padding: 8px; background: rgba(0,0,0,0.8); color: white; border-radius: 4px; font-size: 12px;">
-            ${link.source.id} → ${link.target.id}<br/>
-            Transactions: ${link.transaction_count}<br/>
-            Amount: ${link.total_amount.toLocaleString()}
-          </div>
-        `}
+        linkLabel={(link: GraphLink) => {
+          const sourceId = typeof link.source === 'string' ? link.source : link.source.id;
+          const targetId = typeof link.target === 'string' ? link.target : link.target.id;
+          return `
+            <div style="padding: 8px; background: rgba(0,0,0,0.8); color: white; border-radius: 4px; font-size: 12px;">
+              ${sourceId} → ${targetId}<br/>
+              Transactions: ${link.transaction_count}<br/>
+              Amount: ${link.total_amount.toLocaleString()}
+            </div>
+          `;
+        }}
         nodeRelSize={6}
         nodeCanvasObject={(node: GraphNode, ctx: CanvasRenderingContext2D, globalScale: number) => {
+          const x = node.x ?? 0;
+          const y = node.y ?? 0;
           const label = node.id;
           const fontSize = 12 / globalScale;
           ctx.font = `${fontSize}px Sans-Serif`;
@@ -128,15 +142,15 @@ export default function NetworkGraph({ nodes, edges }: NetworkGraphProps) {
 
           // Draw node circle
           ctx.beginPath();
-          ctx.arc(node.x, node.y, node.val || 5, 0, 2 * Math.PI, false);
+          ctx.arc(x, y, node.val || 5, 0, 2 * Math.PI, false);
           ctx.fillStyle = node.color;
           ctx.fill();
 
           // Draw label background
           ctx.fillStyle = 'rgba(0, 0, 0, 0.8)';
           ctx.fillRect(
-            node.x - bckgDimensions[0] / 2,
-            node.y + 8,
+            x - bckgDimensions[0] / 2,
+            y + 8,
             bckgDimensions[0],
             bckgDimensions[1]
           );
@@ -145,7 +159,7 @@ export default function NetworkGraph({ nodes, edges }: NetworkGraphProps) {
           ctx.textAlign = 'center';
           ctx.textBaseline = 'middle';
           ctx.fillStyle = '#ffffff';
-          ctx.fillText(label, node.x, node.y + 8 + bckgDimensions[1] / 2);
+          ctx.fillText(label, x, y + 8 + bckgDimensions[1] / 2);
         }}
         linkColor={() => '#6b7280'}
         linkWidth={(link: GraphLink) => Math.sqrt(link.value)}

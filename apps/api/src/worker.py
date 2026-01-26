@@ -22,9 +22,25 @@ celery_app.conf.update(
     timezone="UTC",
     enable_utc=True,
     beat_schedule={
-        "daily-ingestion-task": {
+        "weekly-ingestion-task": {
             "task": "src.worker.run_ingestion",
-            "schedule": crontab(hour=8, minute=0),  # Run daily at 8 AM UTC
+            "schedule": crontab(minute=0, hour=8, day_of_week=1),  # Weekly Monday 08:00 UTC
+        },
+        # Phase 4B: Feature Store Automation
+        "refresh-active-users-features": {
+            "task": "tasks.refresh_active_users_features",
+            "schedule": crontab(minute=0, hour="*/6"),  # Every 6 hours
+            "args": (30, 100, 1),  # days, batch_size, version
+        },
+        "monitor-feature-staleness": {
+            "task": "tasks.monitor_feature_staleness",
+            "schedule": crontab(minute=0, hour="*/12"),  # Every 12 hours
+            "args": (24,),  # staleness_threshold_hours
+        },
+        "compute-feature-importance": {
+            "task": "tasks.compute_feature_importance",
+            "schedule": crontab(minute=0, hour=3, day_of_week=1),  # Weekly on Monday 3 AM
+            "args": ("models/alert_triage/latest.joblib",),
         },
     },
 )
@@ -32,19 +48,19 @@ celery_app.conf.update(
 @celery_app.task
 def run_ingestion():
     """
-    Celery task to run the daily ingestion process.
+    Celery task to run the weekly ingestion process.
     """
     logger.info("Starting scheduled ingestion task via Celery")
     db = SessionLocal()
     try:
         manager = IngestionManager(db)
-        manager.run_daily_ingestion()
+        manager.run_weekly_ingestion()
         
         # Send notification
         try:
             send_email(
                 "user@example.com", 
-                "Daily EU Legal Digest", 
+                "Weekly EU Legal Digest", 
                 "Ingestion ran successfully. Access dashboard to view new documents."
             )
         except Exception as e:

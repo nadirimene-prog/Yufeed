@@ -8,6 +8,7 @@ from sqlalchemy import func, and_, or_
 from typing import List, Optional
 from datetime import datetime, timedelta
 import uuid
+import logging
 
 from src.database import get_db
 from src.models.transaction_models import Alert, Transaction, Case
@@ -16,6 +17,32 @@ from src.schemas.transaction_schemas import (
     AlertStatistics
 )
 from src.audit.recorders import record_event, record_decision
+from src.tenancy.queries import get_tenant_filtered_query, set_tenant_on_create, ensure_tenant_match, require_tenant
+try:
+    from src.ml.prediction.model_service import alert_triage_model
+except Exception as exc:
+    logger = logging.getLogger(__name__)
+    _ml_error = str(exc)
+
+    class _FallbackAlertTriageModel:
+        def predict(self, db: Session, alert: Alert, return_proba: bool = True):
+            logger.warning(
+                "ML triage disabled, falling back to manual_review",
+                extra={"error": _ml_error}
+            )
+            return {
+                "prediction": "unknown",
+                "false_positive_probability": 0.5,
+                "true_positive_probability": 0.5,
+                "confidence": "low",
+                "recommendation": "manual_review",
+                "threshold_used": 0.5,
+                "model_version": "unavailable"
+            }
+
+    alert_triage_model = _FallbackAlertTriageModel()
+
+logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/api/alerts", tags=["alerts"])
 
@@ -46,12 +73,66 @@ def create_alert(
             raise HTTPException(status_code=404, detail="Transaction not found")
 
     # Create alert
+    alert_payload = alert.dict(exclude={"matched_rules", "rule_id"})
     db_alert = Alert(
         alert_id=alert_id,
-        **alert.dict()
+        matched_rules_data=alert.matched_rules,
+        **alert_payload
     )
 
+    # Phase 4C: Set tenant context on new alert
+    set_tenant_on_create(db_alert)
+
     db.add(db_alert)
+    db.flush()  # Flush to get the alert ID before ML prediction
+
+    # Phase 4B: Task 4.4 - ML Auto-Triage
+    try:
+        # Get ML prediction for triage
+        prediction = alert_triage_model.predict(db, db_alert)
+
+        # Store ML prediction
+        db_alert.ml_prediction = prediction['prediction']
+        db_alert.ml_confidence = float(prediction.get('confidence', 0))
+        db_alert.ml_model_version = prediction.get('model_version', 'unknown')
+
+        # Store feature snapshot for explainability
+        if prediction.get('features'):
+            db_alert.ml_features_snapshot = prediction.get('features')
+
+        # Auto-triage based on ML confidence
+        recommendation = prediction.get('recommendation', 'manual_review')
+        confidence = float(prediction.get('confidence', 0))
+
+        if recommendation == 'auto_close' and confidence > 0.85:
+            # High confidence false positive - auto-close
+            db_alert.status = 'auto_closed'
+            db_alert.resolution_status = 'false_positive'
+            db_alert.resolution_notes = (
+                f"Auto-closed by ML model (confidence: {confidence:.2%}). "
+                f"Prediction: {prediction['prediction']}"
+            )
+            db_alert.resolved_by = 'ML_AUTO_TRIAGE'
+            db_alert.resolved_at = datetime.utcnow()
+            logger.info(f"Alert {alert_id} auto-closed by ML (confidence: {confidence:.2%})")
+
+        elif recommendation == 'low_priority':
+            # Medium confidence false positive - reduce priority
+            db_alert.priority = 4  # Low priority
+            logger.info(f"Alert {alert_id} set to low priority by ML (confidence: {confidence:.2%})")
+
+        elif prediction['prediction'] == 'true_positive' and confidence > 0.8:
+            # High confidence true positive - increase priority
+            db_alert.priority = 1  # Highest priority
+            logger.info(f"Alert {alert_id} set to high priority by ML (confidence: {confidence:.2%})")
+
+    except Exception as e:
+        # ML prediction failed - log and continue without ML triage
+        logger.error(f"ML prediction failed for alert {alert_id}: {e}", exc_info=True)
+        db_alert.ml_prediction = 'error'
+        db_alert.ml_confidence = None
+        db_alert.ml_model_version = 'error'
+
     event_record = record_event(
         db,
         event_type="alert.created",
@@ -62,6 +143,8 @@ def create_alert(
             "severity": alert.severity,
             "user_id": alert.user_id,
             "transaction_id": alert.transaction_id,
+            "ml_prediction": db_alert.ml_prediction,
+            "ml_confidence": float(db_alert.ml_confidence) if db_alert.ml_confidence else None,
         },
     )
     record_decision(
@@ -96,7 +179,8 @@ def list_alerts(
     Supports pagination and multiple filter criteria for alert triage.
     Uses eager loading to prevent N+1 queries when accessing related transactions.
     """
-    query = db.query(Alert).options(
+    # Phase 4C: Tenant-filtered query
+    query = get_tenant_filtered_query(Alert, db).options(
         joinedload(Alert.transaction)
     )
 
@@ -146,7 +230,8 @@ def list_pending_alerts(
     Ordered by priority and creation date.
     Uses eager loading to prevent N+1 queries.
     """
-    alerts = db.query(Alert).options(
+    # Phase 4C: Tenant-filtered query
+    alerts = get_tenant_filtered_query(Alert, db).options(
         joinedload(Alert.transaction)
     ).filter(
         Alert.status == 'pending'
@@ -170,7 +255,8 @@ def list_critical_alerts(
     Requires immediate attention.
     Uses eager loading to prevent N+1 queries.
     """
-    alerts = db.query(Alert).options(
+    # Phase 4C: Tenant-filtered query
+    alerts = get_tenant_filtered_query(Alert, db).options(
         joinedload(Alert.transaction)
     ).filter(
         Alert.severity == 'critical'
@@ -184,13 +270,20 @@ def list_critical_alerts(
 @router.get("/{alert_id}", response_model=AlertResponse)
 def get_alert(
     alert_id: str,
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
+    tenant_id: str = Depends(require_tenant)
 ):
     """Get a single alert by ID."""
-    alert = db.query(Alert).filter(Alert.alert_id == alert_id).first()
+    # Phase 4C: Tenant-filtered query
+    alert = get_tenant_filtered_query(Alert, db).filter(
+        Alert.alert_id == alert_id
+    ).first()
 
     if not alert:
         raise HTTPException(status_code=404, detail="Alert not found")
+
+    # Phase 4C: Ensure tenant match
+    ensure_tenant_match(alert, tenant_id)
 
     return alert
 
@@ -199,15 +292,22 @@ def get_alert(
 def update_alert(
     alert_id: str,
     update_data: AlertUpdate,
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
+    tenant_id: str = Depends(require_tenant)
 ):
     """
     Update alert fields (status, assignment, resolution, etc.).
     """
-    alert = db.query(Alert).filter(Alert.alert_id == alert_id).first()
+    # Phase 4C: Tenant-filtered query
+    alert = get_tenant_filtered_query(Alert, db).filter(
+        Alert.alert_id == alert_id
+    ).first()
 
     if not alert:
         raise HTTPException(status_code=404, detail="Alert not found")
+
+    # Phase 4C: Ensure tenant match
+    ensure_tenant_match(alert, tenant_id)
 
     # Update fields
     update_dict = update_data.dict(exclude_unset=True)
@@ -236,15 +336,22 @@ def update_alert(
 def assign_alert(
     alert_id: str,
     assigned_to: str,
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
+    tenant_id: str = Depends(require_tenant)
 ):
     """
     Assign an alert to a compliance analyst.
     """
-    alert = db.query(Alert).filter(Alert.alert_id == alert_id).first()
+    # Phase 4C: Tenant-filtered query
+    alert = get_tenant_filtered_query(Alert, db).filter(
+        Alert.alert_id == alert_id
+    ).first()
 
     if not alert:
         raise HTTPException(status_code=404, detail="Alert not found")
+
+    # Phase 4C: Ensure tenant match
+    ensure_tenant_match(alert, tenant_id)
 
     alert.assigned_to = assigned_to
     alert.status = 'in_review'
@@ -267,15 +374,22 @@ def assign_alert(
 def escalate_alert(
     alert_id: str,
     escalation_notes: Optional[str] = None,
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
+    tenant_id: str = Depends(require_tenant)
 ):
     """
     Escalate an alert to higher priority/management.
     """
-    alert = db.query(Alert).filter(Alert.alert_id == alert_id).first()
+    # Phase 4C: Tenant-filtered query
+    alert = get_tenant_filtered_query(Alert, db).filter(
+        Alert.alert_id == alert_id
+    ).first()
 
     if not alert:
         raise HTTPException(status_code=404, detail="Alert not found")
+
+    # Phase 4C: Ensure tenant match
+    ensure_tenant_match(alert, tenant_id)
 
     alert.status = 'escalated'
     alert.priority = max(1, alert.priority - 1)  # Increase priority
@@ -307,17 +421,24 @@ def resolve_alert(
     resolution_status: str,
     resolution_notes: str,
     resolved_by: str,
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
+    tenant_id: str = Depends(require_tenant)
 ):
     """
     Resolve an alert.
 
     Resolution status: 'confirmed', 'false_positive', 'no_action_required', etc.
     """
-    alert = db.query(Alert).filter(Alert.alert_id == alert_id).first()
+    # Phase 4C: Tenant-filtered query
+    alert = get_tenant_filtered_query(Alert, db).filter(
+        Alert.alert_id == alert_id
+    ).first()
 
     if not alert:
         raise HTTPException(status_code=404, detail="Alert not found")
+
+    # Phase 4C: Ensure tenant match
+    ensure_tenant_match(alert, tenant_id)
 
     alert.status = 'resolved'
     alert.resolution_status = resolution_status
@@ -349,17 +470,24 @@ def mark_false_positive(
     alert_id: str,
     notes: str,
     resolved_by: str,
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
+    tenant_id: str = Depends(require_tenant)
 ):
     """
     Mark an alert as a false positive.
 
     This helps improve rule tuning and reduce noise.
     """
-    alert = db.query(Alert).filter(Alert.alert_id == alert_id).first()
+    # Phase 4C: Tenant-filtered query
+    alert = get_tenant_filtered_query(Alert, db).filter(
+        Alert.alert_id == alert_id
+    ).first()
 
     if not alert:
         raise HTTPException(status_code=404, detail="Alert not found")
+
+    # Phase 4C: Ensure tenant match
+    ensure_tenant_match(alert, tenant_id)
 
     alert.status = 'false_positive'
     alert.resolution_status = 'false_positive'
@@ -393,15 +521,22 @@ def file_sar(
     alert_id: str,
     sar_id: str,
     filed_by: str,
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
+    tenant_id: str = Depends(require_tenant)
 ):
     """
     Mark that a Suspicious Activity Report (SAR) has been filed for this alert.
     """
-    alert = db.query(Alert).filter(Alert.alert_id == alert_id).first()
+    # Phase 4C: Tenant-filtered query
+    alert = get_tenant_filtered_query(Alert, db).filter(
+        Alert.alert_id == alert_id
+    ).first()
 
     if not alert:
         raise HTTPException(status_code=404, detail="Alert not found")
+
+    # Phase 4C: Ensure tenant match
+    ensure_tenant_match(alert, tenant_id)
 
     alert.sar_filed = True
     alert.sar_id = sar_id
@@ -440,7 +575,8 @@ def list_sar_filed_alerts(
 
     Uses eager loading to prevent N+1 queries.
     """
-    alerts = db.query(Alert).options(
+    # Phase 4C: Tenant-filtered query
+    alerts = get_tenant_filtered_query(Alert, db).options(
         joinedload(Alert.transaction)
     ).filter(
         Alert.sar_filed == True
@@ -465,13 +601,15 @@ def get_alert_statistics(
     """
     start_date = datetime.utcnow() - timedelta(days=days)
 
+    # Phase 4C: Use tenant-filtered queries for statistics
     # Total alerts
-    total_alerts = db.query(func.count(Alert.id)).filter(
+    total_alerts = get_tenant_filtered_query(Alert, db).filter(
         Alert.created_at >= start_date
-    ).scalar()
+    ).count()
 
     # Alerts by status
-    status_results = db.query(
+    base_query = get_tenant_filtered_query(Alert, db)
+    status_results = base_query.with_entities(
         Alert.status,
         func.count(Alert.id).label('count')
     ).filter(
@@ -487,22 +625,22 @@ def get_alert_statistics(
     false_positives = alerts_by_status.get('false_positive', 0)
 
     # Critical and high severity
-    critical_alerts = db.query(func.count(Alert.id)).filter(
+    critical_alerts = get_tenant_filtered_query(Alert, db).filter(
         and_(
             Alert.created_at >= start_date,
             Alert.severity == 'critical'
         )
-    ).scalar()
+    ).count()
 
-    high_severity_alerts = db.query(func.count(Alert.id)).filter(
+    high_severity_alerts = get_tenant_filtered_query(Alert, db).filter(
         and_(
             Alert.created_at >= start_date,
             Alert.severity == 'high'
         )
-    ).scalar()
+    ).count()
 
     # Alerts by type
-    type_results = db.query(
+    type_results = get_tenant_filtered_query(Alert, db).with_entities(
         Alert.alert_type,
         func.count(Alert.id).label('count')
     ).filter(
@@ -531,17 +669,22 @@ def get_alert_statistics(
 @router.get("/{alert_id}/transaction", response_model=dict)
 def get_alert_transaction(
     alert_id: str,
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
+    tenant_id: str = Depends(require_tenant)
 ):
     """
     Get the transaction associated with this alert.
     """
-    alert = db.query(Alert).options(
+    # Phase 4C: Tenant-filtered query
+    alert = get_tenant_filtered_query(Alert, db).options(
         joinedload(Alert.transaction)
     ).filter(Alert.alert_id == alert_id).first()
 
     if not alert:
         raise HTTPException(status_code=404, detail="Alert not found")
+
+    # Phase 4C: Ensure tenant match
+    ensure_tenant_match(alert, tenant_id)
 
     if not alert.transaction:
         raise HTTPException(status_code=404, detail="No transaction associated with this alert")
@@ -555,17 +698,24 @@ def get_alert_transaction(
 @router.get("/{alert_id}/regulatory-context", response_model=dict)
 def get_alert_regulatory_context(
     alert_id: str,
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
+    tenant_id: str = Depends(require_tenant)
 ):
     """
     Get the regulatory context for this alert.
 
     This is Yufeed's unique innovation: linking alerts to specific regulations.
     """
-    alert = db.query(Alert).filter(Alert.alert_id == alert_id).first()
+    # Phase 4C: Tenant-filtered query
+    alert = get_tenant_filtered_query(Alert, db).filter(
+        Alert.alert_id == alert_id
+    ).first()
 
     if not alert:
         raise HTTPException(status_code=404, detail="Alert not found")
+
+    # Phase 4C: Ensure tenant match
+    ensure_tenant_match(alert, tenant_id)
 
     # TODO: Fetch actual LegalDocument records
     # For now, return the stored context

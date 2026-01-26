@@ -127,7 +127,7 @@ def login(
         "user_id": "mock-user-id-123",
         "email": login_data.email,
         "hashed_password": PasswordHandler.hash_password("password123"),  # Mock password
-        "role": "user"
+        "role": "compliance"
     }
 
     # Verify password

@@ -11,7 +11,7 @@ from starlette.responses import Response
 
 from src.auth.jwt_handler import JWTHandler
 from src.audit.models import AuditLog
-from src.database import SessionLocal
+from src.database import SessionLocal, get_db
 
 logger = logging.getLogger(__name__)
 
@@ -144,7 +144,13 @@ async def audit_log_middleware(request: Request, call_next) -> Response:
     )
 
     try:
-        db = SessionLocal()
+        override = request.app.dependency_overrides.get(get_db)
+        if override:
+            db_gen = override()
+            db = next(db_gen)
+        else:
+            db = SessionLocal()
+
         db.add(audit_entry)
         db.commit()
     except Exception:
@@ -154,5 +160,10 @@ async def audit_log_middleware(request: Request, call_next) -> Response:
     finally:
         if "db" in locals():
             db.close()
+        if "db_gen" in locals():
+            try:
+                next(db_gen)
+            except StopIteration:
+                pass
 
     return response

@@ -68,6 +68,7 @@ class CacheWarmer:
             self.warmed_namespaces.append("rules")
 
         except Exception as e:
+            db.rollback()
             logger.warning(f"Failed to warm rules cache: {e}")
 
     def warm_sanctions_cache(self):
@@ -92,6 +93,7 @@ class CacheWarmer:
             self.warmed_namespaces.append("dashboard")
 
         except Exception as e:
+            db.rollback()
             logger.warning(f"Failed to warm dashboard cache: {e}")
 
     def warm_user_cache(self, db: Session, user_ids: List[str]):
@@ -112,6 +114,7 @@ class CacheWarmer:
                 warmed_count += 1
 
             except Exception as e:
+                db.rollback()
                 logger.warning(f"Failed to warm cache for user {user_id}: {e}")
 
         logger.info(f"Warmed user cache for {warmed_count}/{len(user_ids)} users")

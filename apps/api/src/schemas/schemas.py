@@ -24,6 +24,8 @@ class LegalDocumentRead(LegalDocumentBase):
     obligations_json: Optional[List[Dict[str, Any]]] = None
     ai_summary: Optional[str] = None
     analyzed_at: Optional[datetime] = None
+    oj_act_identifier: Optional[str] = None
+    oj_signature_identifier: Optional[str] = None
 
     class Config:
         from_attributes = True  # Updated from orm_mode for Pydantic v2

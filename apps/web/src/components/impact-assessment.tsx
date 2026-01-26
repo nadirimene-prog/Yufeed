@@ -11,7 +11,7 @@ import {
     getActionItems,
     updateActionItem,
     type ImpactAssessment as ImpactAssessmentType,
-    type ActionItem
+    type ActionItem as ApiActionItem
 } from "@/lib/impact-api";
 
 interface ImpactAssessmentProps {
@@ -323,11 +323,17 @@ function RequirementCard({ icon, label, required }: RequirementCardProps) {
 interface ActionItem {
     id: number;
     title: string;
-    priority: 1 | 2 | 3 | 4 | 5;
+    description: string | null;
+    business_area: string;
+    priority: number;
+    estimated_hours: number | null;
+    complexity: string | null;
+    assigned_to: string | null;
     status: string;
-    deadline: string;
-    responsible_party?: string;
-    description?: string;
+    target_date: string | null;
+    progress_percentage: number;
+    created_at: string;
+    updated_at: string;
 }
 
 interface ActionItemCardProps {

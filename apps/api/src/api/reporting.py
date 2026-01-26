@@ -4,7 +4,8 @@ Regulatory reporting, analytics, and audit trails.
 """
 from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.orm import Session
-from sqlalchemy import func, and_, or_
+from sqlalchemy import func, and_, or_, case
+import sqlalchemy as sa
 from sqlalchemy.inspection import inspect as sa_inspect
 from typing import Optional
 from datetime import datetime, timedelta
@@ -16,13 +17,66 @@ from src.models.transaction_models import (
 )
 from src.models.travel_rule import TravelRuleRequestRecord
 from src.models.models import LegalDocument
+from src.models.compliance_workflow import RegulatoryObligation, PolicyDocument, InternalRule, OfficialJournalAct, RegulatorySource
 from src.audit.models import AuditLog, EventRecord, DecisionRecord
 from src.compliance.sar_filing import SARFilingSystem, UARFilingSystem
 from src.auth.dependencies import require_any_role, CurrentUser
 from src.utils.event_bus import publish_event_safe
+from src.compliance.scope import normalize_scopes, scope_keywords
+from sqlalchemy.dialects import postgresql
 from src.models.travel_rule import TravelRuleRequestRecord
 
 router = APIRouter(prefix="/api/reporting", tags=["reporting"])
+
+def _apply_scope_filter_to_docs(query, scopes: list[str], db: Session):
+    if not scopes:
+        return query
+    dialect = db.get_bind().dialect.name if db.get_bind() else ""
+    if dialect == "postgresql":
+        conditions = []
+        for scope in scopes:
+            conditions.append(
+                sa.cast(LegalDocument.scope_tags, postgresql.JSONB).op("@>")(
+                    sa.func.jsonb_build_array(scope)
+                )
+            )
+        return query.filter(or_(*conditions))
+
+    keywords = scope_keywords(scopes)
+    if not keywords:
+        return query
+    conditions = [LegalDocument.title.ilike(f"%{keyword}%") for keyword in keywords]
+    return query.filter(or_(*conditions))
+
+
+def _apply_scope_filter_to_obligations(query, scopes: list[str], db: Session):
+    if not scopes:
+        return query
+    dialect = db.get_bind().dialect.name if db.get_bind() else ""
+    if dialect == "postgresql":
+        conditions = []
+        for scope in scopes:
+            conditions.append(
+                sa.cast(LegalDocument.scope_tags, postgresql.JSONB).op("@>")(
+                    sa.func.jsonb_build_array(scope)
+                )
+            )
+            conditions.append(
+                sa.cast(RegulatoryObligation.scope_tags, postgresql.JSONB).op("@>")(
+                    sa.func.jsonb_build_array(scope)
+                )
+            )
+        return query.filter(or_(*conditions))
+
+    keywords = scope_keywords(scopes)
+    if not keywords:
+        return query
+    conditions = []
+    for keyword in keywords:
+        like = f"%{keyword}%"
+        conditions.append(LegalDocument.title.ilike(like))
+        conditions.append(RegulatoryObligation.obligation_text.ilike(like))
+    return query.filter(or_(*conditions))
 
 
 # ============================================================================
@@ -430,6 +484,13 @@ def export_travel_rule_evidence(
 
 @router.get("/dashboard/home")
 def compliance_home_dashboard(
+    intake_days: int = Query(7, ge=1, le=90),
+    intake_jurisdiction: Optional[str] = Query(None),
+    intake_source: Optional[str] = Query(None),
+    intake_limit: int = Query(8, ge=1, le=50),
+    obligation_status: Optional[str] = Query(None, description="Comma-separated statuses"),
+    obligation_limit: int = Query(8, ge=1, le=50),
+    scope: Optional[str] = Query(None, description="Comma-separated scope tags: psp,eme,vasp"),
     db: Session = Depends(get_db),
     _: CurrentUser = Depends(require_any_role(["admin", "compliance", "auditor", "user"]))
 ):
@@ -440,13 +501,19 @@ def compliance_home_dashboard(
     last_24h = now - timedelta(hours=24)
     last_30d = now - timedelta(days=30)
 
-    total_docs = db.query(func.count(LegalDocument.id)).scalar() or 0
+    scopes = normalize_scopes(scope)
+    docs_query = db.query(LegalDocument)
+    docs_query = _apply_scope_filter_to_docs(docs_query, scopes, db)
+    scope_doc_ids_subq = docs_query.with_entities(LegalDocument.id).subquery()
+
+    total_docs = docs_query.count()
     rules_total = db.query(func.count(MonitoringRule.id)).scalar() or 0
     rules_with_celex = db.query(func.count(MonitoringRule.id)).filter(
         MonitoringRule.regulatory_source_id.isnot(None)
     ).scalar() or 0
     celex_covered = db.query(func.count(func.distinct(MonitoringRule.regulatory_source_id))).filter(
-        MonitoringRule.regulatory_source_id.isnot(None)
+        MonitoringRule.regulatory_source_id.isnot(None),
+        MonitoringRule.regulatory_source_id.in_(scope_doc_ids_subq),
     ).scalar() or 0
 
     celex_coverage_pct = round((celex_covered / total_docs * 100), 2) if total_docs > 0 else 0
@@ -456,7 +523,7 @@ def compliance_home_dashboard(
         MonitoringRule.regulatory_source_id.isnot(None)
     ).subquery()
 
-    uncovered_docs = db.query(LegalDocument).filter(
+    uncovered_docs = docs_query.filter(
         ~LegalDocument.id.in_(mapped_ids_subq)
     ).order_by(LegalDocument.publication_date.desc()).limit(5).all()
 
@@ -477,6 +544,21 @@ def compliance_home_dashboard(
     ).filter(DecisionRecord.created_at >= last_24h).group_by(DecisionRecord.decision).all()
     decision_breakdown = {row.decision: row.count for row in decision_breakdown_rows}
 
+    latest_decision_row = db.query(DecisionRecord, EventRecord).outerjoin(
+        EventRecord, DecisionRecord.event_id == EventRecord.event_id
+    ).order_by(DecisionRecord.created_at.desc()).first()
+    latest_decision = None
+    if latest_decision_row:
+        latest_decision, latest_event = latest_decision_row
+        latest_decision = {
+            "decision_id": latest_decision.decision_id,
+            "decision": latest_decision.decision,
+            "event_id": latest_decision.event_id,
+            "created_at": latest_decision.created_at.isoformat(),
+            "event_type": getattr(latest_event, "event_type", None) if latest_event else None,
+            "entity_id": getattr(latest_event, "entity_id", None) if latest_event else None,
+        }
+
     sar_filed_30d = db.query(func.count(Case.id)).filter(
         Case.outcome == "sar_filed",
         Case.closed_at >= last_30d
@@ -494,13 +576,95 @@ def compliance_home_dashboard(
         EventRecord.created_at >= last_24h
     ).scalar() or 0
 
+    last_window = now - timedelta(days=intake_days)
+    new_docs_query = docs_query.filter(LegalDocument.last_modified >= last_window)
+    if intake_jurisdiction:
+        new_docs_query = new_docs_query.filter(LegalDocument.jurisdiction == intake_jurisdiction)
+    if intake_source:
+        new_docs_query = new_docs_query.filter(LegalDocument.source_system == intake_source)
+    new_docs_total = new_docs_query.count()
+    new_docs_by_jurisdiction_rows = new_docs_query.with_entities(
+        LegalDocument.jurisdiction,
+        func.count(LegalDocument.id)
+    ).group_by(LegalDocument.jurisdiction).all()
+    new_docs_by_jurisdiction = {
+        (row[0] or "unknown"): row[1] for row in new_docs_by_jurisdiction_rows
+    }
+    new_docs = new_docs_query.order_by(LegalDocument.last_modified.desc()).limit(intake_limit).all()
+
+    oj_total = db.query(func.count(OfficialJournalAct.id)).scalar() or 0
+    oj_latest_date = db.query(func.max(OfficialJournalAct.publication_date)).scalar()
+    oj_source = db.query(RegulatorySource).filter(
+        RegulatorySource.source_key == "eur-lex-oj-act-by-act"
+    ).first()
+    oj_last_ingested = oj_source.last_ingested_at if oj_source else None
+
+    statuses = None
+    if obligation_status:
+        statuses = [item.strip().lower() for item in obligation_status.split(",") if item.strip()]
+
+    pending_obligations_query = db.query(RegulatoryObligation, LegalDocument).join(
+        LegalDocument, RegulatoryObligation.doc_id == LegalDocument.id
+    )
+    pending_obligations_query = _apply_scope_filter_to_obligations(pending_obligations_query, scopes, db)
+    if statuses:
+        pending_obligations_query = pending_obligations_query.filter(RegulatoryObligation.status.in_(statuses))
+    else:
+        pending_obligations_query = pending_obligations_query.filter(RegulatoryObligation.status.in_(["draft", "in_review"]))
+    pending_obligations_query = pending_obligations_query.order_by(RegulatoryObligation.updated_at.desc())
+    pending_obligations_total = pending_obligations_query.count()
+    pending_obligations = pending_obligations_query.limit(obligation_limit).all()
+
+    policies_query = db.query(PolicyDocument)
+    policies_total = policies_query.count()
+    policy_status_rows = policies_query.with_entities(
+        PolicyDocument.status,
+        func.count(PolicyDocument.id)
+    ).group_by(PolicyDocument.status).all()
+    policy_by_status = {row[0] or "unknown": row[1] for row in policy_status_rows}
+    focus_statuses = ["draft", "in_review"]
+    policies_focus = policies_query.filter(
+        PolicyDocument.status.in_(focus_statuses)
+    ).order_by(PolicyDocument.updated_at.desc()).limit(5).all()
+
     def _doc_to_dict(doc):
+        title = (doc.title or "").strip() or doc.celex or doc.source_reference or "Untitled document"
         return {
             "id": doc.id,
             "celex": doc.celex,
-            "title": doc.title,
+            "title": title,
             "risk_level": doc.risk_level,
             "compliance_domain": doc.compliance_domain,
+        }
+
+    def _doc_to_intake_dict(doc):
+        title = (doc.title or "").strip() or doc.celex or doc.source_reference or "Untitled document"
+        return {
+            "id": doc.id,
+            "celex": doc.celex,
+            "title": title,
+            "jurisdiction": doc.jurisdiction,
+            "source_system": doc.source_system,
+            "publication_date": doc.publication_date.isoformat() if doc.publication_date else None,
+            "last_modified": doc.last_modified.isoformat() if doc.last_modified else None,
+            "oj_act_identifier": doc.oj_act_identifier,
+            "oj_signature_identifier": doc.oj_signature_identifier,
+        }
+
+    def _obligation_to_dict(obligation, doc):
+        text = (obligation.obligation_text or "").strip()
+        summary = text[:180] + ("…" if len(text) > 180 else "")
+        title = (doc.title or "").strip() or doc.celex or doc.source_reference or "Untitled document"
+        return {
+            "id": obligation.id,
+            "obligation_id": obligation.obligation_id,
+            "status": obligation.status,
+            "article_ref": obligation.article_ref,
+            "summary": summary,
+            "doc_id": doc.id,
+            "celex": doc.celex,
+            "doc_title": title,
+            "updated_at": obligation.updated_at.isoformat() if obligation.updated_at else None,
         }
 
     def _rule_to_dict(rule):
@@ -509,6 +673,16 @@ def compliance_home_dashboard(
             "name": rule.name,
             "severity": rule.severity,
             "category": rule.category,
+        }
+
+    def _policy_to_dict(policy: PolicyDocument):
+        return {
+            "id": policy.id,
+            "policy_id": policy.policy_id,
+            "name": policy.name,
+            "status": policy.status,
+            "owner": policy.owner,
+            "updated_at": policy.updated_at.isoformat() if policy.updated_at else None,
         }
 
     return {
@@ -532,12 +706,34 @@ def compliance_home_dashboard(
         "decisions": {
             "last_24h_total": decisions_24h,
             "breakdown": decision_breakdown,
+            "latest": latest_decision,
         },
         "reporting": {
             "sar_filed_30d": sar_filed_30d,
             "travel_pending": travel_pending,
             "travel_submitted": travel_submitted,
             "onchain_checks_24h": onchain_checks,
+        },
+        "policy_summary": {
+            "total": policies_total,
+            "by_status": policy_by_status,
+            "items": [_policy_to_dict(policy) for policy in policies_focus],
+        },
+        "regulatory_intake": {
+            "new_documents": {
+                "total_7d": new_docs_total,
+                "by_jurisdiction": new_docs_by_jurisdiction,
+                "items": [_doc_to_intake_dict(doc) for doc in new_docs],
+            },
+            "pending_obligations": {
+                "total": pending_obligations_total,
+                "items": [_obligation_to_dict(obligation, doc) for obligation, doc in pending_obligations],
+            },
+        },
+        "official_journal": {
+            "acts_total": oj_total,
+            "latest_publication_date": oj_latest_date.isoformat() if oj_latest_date else None,
+            "last_ingested_at": oj_last_ingested.isoformat() if oj_last_ingested else None,
         },
     }
 
@@ -596,6 +792,162 @@ def compliance_home_dashboard(
                 )
             ).scalar() or 0
         }
+    }
+
+
+# ============================================================================
+# AML SCOPE REVIEW
+# ============================================================================
+
+@router.get("/aml-scope")
+def aml_scope_review(
+    jurisdiction: Optional[str] = Query(None),
+    scope: Optional[str] = Query(None, description="Comma-separated scope tags: psp,eme,vasp"),
+    limit: int = Query(10, ge=1, le=100),
+    db: Session = Depends(get_db),
+    _: CurrentUser = Depends(require_any_role(["admin", "compliance", "aml_officer", "auditor"])),
+):
+    """
+    AML scope coverage summary for obligations and controls.
+    """
+    scopes = normalize_scopes(scope)
+    base_query = db.query(RegulatoryObligation, LegalDocument).join(
+        LegalDocument, RegulatoryObligation.doc_id == LegalDocument.id
+    )
+    if jurisdiction:
+        base_query = base_query.filter(LegalDocument.jurisdiction == jurisdiction)
+    base_query = _apply_scope_filter_to_obligations(base_query, scopes, db)
+
+    total_obligations = base_query.count()
+
+    status_rows = db.query(
+        RegulatoryObligation.status,
+        func.count(RegulatoryObligation.id).label("count"),
+    ).join(
+        LegalDocument, RegulatoryObligation.doc_id == LegalDocument.id
+    )
+    if jurisdiction:
+        status_rows = status_rows.filter(LegalDocument.jurisdiction == jurisdiction)
+    status_rows = _apply_scope_filter_to_obligations(status_rows, scopes, db)
+    status_rows = status_rows.group_by(RegulatoryObligation.status).all()
+    status_counts = {row.status: row.count for row in status_rows}
+
+    covered_subq = db.query(
+        InternalRule.obligation_id.label("obligation_id")
+    ).distinct().subquery()
+    policy_mapped_subq = db.query(
+        InternalRule.obligation_id.label("obligation_id")
+    ).filter(InternalRule.policy_section_id.isnot(None)).distinct().subquery()
+
+    covered_count_query = db.query(func.count(RegulatoryObligation.id)).join(
+        LegalDocument, RegulatoryObligation.doc_id == LegalDocument.id
+    ).join(
+        covered_subq, covered_subq.c.obligation_id == RegulatoryObligation.id
+    )
+    if jurisdiction:
+        covered_count_query = covered_count_query.filter(LegalDocument.jurisdiction == jurisdiction)
+    covered_count_query = _apply_scope_filter_to_obligations(covered_count_query, scopes, db)
+    covered_count = covered_count_query.scalar() or 0
+
+    policy_mapped_query = db.query(func.count(RegulatoryObligation.id)).join(
+        LegalDocument, RegulatoryObligation.doc_id == LegalDocument.id
+    ).join(
+        policy_mapped_subq, policy_mapped_subq.c.obligation_id == RegulatoryObligation.id
+    )
+    if jurisdiction:
+        policy_mapped_query = policy_mapped_query.filter(LegalDocument.jurisdiction == jurisdiction)
+    policy_mapped_query = _apply_scope_filter_to_obligations(policy_mapped_query, scopes, db)
+    policy_mapped_count = policy_mapped_query.scalar() or 0
+
+    jurisdiction_query = db.query(
+        LegalDocument.jurisdiction.label("jurisdiction"),
+        func.count(RegulatoryObligation.id).label("total"),
+        func.sum(case((RegulatoryObligation.status == "approved", 1), else_=0)).label("approved"),
+        func.sum(case((RegulatoryObligation.status == "in_review", 1), else_=0)).label("in_review"),
+        func.sum(case((RegulatoryObligation.status == "draft", 1), else_=0)).label("draft"),
+        func.sum(case((RegulatoryObligation.status == "rejected", 1), else_=0)).label("rejected"),
+        func.sum(case((covered_subq.c.obligation_id.isnot(None), 1), else_=0)).label("covered"),
+        func.sum(case((policy_mapped_subq.c.obligation_id.isnot(None), 1), else_=0)).label("policy_mapped"),
+    ).join(
+        LegalDocument, RegulatoryObligation.doc_id == LegalDocument.id
+    ).outerjoin(
+        covered_subq, covered_subq.c.obligation_id == RegulatoryObligation.id
+    ).outerjoin(
+        policy_mapped_subq, policy_mapped_subq.c.obligation_id == RegulatoryObligation.id
+    )
+
+    if jurisdiction:
+        jurisdiction_query = jurisdiction_query.filter(LegalDocument.jurisdiction == jurisdiction)
+    jurisdiction_query = _apply_scope_filter_to_obligations(jurisdiction_query, scopes, db)
+
+    jurisdiction_rows = jurisdiction_query.group_by(LegalDocument.jurisdiction).order_by(
+        LegalDocument.jurisdiction.asc()
+    ).all()
+
+    by_jurisdiction = []
+    for row in jurisdiction_rows:
+        total = row.total or 0
+        coverage_pct = round((row.covered / total * 100), 2) if total else 0
+        policy_pct = round((row.policy_mapped / total * 100), 2) if total else 0
+        by_jurisdiction.append(
+            {
+                "jurisdiction": row.jurisdiction or "unknown",
+                "total": total,
+                "approved": row.approved or 0,
+                "in_review": row.in_review or 0,
+                "draft": row.draft or 0,
+                "rejected": row.rejected or 0,
+                "covered": row.covered or 0,
+                "policy_mapped": row.policy_mapped or 0,
+                "coverage_pct": coverage_pct,
+                "policy_mapping_pct": policy_pct,
+            }
+        )
+
+    gaps_query = db.query(RegulatoryObligation, LegalDocument).join(
+        LegalDocument, RegulatoryObligation.doc_id == LegalDocument.id
+    ).outerjoin(
+        covered_subq, covered_subq.c.obligation_id == RegulatoryObligation.id
+    ).filter(covered_subq.c.obligation_id.is_(None))
+    if jurisdiction:
+        gaps_query = gaps_query.filter(LegalDocument.jurisdiction == jurisdiction)
+    gaps_query = _apply_scope_filter_to_obligations(gaps_query, scopes, db)
+
+    gap_rows = gaps_query.order_by(RegulatoryObligation.updated_at.desc()).limit(limit).all()
+    gap_items = []
+    for obligation, doc in gap_rows:
+        gap_items.append(
+            {
+                "id": obligation.id,
+                "obligation_id": obligation.obligation_id,
+                "status": obligation.status,
+                "obligation_text": obligation.obligation_text,
+                "updated_at": obligation.updated_at.isoformat() if obligation.updated_at else None,
+                "document": {
+                    "celex": doc.celex,
+                    "title": doc.title,
+                    "jurisdiction": doc.jurisdiction,
+                },
+            }
+        )
+
+    coverage_pct = round((covered_count / total_obligations * 100), 2) if total_obligations else 0
+    policy_mapping_pct = round((policy_mapped_count / total_obligations * 100), 2) if total_obligations else 0
+
+    return {
+        "as_of": datetime.utcnow().isoformat(),
+        "jurisdiction": jurisdiction,
+        "scope": scope,
+        "total_obligations": total_obligations,
+        "status_counts": status_counts,
+        "coverage": {
+            "covered": covered_count,
+            "coverage_pct": coverage_pct,
+            "policy_mapped": policy_mapped_count,
+            "policy_mapping_pct": policy_mapping_pct,
+        },
+        "by_jurisdiction": by_jurisdiction,
+        "gap_items": gap_items,
     }
 
 

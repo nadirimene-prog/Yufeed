@@ -55,6 +55,29 @@ def db_session(test_db_engine) -> Generator[Session, None, None]:
 
     SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=connection)
     session = SessionLocal()
+    # Bind factory_boy SQLAlchemy factories to this session.
+    try:
+        from tests.factories import (
+            TransactionFactory,
+            AlertFactory,
+            CaseFactory,
+            MonitoringRuleFactory,
+            RuleHitFactory,
+            LegalDocumentFactory,
+        )
+
+        for factory_cls in (
+            TransactionFactory,
+            AlertFactory,
+            CaseFactory,
+            MonitoringRuleFactory,
+            RuleHitFactory,
+            LegalDocumentFactory,
+        ):
+            factory_cls._meta.sqlalchemy_session = session
+    except Exception:
+        # Factories may not be imported in some test contexts.
+        pass
 
     yield session
 
@@ -69,6 +92,11 @@ def client(db_session: Session) -> Generator[TestClient, None, None]:
     """
     Create a test client with overridden database dependency.
     """
+    # Disable rate limiting in tests to avoid hitting auth limits.
+    if os.getenv("ENVIRONMENT", "").lower() in {"test", "testing"}:
+        from src.middleware import limiter
+        limiter.enabled = False
+
     def override_get_db():
         try:
             yield db_session
@@ -192,7 +220,10 @@ def auth_headers(test_user_token: str) -> dict:
     """
     Return authorization headers with JWT token.
     """
-    return {"Authorization": f"Bearer {test_user_token}"}
+    return {
+        "Authorization": f"Bearer {test_user_token}",
+        "X-Tenant-ID": "default",
+    }
 
 
 @pytest.fixture
@@ -229,7 +260,10 @@ def admin_headers(admin_user_token: str) -> dict:
     """
     Return authorization headers with admin JWT token.
     """
-    return {"Authorization": f"Bearer {admin_user_token}"}
+    return {
+        "Authorization": f"Bearer {admin_user_token}",
+        "X-Tenant-ID": "default",
+    }
 
 
 # ============================================================================

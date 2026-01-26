@@ -10,7 +10,7 @@ Uses a combination of:
 """
 from typing import Dict, Any, Optional
 from sqlalchemy.orm import Session
-from sqlalchemy import func, and_
+from sqlalchemy import func, and_, case
 from datetime import datetime, timedelta
 from decimal import Decimal
 import logging
@@ -18,6 +18,7 @@ import logging
 from src.models.transaction_models import (
     Transaction, UserRiskProfile, Alert, FeatureValue
 )
+from src.tenancy.context import get_current_tenant
 
 logger = logging.getLogger(__name__)
 
@@ -151,9 +152,12 @@ class RiskScoringService:
         score = Decimal('0')
 
         # Get user risk profile
-        user_profile = self.db.query(UserRiskProfile).filter(
+        query = self.db.query(UserRiskProfile).filter(
             UserRiskProfile.user_id == transaction.user_id
-        ).first()
+        )
+        if transaction.tenant_id:
+            query = query.filter(UserRiskProfile.tenant_id == transaction.tenant_id)
+        user_profile = query.first()
 
         if not user_profile:
             # New user = slightly elevated risk
@@ -234,17 +238,21 @@ class RiskScoringService:
         else:
             return 'low'
 
-    def update_user_risk_profile(self, user_id: str) -> UserRiskProfile:
+    def update_user_risk_profile(self, user_id: str, tenant_id: Optional[str] = None) -> UserRiskProfile:
         """
         Update or create user risk profile based on transaction history.
         """
         # Get or create profile
-        profile = self.db.query(UserRiskProfile).filter(
+        tenant_id = tenant_id or get_current_tenant()
+        query = self.db.query(UserRiskProfile).filter(
             UserRiskProfile.user_id == user_id
-        ).first()
+        )
+        if tenant_id:
+            query = query.filter(UserRiskProfile.tenant_id == tenant_id)
+        profile = query.first()
 
         if not profile:
-            profile = UserRiskProfile(user_id=user_id)
+            profile = UserRiskProfile(user_id=user_id, tenant_id=tenant_id or "default")
             self.db.add(profile)
 
         # Calculate statistics for last 30 days
@@ -281,8 +289,8 @@ class RiskScoringService:
         # Alert statistics
         alert_stats = self.db.query(
             func.count(Alert.id).label('total'),
-            func.sum(func.case((Alert.severity == 'critical', 1), else_=0)).label('critical'),
-            func.sum(func.case((Alert.status == 'resolved', 1), else_=0)).label('resolved')
+            func.sum(case((Alert.severity == 'critical', 1), else_=0)).label('critical'),
+            func.sum(case((Alert.status == 'resolved', 1), else_=0)).label('resolved')
         ).filter(Alert.user_id == user_id).first()
 
         profile.total_alerts = alert_stats.total or 0

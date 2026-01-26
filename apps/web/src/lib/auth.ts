@@ -16,6 +16,32 @@ export interface AuthTokens {
   token_type?: string;
 }
 
+function decodeJwtPayload(token: string): Record<string, any> | null {
+  const parts = token.split(".");
+  if (parts.length < 2) return null;
+  const payload = parts[1].replace(/-/g, "+").replace(/_/g, "/");
+  try {
+    const decoded =
+      typeof window !== "undefined" && typeof atob === "function"
+        ? atob(payload)
+        : Buffer.from(payload, "base64").toString("utf-8");
+    return JSON.parse(decoded);
+  } catch {
+    return null;
+  }
+}
+
+function isJwtTokenValid(token: string): boolean {
+  const payload = decodeJwtPayload(token);
+  if (!payload) return false;
+  const exp = payload.exp;
+  if (typeof exp !== "number") {
+    return true;
+  }
+  const now = Math.floor(Date.now() / 1000);
+  return exp > now;
+}
+
 export function getAuthToken(): string | null {
   if (typeof window === "undefined") {
     return (
@@ -29,9 +55,12 @@ export function getAuthToken(): string | null {
     const value =
       window.localStorage.getItem(key) ||
       window.sessionStorage.getItem(key);
-    if (value) {
+    if (!value) continue;
+    if (isJwtTokenValid(value)) {
       return value;
     }
+    window.localStorage.removeItem(key);
+    window.sessionStorage.removeItem(key);
   }
 
   return null;
@@ -59,10 +88,11 @@ export function clearAuthTokens() {
   if (typeof window === "undefined") {
     return;
   }
+  const allKeys = [...TOKEN_KEYS, REFRESH_TOKEN_KEY, TOKEN_TYPE_KEY];
   for (const store of [window.localStorage, window.sessionStorage]) {
-    store.removeItem(ACCESS_TOKEN_KEY);
-    store.removeItem(REFRESH_TOKEN_KEY);
-    store.removeItem(TOKEN_TYPE_KEY);
+    for (const key of allKeys) {
+      store.removeItem(key);
+    }
   }
 }
 
@@ -71,6 +101,7 @@ export async function loginWithPassword(
   password: string,
   options?: { apiUrl?: string; storage?: "local" | "session" }
 ): Promise<AuthTokens> {
+  clearAuthTokens();
   const apiUrl =
     options?.apiUrl ||
     process.env.NEXT_PUBLIC_API_URL ||

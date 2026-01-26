@@ -26,7 +26,7 @@ class ContentExtractor:
             'User-Agent': 'Mozilla/5.0 (compatible; EULegalMonitor/1.0)'
         })
 
-    def extract_content(self, celex: str) -> Optional[Dict[str, Any]]:
+    def extract_content(self, celex: str, language: str = "EN") -> Optional[Dict[str, Any]]:
         """
         Extract full text content for a document.
 
@@ -41,20 +41,20 @@ class ContentExtractor:
                 - article_breakdown: List of articles with text
         """
         # Try HTML extraction first (fastest and most reliable)
-        result = self._extract_from_html(celex)
+        result = self._extract_from_html(celex, language=language)
         if result:
             return result
 
         # Fallback to noting that content is available via PDF
         return {
             "full_text": None,
-            "language": "en",
+            "language": language.lower(),
             "extraction_method": "pdf_available",
             "article_breakdown": [],
             "note": "Full text available in PDF format"
         }
 
-    def _extract_from_html(self, celex: str) -> Optional[Dict[str, Any]]:
+    def _extract_from_html(self, celex: str, language: str = "EN") -> Optional[Dict[str, Any]]:
         """
         Extract content from EUR-Lex HTML version.
 
@@ -62,7 +62,8 @@ class ContentExtractor:
         """
         try:
             # EUR-Lex HTML endpoint
-            url = f"https://eur-lex.europa.eu/legal-content/EN/TXT/HTML/?uri=CELEX:{celex}"
+            lang = (language or "EN").upper()
+            url = f"https://eur-lex.europa.eu/legal-content/{lang}/TXT/HTML/?uri=CELEX:{celex}"
 
             response = self.session.get(url, timeout=30)
             if response.status_code != 200:
@@ -90,7 +91,7 @@ class ContentExtractor:
 
             return {
                 "full_text": full_text,
-                "language": "en",
+                "language": lang.lower(),
                 "extraction_method": "html",
                 "article_breakdown": articles,
                 "word_count": len(full_text.split())

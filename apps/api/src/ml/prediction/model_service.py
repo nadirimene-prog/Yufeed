@@ -3,14 +3,21 @@ ML Model service for real-time alert triage predictions.
 Phase 4B: Task 4.3 - Model Serving Infrastructure
 """
 import logging
-import joblib
 import json
 from pathlib import Path
 from typing import Dict, Any, Optional, List
 from datetime import datetime, timedelta
 
-import pandas as pd
-import numpy as np
+try:
+    import joblib
+    import pandas as pd
+    import numpy as np
+    ML_DEPS_AVAILABLE = True
+except ImportError:
+    joblib = None
+    pd = None
+    np = None
+    ML_DEPS_AVAILABLE = False
 from sqlalchemy.orm import Session
 
 from src.models.transaction_models import Alert, Transaction
@@ -49,6 +56,10 @@ class AlertTriageMLModel:
         Args:
             model_path: Path to model file (if None, loads latest)
         """
+        if not ML_DEPS_AVAILABLE:
+            logger.warning("ML dependencies not installed; skipping model load")
+            self.model_loaded = False
+            return
         try:
             if model_path is None:
                 # Find latest model
@@ -125,8 +136,8 @@ class AlertTriageMLModel:
             "model_loaded": self.model_loaded
         })
 
-        # Fallback if model not loaded
-        if not self.model_loaded:
+        # Fallback if model not loaded or dependencies missing
+        if not self.model_loaded or not ML_DEPS_AVAILABLE:
             logger.warning("Model not loaded, using fallback logic")
             return self._fallback_prediction(alert)
 

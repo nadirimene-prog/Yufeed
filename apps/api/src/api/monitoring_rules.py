@@ -14,6 +14,7 @@ from src.auth.dependencies import require_any_role, CurrentUser
 from src.models.transaction_models import MonitoringRule, Alert, RuleVersion
 from src.audit.models import AuditLog
 from src.models.models import LegalDocument
+from src.tenancy.queries import get_tenant_filtered_query, set_tenant_on_create, ensure_tenant_match, require_tenant
 from src.schemas.transaction_schemas import (
     MonitoringRuleCreate,
     MonitoringRuleUpdate,
@@ -70,6 +71,9 @@ def create_rule(
         enabled=rule.enabled,
     )
 
+    # Phase 4C: Set tenant context on new rule
+    set_tenant_on_create(db_rule)
+
     db.add(db_rule)
     db.commit()
     db.refresh(db_rule)
@@ -108,7 +112,8 @@ def list_rules(
     """
     List monitoring rules with filtering.
     """
-    query = db.query(MonitoringRule)
+    # Phase 4C: Tenant-filtered query
+    query = get_tenant_filtered_query(MonitoringRule, db)
 
     if enabled is not None:
         query = query.filter(MonitoringRule.enabled == enabled)
@@ -130,15 +135,20 @@ def list_rules(
 @router.get("/{rule_id}", response_model=MonitoringRuleResponse)
 def get_rule(
     rule_id: str,
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
+    tenant_id: str = Depends(require_tenant)
 ):
     """Get a single rule by ID."""
-    rule = db.query(MonitoringRule).filter(
+    # Phase 4C: Tenant-filtered query
+    rule = get_tenant_filtered_query(MonitoringRule, db).filter(
         MonitoringRule.rule_id == rule_id
     ).first()
 
     if not rule:
         raise HTTPException(status_code=404, detail="Rule not found")
+
+    # Phase 4C: Ensure tenant match
+    ensure_tenant_match(rule, tenant_id)
 
     return rule
 
@@ -163,19 +173,24 @@ def update_rule(
 @router.delete("/{rule_id}")
 def delete_rule(
     rule_id: str,
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
+    tenant_id: str = Depends(require_tenant)
 ):
     """
     Delete a monitoring rule.
 
     This permanently removes the rule. Consider disabling instead.
     """
-    rule = db.query(MonitoringRule).filter(
+    # Phase 4C: Tenant-filtered query
+    rule = get_tenant_filtered_query(MonitoringRule, db).filter(
         MonitoringRule.rule_id == rule_id
     ).first()
 
     if not rule:
         raise HTTPException(status_code=404, detail="Rule not found")
+
+    # Phase 4C: Ensure tenant match
+    ensure_tenant_match(rule, tenant_id)
 
     db.delete(rule)
     db.commit()
@@ -190,15 +205,20 @@ def delete_rule(
 @router.post("/{rule_id}/enable")
 def enable_rule(
     rule_id: str,
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
+    tenant_id: str = Depends(require_tenant)
 ):
     """Enable a monitoring rule."""
-    rule = db.query(MonitoringRule).filter(
+    # Phase 4C: Tenant-filtered query
+    rule = get_tenant_filtered_query(MonitoringRule, db).filter(
         MonitoringRule.rule_id == rule_id
     ).first()
 
     if not rule:
         raise HTTPException(status_code=404, detail="Rule not found")
+
+    # Phase 4C: Ensure tenant match
+    ensure_tenant_match(rule, tenant_id)
 
     rule.enabled = True
     rule.updated_at = datetime.utcnow()
@@ -210,15 +230,20 @@ def enable_rule(
 @router.post("/{rule_id}/disable")
 def disable_rule(
     rule_id: str,
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
+    tenant_id: str = Depends(require_tenant)
 ):
     """Disable a monitoring rule."""
-    rule = db.query(MonitoringRule).filter(
+    # Phase 4C: Tenant-filtered query
+    rule = get_tenant_filtered_query(MonitoringRule, db).filter(
         MonitoringRule.rule_id == rule_id
     ).first()
 
     if not rule:
         raise HTTPException(status_code=404, detail="Rule not found")
+
+    # Phase 4C: Ensure tenant match
+    ensure_tenant_match(rule, tenant_id)
 
     rule.enabled = False
     rule.updated_at = datetime.utcnow()
@@ -231,7 +256,8 @@ def disable_rule(
 def test_rule(
     rule_id: str,
     transaction_id: Optional[int] = None,
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
+    tenant_id: str = Depends(require_tenant)
 ):
     """
     Test a rule against a transaction or sample data.
@@ -241,21 +267,28 @@ def test_rule(
     from src.services.rules_engine import RulesEngine
     from src.models.transaction_models import Transaction
 
-    rule = db.query(MonitoringRule).filter(
+    # Phase 4C: Tenant-filtered query
+    rule = get_tenant_filtered_query(MonitoringRule, db).filter(
         MonitoringRule.rule_id == rule_id
     ).first()
 
     if not rule:
         raise HTTPException(status_code=404, detail="Rule not found")
 
+    # Phase 4C: Ensure tenant match
+    ensure_tenant_match(rule, tenant_id)
+
     if transaction_id:
-        # Test against specific transaction
-        transaction = db.query(Transaction).filter(
+        # Phase 4C: Test against specific transaction (tenant-filtered)
+        transaction = get_tenant_filtered_query(Transaction, db).filter(
             Transaction.id == transaction_id
         ).first()
 
         if not transaction:
             raise HTTPException(status_code=404, detail="Transaction not found")
+
+        # Phase 4C: Ensure transaction belongs to same tenant
+        ensure_tenant_match(transaction, tenant_id)
 
         engine = RulesEngine(db)
         would_trigger = engine._evaluate_rule(transaction, rule)
@@ -287,13 +320,18 @@ def test_rule(
 @router.get("/{rule_id}/versions", response_model=List[RuleVersionResponse])
 def list_rule_versions(
     rule_id: str,
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
+    tenant_id: str = Depends(require_tenant)
 ):
-    rule = db.query(MonitoringRule).filter(
+    # Phase 4C: Tenant-filtered query
+    rule = get_tenant_filtered_query(MonitoringRule, db).filter(
         MonitoringRule.rule_id == rule_id
     ).first()
     if not rule:
         raise HTTPException(status_code=404, detail="Rule not found")
+
+    # Phase 4C: Ensure tenant match
+    ensure_tenant_match(rule, tenant_id)
 
     versions = db.query(RuleVersion).filter(
         RuleVersion.rule_id == rule.id
@@ -318,13 +356,18 @@ def create_rule_version(
     rule_id: str,
     request: RuleVersionCreate,
     db: Session = Depends(get_db),
-    _: CurrentUser = Depends(require_any_role(["admin", "compliance", "aml_officer", "auditor", "user"]))
+    _: CurrentUser = Depends(require_any_role(["admin", "compliance", "aml_officer", "auditor", "user"])),
+    tenant_id: str = Depends(require_tenant)
 ):
-    rule = db.query(MonitoringRule).filter(
+    # Phase 4C: Tenant-filtered query
+    rule = get_tenant_filtered_query(MonitoringRule, db).filter(
         MonitoringRule.rule_id == rule_id
     ).first()
     if not rule:
         raise HTTPException(status_code=404, detail="Rule not found")
+
+    # Phase 4C: Ensure tenant match
+    ensure_tenant_match(rule, tenant_id)
 
     next_version = rule.version + 1
     version = RuleVersion(
@@ -371,7 +414,8 @@ def create_rule_version(
 def approve_rule_version(
     version_id: int,
     db: Session = Depends(get_db),
-    _: CurrentUser = Depends(require_any_role(["admin", "compliance", "aml_officer"]))
+    _: CurrentUser = Depends(require_any_role(["admin", "compliance", "aml_officer"])),
+    tenant_id: str = Depends(require_tenant)
 ):
     version = db.query(RuleVersion).filter(
         RuleVersion.id == version_id
@@ -381,9 +425,15 @@ def approve_rule_version(
     if version.status != "pending":
         raise HTTPException(status_code=400, detail="Rule version is not pending")
 
-    rule = db.query(MonitoringRule).filter(MonitoringRule.id == version.rule_id).first()
+    # Phase 4C: Tenant-filtered query for the associated rule
+    rule = get_tenant_filtered_query(MonitoringRule, db).filter(
+        MonitoringRule.id == version.rule_id
+    ).first()
     if not rule:
         raise HTTPException(status_code=404, detail="Rule not found")
+
+    # Phase 4C: Ensure tenant match
+    ensure_tenant_match(rule, tenant_id)
 
     rule.name = version.name
     rule.description = version.description
@@ -467,7 +517,8 @@ def reject_rule_version(
 def simulate_rule(
     rule_id: str,
     request: RuleSimulationRequest,
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
+    tenant_id: str = Depends(require_tenant)
 ):
     """
     Simulate a rule against a payload or an existing transaction.
@@ -477,22 +528,30 @@ def simulate_rule(
     from src.services.rules_engine import RulesEngine
     from src.models.transaction_models import Transaction
 
-    rule = db.query(MonitoringRule).filter(
+    # Phase 4C: Tenant-filtered query
+    rule = get_tenant_filtered_query(MonitoringRule, db).filter(
         MonitoringRule.rule_id == rule_id
     ).first()
 
     if not rule:
         raise HTTPException(status_code=404, detail="Rule not found")
 
+    # Phase 4C: Ensure tenant match
+    ensure_tenant_match(rule, tenant_id)
+
     engine = RulesEngine(db)
 
     if request.transaction_id is not None:
-        transaction = db.query(Transaction).filter(
+        # Phase 4C: Tenant-filtered transaction query
+        transaction = get_tenant_filtered_query(Transaction, db).filter(
             Transaction.id == request.transaction_id
         ).first()
 
         if not transaction:
             raise HTTPException(status_code=404, detail="Transaction not found")
+
+        # Phase 4C: Ensure transaction belongs to same tenant
+        ensure_tenant_match(transaction, tenant_id)
 
         would_trigger, condition_results, logic = engine.evaluate_rule_details(transaction, rule)
         transaction_id = transaction.transaction_id
@@ -514,7 +573,8 @@ def simulate_rule(
 def backtest_rule(
     rule_id: str,
     request: RuleBacktestRequest,
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
+    tenant_id: str = Depends(require_tenant)
 ):
     """
     Backtest a rule across historical transactions.
@@ -524,14 +584,19 @@ def backtest_rule(
     from src.services.rules_engine import RulesEngine
     from src.models.transaction_models import Transaction
 
-    rule = db.query(MonitoringRule).filter(
+    # Phase 4C: Tenant-filtered query
+    rule = get_tenant_filtered_query(MonitoringRule, db).filter(
         MonitoringRule.rule_id == rule_id
     ).first()
 
     if not rule:
         raise HTTPException(status_code=404, detail="Rule not found")
 
-    query = db.query(Transaction)
+    # Phase 4C: Ensure tenant match
+    ensure_tenant_match(rule, tenant_id)
+
+    # Phase 4C: Tenant-filtered transaction query for backtest
+    query = get_tenant_filtered_query(Transaction, db)
     if request.start_date:
         query = query.filter(Transaction.timestamp >= request.start_date)
     if request.end_date:
@@ -609,6 +674,9 @@ def create_amount_threshold_rule(
         **rule_data
     )
 
+    # Phase 4C: Set tenant context on new rule
+    set_tenant_on_create(db_rule)
+
     db.add(db_rule)
     db.commit()
     db.refresh(db_rule)
@@ -677,6 +745,9 @@ def create_velocity_rule(
         **rule_data
     )
 
+    # Phase 4C: Set tenant context on new rule
+    set_tenant_on_create(db_rule)
+
     db.add(db_rule)
     db.commit()
     db.refresh(db_rule)
@@ -691,7 +762,8 @@ def create_velocity_rule(
 @router.get("/{rule_id}/performance")
 def get_rule_performance(
     rule_id: str,
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
+    tenant_id: str = Depends(require_tenant)
 ):
     """
     Get performance metrics for a rule.
@@ -702,15 +774,19 @@ def get_rule_performance(
     - False positive rate
     - Recent alerts
     """
-    rule = db.query(MonitoringRule).filter(
+    # Phase 4C: Tenant-filtered query
+    rule = get_tenant_filtered_query(MonitoringRule, db).filter(
         MonitoringRule.rule_id == rule_id
     ).first()
 
     if not rule:
         raise HTTPException(status_code=404, detail="Rule not found")
 
-    # Get alerts for this rule
-    alerts = db.query(Alert).filter(
+    # Phase 4C: Ensure tenant match
+    ensure_tenant_match(rule, tenant_id)
+
+    # Phase 4C: Get alerts for this rule (tenant-filtered)
+    alerts = get_tenant_filtered_query(Alert, db).filter(
         Alert.rule_id == rule_id
     ).all()
 
@@ -742,35 +818,36 @@ def get_rules_statistics(db: Session = Depends(get_db)):
     """
     Get overall monitoring rules statistics.
     """
-    total_rules = db.query(func.count(MonitoringRule.id)).scalar() or 0
+    # Phase 4C: Use tenant-filtered queries for statistics
+    total_rules = get_tenant_filtered_query(MonitoringRule, db).count() or 0
 
-    enabled_rules = db.query(func.count(MonitoringRule.id)).filter(
+    enabled_rules = get_tenant_filtered_query(MonitoringRule, db).filter(
         MonitoringRule.enabled == True
-    ).scalar() or 0
+    ).count() or 0
 
-    # Rules by category
-    category_results = db.query(
+    # Phase 4C: Rules by category (tenant-filtered)
+    category_results = get_tenant_filtered_query(MonitoringRule, db).with_entities(
         MonitoringRule.category,
         func.count(MonitoringRule.id).label('count')
     ).group_by(MonitoringRule.category).all()
 
     rules_by_category = {row.category or 'uncategorized': row.count for row in category_results}
 
-    # Rules by severity
-    severity_results = db.query(
+    # Phase 4C: Rules by severity (tenant-filtered)
+    severity_results = get_tenant_filtered_query(MonitoringRule, db).with_entities(
         MonitoringRule.severity,
         func.count(MonitoringRule.id).label('count')
     ).group_by(MonitoringRule.severity).all()
 
     rules_by_severity = {row.severity: row.count for row in severity_results}
 
-    # Rules with regulatory linkage
-    rules_with_regulations = db.query(func.count(MonitoringRule.id)).filter(
+    # Phase 4C: Rules with regulatory linkage (tenant-filtered)
+    rules_with_regulations = get_tenant_filtered_query(MonitoringRule, db).filter(
         MonitoringRule.regulatory_source_id.isnot(None)
-    ).scalar() or 0
+    ).count() or 0
 
-    # Total alerts generated
-    total_alerts = db.query(func.count(Alert.id)).scalar() or 0
+    # Phase 4C: Total alerts generated (tenant-filtered)
+    total_alerts = get_tenant_filtered_query(Alert, db).count() or 0
 
     return {
         "total_rules": total_rules,
@@ -793,12 +870,13 @@ def get_top_performing_rules(
     """
     Get top-performing rules by alert count or accuracy.
     """
+    # Phase 4C: Tenant-filtered queries
     if metric == "alert_count":
-        rules = db.query(MonitoringRule).order_by(
+        rules = get_tenant_filtered_query(MonitoringRule, db).order_by(
             MonitoringRule.alert_count.desc()
         ).limit(limit).all()
     else:
-        rules = db.query(MonitoringRule).filter(
+        rules = get_tenant_filtered_query(MonitoringRule, db).filter(
             MonitoringRule.true_positive_rate.isnot(None)
         ).order_by(
             MonitoringRule.true_positive_rate.desc()
@@ -827,7 +905,8 @@ def bulk_enable_rules(
     db: Session = Depends(get_db)
 ):
     """Enable multiple rules at once."""
-    rules = db.query(MonitoringRule).filter(
+    # Phase 4C: Tenant-filtered query
+    rules = get_tenant_filtered_query(MonitoringRule, db).filter(
         MonitoringRule.rule_id.in_(rule_ids)
     ).all()
 
@@ -850,7 +929,8 @@ def bulk_disable_rules(
     db: Session = Depends(get_db)
 ):
     """Disable multiple rules at once."""
-    rules = db.query(MonitoringRule).filter(
+    # Phase 4C: Tenant-filtered query
+    rules = get_tenant_filtered_query(MonitoringRule, db).filter(
         MonitoringRule.rule_id.in_(rule_ids)
     ).all()
 
@@ -877,7 +957,8 @@ def bulk_update_severity(
     if new_severity not in ['low', 'medium', 'high', 'critical']:
         raise HTTPException(status_code=400, detail="Invalid severity level")
 
-    rules = db.query(MonitoringRule).filter(
+    # Phase 4C: Tenant-filtered query
+    rules = get_tenant_filtered_query(MonitoringRule, db).filter(
         MonitoringRule.rule_id.in_(rule_ids)
     ).all()
 

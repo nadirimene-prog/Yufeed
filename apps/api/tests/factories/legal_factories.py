@@ -9,7 +9,21 @@ import uuid
 from src.models.models import LegalDocument, DocType, ComplianceDomain, RiskLevel
 
 
-class LegalDocumentFactory(factory.alchemy.SQLAlchemyModelFactory):
+class BaseSQLAlchemyFactory(factory.alchemy.SQLAlchemyModelFactory):
+    """Base factory that accepts sqlalchemy_session in create kwargs."""
+
+    class Meta:
+        abstract = True
+
+    @classmethod
+    def _create(cls, model_class, *args, **kwargs):
+        session = kwargs.pop("sqlalchemy_session", None)
+        if session is not None:
+            cls._meta.sqlalchemy_session = session
+        return super()._create(model_class, *args, **kwargs)
+
+
+class LegalDocumentFactory(BaseSQLAlchemyFactory):
     """Factory for creating test LegalDocument instances."""
 
     class Meta:

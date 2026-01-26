@@ -11,6 +11,7 @@ from src.middleware import limiter, custom_rate_limit_handler, configure_redis_s
 from src.audit.middleware import audit_log_middleware
 from src.monitoring.metrics import PrometheusMiddleware, metrics_endpoint, api_info
 from src.monitoring.logging_config import setup_logging, LoggingMiddleware
+from src.tenancy.middleware import TenantMiddleware
 
 # Initialize structured logging
 setup_logging()
@@ -103,7 +104,7 @@ app.add_middleware(
     allow_origins=ALLOWED_ORIGINS,
     allow_credentials=True,
     allow_methods=["GET", "POST", "PUT", "DELETE", "PATCH"],  # Explicit methods
-    allow_headers=["Content-Type", "Authorization"],  # Explicit headers
+    allow_headers=["Content-Type", "Authorization", "X-API-Key", "X-Tenant-ID"],  # Explicit headers
     expose_headers=["X-Request-ID"],
 )
 
@@ -176,6 +177,9 @@ async def add_security_headers(request: Request, call_next):
 
     return response
 
+# Tenant isolation middleware - extract and validate tenant from request
+app.add_middleware(TenantMiddleware)
+
 # Monitoring middleware - Prometheus metrics
 app.add_middleware(PrometheusMiddleware)
 
@@ -213,7 +217,7 @@ def startup_event():
     environment = os.getenv("ENVIRONMENT", "development")
     api_info.labels(version=version, environment=environment).set(1)
 
-    logger.info("Starting YuFeed API", version=version, environment=environment)
+    logger.info(f"Starting YuFeed API (version={version}, environment={environment})")
 
     # Setup distributed tracing
     try:
@@ -222,14 +226,15 @@ def startup_event():
     except Exception as e:
         logger.warning(f"Failed to setup tracing: {e}")
 
-    # Create tables
-    Base.metadata.create_all(bind=engine)
+    # Create tables only when explicitly enabled (avoid clashing with Alembic)
+    if os.getenv("AUTO_CREATE_SCHEMA", "false").lower() in ("1", "true", "yes"):
+        Base.metadata.create_all(bind=engine)
 
     # Init search
     try:
         init_indices()
     except Exception as e:
-        logger.warning("OpenSearch initialization failed", error=str(e))
+        logger.warning(f"OpenSearch initialization failed: {e}")
 
     # Configure rate limiter with Redis (if available)
     try:
@@ -271,9 +276,16 @@ from src.api.decisioning import router as decisioning_router
 from src.api.onchain_risk import router as onchain_router
 from src.api.travel_rule import router as travel_rule_router
 from src.api.model_registry import router as model_registry_router
+from src.api.tenants import router as tenants_router
+from src.api.obligations import router as obligations_router
+from src.api.websocket import router as websocket_router
+from src.api.compliance_workflow import router as compliance_workflow_router
 
 # Register authentication routes first
 app.include_router(auth_router, prefix="/api")
+
+# Register tenant management routes
+app.include_router(tenants_router)
 
 # Register other routes
 app.include_router(api_router)
@@ -297,3 +309,6 @@ app.include_router(decisioning_router)
 app.include_router(onchain_router)
 app.include_router(travel_rule_router)
 app.include_router(model_registry_router)
+app.include_router(obligations_router)
+app.include_router(websocket_router)
+app.include_router(compliance_workflow_router)
