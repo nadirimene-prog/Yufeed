@@ -1,6 +1,5 @@
 fastapi
 uvicorn
-websockets
 sqlalchemy
 psycopg2-binary
 alembic
@@ -11,12 +10,8 @@ feedparser
 zeep
 apscheduler
 pydantic-settings
-email-validator
 jinja2
 python-multipart
-prometheus_client
-structlog
-python-json-logger
 
 # Authentication
 python-jose[cryptography]
@@ -25,8 +20,24 @@ passlib[bcrypt]
 # Rate Limiting
 slowapi
 
+# Celery
 celery
+
+# AI
 anthropic==0.40.0
+
+# Utilities
 python-dateutil==2.8.2
 beautifulsoup4==4.12.3
-aiokafka
+
+# New packages added for async DB, tracing, metrics, logging
+asyncpg
+sqlmodel
+opentelemetry-sdk
+opentelemetry-api
+opentelemetry-instrumentation-fastapi
+opentelemetry-instrumentation-sqlalchemy
+opentelemetry-exporter-otlp
+structlog
+prometheus-client
+prometheus-fastapi-instrumentator

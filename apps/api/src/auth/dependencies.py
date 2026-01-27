@@ -11,7 +11,7 @@ from sqlalchemy.orm import Session
 import logging
 
 from src.auth.jwt_handler import JWTHandler
-from src.database import get_db
+from src.database import get_async_db
 
 logger = logging.getLogger(__name__)
 
