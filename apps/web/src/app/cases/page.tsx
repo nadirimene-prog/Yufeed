@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation';
 import { Folder, Search, Clock, CheckCircle, AlertTriangle, FileText, TrendingUp } from 'lucide-react';
 import { fetchWithAuth } from '@/lib/auth';
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
+const API_URL = getApiBaseUrl();
 
 interface Case {
   id: number;

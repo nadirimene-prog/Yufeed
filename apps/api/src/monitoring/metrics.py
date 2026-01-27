@@ -1,8 +1,19 @@
+from prometheus_client import Gauge, Counter
 # apps/api/src/monitoring/metrics.py
 from fastapi import APIRouter
 from prometheus_fastapi_instrumentator import Instrumentator
 
+websocket_connections_active = Gauge(
+    "websocket_connections_active",
+    "Number of active websocket connections"
+)
+
 router = APIRouter()
+websocket_messages_sent_total = Counter(
+    "websocket_messages_sent_total",
+    "Total number of websocket messages sent"
+)
+
 instrumentor = Instrumentator(
     should_group_status_codes=True,
     should_ignore_untemplated=True,
@@ -11,9 +22,8 @@ instrumentor = Instrumentator(
 
 @router.on_event("startup")
 def _setup_metrics():
-    instrumentor.instrument()
-    # the instrumentor registers /metrics automatically
-    instrumentor.expose(app=None)
+    # disabled: metrics are now attached via setup_metrics(app) in main.py
+    return
 
 # ----------------------------------------------------------------------
 # Cache metrics (used by cache_manager.py)
@@ -25,3 +35,8 @@ def record_cache_hit(key: str):
 def record_cache_miss(key: str):
     """Record a cache miss (stub – replace with real Prometheus counter)."""
     pass
+
+def setup_metrics(app):
+    """Attach Prometheus instrumentation to the FastAPI app."""
+    Instrumentator().instrument(app).expose(app, endpoint="/metrics", include_in_schema=False)
+

@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import { Send, CheckCircle2 } from "lucide-react";
 import { fetchWithAuth } from "@/lib/auth";
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
+const API_URL = getApiBaseUrl();
 
 type TravelRuleResponse = {
     request_id: string;

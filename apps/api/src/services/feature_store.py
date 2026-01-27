@@ -43,3 +43,7 @@ class FeatureStore:
 
         await redis.set(cache_key, json.dumps(result), ex=CACHE_TTL)
         return result
+
+# --- Compatibility alias (required by src.api.features) ---
+FeatureStoreService = FeatureStore
+

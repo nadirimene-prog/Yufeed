@@ -1,3 +1,4 @@
+import { getApiBaseUrl } from "@/lib/http";
 "use client";
 
 import { useState } from "react";
@@ -121,7 +122,7 @@ export default function RuleBuilderPage() {
                 thresholds: thresholdsPayload,
             };
 
-            const res = await fetchWithAuth(`${process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000"}/api/monitoring-rules/`, {
+            const res = await fetchWithAuth(`${getApiBaseUrl()}/api/monitoring-rules/`, {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify(payload),

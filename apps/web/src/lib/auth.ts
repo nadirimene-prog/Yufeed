@@ -1,3 +1,4 @@
+import { getApiBaseUrl } from "@/lib/apiBaseUrl";
 const ACCESS_TOKEN_KEY = "access_token";
 const REFRESH_TOKEN_KEY = "refresh_token";
 const TOKEN_TYPE_KEY = "token_type";
@@ -104,8 +105,7 @@ export async function loginWithPassword(
   clearAuthTokens();
   const apiUrl =
     options?.apiUrl ||
-    process.env.NEXT_PUBLIC_API_URL ||
-    "http://localhost:8000";
+    getApiBaseUrl();
   const response = await fetch(`${apiUrl}/api/auth/login`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },

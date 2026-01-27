@@ -3,6 +3,7 @@
 import { useEffect, useState, useCallback, useRef } from 'react';
 import { getAuthToken } from '@/lib/auth';
 import toast from 'react-hot-toast';
+import { getApiBaseUrl } from "@/lib/apiBaseUrl";
 
 /**
  * WebSocket hook for real-time notifications
@@ -57,7 +58,7 @@ export interface UseWebSocketReturn {
 const DEFAULT_OPTIONS: UseWebSocketOptions = {
   enabled: true,
   showToasts: true,
-  apiUrl: process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000',
+  apiUrl: getApiBaseUrl(),
 };
 
 export function useWebSocket(options: UseWebSocketOptions = {}): UseWebSocketReturn {

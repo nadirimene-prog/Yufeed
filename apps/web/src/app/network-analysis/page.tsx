@@ -10,7 +10,7 @@ import { fetchWithAuth } from '@/lib/auth';
 // Dynamically import NetworkGraph to avoid SSR issues
 const NetworkGraph = dynamic(() => import('@/components/NetworkGraph'), { ssr: false });
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
+const API_URL = getApiBaseUrl();
 
 interface NetworkNode {
   id: string;

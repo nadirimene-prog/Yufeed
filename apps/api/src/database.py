@@ -1,6 +1,7 @@
 import logging
 import os
 from sqlalchemy import create_engine, event, exc
+from sqlalchemy.orm import Session
 from sqlalchemy.ext.asyncio import AsyncEngine, create_async_engine, async_sessionmaker
 from sqlalchemy.orm import sessionmaker, declarative_base, Session
 from sqlalchemy.pool import Pool
@@ -88,3 +89,11 @@ def get_sync_db():
         yield db
     finally:
         db.close()
+
+def get_db() -> "Session":
+    db = SessionLocal()
+    try:
+        yield db
+    finally:
+        db.close()
+

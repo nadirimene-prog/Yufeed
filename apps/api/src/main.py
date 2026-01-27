@@ -2,8 +2,11 @@
 # Core FastAPI imports + OpenTelemetry + structured logging
 # --------------------------------------------------------------
 from fastapi import FastAPI, Request
+from .routers_autoload import register_routers
+from prometheus_fastapi_instrumentator import Instrumentator
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import Response, JSONResponse
+from fastapi.responses import JSONResponse
 import structlog
 import time
 
@@ -29,16 +32,34 @@ log = logging.getLogger(__name__)
 # ----------------------------------------------------------------------
 from src.middleware import limiter, custom_rate_limit_handler, configure_redis_storage
 from src.middleware.audit_log import AuditLogMiddleware
+from src.monitoring.metrics import setup_metrics
 # <-- keep all your router imports that were already present in the file
 
 # ----------------------------------------------------------------------
 # FastAPI app – instrumented with OpenTelemetry
 # ----------------------------------------------------------------------
 app = FastAPI(
+
+# --- OpenAPI alias for Swagger (/api/docs) ---
+@app.get("/api/openapi.json", include_in_schema=False)
+def _openapi_alias():
+    return JSONResponse(app.openapi())
     title="EU Legal Monitoring MVP",
     docs_url="/api/docs",
     redoc_url="/api/redoc",
 )
+
+
+
+register_routers(app)
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["http://localhost:3000"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+Instrumentator().instrument(app).expose(app, endpoint="/metrics", include_in_schema=False)
 FastAPIInstrumentor().instrument_app(app)
 
 # Register the audit‑log middleware (runs on every request)
@@ -83,3 +104,8 @@ async def generic_exception_handler(request: Request, exc: Exception):
 # from src.api.auth import router as auth_router
 # app.include_router(auth_router, prefix="/api")
 # ... repeat for every router you imported ...
+
+
+@app.get("/health", tags=["monitoring"])
+async def health():
+    return {"status": "ok"}

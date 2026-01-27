@@ -5,7 +5,7 @@ import { useParams, useRouter } from 'next/navigation';
 import { ArrowLeft, AlertTriangle, User, DollarSign, MapPin, Clock, Shield, Sparkles, FileText, ChevronRight, ExternalLink } from 'lucide-react';
 import { fetchWithAuth } from '@/lib/auth';
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
+const API_URL = getApiBaseUrl();
 
 interface Alert {
   id: number;

@@ -8,7 +8,7 @@ import AuditDetail from "./audit-detail";
 import { TableSkeleton } from "@/components/ui/skeleton";
 import { fetchWithAuth } from "@/lib/auth";
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
+const API_URL = getApiBaseUrl();
 
 const DEFAULT_FILTERS: Filters = {
   search: "",

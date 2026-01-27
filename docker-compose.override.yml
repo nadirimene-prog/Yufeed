@@ -9,4 +9,6 @@ services:
       - /app/node_modules
       - /app/.next
     environment:
+      - NEXT_PUBLIC_API_URL=http://localhost:8000
+      - API_INTERNAL_URL=http://api:8000
       - NODE_ENV=development

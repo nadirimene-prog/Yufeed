@@ -17,7 +17,7 @@ import {
 import { cn } from "@/lib/utils";
 import { fetchWithAuth } from "@/lib/auth";
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
+const API_URL = getApiBaseUrl();
 
 type Rule = {
     id: number;

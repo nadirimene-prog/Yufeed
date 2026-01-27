@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import { Plus, LineChart, UploadCloud, Rocket } from "lucide-react";
 import { fetchWithAuth } from "@/lib/auth";
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
+const API_URL = getApiBaseUrl();
 
 type Model = {
     id: number;

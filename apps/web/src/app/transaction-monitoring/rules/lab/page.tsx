@@ -4,7 +4,7 @@ import { useState } from "react";
 import { FlaskConical, PlayCircle, LineChart, CheckCircle2, XCircle } from "lucide-react";
 import { fetchWithAuth } from "@/lib/auth";
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
+const API_URL = getApiBaseUrl();
 
 const SAMPLE_PAYLOAD = JSON.stringify(
     {
