@@ -3,8 +3,9 @@
 import { useEffect, useState } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { ArrowLeft, Folder, Clock, AlertCircle, FileText, TrendingUp, ExternalLink, CheckCircle } from 'lucide-react';
+import { fetchWithAuth } from '@/lib/auth';
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
+const API_URL = getApiBaseUrl();
 
 interface Case {
   id: number;
@@ -62,17 +63,17 @@ export default function CaseDetailPage() {
   const fetchCaseDetails = async () => {
     try {
       // Fetch case
-      const caseRes = await fetch(`${API_URL}/api/cases/${params.id}`);
+      const caseRes = await fetchWithAuth(`${API_URL}/api/cases/${params.id}`);
       const caseDataRes = await caseRes.json();
       setCaseData(caseDataRes);
 
       // Fetch related alerts
-      const alertsRes = await fetch(`${API_URL}/api/cases/${params.id}/alerts`);
+      const alertsRes = await fetchWithAuth(`${API_URL}/api/cases/${params.id}/alerts`);
       const alertsData = await alertsRes.json();
       setAlerts(alertsData);
 
       // Fetch related transactions
-      const txRes = await fetch(`${API_URL}/api/cases/${params.id}/transactions`);
+      const txRes = await fetchWithAuth(`${API_URL}/api/cases/${params.id}/transactions`);
       const txData = await txRes.json();
       setTransactions(txData);
 
@@ -87,7 +88,7 @@ export default function CaseDetailPage() {
     if (!caseData) return;
 
     try {
-      await fetch(`${API_URL}/api/cases/${caseData.id}/assign`, {
+      await fetchWithAuth(`${API_URL}/api/cases/${caseData.id}/assign`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ assigned_to: analyst })
@@ -105,7 +106,7 @@ export default function CaseDetailPage() {
     if (!escalatedTo) return;
 
     try {
-      await fetch(`${API_URL}/api/cases/${caseData.id}/escalate`, {
+      await fetchWithAuth(`${API_URL}/api/cases/${caseData.id}/escalate`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ escalated_to: escalatedTo })
@@ -123,7 +124,7 @@ export default function CaseDetailPage() {
     if (!summary) return;
 
     try {
-      await fetch(`${API_URL}/api/cases/${caseData.id}/close`, {
+      await fetchWithAuth(`${API_URL}/api/cases/${caseData.id}/close`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ outcome, summary })

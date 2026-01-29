@@ -16,7 +16,7 @@ def main():
     db = SessionLocal()
     try:
         manager = IngestionManager(db)
-        manager.run_daily_ingestion()
+        manager.run_weekly_ingestion()
         print("Ingestion ran successfully.")
     except Exception as e:
         print(f"Ingestion failed: {e}")

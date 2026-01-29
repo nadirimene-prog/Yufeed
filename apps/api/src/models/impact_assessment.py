@@ -6,8 +6,13 @@ from sqlalchemy import Column, Integer, String, DateTime, ForeignKey, Text, Enum
 from sqlalchemy.orm import relationship
 from sqlalchemy.dialects.postgresql import JSONB
 import enum
-from datetime import datetime
+from datetime import datetime, timezone
 from src.database import Base
+
+
+def utc_now() -> datetime:
+    """Return current UTC time (timezone-aware)."""
+    return datetime.now(timezone.utc)
 
 
 class ImpactLevel(str, enum.Enum):
@@ -75,8 +80,8 @@ class ImpactAssessment(Base):
 
     # Metadata
     assessed_by = Column(String, nullable=True)  # User who created/approved assessment
-    assessed_at = Column(DateTime, default=datetime.utcnow)
-    last_updated = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    assessed_at = Column(DateTime, default=utc_now)
+    last_updated = Column(DateTime, default=utc_now, onupdate=utc_now)
 
     # Relationships
     document = relationship("LegalDocument", backref="impact_assessment")
@@ -120,8 +125,8 @@ class ActionItem(Base):
     progress_percentage = Column(Integer, default=0)
 
     # Metadata
-    created_at = Column(DateTime, default=datetime.utcnow)
-    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    created_at = Column(DateTime, default=utc_now)
+    updated_at = Column(DateTime, default=utc_now, onupdate=utc_now)
 
     # Relationships
     assessment = relationship("ImpactAssessment", back_populates="action_items")
@@ -157,8 +162,8 @@ class GapAnalysis(Base):
     closed_at = Column(DateTime, nullable=True)
 
     # Metadata
-    created_at = Column(DateTime, default=datetime.utcnow)
-    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    created_at = Column(DateTime, default=utc_now)
+    updated_at = Column(DateTime, default=utc_now, onupdate=utc_now)
 
     # Relationships
     assessment = relationship("ImpactAssessment", backref="gaps")

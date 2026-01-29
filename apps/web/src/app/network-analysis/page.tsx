@@ -5,11 +5,12 @@ import { Network, Search, AlertTriangle, Users, Activity } from 'lucide-react';
 import { motion } from 'framer-motion';
 import toast from 'react-hot-toast';
 import dynamic from 'next/dynamic';
+import { fetchWithAuth } from '@/lib/auth';
 
 // Dynamically import NetworkGraph to avoid SSR issues
 const NetworkGraph = dynamic(() => import('@/components/NetworkGraph'), { ssr: false });
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
+const API_URL = getApiBaseUrl();
 
 interface NetworkNode {
   id: string;
@@ -91,7 +92,7 @@ export default function NetworkAnalysisPage() {
     const toastId = toast.loading('Analyzing network...');
     setLoading(true);
     try {
-      const res = await fetch(
+      const res = await fetchWithAuth(
         `${API_URL}/api/network/analyze/${userId}?depth=${depth}&days=${days}`
       );
       const data = await res.json();
@@ -109,7 +110,7 @@ export default function NetworkAnalysisPage() {
     const toastId = toast.loading('Scanning for fraud rings...');
     setLoading(true);
     try {
-      const res = await fetch(`${API_URL}/api/network/fraud-rings/detect`);
+      const res = await fetchWithAuth(`${API_URL}/api/network/fraud-rings/detect`);
       const data = await res.json();
       setFraudRings(data.rings || []);
       toast.success(`Found ${data.rings?.length || 0} potential fraud rings`, { id: toastId });
@@ -269,10 +270,16 @@ export default function NetworkAnalysisPage() {
                     Network Visualization
                   </h3>
                   <NetworkGraph
-                    nodes={networkData.network.nodes.map(id => ({
-                      id,
-                      ...networkData.network.node_details[id]
-                    }))}
+                    nodes={networkData.network.nodes.map(id => {
+                      const details = networkData.network.node_details[id];
+                      return {
+                        id,
+                        type: details?.risk_level || "unknown",
+                        transaction_count: details?.total_alerts || 0,
+                        total_amount: 0,
+                        risk_score: details?.risk_score
+                      };
+                    })}
                     edges={networkData.network.edges.map(e => ({
                       from: e.source,
                       to: e.target,
@@ -285,7 +292,7 @@ export default function NetworkAnalysisPage() {
 
                 {/* Risk Indicators */}
                 {(networkData.risk_indicators.circular_flows.length > 0 ||
-                  networkData.risk_indicators.shared_attributes.length > 0 ||
+                  Object.keys(networkData.risk_indicators.shared_attributes || {}).length > 0 ||
                   networkData.risk_indicators.suspicious_clusters.length > 0) && (
                     <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg p-6">
                       <h3 className="text-lg font-semibold text-red-900 dark:text-red-300 mb-4">

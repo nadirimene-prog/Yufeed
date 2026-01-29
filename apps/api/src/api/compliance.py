@@ -4,13 +4,20 @@ Compliance-specific API endpoints for AMLRO features.
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 from typing import List, Optional
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
+
+
+def utc_now() -> datetime:
+    """Return current UTC time (timezone-aware)."""
+    return datetime.now(timezone.utc)
 from src.database import get_db
 from src.models import models
 from src.models.annotation import Annotation
 from src.schemas import schemas
 from src.schemas import compliance as comp_schemas
 from src.ai.analyzer import analyze_document
+from src.services.obligation_service import seed_obligations_for_doc
+from src.compliance.scope import infer_scope_tags
 from pydantic import BaseModel
 from src.models import compliance as comp_models
 
@@ -69,10 +76,18 @@ def analyze_document_endpoint(
     
     # Perform analysis
     try:
+        article_breakdown = None
+        if isinstance(doc.article_breakdown, dict):
+            article_breakdown = doc.article_breakdown.get("articles")
+        elif isinstance(doc.article_breakdown, list):
+            article_breakdown = doc.article_breakdown
+
         analysis_results = analyze_document({
             "celex": doc.celex,
             "title": doc.title,
-            "publication_date": doc.publication_date
+            "publication_date": doc.publication_date,
+            "full_text": doc.full_text,
+            "article_breakdown": article_breakdown,
         })
         
         # Update document with results
@@ -82,9 +97,18 @@ def analyze_document_endpoint(
         doc.implementation_deadline = analysis_results.get("implementation_deadline")
         doc.ai_summary = analysis_results.get("ai_summary")
         doc.analyzed_at = analysis_results.get("analyzed_at")
+        scope_tags = infer_scope_tags(
+            doc.title,
+            doc.full_text,
+            doc.ai_summary,
+            doc.obligations_json,
+        )
+        if scope_tags:
+            doc.scope_tags = scope_tags
         
         db.commit()
         db.refresh(doc)
+        seed_obligations_for_doc(db, doc, allow_existing=True)
         
         return {
             "message": "Analysis complete",
@@ -163,7 +187,7 @@ def get_dashboard_metrics(db: Session = Depends(get_db)):
     ).count()
     
     # Upcoming deadlines
-    now = datetime.utcnow()
+    now = utc_now()
     deadlines_30d = db.query(models.LegalDocument).filter(
         models.LegalDocument.implementation_deadline.between(now, now + timedelta(days=30))
     ).count()
@@ -218,7 +242,7 @@ def get_upcoming_deadlines(
     """
     Get documents with upcoming implementation deadlines.
     """
-    now = datetime.utcnow()
+    now = utc_now()
     cutoff = now + timedelta(days=days)
     
     docs = db.query(models.LegalDocument).filter(

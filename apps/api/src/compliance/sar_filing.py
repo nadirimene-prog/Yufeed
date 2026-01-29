@@ -9,8 +9,13 @@ Supports:
 """
 import logging
 from typing import Dict, Any, List, Optional
-from datetime import datetime
+from datetime import datetime, timezone
 from sqlalchemy.orm import Session
+
+
+def utc_now() -> datetime:
+    """Return current UTC time (timezone-aware)."""
+    return datetime.now(timezone.utc)
 
 from src.models.transaction_models import Case, Alert, Transaction
 from src.models.models import LegalDocument
@@ -83,8 +88,8 @@ class SARFilingSystem:
 
         # Build SAR structure
         sar = {
-            "sar_id": f"SAR-{datetime.utcnow().strftime('%Y%m%d')}-{case.case_id}",
-            "filing_date": datetime.utcnow().isoformat(),
+            "sar_id": f"SAR-{utc_now().strftime('%Y%m%d')}-{case.case_id}",
+            "filing_date": utc_now().isoformat(),
             "case_reference": case.case_id,
 
             # Filing institution
@@ -144,7 +149,7 @@ class SARFilingSystem:
             # Metadata
             "metadata": {
                 "prepared_by": "Yufeed Compliance Platform",
-                "preparation_date": datetime.utcnow().isoformat(),
+                "preparation_date": utc_now().isoformat(),
                 "version": "1.0"
             }
         }
@@ -338,7 +343,7 @@ class SARFilingSystem:
             "jurisdiction": "US_FinCEN",
             "sar_id": sar_data['sar_id'],
             "filing_reference": f"FINCEN-{sar_data['sar_id']}",
-            "filed_at": datetime.utcnow().isoformat(),
+            "filed_at": utc_now().isoformat(),
             "note": "FinCEN integration pending - SAR prepared for manual filing"
         }
 
@@ -354,7 +359,7 @@ class SARFilingSystem:
             "jurisdiction": "EU_National_FIU",
             "sar_id": sar_data['sar_id'],
             "filing_reference": f"FIU-{sar_data['sar_id']}",
-            "filed_at": datetime.utcnow().isoformat(),
+            "filed_at": utc_now().isoformat(),
             "note": "National FIU integration pending - SAR prepared for manual filing"
         }
 
@@ -370,7 +375,7 @@ class SARFilingSystem:
             "jurisdiction": "goAML",
             "sar_id": sar_data['sar_id'],
             "filing_reference": f"GOAML-{sar_data['sar_id']}",
-            "filed_at": datetime.utcnow().isoformat(),
+            "filed_at": utc_now().isoformat(),
             "note": "goAML integration pending - SAR prepared for manual filing"
         }
 
@@ -407,8 +412,8 @@ class UARFilingSystem:
             ).first()
 
         uar = {
-            "uar_id": f"UAR-{datetime.utcnow().strftime('%Y%m%d')}-{alert.alert_id}",
-            "filing_date": datetime.utcnow().isoformat(),
+            "uar_id": f"UAR-{utc_now().strftime('%Y%m%d')}-{alert.alert_id}",
+            "filing_date": utc_now().isoformat(),
             "alert_reference": alert.alert_id,
 
             "filing_institution": institution_info or self.sar_system._get_default_institution_info(),
@@ -429,7 +434,7 @@ class UARFilingSystem:
 
             "metadata": {
                 "prepared_by": "Yufeed Compliance Platform",
-                "preparation_date": datetime.utcnow().isoformat()
+                "preparation_date": utc_now().isoformat()
             }
         }
 
@@ -448,6 +453,6 @@ class UARFilingSystem:
             "status": "filed",
             "jurisdiction": jurisdiction,
             "uar_id": uar_data['uar_id'],
-            "filed_at": datetime.utcnow().isoformat(),
+            "filed_at": utc_now().isoformat(),
             "note": "UAR filed internally for record keeping"
         }

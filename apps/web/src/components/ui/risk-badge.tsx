@@ -1,137 +1,337 @@
-import { cn } from '@/lib/utils';
-import { AlertTriangle, CheckCircle, Info, XCircle } from 'lucide-react';
+"use client";
 
-export type RiskLevel = 'critical' | 'high' | 'medium' | 'low' | 'unknown';
-export type BadgeSize = 'sm' | 'md' | 'lg';
+import { motion } from "framer-motion";
+import {
+  AlertTriangle,
+  AlertCircle,
+  AlertOctagon,
+  CheckCircle,
+  HelpCircle,
+  ShieldCheck,
+} from "lucide-react";
+import { cn } from "@/lib/utils";
+import { criticalPulse } from "@/lib/motion";
+
+/**
+ * ═══════════════════════════════════════════════════════════════════
+ * RISK BADGE - Sentinel Design System
+ * Glowing, pulsing risk level indicators
+ * ═══════════════════════════════════════════════════════════════════
+ */
+
+export type RiskLevel = "critical" | "high" | "medium" | "low" | "clear" | "unknown";
+export type BadgeSize = "sm" | "md" | "lg";
+export type GlowIntensity = "none" | "subtle" | "strong";
 
 interface RiskBadgeProps {
-    level: RiskLevel;
-    size?: BadgeSize;
-    showIcon?: boolean;
-    className?: string;
-    animate?: boolean;
+  /** Risk level */
+  level: RiskLevel | string;
+  /** Badge size */
+  size?: BadgeSize;
+  /** Show icon */
+  showIcon?: boolean;
+  /** Override pulse animation behavior */
+  animate?: boolean;
+  /** Glow intensity */
+  glow?: GlowIntensity;
+  /** Custom label (overrides default) */
+  label?: string;
+  /** Additional className */
+  className?: string;
 }
 
-const riskConfig = {
-    critical: {
-        label: 'Critical',
-        bgColor: 'bg-red-100 dark:bg-red-900/20',
-        textColor: 'text-red-700 dark:text-red-400',
-        borderColor: 'border-red-300 dark:border-red-800',
-        Icon: XCircle,
-    },
-    high: {
-        label: 'High',
-        bgColor: 'bg-orange-100 dark:bg-orange-900/20',
-        textColor: 'text-orange-700 dark:text-orange-400',
-        borderColor: 'border-orange-300 dark:border-orange-800',
-        Icon: AlertTriangle,
-    },
-    medium: {
-        label: 'Medium',
-        bgColor: 'bg-yellow-100 dark:bg-yellow-900/20',
-        textColor: 'text-yellow-700 dark:text-yellow-400',
-        borderColor: 'border-yellow-300 dark:border-yellow-800',
-        Icon: Info,
-    },
-    low: {
-        label: 'Low',
-        bgColor: 'bg-green-100 dark:bg-green-900/20',
-        textColor: 'text-green-700 dark:text-green-400',
-        borderColor: 'border-green-300 dark:border-green-800',
-        Icon: CheckCircle,
-    },
-    unknown: {
-        label: 'Unknown',
-        bgColor: 'bg-gray-100 dark:bg-gray-700',
-        textColor: 'text-gray-700 dark:text-gray-400',
-        borderColor: 'border-gray-300 dark:border-gray-600',
-        Icon: Info,
-    },
+// Risk level configuration with Sentinel colors
+const riskConfig: Record<
+  RiskLevel,
+  {
+    label: string;
+    icon: typeof AlertTriangle;
+    bg: string;
+    border: string;
+    text: string;
+    glow: string;
+    glowStrong: string;
+    shouldPulse: boolean;
+  }
+> = {
+  critical: {
+    label: "Critical",
+    icon: AlertOctagon,
+    bg: "bg-[#ff3366]/15",
+    border: "border-[#ff3366]/40",
+    text: "text-[#ff3366]",
+    glow: "shadow-[0_0_12px_rgba(255,51,102,0.3)]",
+    glowStrong: "shadow-[0_0_20px_rgba(255,51,102,0.5)]",
+    shouldPulse: true,
+  },
+  high: {
+    label: "High",
+    icon: AlertTriangle,
+    bg: "bg-[#ff8c42]/15",
+    border: "border-[#ff8c42]/40",
+    text: "text-[#ff8c42]",
+    glow: "shadow-[0_0_10px_rgba(255,140,66,0.25)]",
+    glowStrong: "shadow-[0_0_16px_rgba(255,140,66,0.4)]",
+    shouldPulse: true,
+  },
+  medium: {
+    label: "Medium",
+    icon: AlertCircle,
+    bg: "bg-[#ffd166]/15",
+    border: "border-[#ffd166]/40",
+    text: "text-[#ffd166]",
+    glow: "shadow-[0_0_8px_rgba(255,209,102,0.2)]",
+    glowStrong: "shadow-[0_0_14px_rgba(255,209,102,0.35)]",
+    shouldPulse: false,
+  },
+  low: {
+    label: "Low",
+    icon: CheckCircle,
+    bg: "bg-[#06d6a0]/15",
+    border: "border-[#06d6a0]/40",
+    text: "text-[#06d6a0]",
+    glow: "shadow-[0_0_6px_rgba(6,214,160,0.15)]",
+    glowStrong: "shadow-[0_0_12px_rgba(6,214,160,0.3)]",
+    shouldPulse: false,
+  },
+  clear: {
+    label: "Clear",
+    icon: ShieldCheck,
+    bg: "bg-[#00d4ff]/10",
+    border: "border-[#00d4ff]/30",
+    text: "text-[#00d4ff]",
+    glow: "shadow-[0_0_6px_rgba(0,212,255,0.15)]",
+    glowStrong: "shadow-[0_0_12px_rgba(0,212,255,0.25)]",
+    shouldPulse: false,
+  },
+  unknown: {
+    label: "Unknown",
+    icon: HelpCircle,
+    bg: "bg-gray-500/10",
+    border: "border-gray-500/30",
+    text: "text-gray-400",
+    glow: "",
+    glowStrong: "",
+    shouldPulse: false,
+  },
 };
 
-const sizeClasses = {
-    sm: 'px-2 py-0.5 text-xs',
-    md: 'px-2.5 py-1 text-sm',
-    lg: 'px-3 py-1.5 text-base',
+const sizeConfig = {
+  sm: {
+    padding: "px-2 py-0.5",
+    text: "text-[10px]",
+    icon: "h-3 w-3",
+    gap: "gap-1",
+  },
+  md: {
+    padding: "px-2.5 py-1",
+    text: "text-xs",
+    icon: "h-3.5 w-3.5",
+    gap: "gap-1.5",
+  },
+  lg: {
+    padding: "px-3 py-1.5",
+    text: "text-sm",
+    icon: "h-4 w-4",
+    gap: "gap-2",
+  },
 };
 
-const iconSizes = {
-    sm: 'h-3 w-3',
-    md: 'h-4 w-4',
-    lg: 'h-5 w-5',
-};
+// Normalize risk level string to RiskLevel type
+function normalizeRiskLevel(level: string): RiskLevel {
+  const normalized = level.toLowerCase().trim();
+  if (normalized in riskConfig) {
+    return normalized as RiskLevel;
+  }
+  // Handle common variations
+  if (normalized === "very high" || normalized === "severe") return "critical";
+  if (normalized === "elevated") return "high";
+  if (normalized === "moderate") return "medium";
+  if (normalized === "minimal" || normalized === "safe") return "low";
+  if (normalized === "none" || normalized === "verified") return "clear";
+  return "unknown";
+}
 
 export function RiskBadge({
-    level,
-    size = 'md',
-    showIcon = true,
-    className,
-    animate = false
+  level,
+  size = "md",
+  showIcon = true,
+  animate = false,
+  glow = "subtle",
+  label,
+  className,
 }: RiskBadgeProps) {
-    const config = riskConfig[level];
-    const Icon = config.Icon;
+  const normalizedLevel = normalizeRiskLevel(String(level));
+  const config = riskConfig[normalizedLevel];
+  const sizes = sizeConfig[size];
 
-    const shouldPulse = animate && (level === 'critical' || level === 'high');
+  // Determine if should pulse
+  const shouldPulse = animate && config.shouldPulse;
 
+  // Determine glow class
+  const glowClass =
+    glow === "strong" ? config.glowStrong : glow === "subtle" ? config.glow : "";
+
+  const Icon = config.icon;
+
+  const badgeContent = (
+    <>
+      {showIcon && (
+        <Icon
+          className={cn(
+            sizes.icon,
+            shouldPulse && "animate-pulse"
+          )}
+        />
+      )}
+      <span className="font-semibold tracking-wide">
+        {label || config.label}
+      </span>
+    </>
+  );
+
+  // Use motion for critical/high with pulse
+  if (shouldPulse && (normalizedLevel === "critical" || normalizedLevel === "high")) {
     return (
-        <span
-            className={cn(
-                'inline-flex items-center gap-1 font-medium rounded-full border',
-                config.bgColor,
-                config.textColor,
-                config.borderColor,
-                sizeClasses[size],
-                shouldPulse && 'animate-pulse',
-                className
-            )}
-            title={`Risk Level: ${config.label}`}
-        >
-            {showIcon && <Icon className={iconSizes[size]} />}
-            <span>{config.label}</span>
-        </span>
+      <motion.span
+        animate={normalizedLevel === "critical" ? criticalPulse : undefined}
+        className={cn(
+          "inline-flex items-center rounded-full border",
+          sizes.padding,
+          sizes.text,
+          sizes.gap,
+          config.bg,
+          config.border,
+          config.text,
+          glowClass,
+          className
+        )}
+        title={`Risk Level: ${config.label}`}
+      >
+        {badgeContent}
+      </motion.span>
     );
+  }
+
+  // Static badge for other levels
+  return (
+    <span
+      className={cn(
+        "inline-flex items-center rounded-full border transition-shadow duration-300",
+        sizes.padding,
+        sizes.text,
+        sizes.gap,
+        config.bg,
+        config.border,
+        config.text,
+        glowClass,
+        className
+      )}
+      title={`Risk Level: ${config.label}`}
+    >
+      {badgeContent}
+    </span>
+  );
 }
 
-// Numeric Risk Score Badge (0-100)
+/**
+ * Risk Score Badge - Shows numeric risk score with automatic level
+ */
 interface RiskScoreBadgeProps {
-    score: number;
-    size?: BadgeSize;
-    showLabel?: boolean;
-    className?: string;
+  /** Risk score (0-100) */
+  score: number;
+  /** Show the label alongside score */
+  showLabel?: boolean;
+  /** Badge size */
+  size?: BadgeSize;
+  /** Additional className */
+  className?: string;
 }
 
 export function RiskScoreBadge({
-    score,
-    size = 'md',
-    showLabel = true,
-    className
+  score,
+  showLabel = true,
+  size = "md",
+  className,
 }: RiskScoreBadgeProps) {
-    const level: RiskLevel =
-        score >= 80 ? 'critical' :
-            score >= 60 ? 'high' :
-                score >= 40 ? 'medium' :
-                    score >= 20 ? 'low' : 'unknown';
+  // Map score to risk level
+  const level: RiskLevel =
+    score >= 80 ? "critical" :
+    score >= 60 ? "high" :
+    score >= 40 ? "medium" :
+    score >= 20 ? "low" : "clear";
 
-    const config = riskConfig[level];
+  const config = riskConfig[level];
 
-    return (
-        <div className={cn('inline-flex items-center gap-2', className)}>
-            <span
-                className={cn(
-                    'inline-flex items-center justify-center font-bold rounded-full',
-                    config.bgColor,
-                    config.textColor,
-                    size === 'sm' && 'h-8 w-8 text-sm',
-                    size === 'md' && 'h-10 w-10 text-base',
-                    size === 'lg' && 'h-12 w-12 text-lg'
-                )}
-            >
-                {score}
-            </span>
-            {showLabel && (
-                <RiskBadge level={level} size={size} showIcon={false} />
-            )}
-        </div>
-    );
+  return (
+    <div className={cn("inline-flex items-center gap-2", className)}>
+      <span
+        className={cn(
+          "inline-flex items-center justify-center font-bold font-mono rounded-full",
+          config.bg,
+          config.text,
+          config.glow,
+          size === "sm" && "h-8 w-8 text-sm",
+          size === "md" && "h-10 w-10 text-base",
+          size === "lg" && "h-12 w-12 text-lg"
+        )}
+      >
+        {score}
+      </span>
+      {showLabel && (
+        <RiskBadge level={level} size={size} showIcon={false} />
+      )}
+    </div>
+  );
 }
+
+/**
+ * Compact Risk Indicator - Just a colored dot
+ */
+interface RiskIndicatorProps {
+  level: RiskLevel | string;
+  size?: "sm" | "md" | "lg";
+  pulse?: boolean;
+  className?: string;
+}
+
+export function RiskIndicator({
+  level,
+  size = "md",
+  pulse,
+  className,
+}: RiskIndicatorProps) {
+  const normalizedLevel = normalizeRiskLevel(String(level));
+  const config = riskConfig[normalizedLevel];
+  const shouldPulse = pulse ?? config.shouldPulse;
+
+  const sizeClasses = {
+    sm: "h-2 w-2",
+    md: "h-2.5 w-2.5",
+    lg: "h-3 w-3",
+  };
+
+  const bgColors: Record<RiskLevel, string> = {
+    critical: "bg-[#ff3366]",
+    high: "bg-[#ff8c42]",
+    medium: "bg-[#ffd166]",
+    low: "bg-[#06d6a0]",
+    clear: "bg-[#00d4ff]",
+    unknown: "bg-gray-400",
+  };
+
+  return (
+    <span
+      className={cn(
+        "inline-block rounded-full",
+        sizeClasses[size],
+        bgColors[normalizedLevel],
+        shouldPulse && "animate-status-pulse",
+        className
+      )}
+      title={config.label}
+    />
+  );
+}
+
+export default RiskBadge;

@@ -6,11 +6,18 @@ from fastapi import APIRouter, Depends, HTTPException, Query, BackgroundTasks
 from sqlalchemy.orm import Session, joinedload
 from sqlalchemy import func, and_, or_
 from typing import List, Optional
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 import uuid
 import logging
+import os
 
 from src.database import get_db
+
+
+def utc_now() -> datetime:
+    """Return current UTC time (timezone-aware)."""
+    return datetime.now(timezone.utc)
+from src.tenancy.queries import get_tenant_filtered_query, set_tenant_on_create, ensure_tenant_match, require_tenant
 
 logger = logging.getLogger(__name__)
 from src.models.transaction_models import (
@@ -22,6 +29,7 @@ from src.schemas.transaction_schemas import (
     AlertResponse, UserRiskProfileResponse,
     TransactionStatistics
 )
+from src.audit.recorders import record_event
 
 router = APIRouter(prefix="/api/transactions", tags=["transactions"])
 
@@ -45,8 +53,8 @@ def ingest_transaction(
     3. Evaluates monitoring rules (background)
     4. Updates user risk profile (background)
     """
-    # Check for duplicate transaction_id
-    existing = db.query(Transaction).filter(
+    # Phase 4C: Check for duplicate transaction_id (tenant-filtered)
+    existing = get_tenant_filtered_query(Transaction, db).filter(
         Transaction.transaction_id == transaction.transaction_id
     ).first()
 
@@ -58,14 +66,50 @@ def ingest_transaction(
 
     # Create transaction record
     db_transaction = Transaction(**transaction.dict())
+
+    # Phase 4C: Set tenant context on new transaction
+    set_tenant_on_create(db_transaction)
+
     db.add(db_transaction)
+
+    tx_type = (transaction.transaction_type or "").lower()
+    event_type = "txn_crypto" if "crypto" in tx_type or "onchain" in tx_type else "txn_fiat"
+    record_event(
+        db,
+        event_type=event_type,
+        entity_type="transaction",
+        entity_id=transaction.transaction_id,
+        payload={
+            "user_id": transaction.user_id,
+            "amount": float(transaction.amount),
+            "currency": transaction.currency,
+            "transaction_type": transaction.transaction_type,
+        },
+    )
     db.commit()
     db.refresh(db_transaction)
 
     # Trigger background processing
-    background_tasks.add_task(process_transaction, db_transaction.id, db)
+    if os.getenv("ENVIRONMENT", "").lower() in {"test", "testing"}:
+        process_transaction(db_transaction.id, db)
+    else:
+        background_tasks.add_task(process_transaction, db_transaction.id, db)
 
     return db_transaction
+
+
+@router.post("/", response_model=TransactionResponse, status_code=201)
+def ingest_transaction_compat(
+    transaction: TransactionCreate,
+    background_tasks: BackgroundTasks,
+    db: Session = Depends(get_db)
+):
+    """
+    Backwards-compatible transaction ingestion endpoint.
+
+    Alias for /api/transactions/ingest.
+    """
+    return ingest_transaction(transaction, background_tasks, db)
 
 
 @router.post("/ingest/batch", response_model=List[TransactionResponse], status_code=201)
@@ -85,9 +129,11 @@ def ingest_transactions_batch(
             detail="Batch size exceeds maximum of 1000 transactions"
         )
 
-    # Check for duplicates
+    # Phase 4C: Check for duplicates (tenant-filtered)
     transaction_ids = [t.transaction_id for t in transactions]
-    existing_ids = db.query(Transaction.transaction_id).filter(
+    existing_ids = get_tenant_filtered_query(Transaction, db).with_entities(
+        Transaction.transaction_id
+    ).filter(
         Transaction.transaction_id.in_(transaction_ids)
     ).all()
     existing_ids_set = {row[0] for row in existing_ids}
@@ -106,16 +152,44 @@ def ingest_transactions_batch(
 
     # Bulk insert
     db_transactions = [Transaction(**t.dict()) for t in new_transactions]
+
+    # Phase 4C: Set tenant context on all new transactions
+    for db_tx in db_transactions:
+        set_tenant_on_create(db_tx)
+
     db.bulk_save_objects(db_transactions, return_defaults=True)
+    db.commit()
+
+    # Record immutable events
+    for tx in new_transactions:
+        tx_type = (tx.transaction_type or "").lower()
+        event_type = "txn_crypto" if "crypto" in tx_type or "onchain" in tx_type else "txn_fiat"
+        record_event(
+            db,
+            event_type=event_type,
+            entity_type="transaction",
+            entity_id=tx.transaction_id,
+            payload={
+                "user_id": tx.user_id,
+                "amount": float(tx.amount),
+                "currency": tx.currency,
+                "transaction_type": tx.transaction_type,
+            },
+        )
     db.commit()
 
     # Trigger background processing for each transaction
     for db_transaction in db_transactions:
-        background_tasks.add_task(process_transaction, db_transaction.id, db)
+        if os.getenv("ENVIRONMENT", "").lower() in {"test", "testing"}:
+            process_transaction(db_transaction.id, db)
+        else:
+            background_tasks.add_task(process_transaction, db_transaction.id, db)
 
-    # Refresh to get all fields
+    # Phase 4C: Refresh to get all fields (tenant-filtered)
     created_ids = [t.id for t in db_transactions]
-    results = db.query(Transaction).filter(Transaction.id.in_(created_ids)).all()
+    results = get_tenant_filtered_query(Transaction, db).filter(
+        Transaction.id.in_(created_ids)
+    ).all()
 
     return results
 
@@ -144,7 +218,8 @@ def list_transactions(
     Supports pagination and multiple filter criteria.
     Uses eager loading to prevent N+1 queries when accessing alerts.
     """
-    query = db.query(Transaction).options(
+    # Phase 4C: Tenant-filtered query
+    query = get_tenant_filtered_query(Transaction, db).options(
         joinedload(Transaction.alerts)
     )
 
@@ -185,14 +260,16 @@ def list_transactions(
 @router.get("/{transaction_id}", response_model=TransactionResponse)
 def get_transaction(
     transaction_id: str,
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
+    tenant_id: str = Depends(require_tenant)
 ):
     """
     Get a single transaction by ID.
 
     Uses eager loading to prevent N+1 queries when accessing alerts.
     """
-    transaction = db.query(Transaction).options(
+    # Phase 4C: Tenant-filtered query
+    transaction = get_tenant_filtered_query(Transaction, db).options(
         joinedload(Transaction.alerts)
     ).filter(
         Transaction.transaction_id == transaction_id
@@ -201,19 +278,29 @@ def get_transaction(
     if not transaction:
         raise HTTPException(status_code=404, detail="Transaction not found")
 
+    # Phase 4C: Ensure tenant match
+    ensure_tenant_match(transaction, tenant_id)
+
     return transaction
 
 
 @router.get("/internal/{id}", response_model=TransactionResponse)
 def get_transaction_by_internal_id(
     id: int,
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
+    tenant_id: str = Depends(require_tenant)
 ):
     """Get a single transaction by internal database ID."""
-    transaction = db.query(Transaction).filter(Transaction.id == id).first()
+    # Phase 4C: Tenant-filtered query
+    transaction = get_tenant_filtered_query(Transaction, db).filter(
+        Transaction.id == id
+    ).first()
 
     if not transaction:
         raise HTTPException(status_code=404, detail="Transaction not found")
+
+    # Phase 4C: Ensure tenant match
+    ensure_tenant_match(transaction, tenant_id)
 
     return transaction
 
@@ -222,24 +309,36 @@ def get_transaction_by_internal_id(
 def update_transaction(
     transaction_id: str,
     update_data: TransactionUpdate,
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
+    tenant_id: str = Depends(require_tenant)
 ):
     """
     Update transaction fields (typically status or risk assessment).
     """
-    transaction = db.query(Transaction).filter(
+    # Phase 4C: Tenant-filtered query
+    transaction = get_tenant_filtered_query(Transaction, db).filter(
         Transaction.transaction_id == transaction_id
     ).first()
 
     if not transaction:
         raise HTTPException(status_code=404, detail="Transaction not found")
 
+    # Phase 4C: Ensure tenant match
+    ensure_tenant_match(transaction, tenant_id)
+
     # Update fields
     update_dict = update_data.dict(exclude_unset=True)
     for field, value in update_dict.items():
         setattr(transaction, field, value)
 
-    transaction.updated_at = datetime.utcnow()
+    transaction.updated_at = utc_now()
+    record_event(
+        db,
+        event_type="transaction.updated",
+        entity_type="transaction",
+        entity_id=transaction.transaction_id,
+        payload={"changes": update_dict},
+    )
     db.commit()
     db.refresh(transaction)
 
@@ -261,9 +360,10 @@ def get_user_transaction_history(
 
     Uses eager loading to prevent N+1 queries when accessing alerts.
     """
-    start_date = datetime.utcnow() - timedelta(days=days)
+    start_date = utc_now() - timedelta(days=days)
 
-    transactions = db.query(Transaction).options(
+    # Phase 4C: Tenant-filtered query
+    transactions = get_tenant_filtered_query(Transaction, db).options(
         joinedload(Transaction.alerts)
     ).filter(
         and_(
@@ -286,7 +386,8 @@ def get_user_alerts(
 
     Uses eager loading to prevent N+1 queries when accessing transactions.
     """
-    query = db.query(Alert).options(
+    # Phase 4C: Tenant-filtered query
+    query = get_tenant_filtered_query(Alert, db).options(
         joinedload(Alert.transaction)
     ).filter(Alert.user_id == user_id)
 
@@ -306,39 +407,42 @@ def get_transaction_statistics(
     """
     Get transaction statistics for the monitoring dashboard.
     """
-    start_date = datetime.utcnow() - timedelta(days=days)
+    start_date = utc_now() - timedelta(days=days)
+
+    # Phase 4C: Use tenant-filtered queries for all statistics
+    base_query = get_tenant_filtered_query(Transaction, db)
 
     # Total transactions and volume
-    total_result = db.query(
+    total_result = base_query.with_entities(
         func.count(Transaction.id).label('count'),
         func.sum(Transaction.amount).label('volume'),
         func.avg(Transaction.amount).label('avg_amount')
     ).filter(Transaction.timestamp >= start_date).first()
 
     # Transactions by status
-    flagged_count = db.query(func.count(Transaction.id)).filter(
+    flagged_count = get_tenant_filtered_query(Transaction, db).filter(
         and_(
             Transaction.timestamp >= start_date,
             Transaction.status == 'flagged'
         )
-    ).scalar()
+    ).count()
 
-    blocked_count = db.query(func.count(Transaction.id)).filter(
+    blocked_count = get_tenant_filtered_query(Transaction, db).filter(
         and_(
             Transaction.timestamp >= start_date,
             Transaction.status == 'blocked'
         )
-    ).scalar()
+    ).count()
 
-    high_risk_count = db.query(func.count(Transaction.id)).filter(
+    high_risk_count = get_tenant_filtered_query(Transaction, db).filter(
         and_(
             Transaction.timestamp >= start_date,
             Transaction.risk_level == 'high'
         )
-    ).scalar()
+    ).count()
 
     # Transactions by country
-    country_results = db.query(
+    country_results = get_tenant_filtered_query(Transaction, db).with_entities(
         Transaction.country_code,
         func.count(Transaction.id).label('count')
     ).filter(
@@ -353,7 +457,7 @@ def get_transaction_statistics(
     }
 
     # Transactions by type
-    type_results = db.query(
+    type_results = get_tenant_filtered_query(Transaction, db).with_entities(
         Transaction.transaction_type,
         func.count(Transaction.id).label('count')
     ).filter(
@@ -418,7 +522,7 @@ def process_transaction(transaction_id: int, db: Session):
         velocity_alerts = rules_engine.evaluate_velocity_rules(transaction.user_id)
 
         # 4. Update user risk profile
-        risk_service.update_user_risk_profile(transaction.user_id)
+        risk_service.update_user_risk_profile(transaction.user_id, tenant_id=transaction.tenant_id)
 
         logger.info(
             f"Processed transaction {transaction.transaction_id}: "

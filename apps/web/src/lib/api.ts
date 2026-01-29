@@ -1,13 +1,4 @@
-import axios from 'axios';
-
-const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
-
-const apiClient = axios.create({
-  baseURL: API_URL,
-  headers: {
-    'Content-Type': 'application/json',
-  },
-});
+import apiClient from "./http";
 
 // Search API
 export interface SearchParams {
@@ -34,7 +25,7 @@ export interface SearchResponse {
 }
 
 export const searchDocuments = async (params: SearchParams): Promise<SearchResponse> => {
-  const response = await apiClient.get<SearchResponse>('/search', { params });
+  const response = await apiClient.get<SearchResponse>('/api/search', { params });
   return response.data;
 };
 
@@ -53,18 +44,31 @@ export interface LegalDocument {
 }
 
 export const getDocument = async (celex: string): Promise<LegalDocument> => {
-  const response = await apiClient.get<LegalDocument>(`/documents/${celex}`);
+  const response = await apiClient.get<LegalDocument>(`/api/documents/${celex}`);
   return response.data;
 };
 
 // Watchlists API
+export interface WatchlistQuery {
+  search_term?: string;
+  doc_types?: string[];
+  domains?: string[];
+  date_range?: { from?: string; to?: string };
+  [key: string]: unknown;
+}
+
+export interface WatchlistRecipient {
+  email: string;
+  name?: string;
+}
+
 export interface WatchlistCreate {
   name: string;
   mode?: string;
   rss_url?: string;
-  query_json: Record<string, any>;
-  curated_celex_json?: Record<string, any>;
-  recipients_json?: Record<string, any>;
+  query_json: WatchlistQuery;
+  curated_celex_json?: { celex_ids: string[] };
+  recipients_json?: { recipients: WatchlistRecipient[] };
   schedule?: string;
 }
 
@@ -73,12 +77,12 @@ export interface Watchlist extends WatchlistCreate {
 }
 
 export const createWatchlist = async (data: WatchlistCreate): Promise<Watchlist> => {
-  const response = await apiClient.post<Watchlist>('/watchlists', data);
+  const response = await apiClient.post<Watchlist>('/api/watchlists', data);
   return response.data;
 };
 
 export const getWatchlists = async (): Promise<Watchlist[]> => {
-  const response = await apiClient.get<Watchlist[]>('/watchlists');
+  const response = await apiClient.get<Watchlist[]>('/api/watchlists');
   return response.data;
 };
 
@@ -92,12 +96,12 @@ export interface AlertEvent {
 }
 
 export const getAlerts = async (): Promise<AlertEvent[]> => {
-  const response = await apiClient.get<AlertEvent[]>('/alerts');
+  const response = await apiClient.get<AlertEvent[]>('/api/alerts');
   return response.data;
 };
 
 export const getWatchlistAlerts = async (watchlistId: number): Promise<AlertEvent[]> => {
-  const response = await apiClient.get<AlertEvent[]>(`/watchlists/${watchlistId}/alerts`);
+  const response = await apiClient.get<AlertEvent[]>(`/api/watchlists/${watchlistId}/alerts`);
   return response.data;
 };
 

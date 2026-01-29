@@ -403,6 +403,7 @@ def get_resource(id: str, db: Session = Depends(get_db)):
 
 **Key Models**:
 - `LegalDocument` - EU legal documents
+- `OfficialJournalAct` - Official Journal act-by-act metadata (act + signature)
 - `ImpactAssessment` - Business impact analysis
 - `Transaction` - Financial transactions
 - `Alert` - Transaction monitoring alerts
@@ -469,15 +470,16 @@ class ComplianceOfficerAgent(BaseAgent):
 
 ### Ingestion Pipeline (`/ingestion/`)
 
-**Daily ingestion workflow** (orchestrated by Celery):
+**Weekly ingestion workflow** (orchestrated by Celery):
 
 ```
 1. RSS Feed (rss.py) → Fetch latest EU documents
-2. SOAP API (soap.py) → Retrieve full document metadata
-3. CELLAR (cellar.py) → Get CELEX-specific data
-4. Content Extractor (content_extractor.py) → Parse document body
-5. Processor (processor.py) → Normalize & store
-6. OpenSearch Indexing (search.py) → Index for search
+2. OJ Act-by-Act (cellar.py) → Fetch Official Journal act + signature metadata
+3. SOAP API (soap.py) → Retrieve full document metadata
+4. CELLAR (cellar.py) → Get CELEX-specific data
+5. Content Extractor (content_extractor.py) → Parse document body
+6. Processor (processor.py) → Normalize & store
+7. OpenSearch Indexing (search.py) → Index for search
 ```
 
 **Caching**:
@@ -501,6 +503,7 @@ ComplianceProfile (1) ─< (N) ComplianceCase
 **Indexes** (⚠️ **Needs Improvement**):
 - `LegalDocument.celex` (primary key)
 - `LegalDocument.compliance_domain`
+- `LegalDocument.oj_act_identifier`
 - Missing: `Alert.user_id`, `Alert.status`, `Transaction.user_id`
 
 ---
@@ -1117,4 +1120,3 @@ redis-cli ping
 **Document Version**: 1.0.0
 **Last Updated**: 2026-01-19
 **Maintainer**: Yufeed Development Team
-

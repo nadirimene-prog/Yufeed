@@ -5,12 +5,16 @@ Handles user login, token refresh, and user registration.
 """
 from fastapi import APIRouter, Depends, HTTPException, status, Request
 from fastapi.security import OAuth2PasswordRequestForm
-from pydantic import BaseModel, EmailStr
-from sqlalchemy.orm import Session
+from pydantic import BaseModel, EmailStr, field_validator
+from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy import select
+from sqlalchemy.exc import IntegrityError
 from typing import Optional
 import logging
+import re
 
-from src.database import get_db
+from src.database import get_async_db
+from src.models.user import User
 from src.auth.jwt_handler import (
     JWTHandler,
     PasswordHandler,
@@ -24,12 +28,26 @@ logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/auth", tags=["Authentication"])
 
 
+# Password validation
+MIN_PASSWORD_LENGTH = 8
+PASSWORD_PATTERN = re.compile(r'^(?=.*[a-z])(?=.*[A-Z])(?=.*\d).{8,}$')
+
+
 # Request/Response Models
 class UserRegister(BaseModel):
     """User registration request."""
     email: EmailStr
     password: str
     full_name: Optional[str] = None
+
+    @field_validator('password')
+    @classmethod
+    def validate_password(cls, v: str) -> str:
+        if len(v) < MIN_PASSWORD_LENGTH:
+            raise ValueError(f'Password must be at least {MIN_PASSWORD_LENGTH} characters')
+        if not PASSWORD_PATTERN.match(v):
+            raise ValueError('Password must contain at least one uppercase letter, one lowercase letter, and one digit')
+        return v
 
 
 class UserLogin(BaseModel):
@@ -56,46 +74,95 @@ class UserProfile(BaseModel):
     email: str
     role: str
     full_name: Optional[str] = None
+    is_verified: bool = False
+
+
+class MessageResponse(BaseModel):
+    """Simple message response."""
+    message: str
+
+
+class ChangePasswordRequest(BaseModel):
+    """Change password request."""
+    current_password: str
+    new_password: str
+
+    @field_validator('new_password')
+    @classmethod
+    def validate_new_password(cls, v: str) -> str:
+        if len(v) < MIN_PASSWORD_LENGTH:
+            raise ValueError(f'Password must be at least {MIN_PASSWORD_LENGTH} characters')
+        if not PASSWORD_PATTERN.match(v):
+            raise ValueError('Password must contain at least one uppercase letter, one lowercase letter, and one digit')
+        return v
+
+
+def get_client_ip(request: Request) -> Optional[str]:
+    """Extract client IP from request."""
+    forwarded = request.headers.get("X-Forwarded-For")
+    if forwarded:
+        return forwarded.split(",")[0].strip()
+    return request.client.host if request.client else None
 
 
 @router.post("/register", response_model=TokenResponse, status_code=status.HTTP_201_CREATED)
 @limiter.limit(RateLimits.AUTH_REGISTER)
-def register(
+async def register(
     request: Request,
     user_data: UserRegister,
-    db: Session = Depends(get_db)
+    db: AsyncSession = Depends(get_async_db)
 ):
     """
     Register a new user account.
 
-    **Note:** This is a basic implementation. In production, you should:
-    - Add email verification
-    - Implement CAPTCHA to prevent bot registrations
-    - Add rate limiting
-    - Validate password strength
+    Creates a new user with hashed password and returns JWT tokens.
     """
-    # TODO: Implement actual user creation in database
-    # For now, this is a placeholder that returns mock tokens
-
     logger.info(f"User registration attempt: {user_data.email}")
 
-    # Check if user already exists (placeholder)
-    # In production: query database for existing user
+    # Check if user already exists
+    result = await db.execute(
+        select(User).where(User.email == user_data.email.lower())
+    )
+    existing_user = result.scalar_one_or_none()
 
-    # Hash the password
+    if existing_user:
+        logger.warning(f"Registration failed - email already exists: {user_data.email}")
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Email already registered"
+        )
+
+    # Create new user
     hashed_password = PasswordHandler.hash_password(user_data.password)
 
-    # Create user in database (placeholder)
-    # In production: create User model and save to database
-    user_id = "mock-user-id-123"  # Replace with actual user ID from database
+    new_user = User(
+        email=user_data.email.lower(),
+        hashed_password=hashed_password,
+        full_name=user_data.full_name,
+        default_role="user",
+        is_active=True,
+        is_verified=False,  # Email verification not implemented yet
+    )
 
-    logger.info(f"User registered successfully: {user_data.email}")
+    try:
+        db.add(new_user)
+        await db.commit()
+        await db.refresh(new_user)
+    except IntegrityError:
+        await db.rollback()
+        logger.error(f"Database integrity error during registration: {user_data.email}")
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Email already registered"
+        )
+
+    logger.info(f"User registered successfully: {user_data.email} (id={new_user.id})")
 
     # Create tokens
     tokens = create_token_response(
-        user_id=user_id,
-        email=user_data.email,
-        role="user"
+        user_id=str(new_user.id),
+        email=new_user.email,
+        role=new_user.default_role
     )
 
     return tokens
@@ -103,48 +170,72 @@ def register(
 
 @router.post("/login", response_model=TokenResponse)
 @limiter.limit(RateLimits.AUTH_LOGIN)
-def login(
+async def login(
     request: Request,
     login_data: UserLogin,
-    db: Session = Depends(get_db)
+    db: AsyncSession = Depends(get_async_db)
 ):
     """
     Authenticate user and return JWT tokens.
 
-    **Note:** This is a basic implementation. In production, you should:
-    - Add rate limiting to prevent brute force attacks
-    - Log failed login attempts
-    - Implement account lockout after X failed attempts
-    - Add 2FA support
+    Validates credentials and implements account lockout after failed attempts.
     """
     logger.info(f"Login attempt: {login_data.email}")
 
-    # TODO: Query database for user
-    # In production: db.query(User).filter(User.email == login_data.email).first()
+    # Query user from database
+    result = await db.execute(
+        select(User).where(User.email == login_data.email.lower())
+    )
+    user = result.scalar_one_or_none()
 
-    # Mock user data (replace with actual database query)
-    mock_user = {
-        "user_id": "mock-user-id-123",
-        "email": login_data.email,
-        "hashed_password": PasswordHandler.hash_password("password123"),  # Mock password
-        "role": "user"
-    }
-
-    # Verify password
-    if not PasswordHandler.verify_password(login_data.password, mock_user["hashed_password"]):
-        logger.warning(f"Failed login attempt: {login_data.email}")
+    # User not found
+    if not user:
+        logger.warning(f"Login failed - user not found: {login_data.email}")
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Incorrect email or password",
         )
 
+    # Check if account is locked
+    if user.is_locked:
+        logger.warning(f"Login failed - account locked: {login_data.email}")
+        raise HTTPException(
+            status_code=status.HTTP_423_LOCKED,
+            detail="Account is temporarily locked due to too many failed login attempts. Please try again later.",
+        )
+
+    # Check if account is active
+    if not user.is_active:
+        logger.warning(f"Login failed - account inactive: {login_data.email}")
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Account is deactivated. Please contact support.",
+        )
+
+    # Verify password
+    if not PasswordHandler.verify_password(login_data.password, user.hashed_password):
+        # Increment failed login counter
+        user.increment_failed_login()
+        await db.commit()
+
+        logger.warning(f"Login failed - incorrect password: {login_data.email} (attempt {user.failed_login_attempts})")
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Incorrect email or password",
+        )
+
+    # Successful login - record and reset counters
+    client_ip = get_client_ip(request)
+    user.record_login(ip_address=client_ip)
+    await db.commit()
+
     logger.info(f"User logged in successfully: {login_data.email}")
 
     # Create tokens
     tokens = create_token_response(
-        user_id=mock_user["user_id"],
-        email=mock_user["email"],
-        role=mock_user["role"]
+        user_id=str(user.id),
+        email=user.email,
+        role=user.default_role
     )
 
     return tokens
@@ -152,10 +243,10 @@ def login(
 
 @router.post("/token", response_model=TokenResponse)
 @limiter.limit(RateLimits.AUTH_LOGIN)
-def login_oauth(
+async def login_oauth(
     request: Request,
     form_data: OAuth2PasswordRequestForm = Depends(),
-    db: Session = Depends(get_db)
+    db: AsyncSession = Depends(get_async_db)
 ):
     """
     OAuth2-compatible token endpoint for login.
@@ -168,15 +259,15 @@ def login_oauth(
         password=form_data.password
     )
 
-    return login(request, login_data, db)
+    return await login(request, login_data, db)
 
 
 @router.post("/refresh", response_model=TokenResponse)
 @limiter.limit(RateLimits.AUTH_REFRESH)
-def refresh_token(
+async def refresh_token(
     request: Request,
     refresh_data: TokenRefresh,
-    db: Session = Depends(get_db)
+    db: AsyncSession = Depends(get_async_db)
 ):
     """
     Refresh access token using refresh token.
@@ -197,7 +288,6 @@ def refresh_token(
         # Extract user information
         email = payload.get("sub")
         user_id = payload.get("user_id")
-        role = payload.get("role", "user")
 
         if not email or not user_id:
             raise HTTPException(
@@ -205,13 +295,31 @@ def refresh_token(
                 detail="Invalid token payload",
             )
 
+        # Verify user still exists and is active
+        result = await db.execute(
+            select(User).where(User.id == int(user_id))
+        )
+        user = result.scalar_one_or_none()
+
+        if not user:
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail="User not found",
+            )
+
+        if not user.is_active:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="Account is deactivated",
+            )
+
         logger.info(f"Token refreshed for user: {email}")
 
         # Create new tokens
         tokens = create_token_response(
-            user_id=user_id,
-            email=email,
-            role=role
+            user_id=str(user.id),
+            email=user.email,
+            role=user.default_role
         )
 
         return tokens
@@ -228,9 +336,10 @@ def refresh_token(
 
 @router.get("/me", response_model=UserProfile)
 @limiter.limit(RateLimits.READ)
-def get_current_user_profile(
+async def get_current_user_profile(
     request: Request,
-    current_user: CurrentUser = Depends(get_current_user)
+    current_user: CurrentUser = Depends(get_current_user),
+    db: AsyncSession = Depends(get_async_db)
 ):
     """
     Get current authenticated user's profile.
@@ -239,37 +348,87 @@ def get_current_user_profile(
     """
     logger.debug(f"Profile requested: {current_user.email}")
 
-    # TODO: Query database for full user profile
-    # In production: db.query(User).filter(User.id == current_user.user_id).first()
+    # Query full user profile from database
+    result = await db.execute(
+        select(User).where(User.id == int(current_user.user_id))
+    )
+    user = result.scalar_one_or_none()
+
+    if not user:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="User not found"
+        )
 
     return UserProfile(
-        user_id=current_user.user_id,
-        email=current_user.email,
-        role=current_user.role,
-        full_name="John Doe"  # Replace with actual data from database
+        user_id=str(user.id),
+        email=user.email,
+        role=user.default_role,
+        full_name=user.full_name,
+        is_verified=user.is_verified
     )
 
 
-@router.post("/logout")
+@router.post("/logout", response_model=MessageResponse)
 @limiter.limit(RateLimits.UPDATE)
-def logout(
+async def logout(
     request: Request,
     current_user: CurrentUser = Depends(get_current_user)
 ):
     """
     Logout current user.
 
-    **Note:** JWTs are stateless, so we can't truly "logout" without a token blacklist.
-    In production, implement token blacklist using Redis:
-    - Store revoked tokens in Redis with expiration = token expiration
-    - Check blacklist in authentication middleware
+    Note: JWTs are stateless. For immediate token invalidation,
+    implement a token blacklist using Redis.
     """
     logger.info(f"User logged out: {current_user.email}")
 
-    # TODO: Add token to blacklist in Redis
-    # redis_client.setex(f"blacklist:{token}", expiration_seconds, "true")
+    # TODO: Add token to Redis blacklist for immediate revocation
+    # Example: redis_client.setex(f"blacklist:{token}", expiration_seconds, "true")
 
-    return {
-        "message": "Successfully logged out",
-        "note": "Token will remain valid until expiration. Implement token blacklist for immediate revocation."
-    }
+    return MessageResponse(
+        message="Successfully logged out. Token will expire naturally."
+    )
+
+
+@router.post("/change-password", response_model=MessageResponse)
+@limiter.limit(RateLimits.UPDATE)
+async def change_password(
+    request: Request,
+    password_data: ChangePasswordRequest,
+    current_user: CurrentUser = Depends(get_current_user),
+    db: AsyncSession = Depends(get_async_db)
+):
+    """
+    Change the current user's password.
+
+    Requires current password verification.
+    """
+    # Get user from database
+    result = await db.execute(
+        select(User).where(User.id == int(current_user.user_id))
+    )
+    user = result.scalar_one_or_none()
+
+    if not user:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="User not found"
+        )
+
+    # Verify current password
+    if not PasswordHandler.verify_password(password_data.current_password, user.hashed_password):
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Current password is incorrect"
+        )
+
+    # Update password
+    from datetime import datetime, timezone
+    user.hashed_password = PasswordHandler.hash_password(password_data.new_password)
+    user.password_changed_at = datetime.now(timezone.utc)
+    await db.commit()
+
+    logger.info(f"Password changed for user: {current_user.email}")
+
+    return MessageResponse(message="Password changed successfully")

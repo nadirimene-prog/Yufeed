@@ -11,8 +11,14 @@ from src.database import get_db
 from src.ai.alert_triage import AlertTriageAgent
 from src.ai.regulatory_enrichment import RegulatoryEnrichmentService
 from src.models.transaction_models import Alert
+from src.auth.dependencies import require_any_role
+from src.utils.event_bus import publish_event_safe
 
-router = APIRouter(prefix="/api/ai", tags=["ai-agents"])
+router = APIRouter(
+    prefix="/api/ai",
+    tags=["ai-agents"],
+    dependencies=[Depends(require_any_role(["admin", "compliance", "analyst", "aml_officer"]))],
+)
 
 
 # ============================================================================
@@ -85,6 +91,22 @@ def triage_alert(
     try:
         analysis = agent.triage_alert(request.alert_id)
 
+        publish_event_safe(
+            "events.raw",
+            {
+                "event_type": "ai.triage.completed",
+                "entity_type": "alert",
+                "entity_id": alert.alert_id,
+                "source": "ai_agents",
+                "payload": {
+                    "alert_id": alert.alert_id,
+                    "recommendation": analysis.get("recommendation"),
+                    "confidence": analysis.get("confidence"),
+                    "sar_likelihood": analysis.get("sar_likelihood"),
+                },
+            },
+        )
+
         return TriageResponse(
             alert_id=alert.alert_id,
             **analysis
@@ -111,6 +133,18 @@ def batch_triage_alerts(
     background_tasks.add_task(
         agent.batch_triage_pending_alerts,
         limit=request.limit
+    )
+
+    publish_event_safe(
+        "events.raw",
+        {
+            "event_type": "ai.triage.batch.started",
+            "entity_type": "alert",
+            "source": "ai_agents",
+            "payload": {
+                "limit": request.limit,
+            },
+        },
     )
 
     return {
@@ -156,6 +190,19 @@ def generate_investigation_report(
     try:
         report = agent.generate_investigation_report(alert_id)
 
+        publish_event_safe(
+            "events.raw",
+            {
+                "event_type": "ai.investigation.report.generated",
+                "entity_type": "alert",
+                "entity_id": alert.alert_id,
+                "source": "ai_agents",
+                "payload": {
+                    "alert_id": alert.alert_id,
+                },
+            },
+        )
+
         return {
             "alert_id": alert.alert_id,
             "report": report,
@@ -190,6 +237,20 @@ def enrich_regulatory_context(
     try:
         context = service.enrich_alert_with_regulations(request.alert_id)
 
+        publish_event_safe(
+            "events.raw",
+            {
+                "event_type": "ai.regulatory.enriched",
+                "entity_type": "alert",
+                "entity_id": alert.alert_id,
+                "source": "ai_agents",
+                "payload": {
+                    "alert_id": alert.alert_id,
+                    "related_regulations": alert.related_regulations,
+                },
+            },
+        )
+
         return {
             "alert_id": alert.alert_id,
             "regulatory_context": context,
@@ -222,6 +283,19 @@ def batch_enrich_alerts(
         alert_ids
     )
 
+    publish_event_safe(
+        "events.raw",
+        {
+            "event_type": "ai.regulatory.enrichment.batch.started",
+            "entity_type": "alert",
+            "source": "ai_agents",
+            "payload": {
+                "alert_ids": alert_ids,
+                "count": len(alert_ids),
+            },
+        },
+    )
+
     return {
         "status": "started",
         "message": f"Batch enrichment of {len(alert_ids)} alerts initiated",
@@ -247,6 +321,20 @@ def auto_link_regulations(
 
     try:
         regulation_ids = service.auto_link_regulations(request.alert_id)
+
+        publish_event_safe(
+            "events.raw",
+            {
+                "event_type": "ai.regulations.auto_linked",
+                "entity_type": "alert",
+                "entity_id": alert.alert_id,
+                "source": "ai_agents",
+                "payload": {
+                    "alert_id": alert.alert_id,
+                    "linked_regulations": regulation_ids,
+                },
+            },
+        )
 
         return {
             "alert_id": alert.alert_id,
@@ -282,6 +370,21 @@ def generate_sar_draft(
     try:
         sar_draft = service.generate_sar_draft(alert_id, include_narrative)
 
+        publish_event_safe(
+            "events.raw",
+            {
+                "event_type": "ai.sar.draft.generated",
+                "entity_type": "alert",
+                "entity_id": alert.alert_id,
+                "source": "ai_agents",
+                "payload": {
+                    "alert_id": alert.alert_id,
+                    "include_narrative": include_narrative,
+                    "filing_reason": sar_draft.get("filing_reason"),
+                },
+            },
+        )
+
         return SARDraftResponse(**sar_draft)
 
     except Exception as e:
@@ -306,6 +409,20 @@ def preview_sar(
 
     try:
         sar_draft = service.generate_sar_draft(alert_id, include_narrative=False)
+
+        publish_event_safe(
+            "events.raw",
+            {
+                "event_type": "ai.sar.preview.generated",
+                "entity_type": "alert",
+                "entity_id": alert.alert_id,
+                "source": "ai_agents",
+                "payload": {
+                    "alert_id": alert.alert_id,
+                    "filing_reason": sar_draft.get("filing_reason"),
+                },
+            },
+        )
 
         return {
             "alert_id": alert.alert_id,

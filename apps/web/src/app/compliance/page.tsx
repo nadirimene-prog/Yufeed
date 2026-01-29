@@ -5,6 +5,8 @@ import Link from 'next/link';
 import { ComplianceProfile } from '@/types/compliance';
 import { RiskBadge } from '@/components/ui/risk-badge';
 import StatusChip from '@/components/compliance/StatusChip';
+import { fetchWithAuth } from '@/lib/auth';
+import { getApiBaseUrl } from "@/lib/apiBaseUrl";
 
 export default function ComplianceDashboard() {
     const [cases, setCases] = useState<ComplianceProfile[]>([]);
@@ -16,8 +18,8 @@ export default function ComplianceDashboard() {
         const fetchCases = async () => {
             try {
                 // Adjust URL based on actual setup. Assuming direct for now or env var.
-                const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
-                const res = await fetch(`${apiUrl}/compliance/cases`);
+                const apiUrl = getApiBaseUrl();
+                const res = await fetchWithAuth(`${apiUrl}/compliance/cases`);
                 if (res.ok) {
                     const data = await res.json();
                     setCases(data);

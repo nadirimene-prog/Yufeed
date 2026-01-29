@@ -89,6 +89,34 @@ python3 -m uvicorn src.main:app --host 0.0.0.0 --port 8000 --reload
 curl http://localhost:8000/api/docs
 ```
 
+### Audit Verification (Local)
+```bash
+cd apps/api
+
+# Run migrations (SQLite local)
+DATABASE_URL=sqlite:///./compliance.db \
+REDIS_URL=redis://localhost:6379/0 \
+OPENSEARCH_URL=http://localhost:9200 \
+SMTP_HOST=localhost \
+alembic upgrade head
+
+# Seed an audit/event/decision trail
+PYTHONPATH=/Users/imenenadir/Documents/Yufeed/apps/api \
+DATABASE_URL=sqlite:///./compliance.db \
+REDIS_URL=redis://localhost:6379/0 \
+OPENSEARCH_URL=http://localhost:9200 \
+SMTP_HOST=localhost \
+python3 scripts/seed_audit_demo.py
+
+# Audit API smoke test
+PYTHONPATH=/Users/imenenadir/Documents/Yufeed/apps/api \
+DATABASE_URL=sqlite:///./test.db \
+REDIS_URL=redis://localhost:6379/0 \
+OPENSEARCH_URL=http://localhost:9200 \
+SMTP_HOST=localhost \
+pytest -q tests/test_audit.py
+```
+
 ### Frontend
 ```bash
 cd apps/web

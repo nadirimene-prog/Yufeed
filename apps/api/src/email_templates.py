@@ -1,8 +1,13 @@
 """
 Email templates for Yufeed notifications.
 """
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import List, Dict, Any
+
+
+def utc_now() -> datetime:
+    """Return current UTC time (timezone-aware)."""
+    return datetime.now(timezone.utc)
 
 def get_email_header() -> str:
     """Common email header with styling."""
@@ -117,7 +122,7 @@ def get_email_footer() -> str:
 def daily_digest_template(documents: List[Dict[str, Any]], date: str = None) -> str:
     """Generate daily digest email HTML."""
     if date is None:
-        date = datetime.utcnow().strftime("%B %d, %Y")
+        date = utc_now().strftime("%B %d, %Y")
 
     html = get_email_header()
     html += f"""

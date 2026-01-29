@@ -7,15 +7,21 @@ providing regulatory context for every alert.
 """
 from typing import List, Dict, Any, Optional
 from sqlalchemy.orm import Session
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from decimal import Decimal
 import uuid
 import logging
+
+
+def utc_now() -> datetime:
+    """Return current UTC time (timezone-aware)."""
+    return datetime.now(timezone.utc)
 
 from src.models.transaction_models import (
     Transaction, Alert, MonitoringRule, UserRiskProfile
 )
 from src.models.models import LegalDocument
+from src.audit.recorders import record_event, record_decision
 
 logger = logging.getLogger(__name__)
 
@@ -118,6 +124,17 @@ class RulesEngine:
         if not all([field, operator]):
             return False
 
+        operator_aliases = {
+            "==": "equals",
+            "=": "equals",
+            "!=": "not_equals",
+            ">": "greater_than",
+            ">=": "greater_than_or_equal",
+            "<": "less_than",
+            "<=": "less_than_or_equal",
+        }
+        operator = operator_aliases.get(operator, operator)
+
         # Get transaction field value
         tx_value = getattr(transaction, field, None)
 
@@ -162,6 +179,52 @@ class RulesEngine:
             logger.warning(f"Unknown operator: {operator}")
             return False
 
+    def _build_transaction_like(self, payload: Dict[str, Any]):
+        """
+        Build a lightweight transaction-like object for simulation.
+        """
+        class TransactionLike:
+            pass
+
+        tx = TransactionLike()
+        for key, value in payload.items():
+            setattr(tx, key, value)
+        return tx
+
+    def evaluate_rule_details(self, transaction: Transaction, rule: MonitoringRule):
+        """
+        Evaluate a rule and return condition-level results.
+        """
+        conditions = rule.conditions.get("conditions", []) if rule.conditions else []
+        logic = rule.conditions.get("logic", "AND") if rule.conditions else "AND"
+
+        results = []
+        for condition in conditions:
+            results.append({
+                "condition": condition,
+                "passed": self._evaluate_condition(transaction, condition)
+            })
+
+        if not conditions:
+            return False, results, logic
+
+        if logic == "AND":
+            would_trigger = all(item["passed"] for item in results)
+        elif logic == "OR":
+            would_trigger = any(item["passed"] for item in results)
+        else:
+            logger.warning(f"Unknown logic operator: {logic}")
+            would_trigger = False
+
+        return would_trigger, results, logic
+
+    def simulate_rule(self, rule: MonitoringRule, payload: Dict[str, Any]):
+        """
+        Evaluate a rule against a payload without writing alerts.
+        """
+        transaction_like = self._build_transaction_like(payload)
+        return self.evaluate_rule_details(transaction_like, rule)
+
     def _create_alert(self, transaction: Transaction, rule: MonitoringRule) -> Alert:
         """
         Create an alert when a rule is triggered.
@@ -169,7 +232,7 @@ class RulesEngine:
         YUFEED INNOVATION: Automatically adds regulatory context.
         """
         # Generate alert ID
-        alert_id = f"ALT-{datetime.utcnow().strftime('%Y%m%d')}-{uuid.uuid4().hex[:8].upper()}"
+        alert_id = f"ALT-{utc_now().strftime('%Y%m%d')}-{uuid.uuid4().hex[:8].upper()}"
 
         # Build evidence
         evidence = {
@@ -179,7 +242,7 @@ class RulesEngine:
             "transaction_amount": float(transaction.amount),
             "transaction_type": transaction.transaction_type,
             "country_code": transaction.country_code,
-            "triggered_at": datetime.utcnow().isoformat()
+            "triggered_at": utc_now().isoformat()
         }
 
         # Get regulatory context
@@ -199,23 +262,46 @@ class RulesEngine:
 
         # Create alert
         alert = Alert(
+            tenant_id=transaction.tenant_id,
             alert_id=alert_id,
             alert_type=rule.category or 'compliance_violation',
             severity=rule.severity,
             transaction_id=transaction.id,
             user_id=transaction.user_id,
-            rule_id=rule.rule_id,
             status='pending',
             priority=self._calculate_priority(rule.severity),
             description=f"Rule triggered: {rule.name}",
             risk_score=transaction.risk_score,
-            matched_rules={rule.rule_id: rule.name},
+            matched_rules_data={rule.rule_id: rule.name},
             evidence=evidence,
             related_regulations=related_regulations,
             regulation_context=regulation_context
         )
 
         self.db.add(alert)
+
+        event_record = record_event(
+            self.db,
+            event_type="rule.triggered",
+            entity_type="transaction",
+            entity_id=transaction.transaction_id,
+            payload={
+                "rule_id": rule.rule_id,
+                "rule_name": rule.name,
+                "severity": rule.severity,
+                "transaction_id": transaction.transaction_id,
+            },
+            metadata={"rule_version": rule.version},
+        )
+        record_decision(
+            self.db,
+            decision="alert",
+            event_id=event_record.event_id,
+            reason_codes=[rule.rule_id],
+            rule_version=str(rule.version) if rule.version is not None else None,
+            evidence=evidence,
+            metadata={"rule_name": rule.name, "severity": rule.severity},
+        )
 
         # Update transaction status
         if rule.severity in ['critical', 'high']:
@@ -283,7 +369,7 @@ Article Reference: {rule.regulation_article or 'General compliance'}
         - Unusual patterns compared to user's baseline
         """
         # Get user's recent transactions
-        start_time = datetime.utcnow() - timedelta(hours=24)
+        start_time = utc_now() - timedelta(hours=24)
 
         transactions = self.db.query(Transaction).filter(
             Transaction.user_id == user_id,
@@ -327,7 +413,7 @@ Article Reference: {rule.regulation_article or 'General compliance'}
             max_count = thresholds["transaction_count"]
             time_window_hours = thresholds.get("time_window_hours", 24)
 
-            cutoff_time = datetime.utcnow() - timedelta(hours=time_window_hours)
+            cutoff_time = utc_now() - timedelta(hours=time_window_hours)
             recent_count = sum(1 for tx in transactions if tx.timestamp >= cutoff_time)
 
             if recent_count > max_count:
@@ -338,7 +424,7 @@ Article Reference: {rule.regulation_article or 'General compliance'}
             max_amount = thresholds["total_amount"]
             time_window_hours = thresholds.get("time_window_hours", 24)
 
-            cutoff_time = datetime.utcnow() - timedelta(hours=time_window_hours)
+            cutoff_time = utc_now() - timedelta(hours=time_window_hours)
             total = sum(tx.amount for tx in transactions if tx.timestamp >= cutoff_time)
 
             if total > max_amount:
@@ -370,7 +456,7 @@ Article Reference: {rule.regulation_article or 'General compliance'}
         """
         Create an alert for velocity rule violation.
         """
-        alert_id = f"ALT-{datetime.utcnow().strftime('%Y%m%d')}-{uuid.uuid4().hex[:8].upper()}"
+        alert_id = f"ALT-{utc_now().strftime('%Y%m%d')}-{uuid.uuid4().hex[:8].upper()}"
 
         # Calculate statistics
         total_amount = sum(tx.amount for tx in transactions)
@@ -399,17 +485,17 @@ Article Reference: {rule.regulation_article or 'General compliance'}
                 regulation_context = f"Velocity monitoring required by {legal_doc.celex}: {rule.regulatory_requirement}"
 
         alert = Alert(
+            tenant_id=transactions[0].tenant_id,
             alert_id=alert_id,
             alert_type='velocity',
             severity=rule.severity,
             transaction_id=None,  # Multiple transactions
             user_id=user_id,
-            rule_id=rule.rule_id,
             status='pending',
             priority=self._calculate_priority(rule.severity),
             description=f"Velocity rule triggered: {rule.name} - {transaction_count} transactions totaling {total_amount}",
             risk_score=min(100, transaction_count * 5),  # Simple scoring
-            matched_rules={rule.rule_id: rule.name},
+            matched_rules_data={rule.rule_id: rule.name},
             evidence=evidence,
             related_regulations=related_regulations,
             regulation_context=regulation_context

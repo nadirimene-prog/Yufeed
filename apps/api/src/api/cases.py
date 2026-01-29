@@ -6,7 +6,12 @@ from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.orm import Session, joinedload
 from sqlalchemy import func, and_, or_
 from typing import List, Optional
-from datetime import datetime
+from datetime import datetime, timezone
+
+
+def utc_now() -> datetime:
+    """Return current UTC time (timezone-aware)."""
+    return datetime.now(timezone.utc)
 import uuid
 
 from src.database import get_db
@@ -15,6 +20,8 @@ from src.models.models import LegalDocument
 from src.schemas.transaction_schemas import (
     CaseCreate, CaseUpdate, CaseResponse
 )
+from src.audit.recorders import record_event, record_decision
+from src.tenancy.queries import get_tenant_filtered_query, set_tenant_on_create, ensure_tenant_match, require_tenant
 
 router = APIRouter(prefix="/api/cases", tags=["cases"])
 
@@ -38,7 +45,7 @@ def create_case(
     - Regulatory investigations
     """
     # Generate case ID
-    case_id = f"CASE-{datetime.utcnow().strftime('%Y%m%d')}-{uuid.uuid4().hex[:8].upper()}"
+    case_id = f"CASE-{utc_now().strftime('%Y%m%d')}-{uuid.uuid4().hex[:8].upper()}"
 
     # Create case
     db_case = Case(
@@ -46,7 +53,21 @@ def create_case(
         **case.dict()
     )
 
+    # Phase 4C: Set tenant context on new case
+    set_tenant_on_create(db_case)
+
     db.add(db_case)
+    record_event(
+        db,
+        event_type="case.created",
+        entity_type="case",
+        entity_id=case_id,
+        payload={
+            "case_type": case.case_type,
+            "subject_type": case.subject_type,
+            "subject_id": case.subject_id,
+        },
+    )
     db.commit()
     db.refresh(db_case)
 
@@ -70,7 +91,7 @@ def create_case_from_alert(
         raise HTTPException(status_code=404, detail="Alert not found")
 
     # Generate case ID
-    case_id = f"CASE-{datetime.utcnow().strftime('%Y%m%d')}-{uuid.uuid4().hex[:8].upper()}"
+    case_id = f"CASE-{utc_now().strftime('%Y%m%d')}-{uuid.uuid4().hex[:8].upper()}"
 
     # Build case from alert
     title = f"Investigation: {alert.alert_type} - {alert.user_id}"
@@ -108,6 +129,21 @@ Initial Evidence:
     # Update alert
     alert.status = 'in_review'
 
+    record_event(
+        db,
+        event_type="case.created",
+        entity_type="case",
+        entity_id=case_id,
+        source="alert",
+        payload={"alert_id": alert.alert_id, "user_id": alert.user_id},
+    )
+    record_event(
+        db,
+        event_type="alert.updated",
+        entity_type="alert",
+        entity_id=alert.alert_id,
+        payload={"status": "in_review"},
+    )
     db.commit()
     db.refresh(db_case)
 
@@ -129,7 +165,8 @@ def list_cases(
 
     Supports filtering by status, priority, assignee, and type.
     """
-    query = db.query(Case)
+    # Phase 4C: Tenant-filtered query
+    query = get_tenant_filtered_query(Case, db)
 
     # Apply filters
     if status:
@@ -159,13 +196,20 @@ def list_cases(
 @router.get("/{case_id}", response_model=CaseResponse)
 def get_case(
     case_id: str,
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
+    tenant_id: str = Depends(require_tenant)
 ):
     """Get a single case by ID."""
-    case = db.query(Case).filter(Case.case_id == case_id).first()
+    # Phase 4C: Tenant-filtered query
+    case = get_tenant_filtered_query(Case, db).filter(
+        Case.case_id == case_id
+    ).first()
 
     if not case:
         raise HTTPException(status_code=404, detail="Case not found")
+
+    # Phase 4C: Ensure tenant match
+    ensure_tenant_match(case, tenant_id)
 
     return case
 
@@ -174,22 +218,36 @@ def get_case(
 def update_case(
     case_id: str,
     update_data: CaseUpdate,
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
+    tenant_id: str = Depends(require_tenant)
 ):
     """
     Update case fields.
     """
-    case = db.query(Case).filter(Case.case_id == case_id).first()
+    # Phase 4C: Tenant-filtered query
+    case = get_tenant_filtered_query(Case, db).filter(
+        Case.case_id == case_id
+    ).first()
 
     if not case:
         raise HTTPException(status_code=404, detail="Case not found")
+
+    # Phase 4C: Ensure tenant match
+    ensure_tenant_match(case, tenant_id)
 
     # Update fields
     update_dict = update_data.dict(exclude_unset=True)
     for field, value in update_dict.items():
         setattr(case, field, value)
 
-    case.updated_at = datetime.utcnow()
+    case.updated_at = utc_now()
+    record_event(
+        db,
+        event_type="case.updated",
+        entity_type="case",
+        entity_id=case.case_id,
+        payload={"changes": update_dict},
+    )
     db.commit()
     db.refresh(case)
 
@@ -205,15 +263,22 @@ def assign_case(
     case_id: str,
     assigned_to: str,
     team: Optional[str] = None,
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
+    tenant_id: str = Depends(require_tenant)
 ):
     """
     Assign a case to an analyst or team.
     """
-    case = db.query(Case).filter(Case.case_id == case_id).first()
+    # Phase 4C: Tenant-filtered query
+    case = get_tenant_filtered_query(Case, db).filter(
+        Case.case_id == case_id
+    ).first()
 
     if not case:
         raise HTTPException(status_code=404, detail="Case not found")
+
+    # Phase 4C: Ensure tenant match
+    ensure_tenant_match(case, tenant_id)
 
     case.assigned_to = assigned_to
 
@@ -223,7 +288,14 @@ def assign_case(
     if case.status == 'open':
         case.status = 'in_progress'
 
-    case.updated_at = datetime.utcnow()
+    case.updated_at = utc_now()
+    record_event(
+        db,
+        event_type="case.assigned",
+        entity_type="case",
+        entity_id=case.case_id,
+        payload={"assigned_to": assigned_to, "team": team, "status": case.status},
+    )
     db.commit()
     db.refresh(case)
 
@@ -238,15 +310,22 @@ def assign_case(
 def escalate_case(
     case_id: str,
     escalation_notes: str,
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
+    tenant_id: str = Depends(require_tenant)
 ):
     """
     Escalate a case to higher priority/management.
     """
-    case = db.query(Case).filter(Case.case_id == case_id).first()
+    # Phase 4C: Tenant-filtered query
+    case = get_tenant_filtered_query(Case, db).filter(
+        Case.case_id == case_id
+    ).first()
 
     if not case:
         raise HTTPException(status_code=404, detail="Case not found")
+
+    # Phase 4C: Ensure tenant match
+    ensure_tenant_match(case, tenant_id)
 
     case.status = 'escalated'
 
@@ -262,7 +341,14 @@ def escalate_case(
     else:
         case.summary = f"[ESCALATED] {escalation_notes}"
 
-    case.updated_at = datetime.utcnow()
+    case.updated_at = utc_now()
+    record_event(
+        db,
+        event_type="case.escalated",
+        entity_type="case",
+        entity_id=case.case_id,
+        payload={"priority": case.priority, "notes": escalation_notes},
+    )
     db.commit()
     db.refresh(case)
 
@@ -278,7 +364,8 @@ def close_case(
     case_id: str,
     outcome: str,
     outcome_notes: str,
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
+    tenant_id: str = Depends(require_tenant)
 ):
     """
     Close a case with outcome.
@@ -290,17 +377,36 @@ def close_case(
     - escalated: Escalated to law enforcement
     - resolved: Issue resolved
     """
-    case = db.query(Case).filter(Case.case_id == case_id).first()
+    # Phase 4C: Tenant-filtered query
+    case = get_tenant_filtered_query(Case, db).filter(
+        Case.case_id == case_id
+    ).first()
 
     if not case:
         raise HTTPException(status_code=404, detail="Case not found")
 
+    # Phase 4C: Ensure tenant match
+    ensure_tenant_match(case, tenant_id)
+
     case.status = 'closed'
     case.outcome = outcome
     case.outcome_notes = outcome_notes
-    case.closed_at = datetime.utcnow()
-    case.updated_at = datetime.utcnow()
+    case.closed_at = utc_now()
+    case.updated_at = utc_now()
 
+    event_record = record_event(
+        db,
+        event_type="case.closed",
+        entity_type="case",
+        entity_id=case.case_id,
+        payload={"outcome": outcome, "notes": outcome_notes},
+    )
+    record_decision(
+        db,
+        decision=outcome,
+        event_id=event_record.event_id,
+        evidence={"outcome_notes": outcome_notes},
+    )
     db.commit()
     db.refresh(case)
 
@@ -319,22 +425,30 @@ def close_case(
 @router.get("/{case_id}/alerts", response_model=List)
 def get_case_alerts(
     case_id: str,
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
+    tenant_id: str = Depends(require_tenant)
 ):
     """
     Get all alerts related to a case.
 
     Uses eager loading to prevent N+1 queries when accessing transactions.
     """
-    case = db.query(Case).filter(Case.case_id == case_id).first()
+    # Phase 4C: Tenant-filtered query
+    case = get_tenant_filtered_query(Case, db).filter(
+        Case.case_id == case_id
+    ).first()
 
     if not case:
         raise HTTPException(status_code=404, detail="Case not found")
 
+    # Phase 4C: Ensure tenant match
+    ensure_tenant_match(case, tenant_id)
+
     if not case.related_alert_ids:
         return []
 
-    alerts = db.query(Alert).options(
+    # Phase 4C: Also filter alerts by tenant
+    alerts = get_tenant_filtered_query(Alert, db).options(
         joinedload(Alert.transaction)
     ).filter(
         Alert.id.in_(case.related_alert_ids)
@@ -346,22 +460,30 @@ def get_case_alerts(
 @router.get("/{case_id}/transactions", response_model=List)
 def get_case_transactions(
     case_id: str,
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
+    tenant_id: str = Depends(require_tenant)
 ):
     """
     Get all transactions related to a case.
 
     Uses eager loading to prevent N+1 queries when accessing alerts.
     """
-    case = db.query(Case).filter(Case.case_id == case_id).first()
+    # Phase 4C: Tenant-filtered query
+    case = get_tenant_filtered_query(Case, db).filter(
+        Case.case_id == case_id
+    ).first()
 
     if not case:
         raise HTTPException(status_code=404, detail="Case not found")
 
+    # Phase 4C: Ensure tenant match
+    ensure_tenant_match(case, tenant_id)
+
     if not case.related_transaction_ids:
         return []
 
-    transactions = db.query(Transaction).options(
+    # Phase 4C: Also filter transactions by tenant
+    transactions = get_tenant_filtered_query(Transaction, db).options(
         joinedload(Transaction.alerts)
     ).filter(
         Transaction.id.in_(case.related_transaction_ids)
@@ -373,15 +495,22 @@ def get_case_transactions(
 @router.get("/{case_id}/regulations")
 def get_case_regulations(
     case_id: str,
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
+    tenant_id: str = Depends(require_tenant)
 ):
     """
     Get all regulations applicable to a case.
     """
-    case = db.query(Case).filter(Case.case_id == case_id).first()
+    # Phase 4C: Tenant-filtered query
+    case = get_tenant_filtered_query(Case, db).filter(
+        Case.case_id == case_id
+    ).first()
 
     if not case:
         raise HTTPException(status_code=404, detail="Case not found")
+
+    # Phase 4C: Ensure tenant match
+    ensure_tenant_match(case, tenant_id)
 
     if not case.applicable_regulation_ids:
         return []
@@ -405,21 +534,31 @@ def get_case_regulations(
 def add_alert_to_case(
     case_id: str,
     alert_id: str,
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
+    tenant_id: str = Depends(require_tenant)
 ):
     """
     Add an alert to an existing case.
 
     Used when new related activity is discovered.
     """
-    case = db.query(Case).filter(Case.case_id == case_id).first()
-    alert = db.query(Alert).filter(Alert.alert_id == alert_id).first()
+    # Phase 4C: Tenant-filtered queries
+    case = get_tenant_filtered_query(Case, db).filter(
+        Case.case_id == case_id
+    ).first()
+    alert = get_tenant_filtered_query(Alert, db).filter(
+        Alert.alert_id == alert_id
+    ).first()
 
     if not case:
         raise HTTPException(status_code=404, detail="Case not found")
 
     if not alert:
         raise HTTPException(status_code=404, detail="Alert not found")
+
+    # Phase 4C: Ensure tenant match for both
+    ensure_tenant_match(case, tenant_id)
+    ensure_tenant_match(alert, tenant_id)
 
     # Add alert ID if not already present
     if not case.related_alert_ids:
@@ -447,7 +586,14 @@ def add_alert_to_case(
     # Update alert status
     alert.status = 'in_review'
 
-    case.updated_at = datetime.utcnow()
+    case.updated_at = utc_now()
+    record_event(
+        db,
+        event_type="case.alert_added",
+        entity_type="case",
+        entity_id=case.case_id,
+        payload={"alert_id": alert.alert_id},
+    )
     db.commit()
 
     return {
@@ -462,22 +608,36 @@ def add_evidence(
     case_id: str,
     evidence_key: str,
     evidence_value: str,
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
+    tenant_id: str = Depends(require_tenant)
 ):
     """
     Add evidence to a case.
     """
-    case = db.query(Case).filter(Case.case_id == case_id).first()
+    # Phase 4C: Tenant-filtered query
+    case = get_tenant_filtered_query(Case, db).filter(
+        Case.case_id == case_id
+    ).first()
 
     if not case:
         raise HTTPException(status_code=404, detail="Case not found")
+
+    # Phase 4C: Ensure tenant match
+    ensure_tenant_match(case, tenant_id)
 
     if not case.evidence:
         case.evidence = {}
 
     case.evidence[evidence_key] = evidence_value
-    case.updated_at = datetime.utcnow()
+    case.updated_at = utc_now()
 
+    record_event(
+        db,
+        event_type="case.evidence_added",
+        entity_type="case",
+        entity_id=case.case_id,
+        payload={"evidence_key": evidence_key},
+    )
     db.commit()
 
     return {

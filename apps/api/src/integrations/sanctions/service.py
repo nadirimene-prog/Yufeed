@@ -13,8 +13,13 @@ Provides:
 import asyncio
 import logging
 from dataclasses import dataclass, field
-from datetime import datetime
+from datetime import datetime, timezone
 from enum import Enum
+
+
+def utc_now() -> datetime:
+    """Return current UTC time (timezone-aware)."""
+    return datetime.now(timezone.utc)
 from typing import Any, Dict, List, Optional, Set
 import re
 from difflib import SequenceMatcher
@@ -300,7 +305,7 @@ class SanctionsService:
 
         return ScreeningResult(
             screened_name=name,
-            screened_at=datetime.utcnow(),
+            screened_at=utc_now(),
             matches=matches,
             is_hit=len(matches) > 0,
             highest_score=matches[0].score if matches else 0.0,
@@ -340,7 +345,7 @@ class SanctionsService:
             if isinstance(result, Exception):
                 processed_results.append(ScreeningResult(
                     screened_name=names[i],
-                    screened_at=datetime.utcnow(),
+                    screened_at=utc_now(),
                     matches=[],
                     is_hit=False,
                     highest_score=0.0,
@@ -470,7 +475,7 @@ class SanctionsService:
                 "eu_consolidated": eu_count,
                 "ofac_sdn": ofac_count
             },
-            "last_updated": datetime.utcnow().isoformat(),
+            "last_updated": utc_now().isoformat(),
             "status": "demo_data"
         }
 

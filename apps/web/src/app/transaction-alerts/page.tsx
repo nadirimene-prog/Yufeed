@@ -5,8 +5,9 @@ import { useRouter } from 'next/navigation';
 import { AlertCircle, Search, AlertTriangle, CheckCircle, Clock, Shield, Sparkles } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import toast from 'react-hot-toast';
+import { fetchWithAuth } from '@/lib/auth';
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
+const API_URL = getApiBaseUrl();
 
 interface Alert {
   id: number;
@@ -50,7 +51,7 @@ export default function TransactionAlertsPage() {
         url += `&severity=${filters.severity}`;
       }
 
-      const res = await fetch(url);
+      const res = await fetchWithAuth(url);
       const data = await res.json();
       setAlerts(data);
       setLoading(false);
@@ -68,7 +69,7 @@ export default function TransactionAlertsPage() {
 
     const toastId = toast.loading(`Triaging ${selectedAlerts.length} alerts...`);
     try {
-      const res = await fetch(`${API_URL}/api/ai/triage/batch`, {
+      const res = await fetchWithAuth(`${API_URL}/api/ai/triage/batch`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ alert_ids: selectedAlerts })
@@ -96,7 +97,7 @@ export default function TransactionAlertsPage() {
     const toastId = toast.loading(`Assigning ${selectedAlerts.length} alerts to ${analyst}...`);
     try {
       for (const alertId of selectedAlerts) {
-        await fetch(`${API_URL}/api/alerts/${alertId}/assign`, {
+        await fetchWithAuth(`${API_URL}/api/alerts/${alertId}/assign`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ assigned_to: analyst })

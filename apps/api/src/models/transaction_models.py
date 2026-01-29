@@ -8,9 +8,14 @@ from sqlalchemy import (
 )
 from sqlalchemy.dialects.postgresql import INET, JSONB
 from sqlalchemy.orm import relationship
-from datetime import datetime
+from datetime import datetime, timezone
 
 from src.database import Base
+
+
+def utc_now() -> datetime:
+    """Return current UTC time (timezone-aware)."""
+    return datetime.now(timezone.utc)
 
 
 class Transaction(Base):
@@ -18,6 +23,7 @@ class Transaction(Base):
     __tablename__ = "transactions"
 
     id = Column(Integer, primary_key=True)
+    tenant_id = Column(String(255), nullable=False, index=True)  # Multi-tenancy support
     transaction_id = Column(String(255), unique=True, nullable=False, index=True)
     user_id = Column(String(255), nullable=False, index=True)
     amount = Column(Numeric(15, 2), nullable=False)
@@ -44,8 +50,8 @@ class Transaction(Base):
     transaction_metadata = Column(JSON().with_variant(JSONB(), "postgresql"))
     description = Column(Text)
 
-    created_at = Column(DateTime, default=datetime.utcnow)
-    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    created_at = Column(DateTime, default=utc_now)
+    updated_at = Column(DateTime, default=utc_now, onupdate=utc_now)
 
     # Relationships
     alerts = relationship("Alert", back_populates="transaction")
@@ -56,6 +62,7 @@ class Alert(Base):
     __tablename__ = "alerts"
 
     id = Column(Integer, primary_key=True)
+    tenant_id = Column(String(255), nullable=False, index=True)  # Multi-tenancy support
     alert_id = Column(String(255), unique=True, nullable=False, index=True)
     alert_type = Column(String(100), nullable=False)  # 'velocity', 'structuring', 'unusual_pattern', etc.
     severity = Column(String(20), nullable=False)  # 'low', 'medium', 'high', 'critical'
@@ -90,8 +97,14 @@ class Alert(Base):
     sar_id = Column(String(255))
     sar_filed_at = Column(DateTime)
 
-    created_at = Column(DateTime, default=datetime.utcnow, index=True)  # Indexed for date range queries
-    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    # ML Triage (Phase 4B: Task 4.4)
+    ml_prediction = Column(String(50))  # 'false_positive', 'true_positive', 'uncertain'
+    ml_confidence = Column(Numeric(5, 4))  # 0.0000 to 1.0000
+    ml_model_version = Column(String(50))  # Model version identifier
+    ml_features_snapshot = Column(JSON().with_variant(JSONB(), "postgresql"))  # Features used for prediction
+
+    created_at = Column(DateTime, default=utc_now, index=True)  # Indexed for date range queries
+    updated_at = Column(DateTime, default=utc_now, onupdate=utc_now)
 
     # Relationships
     transaction = relationship("Transaction", back_populates="alerts")
@@ -103,6 +116,7 @@ class Case(Base):
     __tablename__ = "cases"
 
     id = Column(Integer, primary_key=True)
+    tenant_id = Column(String(255), nullable=False, index=True)  # Multi-tenancy support
     case_id = Column(String(255), unique=True, nullable=False, index=True)
     case_type = Column(String(100))  # 'investigation', 'sar_preparation', 'audit'
     subject_type = Column(String(50))  # 'user', 'transaction', 'pattern'
@@ -135,15 +149,15 @@ class Case(Base):
     attachments = Column(JSON().with_variant(JSONB(), "postgresql"))
 
     # Timeline
-    opened_at = Column(DateTime, default=datetime.utcnow)
+    opened_at = Column(DateTime, default=utc_now)
     closed_at = Column(DateTime)
 
     # Outcomes
     outcome = Column(String(100))  # 'sar_filed', 'no_action', 'account_closed', 'escalated'
     outcome_notes = Column(Text)
 
-    created_at = Column(DateTime, default=datetime.utcnow)
-    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    created_at = Column(DateTime, default=utc_now)
+    updated_at = Column(DateTime, default=utc_now, onupdate=utc_now)
 
 
 class MonitoringRule(Base):
@@ -151,6 +165,7 @@ class MonitoringRule(Base):
     __tablename__ = "monitoring_rules"
 
     id = Column(Integer, primary_key=True)
+    tenant_id = Column(String(255), nullable=False, index=True)  # Multi-tenancy support
     rule_id = Column(String(255), unique=True, nullable=False, index=True)
     name = Column(String(500), nullable=False)
     description = Column(Text)
@@ -162,11 +177,11 @@ class MonitoringRule(Base):
 
     # Rule logic - Sardine-inspired nested logic
     # Schema: { "logic": "AND", "conditions": [ { "field": "amount", "operator": ">", "value": 1000 }, ... ] }
-    conditions_json = Column(JSON().with_variant(JSONB(), "postgresql"), nullable=False)
+    conditions = Column("conditions", JSON().with_variant(JSONB(), "postgresql"), nullable=False)
     
     # Aggregation requirements (e.g., lookback periods)
     # Schema: { "window_size": "24h", "metric": "sum", "field": "amount" }
-    aggregation_json = Column(JSON().with_variant(JSONB(), "postgresql"))
+    thresholds = Column("thresholds", JSON().with_variant(JSONB(), "postgresql"))
 
     # Regulatory basis (YUFEED INNOVATION)
     regulatory_source_id = Column(Integer, ForeignKey('legal_documents.id'), nullable=True)
@@ -184,12 +199,42 @@ class MonitoringRule(Base):
     false_positive_rate = Column(Numeric(5, 2))
 
     created_by = Column(String(255))
-    created_at = Column(DateTime, default=datetime.utcnow)
-    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    created_at = Column(DateTime, default=utc_now)
+    updated_at = Column(DateTime, default=utc_now, onupdate=utc_now)
 
     # Relationships
     regulatory_source = relationship("LegalDocument", foreign_keys=[regulatory_source_id])
     hits = relationship("RuleHit", back_populates="rule")
+    versions = relationship("RuleVersion", back_populates="rule", cascade="all, delete-orphan")
+
+
+class RuleVersion(Base):
+    """Immutable version snapshots for monitoring rules."""
+    __tablename__ = "rule_versions"
+
+    id = Column(Integer, primary_key=True)
+    tenant_id = Column(String(255), nullable=False, index=True)  # Multi-tenancy support
+    rule_id = Column(Integer, ForeignKey("monitoring_rules.id"), nullable=False, index=True)
+    version_number = Column(Integer, nullable=False)
+    status = Column(String(50), default="pending")  # draft | pending | approved | rejected
+
+    name = Column(String(500), nullable=False)
+    description = Column(Text)
+    category = Column(String(100))
+    severity = Column(String(20), default="medium")
+    priority = Column(Integer, default=3)
+    conditions = Column("conditions", JSON().with_variant(JSONB(), "postgresql"), nullable=False)
+    thresholds = Column("thresholds", JSON().with_variant(JSONB(), "postgresql"))
+    enabled = Column(Boolean, default=True)
+
+    created_by = Column(String(255))
+    created_at = Column(DateTime, default=utc_now)
+    approved_by = Column(String(255))
+    approved_at = Column(DateTime)
+    notes = Column(Text)
+
+    rule = relationship("MonitoringRule", back_populates="versions")
+
 
 
 class RuleHit(Base):
@@ -197,6 +242,7 @@ class RuleHit(Base):
     __tablename__ = "rule_hits"
 
     id = Column(Integer, primary_key=True)
+    tenant_id = Column(String(255), nullable=False, index=True)  # Multi-tenancy support
     alert_id = Column(Integer, ForeignKey('alerts.id'), nullable=False)
     rule_id = Column(Integer, ForeignKey('monitoring_rules.id'), nullable=False)
     
@@ -204,7 +250,7 @@ class RuleHit(Base):
     trigger_values = Column(JSON().with_variant(JSONB(), "postgresql")) 
     matched_conditions = Column(JSON().with_variant(JSONB(), "postgresql"))
     
-    hit_at = Column(DateTime, default=datetime.utcnow)
+    hit_at = Column(DateTime, default=utc_now)
 
     # Relationships
     alert = relationship("Alert", back_populates="rule_hits")
@@ -216,6 +262,7 @@ class UserRiskProfile(Base):
     __tablename__ = "user_risk_profiles"
 
     id = Column(Integer, primary_key=True)
+    tenant_id = Column(String(255), nullable=False, index=True)  # Multi-tenancy support
     user_id = Column(String(255), unique=True, nullable=False, index=True)
 
     # Computed risk
@@ -252,9 +299,9 @@ class UserRiskProfile(Base):
     account_created_at = Column(DateTime)
     last_activity_at = Column(DateTime)
 
-    last_calculated_at = Column(DateTime, default=datetime.utcnow)
-    created_at = Column(DateTime, default=datetime.utcnow)
-    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    last_calculated_at = Column(DateTime, default=utc_now)
+    created_at = Column(DateTime, default=utc_now)
+    updated_at = Column(DateTime, default=utc_now, onupdate=utc_now)
 
 
 class FeatureValue(Base):
@@ -262,6 +309,7 @@ class FeatureValue(Base):
     __tablename__ = "feature_values"
 
     id = Column(Integer, primary_key=True)
+    tenant_id = Column(String(255), nullable=False, index=True)  # Multi-tenancy support
     entity_type = Column(String(50), nullable=False)  # 'transaction', 'user', 'session'
     entity_id = Column(String(255), nullable=False)
 
@@ -274,4 +322,4 @@ class FeatureValue(Base):
     calculated_at = Column(DateTime, nullable=False)
     version = Column(Integer, default=1)
 
-    created_at = Column(DateTime, default=datetime.utcnow)
+    created_at = Column(DateTime, default=utc_now)

@@ -3,8 +3,9 @@
 import { useEffect, useState } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { ArrowLeft, AlertTriangle, User, DollarSign, MapPin, Clock, Shield, Sparkles, FileText, ChevronRight, ExternalLink } from 'lucide-react';
+import { fetchWithAuth } from '@/lib/auth';
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
+const API_URL = getApiBaseUrl();
 
 interface Alert {
   id: number;
@@ -68,20 +69,20 @@ export default function AlertDetailPage() {
   const fetchAlertDetails = async () => {
     try {
       // Fetch alert
-      const alertRes = await fetch(`${API_URL}/api/alerts/${params.id}`);
+      const alertRes = await fetchWithAuth(`${API_URL}/api/alerts/${params.id}`);
       const alertData = await alertRes.json();
       setAlert(alertData);
 
       // Fetch transaction if available
       if (alertData.transaction_id) {
-        const txRes = await fetch(`${API_URL}/api/transactions/${alertData.transaction_id}`);
+        const txRes = await fetchWithAuth(`${API_URL}/api/transactions/${alertData.transaction_id}`);
         const txData = await txRes.json();
         setTransaction(txData);
       }
 
       // Fetch related regulations
       if (alertData.related_regulations && alertData.related_regulations.length > 0) {
-        const regsRes = await fetch(`${API_URL}/api/documents/batch`, {
+        const regsRes = await fetchWithAuth(`${API_URL}/api/documents/batch`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ ids: alertData.related_regulations })
@@ -102,7 +103,7 @@ export default function AlertDetailPage() {
     setTriaging(true);
 
     try {
-      const res = await fetch(`${API_URL}/api/ai/triage`, {
+      const res = await fetchWithAuth(`${API_URL}/api/ai/triage`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ alert_id: alert.id })
@@ -122,7 +123,7 @@ export default function AlertDetailPage() {
     if (!alert) return;
 
     try {
-      await fetch(`${API_URL}/api/alerts/${alert.id}/assign`, {
+      await fetchWithAuth(`${API_URL}/api/alerts/${alert.id}/assign`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ assigned_to: analyst })
@@ -137,7 +138,7 @@ export default function AlertDetailPage() {
     if (!alert) return;
 
     try {
-      await fetch(`${API_URL}/api/alerts/${alert.id}/escalate`, {
+      await fetchWithAuth(`${API_URL}/api/alerts/${alert.id}/escalate`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ escalated_to: 'senior_analyst' })
@@ -155,7 +156,7 @@ export default function AlertDetailPage() {
     if (!notes) return;
 
     try {
-      await fetch(`${API_URL}/api/alerts/${alert.id}/resolve`, {
+      await fetchWithAuth(`${API_URL}/api/alerts/${alert.id}/resolve`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ outcome, resolution_notes: notes })
@@ -170,7 +171,7 @@ export default function AlertDetailPage() {
     if (!alert) return;
 
     try {
-      const res = await fetch(`${API_URL}/api/cases/from-alert/${alert.alert_id}`, {
+      const res = await fetchWithAuth(`${API_URL}/api/cases/from-alert/${alert.alert_id}`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ assigned_to: alert.assigned_to || 'unassigned' })

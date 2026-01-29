@@ -14,7 +14,12 @@ Features:
 
 import logging
 from dataclasses import dataclass, field
-from datetime import datetime
+from datetime import datetime, timezone
+
+
+def utc_now() -> datetime:
+    """Return current UTC time (timezone-aware)."""
+    return datetime.now(timezone.utc)
 from enum import Enum
 from typing import Any, Dict, List, Optional
 import xml.etree.ElementTree as ET
@@ -470,11 +475,11 @@ Important:
 
         # Date range
         dates = [t.get('timestamp') or t.get('date') for t in transactions if t.get('timestamp') or t.get('date')]
-        date_range_start = min(dates) if dates else datetime.utcnow().strftime("%Y-%m-%d")
-        date_range_end = max(dates) if dates else datetime.utcnow().strftime("%Y-%m-%d")
+        date_range_start = min(dates) if dates else utc_now().strftime("%Y-%m-%d")
+        date_range_end = max(dates) if dates else utc_now().strftime("%Y-%m-%d")
 
         return SARDraft(
-            sar_id=f"SAR-{case_id}-{datetime.utcnow().strftime('%Y%m%d%H%M%S')}",
+            sar_id=f"SAR-{case_id}-{utc_now().strftime('%Y%m%d%H%M%S')}",
             case_id=case_id,
             status=SARStatus.DRAFT,
             narrative=response.get("narrative", ""),
@@ -520,7 +525,7 @@ Important:
         # Report header
         header = ET.SubElement(root, "reportHeader")
         ET.SubElement(header, "reportCode").text = sar_draft.sar_id
-        ET.SubElement(header, "reportDate").text = datetime.utcnow().strftime("%Y-%m-%d")
+        ET.SubElement(header, "reportDate").text = utc_now().strftime("%Y-%m-%d")
         ET.SubElement(header, "reportingEntity").text = sar_draft.reporting_entity
         ET.SubElement(header, "reportReason").text = sar_draft.primary_activity.value
 
@@ -575,7 +580,7 @@ Important:
                 "type": "SAR",
                 "version": "EU-FIU-1.0",
                 "report_id": sar_draft.sar_id,
-                "reporting_date": datetime.utcnow().isoformat(),
+                "reporting_date": utc_now().isoformat(),
                 "reporting_entity": {
                     "name": sar_draft.reporting_entity,
                     "type": "financial_institution"
@@ -706,8 +711,8 @@ class SARWorkflowManager:
 
         # In production, this would submit to the actual FIU
         draft.status = SARStatus.FILED
-        draft.filing_date = datetime.utcnow().isoformat()
-        draft.acknowledgment_number = f"ACK-{datetime.utcnow().strftime('%Y%m%d%H%M%S')}"
+        draft.filing_date = utc_now().isoformat()
+        draft.acknowledgment_number = f"ACK-{utc_now().strftime('%Y%m%d%H%M%S')}"
 
         return draft
 

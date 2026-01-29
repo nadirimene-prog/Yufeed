@@ -2,7 +2,7 @@ import httpx
 import logging
 import re
 from typing import Optional, Dict, Any, List
-from datetime import datetime
+from datetime import datetime, date
 
 # Import new utilities
 import sys
@@ -64,6 +64,98 @@ class CellarClient:
         """
         # Only allow alphanumeric characters
         return re.sub(r'[^A-Z0-9]', '', celex.upper())
+
+    @staticmethod
+    def _sanitize_query_term(term: str) -> str:
+        if not term:
+            return ""
+        cleaned = term.strip().lower()
+        cleaned = re.sub(r"[^\w\s'/-]", " ", cleaned, flags=re.UNICODE)
+        cleaned = re.sub(r"\\s+", " ", cleaned)
+        return cleaned.strip()
+
+    @staticmethod
+    def _extract_oj_identifier(value: Optional[str]) -> Optional[str]:
+        if not value:
+            return None
+        identifier = value
+        if "oj:" in identifier:
+            identifier = identifier.split("oj:")[-1]
+        if "/oj/" in identifier:
+            identifier = identifier.split("/oj/")[-1]
+        if "/" in identifier:
+            identifier = identifier.rsplit("/", 1)[-1]
+        return identifier.strip() or None
+
+    @staticmethod
+    def _extract_oj_series(identifier: Optional[str]) -> Optional[str]:
+        if not identifier:
+            return None
+        match = re.match(r"^([A-Z]{1,3})_", identifier)
+        if not match:
+            return None
+        return match.group(1)
+
+    def search_oj_act_by_date(self, publication_date: date) -> List[Dict[str, Any]]:
+        if not publication_date:
+            return []
+
+        date_literal = publication_date.isoformat()
+        sparql_query = f"""
+        PREFIX cdm: <http://publications.europa.eu/ontology/cdm#>
+        PREFIX owl: <http://www.w3.org/2002/07/owl#>
+        PREFIX xsd: <http://www.w3.org/2001/XMLSchema#>
+
+        SELECT DISTINCT ?act ?sig
+        WHERE {{
+          ?c_act owl:sameAs ?act .
+          ?c_act cdm:official-journal-act_date_publication "{date_literal}"^^xsd:date .
+          FILTER (regex(str(?act), "/oj/")) .
+          ?c_exp cdm:expression_belongs_to_work ?c_act .
+          ?c_manif cdm:manifestation_manifests_expression ?c_exp .
+          OPTIONAL {{
+            ?c_sig cdm:signature_digital_signs_manifestation ?c_manif .
+            ?c_sig owl:sameAs ?sig .
+          }}
+        }}
+        """
+
+        try:
+            response = self.client.post(
+                self.SPARQL_ENDPOINT,
+                data={"query": sparql_query},
+                headers={
+                    "Accept": "application/sparql-results+json",
+                    "Content-Type": "application/x-www-form-urlencoded",
+                },
+            )
+            response.raise_for_status()
+            data = response.json()
+            bindings = data.get("results", {}).get("bindings", [])
+            acts = []
+            for row in bindings:
+                act_uri = row.get("act", {}).get("value")
+                sig_uri = row.get("sig", {}).get("value")
+                act_identifier = self._extract_oj_identifier(act_uri)
+                signature_identifier = self._extract_oj_identifier(sig_uri)
+                series = self._extract_oj_series(act_identifier)
+                acts.append(
+                    {
+                        "act_uri": act_uri,
+                        "signature_uri": sig_uri,
+                        "act_identifier": act_identifier,
+                        "signature_identifier": signature_identifier,
+                        "series": series,
+                        "publication_date": publication_date,
+                    }
+                )
+            return acts
+        except httpx.HTTPError as exc:
+            logger.error(f"HTTP error querying OJ act-by-act for {date_literal}: {exc}")
+            return []
+        except Exception as exc:
+            logger.error(f"Error querying OJ act-by-act for {date_literal}: {exc}")
+            return []
 
     def query_by_celex(self, celex: str, use_cache: bool = True) -> Optional[Dict[str, Any]]:
         """
@@ -171,6 +263,97 @@ class CellarClient:
             logger.error(f"Error querying Cellar for {celex}: {e}")
             return None
 
+    def search_by_title_terms(
+        self,
+        terms: List[str],
+        language: str,
+        limit: int = 100,
+        offset: int = 0,
+        require_language: bool = True,
+    ) -> List[Dict[str, Any]]:
+        """
+        Search Cellar by title terms for a given language.
+        Returns list of metadata dictionaries.
+        """
+        cleaned_terms = [self._sanitize_query_term(term) for term in terms]
+        cleaned_terms = [term for term in cleaned_terms if term]
+        if not cleaned_terms:
+            return []
+
+        language = (language or "en").lower()
+        lang_codes = ["en", "eng"] if language == "en" else ["fr", "fra"]
+        lang_filter = " || ".join(
+            [f'LANGMATCHES(LANG(?title), "{code}")' for code in lang_codes]
+        )
+        lang_filter = f"({lang_filter})" if require_language else "true"
+        filters = " || ".join(
+            [
+                f'CONTAINS(LCASE(STR(?title)), "{term}")'
+                for term in cleaned_terms
+            ]
+        )
+
+        sparql_query = f"""
+        PREFIX cdm: <http://publications.europa.eu/ontology/cdm#>
+        PREFIX dc: <http://purl.org/dc/elements/1.1/>
+        PREFIX xsd: <http://www.w3.org/2001/XMLSchema#>
+
+        SELECT DISTINCT ?work ?celex ?title ?workType ?dateDocument ?dateEntryIntoForce
+               ?eli ?cellarId ?titleLang
+        WHERE {{
+          ?work cdm:resource_legal_id_celex ?celex .
+          OPTIONAL {{ ?work cdm:work_has_resource-type ?workType . }}
+          OPTIONAL {{ ?work cdm:work_date_document ?dateDocument . }}
+          OPTIONAL {{ ?work cdm:work_date_entry-into-force ?dateEntryIntoForce . }}
+          OPTIONAL {{ ?work cdm:resource_legal_id_eli ?eli . }}
+          {{
+            ?work cdm:work_has_expression ?expression .
+            ?expression cdm:expression_title ?title .
+          }}
+          UNION
+          {{
+            ?work cdm:work_title ?title .
+          }}
+          UNION
+          {{
+            ?work dc:title ?title .
+          }}
+          BIND(LANG(?title) AS ?titleLang)
+          FILTER({lang_filter})
+          FILTER({filters})
+          BIND(STRAFTER(STR(?work), "cellar/") AS ?cellarId)
+        }}
+        LIMIT {int(limit)}
+        OFFSET {int(offset)}
+        """
+
+        try:
+            response = self.client.post(
+                self.SPARQL_ENDPOINT,
+                data={"query": sparql_query},
+                headers={
+                    "Accept": "application/sparql-results+json",
+                    "Content-Type": "application/x-www-form-urlencoded",
+                },
+            )
+            response.raise_for_status()
+            data = response.json()
+            results = data.get("results", {}).get("bindings", [])
+            items = [self._parse_sparql_result(row, row.get("celex", {}).get("value", "")) for row in results]
+            if not require_language:
+                allowed = {"en", "eng", "fr", "fra"}
+                items = [
+                    item for item in items
+                    if (item.get("title_lang") or "").lower() in allowed
+                ]
+            return [item for item in items if item.get("celex")]
+        except httpx.HTTPError as exc:
+            logger.error(f"HTTP error searching Cellar: {exc}")
+            return []
+        except Exception as exc:
+            logger.error(f"Error searching Cellar: {exc}")
+            return []
+
     def _parse_sparql_result(self, result: Dict, celex: str) -> Dict[str, Any]:
         """
         Parse SPARQL JSON result into structured metadata.
@@ -192,6 +375,7 @@ class CellarClient:
             "cellar_id": get_value("cellarId"),
             "eli": get_value("eli"),
             "title": get_value("title"),
+            "title_lang": get_value("titleLang"),
             "work_type": get_value("workType"),
             "date_document": parse_date(get_value("dateDocument")),
             "date_entry_into_force": parse_date(get_value("dateEntryIntoForce")),

@@ -1,47 +1,59 @@
+name: yufeed
+
 services:
+  # ============================================================================
+  # CORE SERVICES
+  # ============================================================================
+
   db:
     image: postgres:15-alpine
-    restart: always
+    container_name: yufeed-db
     environment:
-      POSTGRES_USER: ${POSTGRES_USER:-postgres}
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-postgres}
-      POSTGRES_DB: ${POSTGRES_DB:-yufeed}
+      POSTGRES_DB: yufeed
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
     ports:
       - "127.0.0.1:5432:5432"
     volumes:
       - postgres_data:/var/lib/postgresql/data
-    healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-postgres}"]
-      interval: 5s
-      timeout: 5s
-      retries: 5
+    networks:
+      - default
+    restart: always
 
   redis:
     image: redis:7-alpine
-    restart: always
-    command: redis-server --appendonly yes --maxmemory 512mb --maxmemory-policy allkeys-lru
-    ports:
-      - "127.0.0.1:6379:6379"
-    volumes:
-      - redis_data:/data
+    container_name: yufeed-redis
+    command: >
+      redis-server
+      --appendonly yes
+      --maxmemory 512mb
+      --maxmemory-policy allkeys-lru
     healthcheck:
       test: ["CMD", "redis-cli", "ping"]
       interval: 5s
       timeout: 5s
       retries: 5
+    ports:
+      - "127.0.0.1:6379:6379"
+    volumes:
+      - redis_data:/data
+    networks:
+      - default
+    restart: always
 
   opensearch:
     image: opensearchproject/opensearch:2.11.0
-    restart: always
+    container_name: yufeed-opensearch
     environment:
       - discovery.type=single-node
       - bootstrap.memory_lock=true
       - OPENSEARCH_JAVA_OPTS=-Xms512m -Xmx512m
       - DISABLE_SECURITY_PLUGIN=true
-    ports:
-      - "127.0.0.1:9200:9200"
-    volumes:
-      - opensearch_data:/usr/share/opensearch/data
     ulimits:
       memlock:
         soft: -1
@@ -49,24 +61,24 @@ services:
       nofile:
         soft: 65536
         hard: 65536
-
-  mailhog:
-    image: mailhog/mailhog
-    restart: always
     ports:
-      - "127.0.0.1:1025:1025"
-      - "127.0.0.1:8025:8025"
+      - "127.0.0.1:9200:9200"
+    volumes:
+      - opensearch_data:/usr/share/opensearch/data
+    networks:
+      - default
+    restart: always
+
+  # ============================================================================
+  # APPLICATION SERVICES
+  # ============================================================================
 
   api:
-    build: ./apps/api
-    restart: always
+    build:
+      context: ./apps/api
+      dockerfile: Dockerfile
+    container_name: yufeed-api
     command: uvicorn src.main:app --host 0.0.0.0 --port 8000 --reload
-    volumes:
-      - ./apps/api:/app
-    ports:
-      - "127.0.0.1:8000:8000"
-    env_file:
-      - .env
     depends_on:
       db:
         condition: service_healthy
@@ -74,36 +86,259 @@ services:
         condition: service_healthy
       opensearch:
         condition: service_started
-
-  worker:
-    build: ./apps/api
-    restart: always
-    command: celery -A src.worker.celery_app worker --loglevel=info
+    environment:
+      # Database
+      DATABASE_URL: postgresql://postgres:postgres@db:5432/yufeed
+      POSTGRES_HOST: db
+      POSTGRES_PORT: "5432"
+      POSTGRES_DB: yufeed
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      # Redis
+      REDIS_URL: redis://redis:6379/0
+      # OpenSearch
+      OPENSEARCH_URL: http://opensearch:9200
+      OPENSEARCH_SECURITY_ENABLED: "false"
+      OPENSEARCH_USER: admin
+      OPENSEARCH_PASSWORD: admin
+      OPENSEARCH_CA_CERT_PATH: /etc/ssl/certs/ca-certificates.crt
+      # Security
+      SECRET_KEY: ${SECRET_KEY:-}
+      ENVIRONMENT: ${ENVIRONMENT:-development}
+      ALGORITHM: HS256
+      ACCESS_TOKEN_EXPIRE_MINUTES: "30"
+      ALLOWED_ORIGINS: http://localhost:3000,http://127.0.0.1:3000
+      ENABLE_HSTS: "false"
+      # Email
+      SMTP_HOST: mailhog
+      SMTP_PORT: "1025"
+      SMTP_USER: test
+      SMTP_PASSWORD: test
+      SMTP_TLS: "false"
+      EMAILS_FROM_EMAIL: info@yufeed.eu
+      # AI
+      ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-}
+      # EUR-Lex Integration
+      CELEX_CACHE_ENABLED: "true"
+      CELEX_CACHE_TTL_HOURS: "24"
+      EURLEX_LANGUAGES: en,fr
+      EURLEX_OJ_START_DATE: "2023-10-01"
+      EURLEX_SEARCH_PAGE_SIZE: "100"
+      EURLEX_SEARCH_TERMS_EN: "payment service provider;payment services;electronic money institution;electronic money;crypto-asset service provider;virtual asset service provider;crypto-assets;emd2;psd2;psd3;mica;casp"
+      EURLEX_SEARCH_TERMS_FR: "prestataire de services de paiement;services de paiement;etablissement de monnaie electronique;monnaie electronique;prestataire de services sur actifs numeriques;actifs numeriques;crypto-actifs;psan;mica"
+      # Legifrance Integration
+      LEGIFRANCE_JORF_RSS_URL: https://legifrss.org/latest
+      LEGIFRANCE_API_BASE_URL: ${LEGIFRANCE_API_BASE_URL:-}
+      LEGIFRANCE_API_TOKEN: ${LEGIFRANCE_API_TOKEN:-}
+      # Other
+      RSS_USER_AGENT: Yufeed/1.0
+      REGULATORY_SCOPE_FILTER: all
+    healthcheck:
+      test: ["CMD-SHELL", "curl -f http://localhost:8000/healthz || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+    ports:
+      - "127.0.0.1:8000:8000"
     volumes:
       - ./apps/api:/app
-    env_file:
-      - .env
+    networks:
+      - default
+      - monitoring
+    restart: always
+
+  worker:
+    build:
+      context: ./apps/api
+      dockerfile: Dockerfile
+    container_name: yufeed-worker
+    command: python -m celery -A src.worker.celery_app worker --loglevel=info
     depends_on:
       db:
         condition: service_healthy
       redis:
         condition: service_healthy
+    environment:
+      # Database
+      DATABASE_URL: postgresql://postgres:postgres@db:5432/yufeed
+      POSTGRES_HOST: db
+      POSTGRES_PORT: "5432"
+      POSTGRES_DB: yufeed
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      # Redis
+      REDIS_URL: redis://redis:6379/0
+      # OpenSearch
+      OPENSEARCH_URL: http://opensearch:9200
+      OPENSEARCH_SECURITY_ENABLED: "false"
+      OPENSEARCH_USER: admin
+      OPENSEARCH_PASSWORD: admin
+      # Security
+      SECRET_KEY: ${SECRET_KEY:-}
+      ENVIRONMENT: ${ENVIRONMENT:-development}
+      # AI
+      ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-}
+      # EUR-Lex Integration
+      CELEX_CACHE_ENABLED: "true"
+      CELEX_CACHE_TTL_HOURS: "24"
+      EURLEX_LANGUAGES: en,fr
+      EURLEX_SEARCH_TERMS_EN: "payment service provider;payment services;electronic money institution;electronic money;crypto-asset service provider;virtual asset service provider;crypto-assets;emd2;psd2;psd3;mica;casp"
+      EURLEX_SEARCH_TERMS_FR: "prestataire de services de paiement;services de paiement;etablissement de monnaie electronique;monnaie electronique;prestataire de services sur actifs numeriques;actifs numeriques;crypto-actifs;psan;mica"
+      # Legifrance
+      LEGIFRANCE_JORF_RSS_URL: https://legifrss.org/latest
+      LEGIFRANCE_API_BASE_URL: ${LEGIFRANCE_API_BASE_URL:-}
+      LEGIFRANCE_API_TOKEN: ${LEGIFRANCE_API_TOKEN:-}
+      # Email
+      SMTP_HOST: mailhog
+      SMTP_PORT: "1025"
+      SMTP_USER: test
+      SMTP_PASSWORD: test
+      SMTP_TLS: "false"
+      EMAILS_FROM_EMAIL: info@yufeed.eu
+      # Other
+      RSS_USER_AGENT: Yufeed/1.0
+      REGULATORY_SCOPE_FILTER: all
+    volumes:
+      - ./apps/api:/app
+    networks:
+      - default
+    restart: always
 
   web:
     build:
       context: ./apps/web
       dockerfile: Dockerfile
-    restart: always
+    container_name: yufeed-web
+    command: npm run dev
+    depends_on:
+      api:
+        condition: service_healthy
+    environment:
+      NODE_ENV: development
+      NEXT_PUBLIC_API_URL: http://localhost:8000
+      API_INTERNAL_URL: http://api:8000
     ports:
       - "127.0.0.1:3000:3000"
-    env_file:
-      - .env
-    command: npm run dev
     volumes:
       - ./apps/web:/app
       - /app/node_modules
+      - /app/.next
+    networks:
+      - default
+    restart: always
+
+  # ============================================================================
+  # UTILITY SERVICES
+  # ============================================================================
+
+  mailhog:
+    image: mailhog/mailhog
+    container_name: yufeed-mailhog
+    ports:
+      - "127.0.0.1:1025:1025"
+      - "127.0.0.1:8025:8025"
+    networks:
+      - default
+    restart: always
+
+  # ============================================================================
+  # MONITORING SERVICES
+  # ============================================================================
+
+  prometheus:
+    image: prom/prometheus:v2.48.0
+    container_name: yufeed-prometheus
+    command:
+      - --config.file=/etc/prometheus/prometheus.yml
+      - --storage.tsdb.path=/prometheus
+      - --web.console.libraries=/usr/share/prometheus/console_libraries
+      - --web.console.templates=/usr/share/prometheus/consoles
+      - --web.enable-lifecycle
+      - --storage.tsdb.retention.time=30d
+    ports:
+      - "9090:9090"
+    volumes:
+      - ./monitoring/prometheus/prometheus.yml:/etc/prometheus/prometheus.yml
+      - ./monitoring/prometheus/alerts.yml:/etc/prometheus/alerts.yml
+      - prometheus_data:/prometheus
+    networks:
+      - monitoring
+    restart: unless-stopped
+
+  grafana:
+    image: grafana/grafana:10.2.2
+    container_name: yufeed-grafana
+    depends_on:
+      - prometheus
+    environment:
+      GF_SECURITY_ADMIN_USER: admin
+      GF_SECURITY_ADMIN_PASSWORD: admin
+      GF_USERS_ALLOW_SIGN_UP: "false"
+      GF_SERVER_ROOT_URL: http://localhost:3001
+      GF_INSTALL_PLUGINS: grafana-piechart-panel
+    ports:
+      - "3001:3000"
+    volumes:
+      - grafana_data:/var/lib/grafana
+      - ./monitoring/grafana/provisioning:/etc/grafana/provisioning
+      - ./monitoring/grafana/dashboards:/var/lib/grafana/dashboards
+    networks:
+      - monitoring
+    restart: unless-stopped
+
+  alertmanager:
+    image: prom/alertmanager:v0.26.0
+    container_name: yufeed-alertmanager
+    command:
+      - --config.file=/etc/alertmanager/alertmanager.yml
+      - --storage.path=/alertmanager
+    ports:
+      - "9093:9093"
+    volumes:
+      - ./monitoring/alertmanager/alertmanager.yml:/etc/alertmanager/alertmanager.yml
+      - alertmanager_data:/alertmanager
+    networks:
+      - monitoring
+    restart: unless-stopped
+
+  jaeger:
+    image: jaegertracing/all-in-one:1.52
+    container_name: yufeed-jaeger
+    environment:
+      COLLECTOR_ZIPKIN_HOST_PORT: ":9411"
+      COLLECTOR_OTLP_ENABLED: "true"
+    ports:
+      - "5775:5775/udp"
+      - "6831:6831/udp"
+      - "6832:6832/udp"
+      - "5778:5778"
+      - "16686:16686"
+      - "14250:14250"
+      - "14268:14268"
+      - "14269:14269"
+      - "9411:9411"
+    networks:
+      - monitoring
+    restart: unless-stopped
+
+networks:
+  default:
+    name: yufeed_default
+  monitoring:
+    name: yufeed_monitoring
+    driver: bridge
 
 volumes:
   postgres_data:
+    name: yufeed_postgres_data
   redis_data:
+    name: yufeed_redis_data
   opensearch_data:
+    name: yufeed_opensearch_data
+  prometheus_data:
+    name: yufeed_prometheus_data
+  grafana_data:
+    name: yufeed_grafana_data
+  alertmanager_data:
+    name: yufeed_alertmanager_data

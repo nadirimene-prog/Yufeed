@@ -1,0 +1,128 @@
+groups:
+  - name: yufeed_api_alerts
+    interval: 30s
+    rules:
+      # High error rate
+      - alert: HighErrorRate
+        expr: |
+          sum(rate(http_requests_errors_total[5m])) by (endpoint)
+          /
+          sum(rate(http_requests_total[5m])) by (endpoint)
+          > 0.05
+        for: 2m
+        labels:
+          severity: warning
+        annotations:
+          summary: "High error rate on {{ $labels.endpoint }}"
+          description: "Error rate is {{ $value | humanizePercentage }} on {{ $labels.endpoint }}"
+
+      # High response time
+      - alert: HighResponseTime
+        expr: |
+          histogram_quantile(0.95,
+            sum(rate(http_request_duration_seconds_bucket[5m])) by (le, endpoint)
+          ) > 1
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "High response time on {{ $labels.endpoint }}"
+          description: "95th percentile response time is {{ $value }}s on {{ $labels.endpoint }}"
+
+      # API down
+      - alert: APIDown
+        expr: up{job="yufeed-api"} == 0
+        for: 1m
+        labels:
+          severity: critical
+        annotations:
+          summary: "YuFeed API is down"
+          description: "The YuFeed API has been down for more than 1 minute"
+
+      # High database connection usage
+      - alert: HighDatabaseConnections
+        expr: db_connections_active > 40
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "High database connection usage"
+          description: "Database has {{ $value }} active connections (threshold: 40)"
+
+      # Low cache hit rate
+      - alert: LowCacheHitRate
+        expr: |
+          sum(rate(cache_hits_total[5m]))
+          /
+          (sum(rate(cache_hits_total[5m])) + sum(rate(cache_misses_total[5m])))
+          < 0.7
+        for: 10m
+        labels:
+          severity: info
+        annotations:
+          summary: "Low cache hit rate"
+          description: "Cache hit rate is {{ $value | humanizePercentage }} (threshold: 70%)"
+
+  - name: business_alerts
+    interval: 1m
+    rules:
+      # Spike in alert creation
+      - alert: AlertCreationSpike
+        expr: |
+          rate(alerts_created_total[5m]) >
+          avg_over_time(rate(alerts_created_total[5m])[1h:5m]) * 2
+        for: 10m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Spike in alert creation"
+          description: "Alert creation rate is {{ $value }} alerts/sec, which is 2x the hourly average"
+
+      # High-severity alerts accumulating
+      - alert: HighSeverityAlertsAccumulating
+        expr: |
+          sum(alerts_created_total{severity="critical"})
+          -
+          sum(alerts_resolved_total)
+          > 50
+        for: 15m
+        labels:
+          severity: warning
+        annotations:
+          summary: "High-severity alerts accumulating"
+          description: "{{ $value }} unresolved high-severity alerts"
+
+      # Transaction ingestion failure rate
+      - alert: TransactionIngestionFailures
+        expr: |
+          rate(transactions_ingested_total{status="error"}[5m]) > 0.01
+        for: 5m
+        labels:
+          severity: critical
+        annotations:
+          summary: "Transaction ingestion failures detected"
+          description: "Transaction ingestion error rate: {{ $value }}/sec"
+
+  - name: celery_alerts
+    interval: 1m
+    rules:
+      # Tasks piling up in queue
+      - alert: CeleryQueueBacklog
+        expr: celery_tasks_queued > 1000
+        for: 10m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Celery queue backlog on {{ $labels.queue_name }}"
+          description: "{{ $value }} tasks queued in {{ $labels.queue_name }}"
+
+      # High task failure rate
+      - alert: CeleryTaskFailures
+        expr: |
+          rate(celery_tasks_total{status="failure"}[5m]) > 0.1
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "High Celery task failure rate"
+          description: "Task failure rate: {{ $value }}/sec"

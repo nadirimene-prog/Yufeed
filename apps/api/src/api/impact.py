@@ -4,7 +4,12 @@ API endpoints for Impact Assessment functionality.
 from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.orm import Session
 from typing import List, Optional
-from datetime import datetime
+from datetime import datetime, timezone
+
+
+def utc_now() -> datetime:
+    """Return current UTC time (timezone-aware)."""
+    return datetime.now(timezone.utc)
 from pydantic import BaseModel
 
 from src.database import get_db
@@ -139,7 +144,7 @@ def create_impact_assessment(
         requires_system_changes=analysis.get("resource_estimates", {}).get("requires_system_changes", False),
         requires_process_changes=analysis.get("resource_estimates", {}).get("requires_process_changes", False),
         requires_policy_updates=analysis.get("resource_estimates", {}).get("requires_policy_updates", False),
-        assessed_at=datetime.utcnow()
+        assessed_at=utc_now()
     )
 
     db.add(assessment)
@@ -240,7 +245,7 @@ def update_action_item(
     if update.status is not None:
         action.status = ActionStatus(update.status)
         if update.status == "completed" and not action.completed_at:
-            action.completed_at = datetime.utcnow()
+            action.completed_at = utc_now()
     if update.assigned_to is not None:
         action.assigned_to = update.assigned_to
     if update.target_date is not None:
@@ -250,7 +255,7 @@ def update_action_item(
     if update.notes is not None:
         action.notes = update.notes
 
-    action.updated_at = datetime.utcnow()
+    action.updated_at = utc_now()
 
     db.commit()
     db.refresh(action)

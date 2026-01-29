@@ -6,7 +6,12 @@ from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.orm import Session
 from sqlalchemy import func, and_
 from typing import List, Optional
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
+
+
+def utc_now() -> datetime:
+    """Return current UTC time (timezone-aware)."""
+    return datetime.now(timezone.utc)
 
 from src.database import get_db
 from src.models.transaction_models import UserRiskProfile, Transaction, Alert
@@ -113,7 +118,7 @@ def get_user_activity_summary(
     """
     Get activity summary for a user.
     """
-    start_date = datetime.utcnow() - timedelta(days=days)
+    start_date = utc_now() - timedelta(days=days)
 
     # Get transactions
     transactions = db.query(Transaction).filter(

@@ -9,6 +9,7 @@ from typing import Sequence, Union
 
 from alembic import op
 import sqlalchemy as sa
+from sqlalchemy.dialects import postgresql
 
 
 # revision identifiers, used by Alembic.
@@ -20,9 +21,13 @@ depends_on: Union[str, Sequence[str], None] = None
 
 def upgrade() -> None:
     """Upgrade schema."""
+    bind = op.get_bind()
+    dialect = bind.dialect.name
+    json_type = postgresql.JSONB(astext_type=sa.Text()) if dialect == "postgresql" else sa.JSON()
+
     # Add content extraction fields
     op.add_column('legal_documents', sa.Column('full_text', sa.Text(), nullable=True))
-    op.add_column('legal_documents', sa.Column('article_breakdown', sa.dialects.postgresql.JSONB(), nullable=True))
+    op.add_column('legal_documents', sa.Column('article_breakdown', json_type, nullable=True))
     op.add_column('legal_documents', sa.Column('content_extraction_method', sa.String(), nullable=True))
     op.add_column('legal_documents', sa.Column('content_extracted_at', sa.DateTime(), nullable=True))
     op.add_column('legal_documents', sa.Column('word_count', sa.Integer(), nullable=True))

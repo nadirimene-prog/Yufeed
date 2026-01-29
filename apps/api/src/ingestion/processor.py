@@ -1,11 +1,28 @@
 import logging
 import datetime
+from datetime import timezone
 from sqlalchemy.orm import Session
-from src.models import LegalDocument, LegalVersion, AlertEventType, VersionKind
+
+
+def utc_now() -> datetime.datetime:
+    """Return current UTC time (timezone-aware)."""
+    return datetime.datetime.now(timezone.utc)
+
+from src.models import (
+    LegalDocument,
+    LegalVersion,
+    LegalDocumentText,
+    VersionKind,
+    OfficialJournalAct,
+)
 from src.ingestion.cellar import CellarClient
-from src.ingestion.rss import RSSFetcher
 from src.ingestion.content_extractor import ContentExtractor
+from src.ingestion.oj_mapping import extract_oj_act_identifier
 from src.search import index_document
+from src.ai.analyzer import analyze_document
+from src.services.obligation_service import seed_obligations_for_doc
+from src.compliance.scope import infer_scope_tags, normalize_scopes, scope_keywords
+from src.config import settings
 
 logger = logging.getLogger(__name__)
 
@@ -23,32 +40,37 @@ class IngestionProcessor:
         if not celex:
             logger.warning(f"Skipping entry without CELEX: {entry.get('link')}")
             return
+        metadata_only = bool(entry.get("metadata_only"))
 
         # Check if exists
         existing_doc = self.db.query(LegalDocument).filter(LegalDocument.celex == celex).first()
         
         if existing_doc:
-            self._handle_existing_doc(existing_doc, entry)
-        else:
-            self._handle_new_doc(celex, entry)
+            return self._handle_existing_doc(existing_doc, entry, metadata_only=metadata_only)
+        return self._handle_new_doc(celex, entry, metadata_only=metadata_only)
 
-    def _handle_new_doc(self, celex: str, entry: dict):
+    def _handle_new_doc(self, celex: str, entry: dict, metadata_only: bool = False):
         logger.info(f"New document detected: {celex}")
 
         # Try to enrich with CELLAR metadata
         cellar_metadata = None
-        try:
-            cellar_metadata = self.cellar.query_by_celex(celex)
-        except Exception as e:
-            logger.warning(f"Failed to fetch CELLAR metadata for {celex}: {e}")
+        if entry.get("source_system") == "eur-lex":
+            try:
+                cellar_metadata = self.cellar.query_by_celex(celex)
+            except Exception as e:
+                logger.warning(f"Failed to fetch CELLAR metadata for {celex}: {e}")
 
         # Instantiate doc with RSS data + CELLAR enrichment
         title = entry.get("title")
         pub_date = self._parse_date(entry.get("published"))
         entry_into_force = None
-        eli = None
+        eli = entry.get("eli")
         cellar_id = None
         doc_type = None
+        language = (entry.get("language") or "en").lower()
+        source_system = entry.get("source_system")
+        source_reference = entry.get("source_reference") or entry.get("link")
+        jurisdiction = entry.get("jurisdiction")
 
         if cellar_metadata:
             # Prefer CELLAR data when available
@@ -57,7 +79,7 @@ class IngestionProcessor:
             if cellar_metadata.get("date_document"):
                 pub_date = cellar_metadata["date_document"]
             entry_into_force = cellar_metadata.get("date_entry_into_force")
-            eli = cellar_metadata.get("eli")
+            eli = cellar_metadata.get("eli") or eli
             cellar_id = cellar_metadata.get("cellar_id")
 
             # Extract document type from work_type URI
@@ -69,8 +91,21 @@ class IngestionProcessor:
             elif "decision" in work_type.lower():
                 doc_type = "decision"
 
+        if not self._matches_scope(title or "", entry):
+            logger.info(f"Skipping {celex} due to scope filter: {settings.REGULATORY_SCOPE_FILTER}")
+            return "skipped"
+
+        publication_day = pub_date.date() if isinstance(pub_date, datetime.datetime) else None
+        oj_act_identifier, oj_signature_identifier = self._resolve_oj_identifiers(
+            entry, publication_day
+        )
+
         new_doc = LegalDocument(
             celex=celex,
+            source_system=source_system,
+            source_reference=source_reference,
+            jurisdiction=jurisdiction,
+            primary_language=language,
             eli=eli,
             cellar_id=cellar_id,
             title=title,
@@ -78,7 +113,10 @@ class IngestionProcessor:
             status="active",
             publication_date=pub_date,
             entry_into_force_date=entry_into_force,
-            last_modified=datetime.datetime.utcnow()
+            last_modified=utc_now(),
+            jurisdictional_scope=jurisdiction or None,
+            oj_act_identifier=oj_act_identifier,
+            oj_signature_identifier=oj_signature_identifier,
         )
 
         self.db.add(new_doc)
@@ -86,29 +124,45 @@ class IngestionProcessor:
         self.db.refresh(new_doc)
 
         # Extract document content
-        try:
-            logger.info(f"Extracting content for {celex}")
-            content_result = self.content_extractor.extract_content(celex)
+        if not metadata_only:
+            try:
+                content_result = None
+                if entry.get("source_system") == "eur-lex":
+                    logger.info(f"Extracting content for {celex}")
+                    content_result = self.content_extractor.extract_content(celex, language=language)
 
-            if content_result and content_result.get("full_text"):
-                new_doc.full_text = content_result["full_text"]
-                new_doc.article_breakdown = {"articles": content_result.get("article_breakdown", [])}
-                new_doc.content_extraction_method = content_result.get("extraction_method")
-                new_doc.content_extracted_at = datetime.datetime.utcnow()
-                new_doc.word_count = content_result.get("word_count")
+                if content_result and content_result.get("full_text"):
+                    if language == (new_doc.primary_language or "en"):
+                        new_doc.full_text = content_result["full_text"]
+                        new_doc.article_breakdown = {"articles": content_result.get("article_breakdown", [])}
+                        new_doc.content_extraction_method = content_result.get("extraction_method")
+                        new_doc.content_extracted_at = utc_now()
+                        new_doc.word_count = content_result.get("word_count")
 
-                logger.info(f"Content extracted for {celex}: {new_doc.word_count} words via {new_doc.content_extraction_method}")
-                self.db.commit()
+                    doc_text = LegalDocumentText(
+                        doc_id=new_doc.id,
+                        language=language,
+                        full_text=content_result.get("full_text"),
+                        article_breakdown={"articles": content_result.get("article_breakdown", [])},
+                        content_extraction_method=content_result.get("extraction_method"),
+                        content_extracted_at=utc_now(),
+                        word_count=content_result.get("word_count"),
+                        source_url=entry.get("link"),
+                    )
+                    self.db.add(doc_text)
 
-                # Index document in OpenSearch
-                try:
-                    index_document(new_doc)
-                    logger.info(f"Document {celex} indexed in OpenSearch")
-                except Exception as idx_err:
-                    logger.warning(f"Failed to index {celex} in OpenSearch: {idx_err}")
+                    logger.info(f"Content extracted for {celex}: {new_doc.word_count} words via {new_doc.content_extraction_method}")
+                    self.db.commit()
 
-        except Exception as e:
-            logger.warning(f"Content extraction failed for {celex}: {e}")
+                    # Index document in OpenSearch
+                    try:
+                        index_document(new_doc)
+                        logger.info(f"Document {celex} indexed in OpenSearch")
+                    except Exception as idx_err:
+                        logger.warning(f"Failed to index {celex} in OpenSearch: {idx_err}")
+
+            except Exception as e:
+                logger.warning(f"Content extraction failed for {celex}: {e}")
 
         # Store related documents if found via CELLAR
         if cellar_id:
@@ -133,24 +187,43 @@ class IngestionProcessor:
         version = LegalVersion(
             doc_id=new_doc.id,
             kind=VersionKind.INITIAL,
-            language="en",
+            language=language,
             source_url=entry.get("link")
         )
         self.db.add(version)
         self.db.commit()
-        logger.info(f"Created new document {celex} with ID {new_doc.id}")
 
-    def _handle_existing_doc(self, doc: LegalDocument, entry: dict):
+        if metadata_only:
+            logger.info(f"Metadata-only ingestion for {celex}; skipping content analysis.")
+            return "new"
+
+        # Analyze and seed obligations
+        try:
+            analyzed = self._maybe_analyze_doc(new_doc, force=True)
+            if analyzed:
+                seed_obligations_for_doc(self.db, new_doc)
+        except Exception as exc:
+            logger.warning(f"Failed to analyze or seed obligations for {celex}: {exc}")
+
+        logger.info(f"Created new document {celex} with ID {new_doc.id}")
+        return "new"
+
+    def _handle_existing_doc(self, doc: LegalDocument, entry: dict, metadata_only: bool = False):
         # Check for changes
         # Simple Logic: If the RSS entry suggests a modification or if we want to periodically update.
         # For now, we will log that we saw it.
         # If we had a hash of the content, we would compare it here.
         
         # Check if title changed (simple heuristic)
+        if not self._matches_scope(doc.title or "", entry):
+            return "skipped"
+
+        updated = False
+        doc_changed = False
         if doc.title != entry.get("title") and entry.get("title"):
              logger.info(f"Document {doc.celex} title updated.")
              doc.title = entry.get("title")
-             doc.last_modified = datetime.datetime.utcnow()
+             doc.last_modified = utc_now()
              
              # alert = AlertEvent(
              #    doc_id=doc.id,
@@ -159,6 +232,200 @@ class IngestionProcessor:
              # )
              # self.db.add(alert)
              self.db.commit()
+             updated = True
+             doc_changed = True
+
+        language = (entry.get("language") or doc.primary_language or "en").lower()
+        if not doc.primary_language:
+            doc.primary_language = language
+            doc_changed = True
+        if not doc.source_system and entry.get("source_system"):
+            doc.source_system = entry.get("source_system")
+            doc_changed = True
+        if not doc.source_reference and entry.get("source_reference"):
+            doc.source_reference = entry.get("source_reference")
+            doc_changed = True
+        if not doc.jurisdiction and entry.get("jurisdiction"):
+            doc.jurisdiction = entry.get("jurisdiction")
+            doc_changed = True
+        if not doc.eli and entry.get("eli"):
+            doc.eli = entry.get("eli")
+            doc_changed = True
+        publication_day = doc.publication_date.date() if doc.publication_date else None
+        if not doc.oj_act_identifier or not doc.oj_signature_identifier:
+            oj_act_identifier, oj_signature_identifier = self._resolve_oj_identifiers(
+                entry, publication_day
+            )
+            if oj_act_identifier and doc.oj_act_identifier != oj_act_identifier:
+                doc.oj_act_identifier = oj_act_identifier
+                doc_changed = True
+            if oj_signature_identifier and doc.oj_signature_identifier != oj_signature_identifier:
+                doc.oj_signature_identifier = oj_signature_identifier
+                doc_changed = True
+        source_url = entry.get("link")
+        existing_version = self.db.query(LegalVersion).filter(
+            LegalVersion.doc_id == doc.id,
+            LegalVersion.language == language,
+            LegalVersion.source_url == source_url,
+        ).first()
+        if not existing_version:
+            version = LegalVersion(
+                doc_id=doc.id,
+                kind=VersionKind.CONSOLIDATED,
+                language=language,
+                source_url=source_url,
+            )
+            self.db.add(version)
+            doc.last_modified = utc_now()
+            self.db.commit()
+            updated = True
+        elif doc_changed:
+            doc.last_modified = utc_now()
+            self.db.commit()
+            updated = True
+
+        existing_text = self.db.query(LegalDocumentText).filter(
+            LegalDocumentText.doc_id == doc.id,
+            LegalDocumentText.language == language,
+        ).first()
+        should_refresh_content = (
+            not metadata_only
+            and doc.source_system == "eur-lex"
+            and (updated or doc_changed or not existing_text)
+        )
+        if should_refresh_content:
+            try:
+                content_result = self.content_extractor.extract_content(
+                    doc.celex, language=language
+                )
+                if content_result and content_result.get("full_text"):
+                    if language == (doc.primary_language or "en"):
+                        doc.full_text = content_result.get("full_text")
+                        doc.article_breakdown = {"articles": content_result.get("article_breakdown", [])}
+                        doc.content_extraction_method = content_result.get("extraction_method")
+                        doc.content_extracted_at = utc_now()
+                        doc.word_count = content_result.get("word_count")
+
+                    if existing_text:
+                        existing_text.full_text = content_result.get("full_text")
+                        existing_text.article_breakdown = {"articles": content_result.get("article_breakdown", [])}
+                        existing_text.content_extraction_method = content_result.get("extraction_method")
+                        existing_text.content_extracted_at = utc_now()
+                        existing_text.word_count = content_result.get("word_count")
+                        existing_text.source_url = source_url
+                    else:
+                        doc_text = LegalDocumentText(
+                            doc_id=doc.id,
+                            language=language,
+                            full_text=content_result.get("full_text"),
+                            article_breakdown={"articles": content_result.get("article_breakdown", [])},
+                            content_extraction_method=content_result.get("extraction_method"),
+                            content_extracted_at=utc_now(),
+                            word_count=content_result.get("word_count"),
+                            source_url=source_url,
+                        )
+                        self.db.add(doc_text)
+                    self.db.commit()
+                    updated = True
+            except Exception as exc:
+                logger.warning(f"Content extraction failed for {doc.celex} ({language}): {exc}")
+
+        analysis_needed = not metadata_only and (doc.analyzed_at is None or doc_changed or updated)
+        if analysis_needed:
+            try:
+                analyzed = self._maybe_analyze_doc(doc, force=True)
+                if analyzed:
+                    seed_obligations_for_doc(self.db, doc, allow_existing=True)
+            except Exception as exc:
+                logger.warning(f"Failed to analyze or seed obligations for {doc.celex}: {exc}")
+
+        if updated:
+            try:
+                index_document(doc)
+                logger.info(f"Document {doc.celex} re-indexed in OpenSearch")
+            except Exception as idx_err:
+                logger.warning(f"Failed to re-index {doc.celex} in OpenSearch: {idx_err}")
+
+        return "updated" if updated else "unchanged"
+
+    def _resolve_oj_identifiers(self, entry: dict, publication_day: datetime.date | None):
+        oj_ref = entry.get("oj_ref") or entry.get("source_reference")
+        act_identifier = extract_oj_act_identifier(oj_ref)
+        if act_identifier:
+            record = self.db.query(OfficialJournalAct).filter(
+                OfficialJournalAct.act_identifier == act_identifier
+            ).first()
+            if record:
+                return record.act_identifier, record.signature_identifier
+            return act_identifier, None
+
+        series = entry.get("oj_series")
+        if publication_day and series:
+            matches = self.db.query(OfficialJournalAct).filter(
+                OfficialJournalAct.publication_date == publication_day,
+                OfficialJournalAct.series == series,
+            ).all()
+            if len(matches) == 1:
+                return matches[0].act_identifier, matches[0].signature_identifier
+
+        return None, None
+
+    def _matches_scope(self, title: str, entry: dict) -> bool:
+        scope_filter = (settings.REGULATORY_SCOPE_FILTER or "").strip()
+        scopes = normalize_scopes(scope_filter)
+        if not scope_filter or not scopes:
+            return True
+        keywords = scope_keywords(scopes)
+        if not keywords:
+            return True
+        haystack = " ".join(
+            [
+                title or "",
+                entry.get("summary") or "",
+                entry.get("description") or "",
+            ]
+        ).lower()
+        if not haystack.strip():
+            return True
+        return any(keyword in haystack for keyword in keywords)
+
+    def _maybe_analyze_doc(self, doc: LegalDocument, force: bool = False) -> bool:
+        if doc.analyzed_at and not force:
+            return False
+
+        article_breakdown = None
+        if isinstance(doc.article_breakdown, dict):
+            article_breakdown = doc.article_breakdown.get("articles")
+        elif isinstance(doc.article_breakdown, list):
+            article_breakdown = doc.article_breakdown
+
+        analysis_results = analyze_document(
+            {
+                "celex": doc.celex,
+                "title": doc.title,
+                "publication_date": doc.publication_date,
+                "full_text": doc.full_text,
+                "article_breakdown": article_breakdown,
+            }
+        )
+
+        doc.compliance_domain = analysis_results.get("compliance_domain")
+        doc.risk_level = analysis_results.get("risk_level")
+        doc.obligations_json = analysis_results.get("obligations_json")
+        doc.implementation_deadline = analysis_results.get("implementation_deadline")
+        doc.ai_summary = analysis_results.get("ai_summary")
+        doc.analyzed_at = analysis_results.get("analyzed_at")
+        scope_tags = infer_scope_tags(
+            doc.title,
+            doc.full_text,
+            doc.ai_summary,
+            doc.obligations_json,
+        )
+        if scope_tags:
+            doc.scope_tags = scope_tags
+        self.db.commit()
+        self.db.refresh(doc)
+        return True
 
     def _parse_date(self, date_obj):
         # date_obj from feedparser is struct_time usually, or None

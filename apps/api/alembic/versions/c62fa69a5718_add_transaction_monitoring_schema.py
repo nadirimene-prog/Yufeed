@@ -28,6 +28,13 @@ depends_on: Union[str, Sequence[str], None] = None
 
 def upgrade() -> None:
     """Upgrade schema - Add transaction monitoring tables."""
+    bind = op.get_bind()
+    dialect = bind.dialect.name
+    json_type = postgresql.JSONB() if dialect == "postgresql" else sa.JSON()
+    inet_type = postgresql.INET() if dialect == "postgresql" else sa.String(45)
+    array_int = postgresql.ARRAY(sa.Integer) if dialect == "postgresql" else sa.JSON()
+    array_str = postgresql.ARRAY(sa.String(255)) if dialect == "postgresql" else sa.JSON()
+    array_str2 = postgresql.ARRAY(sa.String(2)) if dialect == "postgresql" else sa.JSON()
 
     # 1. Transactions table
     op.create_table(
@@ -44,19 +51,19 @@ def upgrade() -> None:
         sa.Column('status', sa.String(50), default='completed'),  # 'pending', 'completed', 'flagged', 'blocked'
 
         # Geographic data
-        sa.Column('ip_address', postgresql.INET()),
+        sa.Column('ip_address', inet_type),
         sa.Column('country_code', sa.String(2)),
         sa.Column('geo_location', sa.String(255)),
 
         # Risk data
         sa.Column('risk_score', sa.Numeric(5, 2)),
         sa.Column('risk_level', sa.String(20)),  # 'low', 'medium', 'high', 'critical'
-        sa.Column('risk_factors', postgresql.JSONB()),
+        sa.Column('risk_factors', json_type),
 
         # Metadata
         sa.Column('device_fingerprint', sa.String(255)),
         sa.Column('session_id', sa.String(255)),
-        sa.Column('metadata', postgresql.JSONB()),
+        sa.Column('metadata', json_type),
         sa.Column('description', sa.Text()),
 
         sa.Column('created_at', sa.DateTime(), server_default=sa.func.now()),
@@ -90,11 +97,11 @@ def upgrade() -> None:
         # Alert details
         sa.Column('description', sa.Text()),
         sa.Column('risk_score', sa.Numeric(5, 2)),
-        sa.Column('matched_rules', postgresql.JSONB()),
-        sa.Column('evidence', postgresql.JSONB()),
+        sa.Column('matched_rules', json_type),
+        sa.Column('evidence', json_type),
 
         # REGULATORY CONTEXT (Yufeed Innovation)
-        sa.Column('related_regulations', postgresql.JSONB()),  # Array of LegalDocument IDs
+        sa.Column('related_regulations', json_type),  # Array of LegalDocument IDs
         sa.Column('regulation_context', sa.Text()),  # AI-generated explanation
 
         # Resolution
@@ -142,17 +149,17 @@ def upgrade() -> None:
         sa.Column('summary', sa.Text()),
 
         # Related entities (using PostgreSQL arrays)
-        sa.Column('related_alert_ids', postgresql.ARRAY(sa.Integer)),
-        sa.Column('related_transaction_ids', postgresql.ARRAY(sa.Integer)),
-        sa.Column('related_users', postgresql.ARRAY(sa.String(255))),
+        sa.Column('related_alert_ids', array_int),
+        sa.Column('related_transaction_ids', array_int),
+        sa.Column('related_users', array_str),
 
         # REGULATORY LINKAGE (Yufeed Innovation)
-        sa.Column('applicable_regulation_ids', postgresql.ARRAY(sa.Integer)),  # LegalDocument IDs
-        sa.Column('regulatory_violations', postgresql.JSONB()),
+        sa.Column('applicable_regulation_ids', array_int),  # LegalDocument IDs
+        sa.Column('regulatory_violations', json_type),
 
         # Evidence
-        sa.Column('evidence', postgresql.JSONB()),
-        sa.Column('attachments', postgresql.JSONB()),
+        sa.Column('evidence', json_type),
+        sa.Column('attachments', json_type),
 
         # Timeline
         sa.Column('opened_at', sa.DateTime(), server_default=sa.func.now()),
@@ -185,8 +192,8 @@ def upgrade() -> None:
         sa.Column('severity', sa.String(20), default='medium'),
 
         # Rule logic (JSON-based DSL)
-        sa.Column('conditions', postgresql.JSONB(), nullable=False),
-        sa.Column('thresholds', postgresql.JSONB()),
+        sa.Column('conditions', json_type, nullable=False),
+        sa.Column('thresholds', json_type),
 
         # Regulatory basis (YUFEED INNOVATION)
         sa.Column('regulatory_source_id', sa.Integer(), sa.ForeignKey('legal_documents.id'), nullable=True),
@@ -220,7 +227,7 @@ def upgrade() -> None:
         # Computed risk
         sa.Column('overall_risk_score', sa.Numeric(5, 2)),
         sa.Column('risk_level', sa.String(20)),  # 'low', 'medium', 'high', 'critical'
-        sa.Column('risk_factors', postgresql.JSONB()),
+        sa.Column('risk_factors', json_type),
 
         # Behavioral patterns
         sa.Column('transaction_velocity_30d', sa.Integer()),
@@ -235,7 +242,7 @@ def upgrade() -> None:
 
         # Geographic risk
         sa.Column('primary_country', sa.String(2)),
-        sa.Column('high_risk_jurisdictions', postgresql.ARRAY(sa.String(2))),
+        sa.Column('high_risk_jurisdictions', array_str2),
 
         # Alerts history
         sa.Column('total_alerts', sa.Integer(), default=0),
@@ -245,7 +252,7 @@ def upgrade() -> None:
         # Sanctions screening
         sa.Column('sanctions_screened_at', sa.DateTime()),
         sa.Column('sanctions_match', sa.Boolean(), default=False),
-        sa.Column('sanctions_details', postgresql.JSONB()),
+        sa.Column('sanctions_details', json_type),
 
         # Account metadata
         sa.Column('account_created_at', sa.DateTime()),
@@ -269,7 +276,7 @@ def upgrade() -> None:
 
         # Feature data
         sa.Column('feature_name', sa.String(255), nullable=False),
-        sa.Column('feature_value', postgresql.JSONB(), nullable=False),
+        sa.Column('feature_value', json_type, nullable=False),
         sa.Column('feature_type', sa.String(50)),  # 'numeric', 'categorical', 'boolean', 'text'
 
         # Metadata
