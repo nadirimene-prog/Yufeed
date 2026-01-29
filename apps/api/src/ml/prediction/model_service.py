@@ -6,7 +6,12 @@ import logging
 import json
 from pathlib import Path
 from typing import Dict, Any, Optional, List
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
+
+
+def utc_now() -> datetime:
+    """Return current UTC time (timezone-aware)."""
+    return datetime.now(timezone.utc)
 
 try:
     import joblib
@@ -229,7 +234,7 @@ class AlertTriageMLModel:
         # User behavior features
         if alert.user_id:
             user_features = self._compute_user_features_realtime(
-                db, alert.user_id, alert.created_at or datetime.utcnow()
+                db, alert.user_id, alert.created_at or utc_now()
             )
             features.update(user_features)
 

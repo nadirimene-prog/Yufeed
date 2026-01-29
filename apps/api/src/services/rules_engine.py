@@ -7,10 +7,15 @@ providing regulatory context for every alert.
 """
 from typing import List, Dict, Any, Optional
 from sqlalchemy.orm import Session
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from decimal import Decimal
 import uuid
 import logging
+
+
+def utc_now() -> datetime:
+    """Return current UTC time (timezone-aware)."""
+    return datetime.now(timezone.utc)
 
 from src.models.transaction_models import (
     Transaction, Alert, MonitoringRule, UserRiskProfile
@@ -227,7 +232,7 @@ class RulesEngine:
         YUFEED INNOVATION: Automatically adds regulatory context.
         """
         # Generate alert ID
-        alert_id = f"ALT-{datetime.utcnow().strftime('%Y%m%d')}-{uuid.uuid4().hex[:8].upper()}"
+        alert_id = f"ALT-{utc_now().strftime('%Y%m%d')}-{uuid.uuid4().hex[:8].upper()}"
 
         # Build evidence
         evidence = {
@@ -237,7 +242,7 @@ class RulesEngine:
             "transaction_amount": float(transaction.amount),
             "transaction_type": transaction.transaction_type,
             "country_code": transaction.country_code,
-            "triggered_at": datetime.utcnow().isoformat()
+            "triggered_at": utc_now().isoformat()
         }
 
         # Get regulatory context
@@ -364,7 +369,7 @@ Article Reference: {rule.regulation_article or 'General compliance'}
         - Unusual patterns compared to user's baseline
         """
         # Get user's recent transactions
-        start_time = datetime.utcnow() - timedelta(hours=24)
+        start_time = utc_now() - timedelta(hours=24)
 
         transactions = self.db.query(Transaction).filter(
             Transaction.user_id == user_id,
@@ -408,7 +413,7 @@ Article Reference: {rule.regulation_article or 'General compliance'}
             max_count = thresholds["transaction_count"]
             time_window_hours = thresholds.get("time_window_hours", 24)
 
-            cutoff_time = datetime.utcnow() - timedelta(hours=time_window_hours)
+            cutoff_time = utc_now() - timedelta(hours=time_window_hours)
             recent_count = sum(1 for tx in transactions if tx.timestamp >= cutoff_time)
 
             if recent_count > max_count:
@@ -419,7 +424,7 @@ Article Reference: {rule.regulation_article or 'General compliance'}
             max_amount = thresholds["total_amount"]
             time_window_hours = thresholds.get("time_window_hours", 24)
 
-            cutoff_time = datetime.utcnow() - timedelta(hours=time_window_hours)
+            cutoff_time = utc_now() - timedelta(hours=time_window_hours)
             total = sum(tx.amount for tx in transactions if tx.timestamp >= cutoff_time)
 
             if total > max_amount:
@@ -451,7 +456,7 @@ Article Reference: {rule.regulation_article or 'General compliance'}
         """
         Create an alert for velocity rule violation.
         """
-        alert_id = f"ALT-{datetime.utcnow().strftime('%Y%m%d')}-{uuid.uuid4().hex[:8].upper()}"
+        alert_id = f"ALT-{utc_now().strftime('%Y%m%d')}-{uuid.uuid4().hex[:8].upper()}"
 
         # Calculate statistics
         total_amount = sum(tx.amount for tx in transactions)

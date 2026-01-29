@@ -4,7 +4,12 @@ Compliance-specific API endpoints for AMLRO features.
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 from typing import List, Optional
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
+
+
+def utc_now() -> datetime:
+    """Return current UTC time (timezone-aware)."""
+    return datetime.now(timezone.utc)
 from src.database import get_db
 from src.models import models
 from src.models.annotation import Annotation
@@ -182,7 +187,7 @@ def get_dashboard_metrics(db: Session = Depends(get_db)):
     ).count()
     
     # Upcoming deadlines
-    now = datetime.utcnow()
+    now = utc_now()
     deadlines_30d = db.query(models.LegalDocument).filter(
         models.LegalDocument.implementation_deadline.between(now, now + timedelta(days=30))
     ).count()
@@ -237,7 +242,7 @@ def get_upcoming_deadlines(
     """
     Get documents with upcoming implementation deadlines.
     """
-    now = datetime.utcnow()
+    now = utc_now()
     cutoff = now + timedelta(days=days)
     
     docs = db.query(models.LegalDocument).filter(

@@ -7,7 +7,12 @@ import asyncio
 import json
 from typing import Dict, Set, List, Optional
 from fastapi import WebSocket, WebSocketDisconnect
-from datetime import datetime
+from datetime import datetime, timezone
+
+
+def utc_now() -> datetime:
+    """Return current UTC time (timezone-aware)."""
+    return datetime.now(timezone.utc)
 
 from src.websocket.events import NotificationEvent, EventType
 from src.monitoring.metrics import websocket_connections_active, websocket_messages_sent_total
@@ -63,7 +68,7 @@ class ConnectionManager:
         # Store metadata
         self.connection_metadata[websocket] = {
             "user_id": user_id,
-            "connected_at": datetime.utcnow(),
+            "connected_at": utc_now(),
             "metadata": metadata or {}
         }
 
@@ -79,7 +84,7 @@ class ConnectionManager:
                 "type": "connection.established",
                 "message": "Connected to YuFeed real-time notifications",
                 "user_id": user_id,
-                "timestamp": datetime.utcnow().isoformat()
+                "timestamp": utc_now().isoformat()
             }
         )
 
@@ -231,7 +236,7 @@ class ConnectionManager:
             "message": message,
             "severity": severity,
             "data": data or {},
-            "timestamp": datetime.utcnow().isoformat()
+            "timestamp": utc_now().isoformat()
         }
 
         await self.broadcast(alert)
@@ -242,7 +247,7 @@ class ConnectionManager:
         """
         ping_message = {
             "type": "ping",
-            "timestamp": datetime.utcnow().isoformat()
+            "timestamp": utc_now().isoformat()
         }
 
         disconnected = []

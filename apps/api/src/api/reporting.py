@@ -8,7 +8,12 @@ from sqlalchemy import func, and_, or_, case
 import sqlalchemy as sa
 from sqlalchemy.inspection import inspect as sa_inspect
 from typing import Optional
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
+
+
+def utc_now() -> datetime:
+    """Return current UTC time (timezone-aware)."""
+    return datetime.now(timezone.utc)
 from decimal import Decimal
 
 from src.database import get_db
@@ -215,9 +220,9 @@ def get_compliance_dashboard(
     Includes alert metrics, case metrics, regulatory coverage, and risk metrics.
     """
     if not date_from:
-        date_from = datetime.utcnow() - timedelta(days=30)
+        date_from = utc_now() - timedelta(days=30)
     if not date_to:
-        date_to = datetime.utcnow()
+        date_to = utc_now()
 
     # Alert metrics
     total_alerts = db.query(func.count(Alert.id)).filter(
@@ -368,8 +373,8 @@ def export_case_evidence(
     ).order_by(AuditLog.created_at.desc()).all()
 
     return {
-        "export_id": f"EVID-{datetime.utcnow().strftime('%Y%m%d')}-{case.case_id}",
-        "exported_at": datetime.utcnow().isoformat(),
+        "export_id": f"EVID-{utc_now().strftime('%Y%m%d')}-{case.case_id}",
+        "exported_at": utc_now().isoformat(),
         "case": _model_to_dict(case),
         "alerts": [_model_to_dict(a) for a in alerts],
         "transactions": [_model_to_dict(t) for t in transactions],
@@ -429,8 +434,8 @@ def export_decision_evidence(
     ).order_by(AuditLog.created_at.desc()).all()
 
     return {
-        "export_id": f"EVID-{datetime.utcnow().strftime('%Y%m%d')}-{decision.decision_id}",
-        "exported_at": datetime.utcnow().isoformat(),
+        "export_id": f"EVID-{utc_now().strftime('%Y%m%d')}-{decision.decision_id}",
+        "exported_at": utc_now().isoformat(),
         "decision": _model_to_dict(decision),
         "event": _model_to_dict(event) if event else None,
         "transaction": _model_to_dict(transaction) if transaction else None,
@@ -471,8 +476,8 @@ def export_travel_rule_evidence(
     ).order_by(AuditLog.created_at.desc()).all()
 
     return {
-        "export_id": f"EVID-{datetime.utcnow().strftime('%Y%m%d')}-{request.request_id}",
-        "exported_at": datetime.utcnow().isoformat(),
+        "export_id": f"EVID-{utc_now().strftime('%Y%m%d')}-{request.request_id}",
+        "exported_at": utc_now().isoformat(),
         "travel_rule_request": _model_to_dict(request),
         "audit_logs": [_model_to_dict(l) for l in audit_logs],
     }
@@ -497,7 +502,7 @@ def compliance_home_dashboard(
     """
     Aggregated home dashboard metrics for Compliance Officer.
     """
-    now = datetime.utcnow()
+    now = utc_now()
     last_24h = now - timedelta(hours=24)
     last_30d = now - timedelta(days=30)
 
@@ -935,7 +940,7 @@ def aml_scope_review(
     policy_mapping_pct = round((policy_mapped_count / total_obligations * 100), 2) if total_obligations else 0
 
     return {
-        "as_of": datetime.utcnow().isoformat(),
+        "as_of": utc_now().isoformat(),
         "jurisdiction": jurisdiction,
         "scope": scope,
         "total_obligations": total_obligations,
@@ -965,9 +970,9 @@ def get_alerts_summary_report(
     Detailed alert summary report for compliance review.
     """
     if not date_from:
-        date_from = datetime.utcnow() - timedelta(days=30)
+        date_from = utc_now() - timedelta(days=30)
     if not date_to:
-        date_to = datetime.utcnow()
+        date_to = utc_now()
 
     alerts = db.query(Alert).filter(
         and_(
@@ -1025,9 +1030,9 @@ def get_transactions_summary_report(
     Detailed transaction summary report.
     """
     if not date_from:
-        date_from = datetime.utcnow() - timedelta(days=30)
+        date_from = utc_now() - timedelta(days=30)
     if not date_to:
-        date_to = datetime.utcnow()
+        date_to = utc_now()
 
     transactions = db.query(Transaction).filter(
         and_(

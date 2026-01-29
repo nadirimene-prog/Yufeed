@@ -8,7 +8,12 @@ from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.orm import Session
 from sqlalchemy import func
 from typing import List, Optional
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
+
+
+def utc_now() -> datetime:
+    """Return current UTC time (timezone-aware)."""
+    return datetime.now(timezone.utc)
 import secrets
 import hashlib
 import logging
@@ -157,7 +162,7 @@ def update_tenant(
     for field, value in update_dict.items():
         setattr(tenant, field, value)
 
-    tenant.updated_at = datetime.utcnow()
+    tenant.updated_at = utc_now()
 
     # Audit log
     audit = TenantAuditLog(
@@ -199,7 +204,7 @@ def delete_tenant(
         action = "tenant.hard_deleted"
     else:
         # Soft delete
-        tenant.deleted_at = datetime.utcnow()
+        tenant.deleted_at = utc_now()
         tenant.is_active = False
         action = "tenant.soft_deleted"
 
@@ -257,7 +262,7 @@ def get_tenant_stats(
     ).scalar() or 0
 
     # API calls today (from API key usage)
-    today_start = datetime.utcnow().replace(hour=0, minute=0, second=0, microsecond=0)
+    today_start = utc_now().replace(hour=0, minute=0, second=0, microsecond=0)
     api_calls_today = db.query(func.sum(TenantAPIKey.usage_count)).filter(
         TenantAPIKey.tenant_id == tenant.id,
         TenantAPIKey.last_used_at >= today_start
@@ -303,7 +308,7 @@ def update_tenant_config(
     if config.feature_flags:
         tenant.feature_flags = config.feature_flags.dict()
 
-    tenant.updated_at = datetime.utcnow()
+    tenant.updated_at = utc_now()
 
     # Audit log
     audit = TenantAuditLog(
@@ -449,7 +454,7 @@ def update_api_key(
     for field, value in update_dict.items():
         setattr(api_key, field, value)
 
-    api_key.updated_at = datetime.utcnow()
+    api_key.updated_at = utc_now()
 
     # Audit log
     audit = TenantAuditLog(
@@ -491,7 +496,7 @@ def revoke_api_key(
 
     # Revoke the key
     api_key.is_active = False
-    api_key.revoked_at = datetime.utcnow()
+    api_key.revoked_at = utc_now()
 
     # Audit log
     audit = TenantAuditLog(
@@ -534,7 +539,7 @@ def rotate_api_key(
 
     # Revoke old key
     old_key.is_active = False
-    old_key.revoked_at = datetime.utcnow()
+    old_key.revoked_at = utc_now()
 
     # Create new key with same properties
     random_part = secrets.token_hex(16)

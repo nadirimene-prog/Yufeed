@@ -12,8 +12,13 @@ Provides common functionality for:
 
 from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
-from datetime import datetime
+from datetime import datetime, timezone
 from enum import Enum
+
+
+def utc_now() -> datetime:
+    """Return current UTC time (timezone-aware)."""
+    return datetime.now(timezone.utc)
 from typing import Any, Dict, List, Optional
 import logging
 import asyncio
@@ -42,7 +47,7 @@ class IntegrationResult:
     processing_time_ms: int = 0
     cached: bool = False
     source: str = ""
-    timestamp: datetime = field(default_factory=datetime.utcnow)
+    timestamp: datetime = field(default_factory=utc_now)
 
     def to_dict(self) -> Dict[str, Any]:
         return {
@@ -171,7 +176,7 @@ class BaseIntegration(ABC):
         """Check if a cached result exists and is valid."""
         if key in self._cache:
             result, cached_at = self._cache[key]
-            age_seconds = (datetime.utcnow() - cached_at).total_seconds()
+            age_seconds = (utc_now() - cached_at).total_seconds()
             if age_seconds < self.cache_ttl_seconds:
                 return result
             else:
@@ -180,11 +185,11 @@ class BaseIntegration(ABC):
 
     def _set_cache(self, key: str, result: IntegrationResult) -> None:
         """Cache a result."""
-        self._cache[key] = (result, datetime.utcnow())
+        self._cache[key] = (result, utc_now())
 
     def _check_rate_limit(self) -> bool:
         """Check if we're within rate limits."""
-        now = datetime.utcnow()
+        now = utc_now()
 
         # Remove old request times
         one_minute_ago = now.timestamp() - 60

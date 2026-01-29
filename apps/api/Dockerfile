@@ -3,9 +3,9 @@ FROM python:3.11-slim
 WORKDIR /app
 
 # Install system dependencies
-# netcat for waiting for DB
 RUN apt-get update && apt-get install -y --no-install-recommends \
     netcat-openbsd \
+    curl \
     && rm -rf /var/lib/apt/lists/*
 
 COPY requirements.txt .

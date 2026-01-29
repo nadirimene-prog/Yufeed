@@ -1,8 +1,9 @@
 import feedparser
 import logging
 import re
+import time
 from datetime import date
-from typing import List, Dict, Any, Optional
+from typing import List, Dict, Any, Optional, Callable
 from urllib.parse import urlencode
 from xml.etree import ElementTree
 
@@ -13,32 +14,94 @@ from src.config import settings
 
 logger = logging.getLogger(__name__)
 
+
+def _retry_request(
+    request_func: Callable,
+    max_retries: int = 3,
+    base_delay: float = 1.0,
+    max_delay: float = 30.0,
+) -> httpx.Response:
+    """
+    Execute HTTP request with exponential backoff retry.
+
+    Args:
+        request_func: Function that makes the HTTP request
+        max_retries: Maximum retry attempts
+        base_delay: Initial delay between retries
+        max_delay: Maximum delay cap
+
+    Returns:
+        httpx.Response on success
+
+    Raises:
+        Last exception if all retries fail
+    """
+    last_exception = None
+
+    for attempt in range(max_retries + 1):
+        try:
+            response = request_func()
+            response.raise_for_status()
+            return response
+        except (httpx.HTTPStatusError, httpx.RequestError, httpx.TimeoutException) as e:
+            last_exception = e
+            if attempt == max_retries:
+                logger.error(f"Request failed after {max_retries + 1} attempts: {e}")
+                raise
+
+            delay = min(base_delay * (2 ** attempt), max_delay)
+            logger.warning(f"Request attempt {attempt + 1} failed: {e}. Retrying in {delay:.1f}s...")
+            time.sleep(delay)
+
+    raise last_exception
+
+
 class RSSFetcher:
-    # Official Journal feeds (generic placeholders, often use search RSS)
-    # For MVP we can use the direct feed URLs if they are stable
+    """
+    Fetches and parses RSS/Atom feeds from EUR-Lex and CELLAR.
+
+    Features:
+    - Automatic retry with exponential backoff
+    - Multiple parsing strategies (feedparser, BeautifulSoup, ElementTree)
+    - CELEX/ELI extraction from various formats
+    """
+
+    # Official Journal feeds
     OJ_L_FEED = "https://eur-lex.europa.eu/RSS/feed.html?type=OJ&oj=L&lang=en"
     OJ_C_FEED = "https://eur-lex.europa.eu/RSS/feed.html?type=OJ&oj=C&lang=en"
     CELLAR_INGESTION_URL = "https://publications.europa.eu/webapi/notification/ingestion"
-    
+
+    # HTTP client configuration
+    DEFAULT_TIMEOUT = 30.0
+    MAX_RETRIES = 3
+
     def fetch_feed(self, url: str, language: str = "en") -> List[Dict[str, Any]]:
         """
-        Fetch and parse a single RSS feed.
-        Returns a list of dictionaries with normalized keys.
+        Fetch and parse a single RSS feed with retry logic.
+
+        Args:
+            url: Feed URL to fetch
+            language: Language code for entries
+
+        Returns:
+            List of normalized entry dictionaries
         """
         logger.info(f"Fetching RSS feed: {url}")
         try:
-            response = httpx.get(
-                url,
-                headers={"User-Agent": settings.RSS_USER_AGENT},
-                timeout=15.0,
+            response = _retry_request(
+                lambda: httpx.get(
+                    url,
+                    headers={"User-Agent": settings.RSS_USER_AGENT},
+                    timeout=self.DEFAULT_TIMEOUT,
+                ),
+                max_retries=self.MAX_RETRIES,
             )
-            response.raise_for_status()
             content = response.text
 
             feed = feedparser.parse(content)
             if feed.bozo:
                 logger.warning(f"Feed parse warning for {url}: {feed.bozo_exception}")
-            
+
             entries = []
             for entry in feed.entries:
                 entries.append(self._normalize_entry(entry, language=language))
@@ -50,6 +113,7 @@ class RSSFetcher:
             if fallback_entries:
                 logger.info(f"Fallback parser recovered {len(fallback_entries)} entries for {url}")
             return fallback_entries
+
         except Exception as e:
             logger.error(f"Error fetching feed {url}: {e}")
             return []
@@ -81,7 +145,17 @@ class RSSFetcher:
         allow_fallback: bool = True,
     ) -> List[Dict[str, Any]]:
         """
-        Fetch EU publications ingestion feed from CELLAR and filter to OJ L/C items.
+        Fetch EU publications ingestion feed from CELLAR with retry logic.
+
+        Args:
+            language: Language code for entries
+            start_date: Filter start date
+            end_date: Filter end date
+            only_oj: Only return Official Journal entries
+            allow_fallback: Fall back to all entries if no OJ entries found
+
+        Returns:
+            List of normalized entry dictionaries
         """
         params = {}
         if start_date:
@@ -92,15 +166,22 @@ class RSSFetcher:
 
         url = f"{self.CELLAR_INGESTION_URL}?{urlencode(params)}" if params else self.CELLAR_INGESTION_URL
         logger.info(f"Fetching CELLAR ingestion feed: {url}")
+
         try:
-            response = httpx.get(
-                url,
-                headers={"User-Agent": settings.RSS_USER_AGENT, "Accept": "application/rss+xml"},
-                timeout=30.0,
+            response = _retry_request(
+                lambda: httpx.get(
+                    url,
+                    headers={
+                        "User-Agent": settings.RSS_USER_AGENT,
+                        "Accept": "application/rss+xml",
+                    },
+                    timeout=self.DEFAULT_TIMEOUT,
+                ),
+                max_retries=self.MAX_RETRIES,
             )
-            response.raise_for_status()
             content = response.text
             entries = self._parse_cellar_ingestion_feed(content, language=language)
+
             if only_oj:
                 oj_entries = [entry for entry in entries if entry.get("is_oj")]
                 if oj_entries:
@@ -112,7 +193,9 @@ class RSSFetcher:
                     )
                     return entries
                 return oj_entries
+
             return entries
+
         except Exception as e:
             logger.error(f"Error fetching CELLAR ingestion feed {url}: {e}")
             return []

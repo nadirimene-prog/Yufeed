@@ -193,7 +193,7 @@ export const amlOfficerApi = {
     request: InvestigationRequest
   ): Promise<InvestigationResult> {
     const response = await apiClient.post<InvestigationResult>(
-      `/aml-officer/investigate`,
+      `/api/aml-officer/investigate`,
       request
     );
     return response.data;
@@ -220,7 +220,7 @@ export const amlOfficerApi = {
     }>;
   }> {
     const response = await apiClient.post(
-      `/aml-officer/investigate/batch`,
+      `/api/aml-officer/investigate/batch`,
       { alerts, max_concurrent: maxConcurrent }
     );
     return response.data;
@@ -235,7 +235,7 @@ export const amlOfficerApi = {
    */
   async getDailyBriefing(lookbackHours: number = 24): Promise<DailyBriefing> {
     const response = await apiClient.get<DailyBriefing>(
-      `/aml-officer/briefing/daily`,
+      `/api/aml-officer/briefing/daily`,
       { params: { lookback_hours: lookbackHours } }
     );
     return response.data;
@@ -250,7 +250,7 @@ export const amlOfficerApi = {
    */
   async askQuestion(request: ComplianceQuestion): Promise<ComplianceAnswer> {
     const response = await apiClient.post<ComplianceAnswer>(
-      `/aml-officer/ask`,
+      `/api/aml-officer/ask`,
       request
     );
     return response.data;
@@ -267,7 +267,7 @@ export const amlOfficerApi = {
     count: number;
     alerts: ProactiveAlert[];
   }> {
-    const response = await apiClient.get(`/aml-officer/alerts/proactive`);
+    const response = await apiClient.get(`/api/aml-officer/alerts/proactive`);
     return response.data;
   },
 
@@ -282,7 +282,7 @@ export const amlOfficerApi = {
     request: SanctionsScreenRequest
   ): Promise<SanctionsScreenResult> {
     const response = await apiClient.post<SanctionsScreenResult>(
-      `/aml-officer/sanctions/screen`,
+      `/api/aml-officer/sanctions/screen`,
       request
     );
     return response.data;
@@ -300,7 +300,7 @@ export const amlOfficerApi = {
     results: SanctionsScreenResult[];
   }> {
     const response = await apiClient.post(
-      `/aml-officer/sanctions/screen/batch`,
+      `/api/aml-officer/sanctions/screen/batch`,
       request
     );
     return response.data;
@@ -316,7 +316,7 @@ export const amlOfficerApi = {
     status: string;
   }> {
     const response = await apiClient.get(
-      `/aml-officer/sanctions/statistics`
+      `/api/aml-officer/sanctions/statistics`
     );
     return response.data;
   },
@@ -337,7 +337,7 @@ export const amlOfficerApi = {
     success: boolean;
     sar_draft: Record<string, unknown>;
   }> {
-    const response = await apiClient.post(`/aml-officer/sar/prepare`, {
+    const response = await apiClient.post(`/api/aml-officer/sar/prepare`, {
       case_id: caseId,
       case_data: caseData,
       related_alerts: relatedAlerts,
@@ -357,7 +357,7 @@ export const amlOfficerApi = {
       description: string;
     }>;
   }> {
-    const response = await apiClient.get(`/aml-officer/sar/templates`);
+    const response = await apiClient.get(`/api/aml-officer/sar/templates`);
     return response.data;
   },
 
@@ -373,7 +373,7 @@ export const amlOfficerApi = {
     components: Record<string, string>;
     timestamp: string;
   }> {
-    const response = await apiClient.get(`/aml-officer/health`);
+    const response = await apiClient.get(`/api/aml-officer/health`);
     return response.data;
   },
 
@@ -382,7 +382,7 @@ export const amlOfficerApi = {
    */
   async getCapabilities(): Promise<AMLOfficerCapabilities> {
     const response = await apiClient.get<AMLOfficerCapabilities>(
-      `/aml-officer/capabilities`
+      `/api/aml-officer/capabilities`
     );
     return response.data;
   },

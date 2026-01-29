@@ -6,7 +6,12 @@ from fastapi import APIRouter, Depends, HTTPException, Query, BackgroundTasks
 from sqlalchemy.orm import Session
 from sqlalchemy import func
 from typing import List, Optional
-from datetime import datetime
+from datetime import datetime, timezone
+
+
+def utc_now() -> datetime:
+    """Return current UTC time (timezone-aware)."""
+    return datetime.now(timezone.utc)
 import uuid
 
 from src.database import get_db
@@ -92,7 +97,7 @@ def create_rule(
         enabled=db_rule.enabled,
         created_by=db_rule.created_by,
         approved_by=db_rule.created_by,
-        approved_at=datetime.utcnow(),
+        approved_at=utc_now(),
     )
     db.add(version)
     db.commit()
@@ -221,7 +226,7 @@ def enable_rule(
     ensure_tenant_match(rule, tenant_id)
 
     rule.enabled = True
-    rule.updated_at = datetime.utcnow()
+    rule.updated_at = utc_now()
     db.commit()
 
     return {"status": "enabled", "rule_id": rule_id}
@@ -246,7 +251,7 @@ def disable_rule(
     ensure_tenant_match(rule, tenant_id)
 
     rule.enabled = False
-    rule.updated_at = datetime.utcnow()
+    rule.updated_at = utc_now()
     db.commit()
 
     return {"status": "disabled", "rule_id": rule_id}
@@ -444,10 +449,10 @@ def approve_rule_version(
     rule.thresholds = version.thresholds
     rule.enabled = version.enabled
     rule.version = version.version_number
-    rule.updated_at = datetime.utcnow()
+    rule.updated_at = utc_now()
 
     version.status = "approved"
-    version.approved_at = datetime.utcnow()
+    version.approved_at = utc_now()
 
     db.commit()
     db.refresh(version)
@@ -488,7 +493,7 @@ def reject_rule_version(
         raise HTTPException(status_code=400, detail="Rule version is not pending")
 
     version.status = "rejected"
-    version.approved_at = datetime.utcnow()
+    version.approved_at = utc_now()
     db.commit()
     db.refresh(version)
 
@@ -565,7 +570,7 @@ def simulate_rule(
         would_trigger=would_trigger,
         logic=logic,
         condition_results=condition_results,
-        evaluated_at=datetime.utcnow()
+        evaluated_at=utc_now()
     )
 
 
@@ -632,7 +637,7 @@ def backtest_rule(
         total_transactions=total,
         matches=matches,
         match_rate=round(match_rate, 2),
-        evaluated_at=datetime.utcnow(),
+        evaluated_at=utc_now(),
         window={
             "start_date": request.start_date,
             "end_date": request.end_date
@@ -912,7 +917,7 @@ def bulk_enable_rules(
 
     for rule in rules:
         rule.enabled = True
-        rule.updated_at = datetime.utcnow()
+        rule.updated_at = utc_now()
 
     db.commit()
 
@@ -936,7 +941,7 @@ def bulk_disable_rules(
 
     for rule in rules:
         rule.enabled = False
-        rule.updated_at = datetime.utcnow()
+        rule.updated_at = utc_now()
 
     db.commit()
 
@@ -964,7 +969,7 @@ def bulk_update_severity(
 
     for rule in rules:
         rule.severity = new_severity
-        rule.updated_at = datetime.utcnow()
+        rule.updated_at = utc_now()
 
     db.commit()
 

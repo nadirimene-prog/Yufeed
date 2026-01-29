@@ -2,8 +2,13 @@ from sqlalchemy import Column, Integer, String, DateTime, Enum, ForeignKey, Text
 from sqlalchemy.orm import relationship
 from sqlalchemy.dialects.postgresql import JSONB
 import enum
-from datetime import datetime
+from datetime import datetime, timezone
 from src.database import Base
+
+
+def utc_now() -> datetime:
+    """Return current UTC time (timezone-aware)."""
+    return datetime.now(timezone.utc)
 
 class DocType(str, enum.Enum):
     REGULATION = "regulation"
@@ -54,7 +59,7 @@ class LegalDocument(Base):
     publication_date = Column(DateTime, nullable=True)
     entry_into_force_date = Column(DateTime, nullable=True)
     status = Column(String, default="active")
-    last_modified = Column(DateTime, default=datetime.utcnow)
+    last_modified = Column(DateTime, default=utc_now)
     
     # AMLRO Compliance Fields
     compliance_domain = Column(String, nullable=True)  # ComplianceDomain enum
@@ -92,7 +97,7 @@ class LegalVersion(Base):
     language = Column(String, default="en")
     source_url = Column(String, nullable=True)
     content_hash = Column(String, nullable=True)
-    retrieved_at = Column(DateTime, default=datetime.utcnow)
+    retrieved_at = Column(DateTime, default=utc_now)
     
     document = relationship("LegalDocument", back_populates="versions")
 

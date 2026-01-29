@@ -6,7 +6,12 @@ from fastapi import APIRouter, Depends, Query
 from sqlalchemy.orm import Session
 from sqlalchemy import func, and_, or_
 from typing import List
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
+
+
+def utc_now() -> datetime:
+    """Return current UTC time (timezone-aware)."""
+    return datetime.now(timezone.utc)
 
 from src.database import get_db
 from src.models.transaction_models import (
@@ -36,7 +41,7 @@ def get_monitoring_dashboard(
     - Active cases
     - Rule performance
     """
-    start_date = datetime.utcnow() - timedelta(days=days)
+    start_date = utc_now() - timedelta(days=days)
 
     # Get alert statistics
     alert_stats = _get_alert_statistics(db, start_date)
@@ -91,7 +96,7 @@ def get_realtime_metrics(db: Session = Depends(get_db)):
     Updated every minute for live monitoring.
     """
     # Last hour stats
-    one_hour_ago = datetime.utcnow() - timedelta(hours=1)
+    one_hour_ago = utc_now() - timedelta(hours=1)
 
     # Transactions in last hour
     txn_count_1h = db.query(func.count(Transaction.id)).filter(
@@ -124,7 +129,7 @@ def get_realtime_metrics(db: Session = Depends(get_db)):
     avg_processing_time_ms = 250
 
     return {
-        "timestamp": datetime.utcnow().isoformat(),
+        "timestamp": utc_now().isoformat(),
         "transactions_last_hour": txn_count_1h,
         "alerts_last_hour": alert_count_1h,
         "critical_alerts_pending": critical_pending,
@@ -144,7 +149,7 @@ def get_alert_trends(
 
     Returns daily alert counts by severity.
     """
-    start_date = datetime.utcnow() - timedelta(days=days)
+    start_date = utc_now() - timedelta(days=days)
 
     # Get daily alert counts
     from sqlalchemy import cast, Date
@@ -192,7 +197,7 @@ def get_transaction_trends(
 
     Returns daily transaction counts and volumes.
     """
-    start_date = datetime.utcnow() - timedelta(days=days)
+    start_date = utc_now() - timedelta(days=days)
 
     from sqlalchemy import cast, Date
 
@@ -233,7 +238,7 @@ def get_system_health(db: Session = Depends(get_db)):
     ).scalar() or 0
 
     # Check for stuck alerts (pending for >24 hours)
-    yesterday = datetime.utcnow() - timedelta(hours=24)
+    yesterday = utc_now() - timedelta(hours=24)
     stuck_alerts = db.query(func.count(Alert.id)).filter(
         and_(
             Alert.status == 'pending',
@@ -256,7 +261,7 @@ def get_system_health(db: Session = Depends(get_db)):
 
     return {
         "status": status,
-        "timestamp": datetime.utcnow().isoformat(),
+        "timestamp": utc_now().isoformat(),
         "checks": {
             "database": "connected",
             "enabled_rules": enabled_rules,

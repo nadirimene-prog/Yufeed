@@ -3,8 +3,13 @@ Event normalization for Risk OS decisioning.
 Converts incoming event variants into the canonical event schema.
 """
 from dataclasses import dataclass
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Any, Dict, Optional
+
+
+def utc_now() -> datetime:
+    """Return current UTC time (timezone-aware)."""
+    return datetime.now(timezone.utc)
 
 
 @dataclass
@@ -59,7 +64,7 @@ def normalize_event(
     inferred_entity_id = entity_id or _infer_entity_id(normalized_type, payload)
 
     metadata: Dict[str, Any] = {
-        "normalized_at": datetime.utcnow().isoformat(),
+        "normalized_at": utc_now().isoformat(),
     }
     if normalized_type != event_type:
         metadata["normalized_from"] = event_type

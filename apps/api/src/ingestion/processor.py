@@ -1,6 +1,12 @@
 import logging
 import datetime
+from datetime import timezone
 from sqlalchemy.orm import Session
+
+
+def utc_now() -> datetime.datetime:
+    """Return current UTC time (timezone-aware)."""
+    return datetime.datetime.now(timezone.utc)
 
 from src.models import (
     LegalDocument,
@@ -107,7 +113,7 @@ class IngestionProcessor:
             status="active",
             publication_date=pub_date,
             entry_into_force_date=entry_into_force,
-            last_modified=datetime.datetime.utcnow(),
+            last_modified=utc_now(),
             jurisdictional_scope=jurisdiction or None,
             oj_act_identifier=oj_act_identifier,
             oj_signature_identifier=oj_signature_identifier,
@@ -130,7 +136,7 @@ class IngestionProcessor:
                         new_doc.full_text = content_result["full_text"]
                         new_doc.article_breakdown = {"articles": content_result.get("article_breakdown", [])}
                         new_doc.content_extraction_method = content_result.get("extraction_method")
-                        new_doc.content_extracted_at = datetime.datetime.utcnow()
+                        new_doc.content_extracted_at = utc_now()
                         new_doc.word_count = content_result.get("word_count")
 
                     doc_text = LegalDocumentText(
@@ -139,7 +145,7 @@ class IngestionProcessor:
                         full_text=content_result.get("full_text"),
                         article_breakdown={"articles": content_result.get("article_breakdown", [])},
                         content_extraction_method=content_result.get("extraction_method"),
-                        content_extracted_at=datetime.datetime.utcnow(),
+                        content_extracted_at=utc_now(),
                         word_count=content_result.get("word_count"),
                         source_url=entry.get("link"),
                     )
@@ -217,7 +223,7 @@ class IngestionProcessor:
         if doc.title != entry.get("title") and entry.get("title"):
              logger.info(f"Document {doc.celex} title updated.")
              doc.title = entry.get("title")
-             doc.last_modified = datetime.datetime.utcnow()
+             doc.last_modified = utc_now()
              
              # alert = AlertEvent(
              #    doc_id=doc.id,
@@ -270,11 +276,11 @@ class IngestionProcessor:
                 source_url=source_url,
             )
             self.db.add(version)
-            doc.last_modified = datetime.datetime.utcnow()
+            doc.last_modified = utc_now()
             self.db.commit()
             updated = True
         elif doc_changed:
-            doc.last_modified = datetime.datetime.utcnow()
+            doc.last_modified = utc_now()
             self.db.commit()
             updated = True
 
@@ -297,14 +303,14 @@ class IngestionProcessor:
                         doc.full_text = content_result.get("full_text")
                         doc.article_breakdown = {"articles": content_result.get("article_breakdown", [])}
                         doc.content_extraction_method = content_result.get("extraction_method")
-                        doc.content_extracted_at = datetime.datetime.utcnow()
+                        doc.content_extracted_at = utc_now()
                         doc.word_count = content_result.get("word_count")
 
                     if existing_text:
                         existing_text.full_text = content_result.get("full_text")
                         existing_text.article_breakdown = {"articles": content_result.get("article_breakdown", [])}
                         existing_text.content_extraction_method = content_result.get("extraction_method")
-                        existing_text.content_extracted_at = datetime.datetime.utcnow()
+                        existing_text.content_extracted_at = utc_now()
                         existing_text.word_count = content_result.get("word_count")
                         existing_text.source_url = source_url
                     else:
@@ -314,7 +320,7 @@ class IngestionProcessor:
                             full_text=content_result.get("full_text"),
                             article_breakdown={"articles": content_result.get("article_breakdown", [])},
                             content_extraction_method=content_result.get("extraction_method"),
-                            content_extracted_at=datetime.datetime.utcnow(),
+                            content_extracted_at=utc_now(),
                             word_count=content_result.get("word_count"),
                             source_url=source_url,
                         )

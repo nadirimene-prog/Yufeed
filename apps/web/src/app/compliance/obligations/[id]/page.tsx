@@ -5,6 +5,8 @@ import { useParams, useRouter } from "next/navigation";
 import Link from "next/link";
 import apiClient from "@/lib/http";
 import { handleApiError } from "@/lib/api-error-handler";
+import ObligationApprovalModal from "@/components/compliance/ObligationApprovalModal";
+import type { Obligation } from "@/types/compliance";
 
 interface ObligationDetail {
   id: number;
@@ -20,6 +22,24 @@ interface ObligationDetail {
   approved_at?: string | null;
   review_notes?: string | null;
   updated_at?: string | null;
+  scope_tags?: string[];
+  linked_policy_id?: number | null;
+  linked_policy?: {
+    id: number;
+    policy_id: string;
+    name: string;
+    status: string;
+  } | null;
+  linked_risks?: Array<{
+    link_id: number;
+    link_type: string;
+    risk_id: string;
+    name: string;
+    inherent_risk_level: string;
+    residual_risk_level: string;
+  }>;
+  linked_risks_count?: number;
+  internal_rules_count?: number;
   document: {
     id: number;
     celex: string;
@@ -27,6 +47,7 @@ interface ObligationDetail {
     jurisdiction?: string | null;
     source_system?: string | null;
     publication_date?: string | null;
+    scope_tags?: string[];
   };
 }
 
@@ -113,6 +134,7 @@ export default function ObligationDetailPage() {
   });
   const [mappingForm, setMappingForm] = useState<Record<number, { target: string; mappingType: string }>>({});
   const [rulesActionLoading, setRulesActionLoading] = useState<string | null>(null);
+  const [showApprovalModal, setShowApprovalModal] = useState(false);
 
   useEffect(() => {
     let mounted = true;
@@ -292,6 +314,26 @@ export default function ObligationDetailPage() {
     return [];
   };
 
+  const handleApprovalSuccess = (updatedObligation: Obligation) => {
+    // Convert the Obligation type to our local ObligationDetail type
+    setData({
+      ...data!,
+      status: updatedObligation.status,
+      review_notes: updatedObligation.review_notes || data?.review_notes,
+      reviewed_by: updatedObligation.reviewed_by || data?.reviewed_by,
+      approved_by: updatedObligation.approved_by || data?.approved_by,
+      approved_at: updatedObligation.approved_at || data?.approved_at,
+      linked_policy_id: updatedObligation.linked_policy_id,
+      linked_policy: updatedObligation.linked_policy,
+      linked_risks: updatedObligation.linked_risks,
+      linked_risks_count: updatedObligation.linked_risks_count,
+      internal_rules_count: updatedObligation.internal_rules_count,
+    });
+    fetchInternalRules(); // Refresh internal rules in case one was created
+  };
+
+  const canUseEnhancedApproval = ["draft", "in_review"].includes((data?.status || "").toLowerCase());
+
   if (loading) {
     return <div className="text-sm text-gray-500">Loading obligation…</div>;
   }
@@ -378,6 +420,14 @@ export default function ObligationDetailPage() {
         </div>
 
         <div className="mt-4 flex flex-wrap gap-2">
+          {canUseEnhancedApproval && (
+            <button
+              onClick={() => setShowApprovalModal(true)}
+              className="rounded-full bg-indigo-600 px-4 py-2 text-xs font-semibold text-white hover:bg-indigo-700 dark:bg-indigo-500 dark:hover:bg-indigo-600"
+            >
+              Enhanced Review & Approve
+            </button>
+          )}
           {actionsFor(data.status).map((action) => (
             <button
               key={action.status}
@@ -587,6 +637,70 @@ export default function ObligationDetailPage() {
           </div>
         </div>
       </div>
+
+      {/* Linked Policy Section */}
+      {data.linked_policy && (
+        <div className="rounded-lg border border-gray-200 bg-white p-6 shadow-sm dark:border-slate-800 dark:bg-slate-900">
+          <div className="text-sm font-semibold text-gray-900 dark:text-white">Linked Policy</div>
+          <Link
+            href={`/compliance/policies?id=${data.linked_policy.id}`}
+            className="mt-3 flex items-center gap-3 rounded-lg border border-gray-100 bg-gray-50/60 p-3 hover:bg-gray-100 dark:border-slate-800 dark:bg-slate-800/40 dark:hover:bg-slate-800"
+          >
+            <div className="flex-1">
+              <div className="text-sm font-medium text-gray-900 dark:text-white">{data.linked_policy.name}</div>
+              <div className="text-xs text-gray-500">{data.linked_policy.policy_id}</div>
+            </div>
+            <span className={"rounded-full px-2 py-1 text-[10px] font-semibold " + obligationStatusStyle(data.linked_policy.status)}>
+              {data.linked_policy.status}
+            </span>
+          </Link>
+        </div>
+      )}
+
+      {/* Linked Risks Section */}
+      {data.linked_risks && data.linked_risks.length > 0 && (
+        <div className="rounded-lg border border-gray-200 bg-white p-6 shadow-sm dark:border-slate-800 dark:bg-slate-900">
+          <div className="text-sm font-semibold text-gray-900 dark:text-white">
+            Linked Risks ({data.linked_risks.length})
+          </div>
+          <div className="mt-3 space-y-2">
+            {data.linked_risks.map((risk) => (
+              <div
+                key={risk.link_id}
+                className="flex items-center gap-3 rounded-lg border border-gray-100 bg-gray-50/60 p-3 dark:border-slate-800 dark:bg-slate-800/40"
+              >
+                <div className="flex-1 min-w-0">
+                  <div className="text-sm font-medium text-gray-900 dark:text-white truncate">{risk.name}</div>
+                  <div className="text-xs text-gray-500">{risk.risk_id}</div>
+                </div>
+                <div className="flex items-center gap-2">
+                  <span className={`rounded-full px-2 py-1 text-[10px] font-semibold ${
+                    risk.inherent_risk_level === 'critical' ? 'bg-rose-100 text-rose-700 dark:bg-rose-900/30 dark:text-rose-300' :
+                    risk.inherent_risk_level === 'high' ? 'bg-orange-100 text-orange-700 dark:bg-orange-900/30 dark:text-orange-300' :
+                    risk.inherent_risk_level === 'medium' ? 'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-300' :
+                    'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-300'
+                  }`}>
+                    {risk.inherent_risk_level}
+                  </span>
+                  <span className="rounded-full bg-gray-100 px-2 py-1 text-[10px] text-gray-600 dark:bg-slate-800 dark:text-gray-400">
+                    {risk.link_type}
+                  </span>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* Enhanced Approval Modal */}
+      {data && (
+        <ObligationApprovalModal
+          open={showApprovalModal}
+          onOpenChange={setShowApprovalModal}
+          obligation={data as unknown as Obligation}
+          onSuccess={handleApprovalSuccess}
+        />
+      )}
     </div>
   );
 }

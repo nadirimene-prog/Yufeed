@@ -1,4 +1,9 @@
-from datetime import datetime
+from datetime import datetime, timezone
+
+
+def utc_now() -> datetime:
+    """Return current UTC time (timezone-aware)."""
+    return datetime.now(timezone.utc)
 from typing import Dict, Optional
 import uuid
 
@@ -49,7 +54,7 @@ def create_travel_rule_request(
     response = TravelRuleResponse(
         request_id=request_id,
         status="pending",
-        created_at=datetime.utcnow(),
+        created_at=utc_now(),
         payload=request,
     )
 
@@ -166,7 +171,7 @@ def submit_travel_rule_request(
     if not row:
         raise HTTPException(status_code=404, detail="Travel rule request not found")
     row.status = "submitted"
-    row.submitted_at = datetime.utcnow()
+    row.submitted_at = utc_now()
     db.commit()
     db.refresh(row)
 

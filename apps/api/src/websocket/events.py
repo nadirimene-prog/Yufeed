@@ -4,7 +4,12 @@ WebSocket event types and notification models.
 from enum import Enum
 from typing import Dict, Any, Optional
 from pydantic import BaseModel
-from datetime import datetime
+from datetime import datetime, timezone
+
+
+def utc_now() -> datetime:
+    """Return current UTC time (timezone-aware)."""
+    return datetime.now(timezone.utc)
 
 
 class EventType(str, Enum):
@@ -38,6 +43,17 @@ class EventType(str, Enum):
     USER_MENTION = "user.mention"
     USER_ASSIGNED = "user.assigned"
 
+    # Compliance events
+    OBLIGATION_APPROVED = "obligation.approved"
+    OBLIGATION_REJECTED = "obligation.rejected"
+    OBLIGATION_UPDATED = "obligation.updated"
+    POLICY_CREATED = "policy.created"
+    POLICY_APPROVED = "policy.approved"
+    POLICY_UPDATED = "policy.updated"
+    RISK_ENTRY_CREATED = "risk.entry_created"
+    RISK_ENTRY_UPDATED = "risk.entry_updated"
+    INTERNAL_RULE_CREATED = "internal_rule.created"
+
 
 class NotificationEvent(BaseModel):
     """
@@ -47,8 +63,13 @@ class NotificationEvent(BaseModel):
     title: str
     message: str
     data: Dict[str, Any]
-    timestamp: datetime = datetime.utcnow()
+    timestamp: datetime = None  # Will be set to utc_now() in __init__
     priority: str = "normal"  # low, normal, high, critical
+
+    def __init__(self, **data):
+        if 'timestamp' not in data or data['timestamp'] is None:
+            data['timestamp'] = utc_now()
+        super().__init__(**data)
     user_id: Optional[str] = None
     link: Optional[str] = None
 
@@ -162,4 +183,136 @@ def create_case_notification(
         priority=priority,
         user_id=assigned_to,
         link=f"/cases/{case_id}"
+    )
+
+
+def create_obligation_notification(
+    event_type: EventType,
+    obligation_id: str,
+    obligation_text: str,
+    status: str,
+    approved_by: Optional[str] = None,
+    internal_rule_id: Optional[str] = None
+) -> NotificationEvent:
+    """Create notification for obligation events."""
+
+    messages = {
+        EventType.OBLIGATION_APPROVED: f"Obligation approved: {obligation_text[:50]}...",
+        EventType.OBLIGATION_REJECTED: f"Obligation rejected: {obligation_text[:50]}...",
+        EventType.OBLIGATION_UPDATED: f"Obligation updated: {obligation_text[:50]}...",
+    }
+
+    priority_map = {
+        "approved": "normal",
+        "rejected": "high",
+    }
+
+    return NotificationEvent(
+        event_type=event_type,
+        title="Obligation Notification",
+        message=messages.get(event_type, f"Obligation event: {event_type}"),
+        data={
+            "obligation_id": obligation_id,
+            "status": status,
+            "approved_by": approved_by,
+            "internal_rule_id": internal_rule_id,
+        },
+        priority=priority_map.get(status, "normal"),
+        link=f"/compliance/obligations/{obligation_id}"
+    )
+
+
+def create_policy_notification(
+    event_type: EventType,
+    policy_id: str,
+    policy_name: str,
+    status: str,
+    user_id: Optional[str] = None
+) -> NotificationEvent:
+    """Create notification for policy events."""
+
+    messages = {
+        EventType.POLICY_CREATED: f"New policy created: {policy_name}",
+        EventType.POLICY_APPROVED: f"Policy approved: {policy_name}",
+        EventType.POLICY_UPDATED: f"Policy updated: {policy_name}",
+    }
+
+    return NotificationEvent(
+        event_type=event_type,
+        title="Policy Notification",
+        message=messages.get(event_type, f"Policy event: {event_type}"),
+        data={
+            "policy_id": policy_id,
+            "policy_name": policy_name,
+            "status": status,
+        },
+        priority="normal",
+        user_id=user_id,
+        link=f"/compliance/policies?id={policy_id}"
+    )
+
+
+def create_risk_notification(
+    event_type: EventType,
+    risk_id: str,
+    risk_name: str,
+    category_name: str,
+    risk_level: str,
+    user_id: Optional[str] = None
+) -> NotificationEvent:
+    """Create notification for risk events."""
+
+    messages = {
+        EventType.RISK_ENTRY_CREATED: f"New risk entry: {risk_name}",
+        EventType.RISK_ENTRY_UPDATED: f"Risk updated: {risk_name}",
+    }
+
+    priority_map = {
+        "critical": "critical",
+        "high": "high",
+        "medium": "normal",
+        "low": "low",
+    }
+
+    return NotificationEvent(
+        event_type=event_type,
+        title="Risk Notification",
+        message=messages.get(event_type, f"Risk event: {event_type}"),
+        data={
+            "risk_id": risk_id,
+            "risk_name": risk_name,
+            "category": category_name,
+            "risk_level": risk_level,
+        },
+        priority=priority_map.get(risk_level, "normal"),
+        user_id=user_id,
+        link=f"/compliance/risk-map?risk={risk_id}"
+    )
+
+
+def create_internal_rule_notification(
+    event_type: EventType,
+    internal_rule_id: str,
+    rule_name: str,
+    obligation_id: str,
+    user_id: Optional[str] = None
+) -> NotificationEvent:
+    """Create notification for internal rule events."""
+
+    messages = {
+        EventType.INTERNAL_RULE_CREATED: f"Internal rule created: {rule_name}",
+    }
+
+    return NotificationEvent(
+        event_type=event_type,
+        title="Internal Rule Notification",
+        message=messages.get(event_type, f"Internal rule event: {event_type}"),
+        data={
+            "internal_rule_id": internal_rule_id,
+            "rule_name": rule_name,
+            "obligation_id": obligation_id,
+        },
+        priority="normal",
+        user_id=user_id,
+        link=f"/compliance/obligations/{obligation_id}"
     )

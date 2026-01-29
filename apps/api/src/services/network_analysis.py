@@ -10,9 +10,14 @@ Identifies:
 from typing import Dict, List, Set, Tuple, Any
 from sqlalchemy.orm import Session
 from sqlalchemy import and_, or_
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from collections import defaultdict
 import logging
+
+
+def utc_now() -> datetime:
+    """Return current UTC time (timezone-aware)."""
+    return datetime.now(timezone.utc)
 
 from src.models.transaction_models import Transaction, UserRiskProfile
 
@@ -42,7 +47,7 @@ class NetworkAnalyzer:
 
         Returns network graph and risk indicators.
         """
-        start_date = datetime.utcnow() - timedelta(days=days)
+        start_date = utc_now() - timedelta(days=days)
 
         # Build network
         network = self._build_network(user_id, depth, start_date)

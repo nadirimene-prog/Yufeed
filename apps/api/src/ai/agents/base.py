@@ -14,7 +14,12 @@ Architecture:
 
 from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
-from datetime import datetime
+from datetime import datetime, timezone
+
+
+def utc_now() -> datetime:
+    """Return current UTC time (timezone-aware)."""
+    return datetime.now(timezone.utc)
 from enum import Enum
 from typing import Any, Dict, List, Optional, TypeVar, Generic
 import json
@@ -116,7 +121,7 @@ class AgentContext:
         self.conversation_history.append({
             "role": role,
             "content": content,
-            "timestamp": datetime.utcnow().isoformat()
+            "timestamp": utc_now().isoformat()
         })
 
     def to_dict(self) -> Dict[str, Any]:

@@ -4,13 +4,18 @@ JWT Authentication Handler
 Provides token generation, validation, and user authentication for the API.
 Uses python-jose for JWT encoding/decoding.
 """
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from typing import Optional, Dict, Any
 from jose import JWTError, jwt
 import bcrypt
 import logging
 
 from src.config import settings
+
+
+def utc_now() -> datetime:
+    """Return current UTC time (timezone-aware)."""
+    return datetime.now(timezone.utc)
 
 logger = logging.getLogger(__name__)
 
@@ -42,13 +47,13 @@ class JWTHandler:
         to_encode = data.copy()
 
         if expires_delta:
-            expire = datetime.utcnow() + expires_delta
+            expire = utc_now() + expires_delta
         else:
-            expire = datetime.utcnow() + timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
+            expire = utc_now() + timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
 
         to_encode.update({
             "exp": expire,
-            "iat": datetime.utcnow(),
+            "iat": utc_now(),
             "type": "access"
         })
 
@@ -72,11 +77,11 @@ class JWTHandler:
             Encoded JWT refresh token string
         """
         to_encode = data.copy()
-        expire = datetime.utcnow() + timedelta(days=REFRESH_TOKEN_EXPIRE_DAYS)
+        expire = utc_now() + timedelta(days=REFRESH_TOKEN_EXPIRE_DAYS)
 
         to_encode.update({
             "exp": expire,
-            "iat": datetime.utcnow(),
+            "iat": utc_now(),
             "type": "refresh"
         })
 

@@ -5,7 +5,12 @@ Uses LLM to classify documents, assess risk, and extract obligations.
 import os
 import json
 from typing import Dict, List, Optional, Any
-from datetime import datetime
+from datetime import datetime, timezone
+
+
+def utc_now() -> datetime:
+    """Return current UTC time (timezone-aware)."""
+    return datetime.now(timezone.utc)
 import anthropic  # Using Claude for legal text analysis
 from src.models.models import ComplianceDomain, RiskLevel
 
@@ -345,5 +350,5 @@ def analyze_document(doc_data: Dict[str, Any]) -> Dict[str, Any]:
         "obligations_json": obligations,
         "implementation_deadline": deadline,
         "ai_summary": summary,
-        "analyzed_at": datetime.utcnow()
+        "analyzed_at": utc_now()
     }

@@ -1,11 +1,16 @@
 """
 Audit, Event, and Decision Models (append-only)
 """
-from datetime import datetime
+from datetime import datetime, timezone
 from sqlalchemy import Column, Integer, String, DateTime, JSON, ForeignKey
 from sqlalchemy.dialects.postgresql import JSONB
 
 from src.database import Base
+
+
+def utc_now() -> datetime:
+    """Return current UTC time (timezone-aware)."""
+    return datetime.now(timezone.utc)
 
 
 class AuditLog(Base):
@@ -33,7 +38,7 @@ class AuditLog(Base):
     changes = Column(JSON().with_variant(JSONB(), "postgresql"))
     metadata_json = Column("metadata", JSON().with_variant(JSONB(), "postgresql"))
 
-    created_at = Column(DateTime, default=datetime.utcnow, index=True)
+    created_at = Column(DateTime, default=utc_now, index=True)
 
 
 class EventRecord(Base):
@@ -48,7 +53,7 @@ class EventRecord(Base):
     source = Column(String(100))
     payload = Column(JSON().with_variant(JSONB(), "postgresql"))
     metadata_json = Column("metadata", JSON().with_variant(JSONB(), "postgresql"))
-    created_at = Column(DateTime, default=datetime.utcnow, index=True)
+    created_at = Column(DateTime, default=utc_now, index=True)
 
 
 class DecisionRecord(Base):
@@ -64,4 +69,4 @@ class DecisionRecord(Base):
     model_version = Column(String(50))
     evidence = Column(JSON().with_variant(JSONB(), "postgresql"))
     metadata_json = Column("metadata", JSON().with_variant(JSONB(), "postgresql"))
-    created_at = Column(DateTime, default=datetime.utcnow, index=True)
+    created_at = Column(DateTime, default=utc_now, index=True)

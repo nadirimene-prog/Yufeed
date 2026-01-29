@@ -4,7 +4,12 @@ Phase 4A: Task 3.2 & 3.3 - Implement Caching for Hot Endpoints
 """
 from typing import List, Optional, Dict, Any
 from sqlalchemy.orm import Session
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
+
+
+def utc_now() -> datetime:
+    """Return current UTC time (timezone-aware)."""
+    return datetime.now(timezone.utc)
 
 from src.cache.cache_manager import cache_manager, cached, cache_aside
 from src.models.transaction_models import Alert, MonitoringRule, Transaction
@@ -39,7 +44,7 @@ def _compute_user_risk_profile(db: Session, user_id: str) -> Dict[str, Any]:
     # Get recent transactions
     recent_txns = db.query(Transaction).filter(
         Transaction.user_id == user_id,
-        Transaction.timestamp >= datetime.utcnow() - timedelta(days=30)
+        Transaction.timestamp >= utc_now() - timedelta(days=30)
     ).all()
 
     # Get alerts
@@ -67,7 +72,7 @@ def _compute_user_risk_profile(db: Session, user_id: str) -> Dict[str, Any]:
         "avg_transaction_amount": round(avg_transaction, 2),
         "unique_countries": len(countries),
         "countries": list(countries),
-        "computed_at": datetime.utcnow().isoformat()
+        "computed_at": utc_now().isoformat()
     }
 
 
@@ -167,7 +172,7 @@ def get_cached_user_features(db: Session, user_id: str) -> Dict[str, Any]:
 
 def _compute_user_features(db: Session, user_id: str) -> Dict[str, Any]:
     """Compute user features from transactions."""
-    now = datetime.utcnow()
+    now = utc_now()
 
     # Get transactions for different windows
     txns_24h = db.query(Transaction).filter(
@@ -204,7 +209,7 @@ def _compute_user_features(db: Session, user_id: str) -> Dict[str, Any]:
         # Geographic features
         "unique_countries_30d": len(set(t.country_code for t in txns_30d if t.country_code)),
 
-        "computed_at": now.isoformat()
+        "computed_at": utc_now().isoformat()
     }
 
 
@@ -289,7 +294,7 @@ def _compute_transaction_network(db: Session, user_id: str, depth: int) -> Dict[
         "edge_count": len(edges),
         "nodes": list(nodes),
         "edges": edges[:100],  # Limit for performance
-        "computed_at": datetime.utcnow().isoformat()
+        "computed_at": utc_now().isoformat()
     }
 
 
@@ -314,7 +319,7 @@ def get_cached_dashboard_stats(db: Session) -> Dict[str, Any]:
 
 def _compute_dashboard_stats(db: Session) -> Dict[str, Any]:
     """Compute dashboard statistics."""
-    now = datetime.utcnow()
+    now = utc_now()
 
     # Alert counts
     total_alerts = db.query(Alert).count()

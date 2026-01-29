@@ -10,9 +10,14 @@ from sqlalchemy import (
 )
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import relationship
-from datetime import datetime
+from datetime import datetime, timezone
 
 from src.database import Base
+
+
+def utc_now() -> datetime:
+    """Return current UTC time (timezone-aware)."""
+    return datetime.now(timezone.utc)
 
 
 class Tenant(Base):
@@ -51,8 +56,8 @@ class Tenant(Base):
     metadata_json = Column("metadata", JSON().with_variant(JSONB(), "postgresql"))
 
     # Timestamps
-    created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
-    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    created_at = Column(DateTime, default=utc_now, nullable=False)
+    updated_at = Column(DateTime, default=utc_now, onupdate=utc_now)
     deleted_at = Column(DateTime)  # Soft delete
 
     # Relationships
@@ -95,8 +100,8 @@ class TenantAPIKey(Base):
     expires_at = Column(DateTime)  # Optional expiration
 
     # Timestamps
-    created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
-    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    created_at = Column(DateTime, default=utc_now, nullable=False)
+    updated_at = Column(DateTime, default=utc_now, onupdate=utc_now)
     revoked_at = Column(DateTime)
 
     # Relationships
@@ -128,8 +133,8 @@ class TenantUser(Base):
     is_active = Column(Boolean, default=True, nullable=False)
 
     # Timestamps
-    created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
-    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    created_at = Column(DateTime, default=utc_now, nullable=False)
+    updated_at = Column(DateTime, default=utc_now, onupdate=utc_now)
 
     # Relationships
     tenant = relationship("Tenant", back_populates="users")
@@ -159,4 +164,4 @@ class TenantAuditLog(Base):
     user_agent = Column(Text)
 
     # Timestamp
-    created_at = Column(DateTime, default=datetime.utcnow, nullable=False, index=True)
+    created_at = Column(DateTime, default=utc_now, nullable=False, index=True)

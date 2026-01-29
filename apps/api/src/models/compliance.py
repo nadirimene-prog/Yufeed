@@ -2,8 +2,13 @@ from sqlalchemy import Column, Integer, String, DateTime, Enum, ForeignKey, Text
 from sqlalchemy.orm import relationship
 from sqlalchemy.dialects.postgresql import JSONB
 import enum
-from datetime import datetime
+from datetime import datetime, timezone
 from src.database import Base
+
+
+def utc_now() -> datetime:
+    """Return current UTC time (timezone-aware)."""
+    return datetime.now(timezone.utc)
 
 class ComplianceStatus(str, enum.Enum):
     PENDING = "pending"
@@ -23,8 +28,8 @@ class ComplianceProfile(Base):
     id = Column(Integer, primary_key=True, index=True)
     status = Column(String, default=ComplianceStatus.PENDING)
     risk_level = Column(String, default=RiskLevel.LOW)
-    created_at = Column(DateTime, default=datetime.utcnow)
-    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    created_at = Column(DateTime, default=utc_now)
+    updated_at = Column(DateTime, default=utc_now, onupdate=utc_now)
     
     # Polymorphic identity
     type = Column(String) 
@@ -76,7 +81,7 @@ class ComplianceDocument(Base):
     document_type = Column(String, nullable=False) # e.g., passport, utility_bill
     file_url = Column(String, nullable=False)
     verification_status = Column(String, default="pending")
-    uploaded_at = Column(DateTime, default=datetime.utcnow)
+    uploaded_at = Column(DateTime, default=utc_now)
     
     profile = relationship("ComplianceProfile", back_populates="documents")
 
@@ -88,6 +93,6 @@ class RiskSignal(Base):
     signal_type = Column(String, nullable=False) # e.g., ip_mismatch, pep_match
     score = Column(Integer, default=0)
     description = Column(Text, nullable=True)
-    detected_at = Column(DateTime, default=datetime.utcnow)
+    detected_at = Column(DateTime, default=utc_now)
     
     profile = relationship("ComplianceProfile", back_populates="risk_signals")

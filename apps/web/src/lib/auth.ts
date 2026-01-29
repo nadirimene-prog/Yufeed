@@ -17,7 +17,17 @@ export interface AuthTokens {
   token_type?: string;
 }
 
-function decodeJwtPayload(token: string): Record<string, any> | null {
+interface JwtPayload {
+  exp?: number;
+  iat?: number;
+  sub?: string;
+  user_id?: string;
+  email?: string;
+  role?: string;
+  [key: string]: unknown;
+}
+
+function decodeJwtPayload(token: string): JwtPayload | null {
   const parts = token.split(".");
   if (parts.length < 2) return null;
   const payload = parts[1].replace(/-/g, "+").replace(/_/g, "/");
@@ -26,7 +36,7 @@ function decodeJwtPayload(token: string): Record<string, any> | null {
       typeof window !== "undefined" && typeof atob === "function"
         ? atob(payload)
         : Buffer.from(payload, "base64").toString("utf-8");
-    return JSON.parse(decoded);
+    return JSON.parse(decoded) as JwtPayload;
   } catch {
     return null;
   }

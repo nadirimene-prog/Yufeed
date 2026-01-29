@@ -8,9 +8,14 @@ from sqlalchemy import (
 )
 from sqlalchemy.dialects.postgresql import INET, JSONB
 from sqlalchemy.orm import relationship
-from datetime import datetime
+from datetime import datetime, timezone
 
 from src.database import Base
+
+
+def utc_now() -> datetime:
+    """Return current UTC time (timezone-aware)."""
+    return datetime.now(timezone.utc)
 
 
 class Transaction(Base):
@@ -45,8 +50,8 @@ class Transaction(Base):
     transaction_metadata = Column(JSON().with_variant(JSONB(), "postgresql"))
     description = Column(Text)
 
-    created_at = Column(DateTime, default=datetime.utcnow)
-    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    created_at = Column(DateTime, default=utc_now)
+    updated_at = Column(DateTime, default=utc_now, onupdate=utc_now)
 
     # Relationships
     alerts = relationship("Alert", back_populates="transaction")
@@ -98,8 +103,8 @@ class Alert(Base):
     ml_model_version = Column(String(50))  # Model version identifier
     ml_features_snapshot = Column(JSON().with_variant(JSONB(), "postgresql"))  # Features used for prediction
 
-    created_at = Column(DateTime, default=datetime.utcnow, index=True)  # Indexed for date range queries
-    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    created_at = Column(DateTime, default=utc_now, index=True)  # Indexed for date range queries
+    updated_at = Column(DateTime, default=utc_now, onupdate=utc_now)
 
     # Relationships
     transaction = relationship("Transaction", back_populates="alerts")
@@ -144,15 +149,15 @@ class Case(Base):
     attachments = Column(JSON().with_variant(JSONB(), "postgresql"))
 
     # Timeline
-    opened_at = Column(DateTime, default=datetime.utcnow)
+    opened_at = Column(DateTime, default=utc_now)
     closed_at = Column(DateTime)
 
     # Outcomes
     outcome = Column(String(100))  # 'sar_filed', 'no_action', 'account_closed', 'escalated'
     outcome_notes = Column(Text)
 
-    created_at = Column(DateTime, default=datetime.utcnow)
-    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    created_at = Column(DateTime, default=utc_now)
+    updated_at = Column(DateTime, default=utc_now, onupdate=utc_now)
 
 
 class MonitoringRule(Base):
@@ -194,8 +199,8 @@ class MonitoringRule(Base):
     false_positive_rate = Column(Numeric(5, 2))
 
     created_by = Column(String(255))
-    created_at = Column(DateTime, default=datetime.utcnow)
-    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    created_at = Column(DateTime, default=utc_now)
+    updated_at = Column(DateTime, default=utc_now, onupdate=utc_now)
 
     # Relationships
     regulatory_source = relationship("LegalDocument", foreign_keys=[regulatory_source_id])
@@ -223,7 +228,7 @@ class RuleVersion(Base):
     enabled = Column(Boolean, default=True)
 
     created_by = Column(String(255))
-    created_at = Column(DateTime, default=datetime.utcnow)
+    created_at = Column(DateTime, default=utc_now)
     approved_by = Column(String(255))
     approved_at = Column(DateTime)
     notes = Column(Text)
@@ -245,7 +250,7 @@ class RuleHit(Base):
     trigger_values = Column(JSON().with_variant(JSONB(), "postgresql")) 
     matched_conditions = Column(JSON().with_variant(JSONB(), "postgresql"))
     
-    hit_at = Column(DateTime, default=datetime.utcnow)
+    hit_at = Column(DateTime, default=utc_now)
 
     # Relationships
     alert = relationship("Alert", back_populates="rule_hits")
@@ -294,9 +299,9 @@ class UserRiskProfile(Base):
     account_created_at = Column(DateTime)
     last_activity_at = Column(DateTime)
 
-    last_calculated_at = Column(DateTime, default=datetime.utcnow)
-    created_at = Column(DateTime, default=datetime.utcnow)
-    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    last_calculated_at = Column(DateTime, default=utc_now)
+    created_at = Column(DateTime, default=utc_now)
+    updated_at = Column(DateTime, default=utc_now, onupdate=utc_now)
 
 
 class FeatureValue(Base):
@@ -317,4 +322,4 @@ class FeatureValue(Base):
     calculated_at = Column(DateTime, nullable=False)
     version = Column(Integer, default=1)
 
-    created_at = Column(DateTime, default=datetime.utcnow)
+    created_at = Column(DateTime, default=utc_now)

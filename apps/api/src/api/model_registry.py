@@ -1,7 +1,12 @@
 from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.orm import Session
 from typing import List, Optional
-from datetime import datetime
+from datetime import datetime, timezone
+
+
+def utc_now() -> datetime:
+    """Return current UTC time (timezone-aware)."""
+    return datetime.now(timezone.utc)
 
 from src.database import get_db
 from src.auth.dependencies import require_any_role, CurrentUser
@@ -100,7 +105,7 @@ def promote_version(
         raise HTTPException(status_code=404, detail="Model version not found")
 
     version.status = "production"
-    version.promoted_at = datetime.utcnow()
+    version.promoted_at = utc_now()
     db.commit()
     db.refresh(version)
     return version

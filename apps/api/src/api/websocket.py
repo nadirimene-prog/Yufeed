@@ -3,7 +3,12 @@ WebSocket API endpoints for real-time notifications.
 """
 import json
 import logging
-from datetime import datetime
+from datetime import datetime, timezone
+
+
+def utc_now() -> datetime:
+    """Return current UTC time (timezone-aware)."""
+    return datetime.now(timezone.utc)
 from typing import Optional
 
 from fastapi import APIRouter, WebSocket, WebSocketDisconnect, Query
@@ -72,7 +77,7 @@ async def websocket_endpoint(
             message_type = message.get("type")
             if message_type == "ping":
                 await websocket.send_json(
-                    {"type": "pong", "timestamp": datetime.utcnow().isoformat()}
+                    {"type": "pong", "timestamp": utc_now().isoformat()}
                 )
             elif message_type == "pong":
                 continue

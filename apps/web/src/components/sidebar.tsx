@@ -6,7 +6,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import {
     Scale, Search, List, Bell, Brain, FileText, Network,
     Settings, LogOut, ChevronLeft, ChevronRight, LayoutDashboard, ShieldCheck, Zap,
-    Route, Link2, Cpu, Sparkles, Activity
+    Route, Link2, Cpu, Sparkles, Activity, Shield, Map
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { clearAuthTokens } from "@/lib/auth";
@@ -44,8 +44,10 @@ const navSections: NavSection[] = [
     {
         title: "Compliance",
         items: [
+            { href: "/compliance/dashboard", label: "Overview", icon: LayoutDashboard },
             { href: "/compliance", label: "KYC/KYB", icon: ShieldCheck },
             { href: "/compliance/obligations", label: "Obligations", icon: Scale },
+            { href: "/compliance/risk-map", label: "Risk Map", icon: Shield },
             { href: "/compliance/aml-scope", label: "AML Scope", icon: Activity },
             { href: "/compliance/policies", label: "Policies", icon: FileText },
             { href: "/decisioning", label: "Decisioning", icon: Zap },

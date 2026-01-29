@@ -16,43 +16,59 @@ log = logging.getLogger(__name__)
 DATABASE_URL = settings.DATABASE_URL
 
 # ----------------------------------------------------------------------
-# Convert it to the async‑pg URL that SQLAlchemy expects.
-# If the URL already contains "+asyncpg" we leave it unchanged.
+# Convert DATABASE_URL to async driver URL.
+# PostgreSQL uses asyncpg, SQLite uses aiosqlite.
 # ----------------------------------------------------------------------
 if DATABASE_URL.startswith("postgresql://"):
     ASYNC_DATABASE_URL = DATABASE_URL.replace(
         "postgresql://", "postgresql+asyncpg://", 1
     )
-else:
+elif DATABASE_URL.startswith("postgresql+asyncpg://"):
     ASYNC_DATABASE_URL = DATABASE_URL
+elif DATABASE_URL.startswith("sqlite:///"):
+    ASYNC_DATABASE_URL = DATABASE_URL.replace(
+        "sqlite:///", "sqlite+aiosqlite:///", 1
+    )
+else:
+    # Fallback - assume the URL is already configured correctly
+    ASYNC_DATABASE_URL = DATABASE_URL
+    log.warning(f"Unknown database URL scheme, using as-is: {DATABASE_URL[:20]}...")
 
 # ----------------------------------------------------------------------
-# Async engine – uses asyncpg driver
+# Async engine – uses asyncpg (PostgreSQL) or aiosqlite (SQLite)
 # ----------------------------------------------------------------------
+_is_sqlite = DATABASE_URL.startswith("sqlite")
 async_engine: AsyncEngine = create_async_engine(
     ASYNC_DATABASE_URL,
-    pool_pre_ping=True,
+    pool_pre_ping=True if not _is_sqlite else False,  # SQLite doesn't support pool_pre_ping
     future=True,
 )
+
+from sqlalchemy.ext.asyncio import AsyncSession
 
 # ✅ CORRECT async session maker
 AsyncSessionLocal = async_sessionmaker(
     bind=async_engine,
-    class_=Session,
+    class_=AsyncSession,
     expire_on_commit=False,
 )
 
 # ----------------------------------------------------------------------
 # Legacy sync engine – kept only for Alembic migrations and any old code
 # ----------------------------------------------------------------------
-sync_engine = create_engine(
-    DATABASE_URL,
-    pool_pre_ping=True,
-    pool_size=5,
-    max_overflow=10,
-    pool_recycle=3600,
-    echo=False,
-)
+_sync_engine_kwargs = {
+    "echo": False,
+}
+# SQLite doesn't support connection pooling options
+if not _is_sqlite:
+    _sync_engine_kwargs.update({
+        "pool_pre_ping": True,
+        "pool_size": 5,
+        "max_overflow": 10,
+        "pool_recycle": 3600,
+    })
+
+sync_engine = create_engine(DATABASE_URL, **_sync_engine_kwargs)
 
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=sync_engine)
 

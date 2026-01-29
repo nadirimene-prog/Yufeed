@@ -71,11 +71,13 @@ class ContentExtractor:
 
             soup = BeautifulSoup(response.content, 'html.parser')
 
-            # Extract main content
-            content_div = soup.find('div', {'id': 'text'}) or soup.find('div', {'class': 'eli-main-title'})
-            if not content_div:
-                # Try alternative selectors
-                content_div = soup.find('div', {'class': 'content'})
+            # Extract main content - EUR-Lex uses different container structures
+            content_div = (
+                soup.find('div', {'class': 'eli-container'}) or  # Modern EUR-Lex structure
+                soup.find('div', {'id': 'text'}) or
+                soup.find('div', {'class': 'texte'}) or
+                soup.find('div', {'id': 'TexteOnly'})
+            )
 
             if not content_div:
                 return None

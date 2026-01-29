@@ -1,9 +1,14 @@
-from datetime import datetime
+from datetime import datetime, timezone
 from sqlalchemy import Column, Integer, String, DateTime, Text, ForeignKey, JSON, Numeric
 from sqlalchemy.orm import relationship
 from sqlalchemy.dialects.postgresql import JSONB
 
 from src.database import Base
+
+
+def utc_now() -> datetime:
+    """Return current UTC time (timezone-aware)."""
+    return datetime.now(timezone.utc)
 
 
 class ModelRegistry(Base):
@@ -18,8 +23,8 @@ class ModelRegistry(Base):
     owner = Column(String(255))
     status = Column(String(50), default="active")  # active | deprecated
 
-    created_at = Column(DateTime, default=datetime.utcnow)
-    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    created_at = Column(DateTime, default=utc_now)
+    updated_at = Column(DateTime, default=utc_now, onupdate=utc_now)
 
     versions = relationship("ModelVersion", back_populates="model", cascade="all, delete-orphan")
 
@@ -36,7 +41,7 @@ class ModelVersion(Base):
     feature_set_hash = Column(String(128))
     training_window = Column(String(255))
     metrics = Column(JSON().with_variant(JSONB(), "postgresql"))
-    created_at = Column(DateTime, default=datetime.utcnow)
+    created_at = Column(DateTime, default=utc_now)
     promoted_at = Column(DateTime)
 
     model = relationship("ModelRegistry", back_populates="versions")
@@ -54,6 +59,6 @@ class ModelDriftReport(Base):
     window_start = Column(DateTime)
     window_end = Column(DateTime)
     metrics = Column(JSON().with_variant(JSONB(), "postgresql"))
-    observed_at = Column(DateTime, default=datetime.utcnow, index=True)
+    observed_at = Column(DateTime, default=utc_now, index=True)
 
     version = relationship("ModelVersion", back_populates="drift_reports")

@@ -6,7 +6,12 @@ from fastapi import APIRouter, Depends, HTTPException, Query, BackgroundTasks
 from sqlalchemy.orm import Session, joinedload
 from sqlalchemy import func, and_, or_
 from typing import List, Optional
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
+
+
+def utc_now() -> datetime:
+    """Return current UTC time (timezone-aware)."""
+    return datetime.now(timezone.utc)
 import uuid
 import logging
 
@@ -62,7 +67,7 @@ def create_alert(
     Typically called by the rules engine when a monitoring rule is triggered.
     """
     # Generate unique alert_id
-    alert_id = f"ALT-{datetime.utcnow().strftime('%Y%m%d')}-{uuid.uuid4().hex[:8].upper()}"
+    alert_id = f"ALT-{utc_now().strftime('%Y%m%d')}-{uuid.uuid4().hex[:8].upper()}"
 
     # Validate transaction exists if provided
     if alert.transaction_id:
@@ -113,7 +118,7 @@ def create_alert(
                 f"Prediction: {prediction['prediction']}"
             )
             db_alert.resolved_by = 'ML_AUTO_TRIAGE'
-            db_alert.resolved_at = datetime.utcnow()
+            db_alert.resolved_at = utc_now()
             logger.info(f"Alert {alert_id} auto-closed by ML (confidence: {confidence:.2%})")
 
         elif recommendation == 'low_priority':
@@ -314,7 +319,7 @@ def update_alert(
     for field, value in update_dict.items():
         setattr(alert, field, value)
 
-    alert.updated_at = datetime.utcnow()
+    alert.updated_at = utc_now()
     record_event(
         db,
         event_type="alert.updated",
@@ -355,7 +360,7 @@ def assign_alert(
 
     alert.assigned_to = assigned_to
     alert.status = 'in_review'
-    alert.updated_at = datetime.utcnow()
+    alert.updated_at = utc_now()
 
     record_event(
         db,
@@ -400,7 +405,7 @@ def escalate_alert(
         else:
             alert.resolution_notes = f"[ESCALATED] {escalation_notes}"
 
-    alert.updated_at = datetime.utcnow()
+    alert.updated_at = utc_now()
 
     record_event(
         db,
@@ -444,8 +449,8 @@ def resolve_alert(
     alert.resolution_status = resolution_status
     alert.resolution_notes = resolution_notes
     alert.resolved_by = resolved_by
-    alert.resolved_at = datetime.utcnow()
-    alert.updated_at = datetime.utcnow()
+    alert.resolved_at = utc_now()
+    alert.updated_at = utc_now()
 
     record_event(
         db,
@@ -493,8 +498,8 @@ def mark_false_positive(
     alert.resolution_status = 'false_positive'
     alert.resolution_notes = notes
     alert.resolved_by = resolved_by
-    alert.resolved_at = datetime.utcnow()
-    alert.updated_at = datetime.utcnow()
+    alert.resolved_at = utc_now()
+    alert.updated_at = utc_now()
 
     record_event(
         db,
@@ -540,11 +545,11 @@ def file_sar(
 
     alert.sar_filed = True
     alert.sar_id = sar_id
-    alert.sar_filed_at = datetime.utcnow()
+    alert.sar_filed_at = utc_now()
     alert.resolved_by = filed_by
     alert.status = 'resolved'
     alert.resolution_status = 'sar_filed'
-    alert.updated_at = datetime.utcnow()
+    alert.updated_at = utc_now()
 
     record_event(
         db,
@@ -599,7 +604,7 @@ def get_alert_statistics(
     """
     Get alert statistics for the monitoring dashboard.
     """
-    start_date = datetime.utcnow() - timedelta(days=days)
+    start_date = utc_now() - timedelta(days=days)
 
     # Phase 4C: Use tenant-filtered queries for statistics
     # Total alerts

@@ -18,7 +18,12 @@ Features:
 
 import logging
 from dataclasses import dataclass, field
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
+
+
+def utc_now() -> datetime:
+    """Return current UTC time (timezone-aware)."""
+    return datetime.now(timezone.utc)
 from enum import Enum
 from typing import Any, Dict, List, Optional
 
@@ -443,7 +448,7 @@ Provide a comprehensive impact assessment:
             system_health = context.input_data.get("system_health", self._get_demo_system_health())
 
             # Calculate period
-            period_end = datetime.utcnow()
+            period_end = utc_now()
             period_start = period_end - timedelta(hours=lookback_hours)
 
             # Build prompt
@@ -614,7 +619,7 @@ Provide a comprehensive impact assessment:
         # For now, return demo proactive alerts
         proactive_alerts = [
             ProactiveAlert(
-                alert_id=f"PA-{datetime.utcnow().strftime('%Y%m%d%H%M%S')}-001",
+                alert_id=f"PA-{utc_now().strftime('%Y%m%d%H%M%S')}-001",
                 priority=AlertPriority.HIGH,
                 title="Unusual Transaction Pattern Detected",
                 description="Transaction velocity for customer segment 'High Net Worth' has increased 45% above baseline in the last 4 hours.",
@@ -623,16 +628,16 @@ Provide a comprehensive impact assessment:
                 regulatory_reference="AMLD 5, Article 18 - Enhanced due diligence"
             ),
             ProactiveAlert(
-                alert_id=f"PA-{datetime.utcnow().strftime('%Y%m%d%H%M%S')}-002",
+                alert_id=f"PA-{utc_now().strftime('%Y%m%d%H%M%S')}-002",
                 priority=AlertPriority.MEDIUM,
                 title="SAR Filing Deadline Approaching",
                 description="3 SAR drafts have been pending review for more than 48 hours.",
                 category="compliance",
                 recommended_action="Expedite SAR review process to meet reporting timelines",
-                deadline=(datetime.utcnow() + timedelta(days=2)).strftime("%Y-%m-%d")
+                deadline=(utc_now() + timedelta(days=2)).strftime("%Y-%m-%d")
             ),
             ProactiveAlert(
-                alert_id=f"PA-{datetime.utcnow().strftime('%Y%m%d%H%M%S')}-003",
+                alert_id=f"PA-{utc_now().strftime('%Y%m%d%H%M%S')}-003",
                 priority=AlertPriority.INFO,
                 title="New EBA Guidelines Published",
                 description="EBA has published updated guidelines on remote customer onboarding.",
@@ -647,8 +652,8 @@ Provide a comprehensive impact assessment:
             success=True,
             result={
                 "proactive_alerts": [pa.to_dict() for pa in proactive_alerts],
-                "monitoring_timestamp": datetime.utcnow().isoformat(),
-                "next_check": (datetime.utcnow() + timedelta(hours=1)).isoformat()
+                "monitoring_timestamp": utc_now().isoformat(),
+                "next_check": (utc_now() + timedelta(hours=1)).isoformat()
             },
             confidence=0.85,
             reasoning="Completed proactive risk monitoring scan"
@@ -682,7 +687,7 @@ Provide a comprehensive impact assessment:
         # Parse proactive alerts
         proactive_alerts = [
             ProactiveAlert(
-                alert_id=f"PA-{datetime.utcnow().strftime('%Y%m%d%H%M%S')}-{i:03d}",
+                alert_id=f"PA-{utc_now().strftime('%Y%m%d%H%M%S')}-{i:03d}",
                 priority=AlertPriority(pa.get("priority", "medium")),
                 title=pa.get("title", ""),
                 description=pa.get("description", ""),
@@ -695,10 +700,10 @@ Provide a comprehensive impact assessment:
         ]
 
         return DailyBriefing(
-            briefing_id=f"BRIEF-{datetime.utcnow().strftime('%Y%m%d%H%M%S')}",
+            briefing_id=f"BRIEF-{utc_now().strftime('%Y%m%d%H%M%S')}",
             briefing_type=briefing_type if isinstance(briefing_type, BriefingType)
                 else BriefingType(briefing_type),
-            generated_at=datetime.utcnow(),
+            generated_at=utc_now(),
             period_start=period_start,
             period_end=period_end,
             executive_summary=response.get("executive_summary", ""),

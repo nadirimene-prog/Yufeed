@@ -17,12 +17,20 @@ import { getApiBaseUrl } from "@/lib/apiBaseUrl";
  * - Heartbeat/ping-pong support
  */
 
+export interface WebSocketNotificationData {
+  alert_id?: string;
+  case_id?: string;
+  rule_id?: string;
+  document_celex?: string;
+  [key: string]: unknown;
+}
+
 export interface WebSocketNotification {
   type: string;
   event_type: string;
   title?: string;
   message: string;
-  data?: any;
+  data?: WebSocketNotificationData;
   timestamp: string;
   priority?: 'low' | 'medium' | 'high' | 'critical';
   link?: string;
@@ -32,7 +40,7 @@ export interface WebSocketMessage {
   type: string;
   event_type?: string;
   message?: string;
-  data?: any;
+  data?: WebSocketNotificationData;
   timestamp?: string;
 }
 
@@ -264,6 +272,9 @@ export function useWebSocket(options: UseWebSocketOptions = {}): UseWebSocketRet
   }, [connect, disconnect]);
 
   // Connect on mount
+  // eslint-disable-next-line react-hooks/exhaustive-deps -- Intentionally limited deps:
+  // We only want to reconnect when `enabled` changes, not when callbacks update.
+  // Including connect/disconnect would cause infinite reconnection loops.
   useEffect(() => {
     if (opts.enabled) {
       connect();
@@ -272,7 +283,7 @@ export function useWebSocket(options: UseWebSocketOptions = {}): UseWebSocketRet
     return () => {
       disconnect();
     };
-  }, [opts.enabled]); // Only reconnect if enabled changes
+  }, [opts.enabled]);
 
   return {
     isConnected,

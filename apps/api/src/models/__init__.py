@@ -2,6 +2,7 @@ from .models import LegalDocument, LegalVersion, AlertEventType, VersionKind
 from .impact_assessment import ImpactAssessment, ActionItem, GapAnalysis, ImpactLevel, BusinessArea, ActionStatus
 from .model_registry import ModelRegistry, ModelVersion, ModelDriftReport
 from .travel_rule import TravelRuleRequestRecord
+from .user import User
 from .compliance_workflow import (
     RegulatorySource,
     IngestionRun,
@@ -12,4 +13,7 @@ from .compliance_workflow import (
     PolicySection,
     InternalRule,
     InternalRuleMapping,
+    RiskCategory,
+    RiskEntry,
+    ObligationRiskLink,
 )

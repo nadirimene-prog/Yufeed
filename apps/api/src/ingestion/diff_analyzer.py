@@ -8,8 +8,13 @@ Analyzes differences between document versions to identify:
 """
 import difflib
 from typing import Dict, List, Any, Optional, Tuple
-from datetime import datetime
+from datetime import datetime, timezone
 import re
+
+
+def utc_now() -> datetime:
+    """Return current UTC time (timezone-aware)."""
+    return datetime.now(timezone.utc)
 
 
 class DiffAnalyzer:
@@ -73,7 +78,7 @@ class DiffAnalyzer:
             "text_diff": text_diff,
             "article_changes": article_changes,
             "statistics": statistics,
-            "comparison_date": datetime.utcnow().isoformat()
+            "comparison_date": utc_now().isoformat()
         }
 
     def _generate_text_diff(self, old_text: str, new_text: str) -> List[Dict[str, Any]]:

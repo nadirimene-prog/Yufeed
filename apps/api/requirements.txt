@@ -32,6 +32,7 @@ beautifulsoup4==4.12.3
 
 # New packages added for async DB, tracing, metrics, logging
 asyncpg
+aiosqlite  # For SQLite async support in development
 sqlmodel
 opentelemetry-sdk
 opentelemetry-api
@@ -40,6 +41,5 @@ opentelemetry-instrumentation-sqlalchemy
 opentelemetry-exporter-otlp
 structlog
 prometheus-client
-prometheus-fastapi-instrumentator
 prometheus-fastapi-instrumentator>=7.0.0
 email-validator>=2.0.0

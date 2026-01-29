@@ -7,7 +7,12 @@ import joblib
 import json
 from pathlib import Path
 from typing import Dict, Any, Tuple, Optional
-from datetime import datetime
+from datetime import datetime, timezone
+
+
+def utc_now() -> datetime:
+    """Return current UTC time (timezone-aware)."""
+    return datetime.now(timezone.utc)
 
 import pandas as pd
 import numpy as np
@@ -329,7 +334,7 @@ class AlertTriageModelTrainer:
         """
         Save trained model and metadata.
         """
-        timestamp = datetime.utcnow().strftime("%Y%m%d_%H%M%S")
+        timestamp = utc_now().strftime("%Y%m%d_%H%M%S")
         model_path = self.model_dir / f"{model_name}_{timestamp}.joblib"
         scaler_path = self.model_dir / f"{model_name}_scaler_{timestamp}.joblib"
         encoders_path = self.model_dir / f"{model_name}_encoders_{timestamp}.joblib"

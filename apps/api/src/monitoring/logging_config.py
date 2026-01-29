@@ -19,7 +19,12 @@ except ImportError:
     jsonlogger = None
     JSON_LOGGER_AVAILABLE = False
 from contextvars import ContextVar
-from datetime import datetime
+from datetime import datetime, timezone
+
+
+def utc_now() -> datetime:
+    """Return current UTC time (timezone-aware)."""
+    return datetime.now(timezone.utc)
 
 # Context variables for correlation IDs
 request_id_ctx: ContextVar[str] = ContextVar("request_id", default="")
@@ -63,7 +68,7 @@ def add_timestamp(
     """
     Add ISO 8601 timestamp to log events.
     """
-    event_dict["timestamp"] = datetime.utcnow().isoformat() + "Z"
+    event_dict["timestamp"] = utc_now().isoformat() + "Z"
     return event_dict
 
 

@@ -13,6 +13,9 @@ Tenant extraction order:
 import logging
 import hashlib
 import os
+import asyncio
+from concurrent.futures import ThreadPoolExecutor
+from functools import partial
 from typing import Optional
 from fastapi import Request, Response, HTTPException
 from starlette.middleware.base import BaseHTTPMiddleware
@@ -21,6 +24,9 @@ from starlette.types import ASGIApp
 from src.tenancy.context import set_current_tenant, clear_current_tenant
 from src.database import SessionLocal
 from src.models.tenant_models import TenantAPIKey, Tenant
+
+# Thread pool for running sync DB operations without blocking the event loop
+_db_executor = ThreadPoolExecutor(max_workers=4, thread_name_prefix="tenant_db_")
 
 logger = logging.getLogger(__name__)
 
@@ -146,40 +152,47 @@ class TenantMiddleware(BaseHTTPMiddleware):
             if len(parts) < 4 or parts[0] != "yk":
                 return None
 
-            # Extract tenant_id (between 'live' and the random part)
-            tenant_id = "_".join(parts[2:-1])
-
-            # Validate API key
-            db = SessionLocal()
-            try:
-                # Hash the API key for lookup
-                key_hash = hashlib.sha256(api_key.encode()).hexdigest()
-
-                api_key_record = db.query(TenantAPIKey).filter(
-                    TenantAPIKey.key_hash == key_hash,
-                    TenantAPIKey.is_active == True,
-                ).first()
-
-                if not api_key_record:
-                    logger.warning(f"Invalid API key: {api_key[:20]}...")
-                    return None
-
-                # Update last used
-                from datetime import datetime
-                api_key_record.last_used_at = datetime.utcnow()
-                api_key_record.usage_count = (api_key_record.usage_count or 0) + 1
-                db.commit()
-
-                # Get tenant_id from the key record
-                tenant = db.query(Tenant).filter(Tenant.id == api_key_record.tenant_id).first()
-                if tenant:
-                    return tenant.tenant_id
-
-            finally:
-                db.close()
+            # Run sync DB operation in thread pool to avoid blocking event loop
+            loop = asyncio.get_event_loop()
+            return await loop.run_in_executor(
+                _db_executor,
+                partial(self._validate_api_key_sync, api_key)
+            )
 
         except Exception as e:
             logger.error(f"Error extracting tenant from API key: {e}")
+
+        return None
+
+    def _validate_api_key_sync(self, api_key: str) -> Optional[str]:
+        """Sync helper to validate API key in database."""
+        db = SessionLocal()
+        try:
+            # Hash the API key for lookup
+            key_hash = hashlib.sha256(api_key.encode()).hexdigest()
+
+            api_key_record = db.query(TenantAPIKey).filter(
+                TenantAPIKey.key_hash == key_hash,
+                TenantAPIKey.is_active == True,
+            ).first()
+
+            if not api_key_record:
+                logger.warning(f"Invalid API key: {api_key[:20]}...")
+                return None
+
+            # Update last used
+            from datetime import datetime, timezone
+            api_key_record.last_used_at = datetime.now(timezone.utc)
+            api_key_record.usage_count = (api_key_record.usage_count or 0) + 1
+            db.commit()
+
+            # Get tenant_id from the key record
+            tenant = db.query(Tenant).filter(Tenant.id == api_key_record.tenant_id).first()
+            if tenant:
+                return tenant.tenant_id
+
+        finally:
+            db.close()
 
         return None
 
@@ -196,6 +209,15 @@ class TenantMiddleware(BaseHTTPMiddleware):
         if os.getenv("ENVIRONMENT", "").lower() in {"test", "testing"}:
             return True
 
+        # Run sync DB operation in thread pool to avoid blocking event loop
+        loop = asyncio.get_event_loop()
+        return await loop.run_in_executor(
+            _db_executor,
+            partial(self._validate_tenant_sync, tenant_id)
+        )
+
+    def _validate_tenant_sync(self, tenant_id: str) -> bool:
+        """Sync helper to validate tenant in database."""
         db = SessionLocal()
         try:
             tenant = db.query(Tenant).filter(

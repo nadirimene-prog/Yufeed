@@ -31,7 +31,12 @@ Architecture:
 import asyncio
 import logging
 from dataclasses import dataclass, field
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
+
+
+def utc_now() -> datetime:
+    """Return current UTC time (timezone-aware)."""
+    return datetime.now(timezone.utc)
 from typing import Any, Dict, List, Optional, Callable
 from enum import Enum
 import uuid
@@ -635,7 +640,7 @@ class AMLOfficer:
         await self.initialize()
 
         briefing_id = str(uuid.uuid4())
-        now = datetime.utcnow()
+        now = utc_now()
         period_start = now - timedelta(hours=lookback_hours)
 
         # TODO: Fetch actual data from database
@@ -739,14 +744,14 @@ class AMLOfficer:
                 "severity": "medium",
                 "message": "Transaction velocity patterns have shifted 15% from baseline",
                 "recommendation": "Review velocity rule thresholds",
-                "detected_at": datetime.utcnow().isoformat()
+                "detected_at": utc_now().isoformat()
             },
             {
                 "type": "deadline_warning",
                 "severity": "high",
                 "message": "AMLD 6 implementation deadline in 30 days",
                 "recommendation": "Complete gap assessment",
-                "detected_at": datetime.utcnow().isoformat()
+                "detected_at": utc_now().isoformat()
             }
         ]
 
@@ -787,7 +792,7 @@ class AMLOfficer:
                 "case_id": case_id,
                 "status": "error",
                 "error": "SAR agent not available",
-                "generated_at": datetime.utcnow().isoformat()
+                "generated_at": utc_now().isoformat()
             }
 
         # Build context for SAR agent
@@ -815,7 +820,7 @@ class AMLOfficer:
                     "case_id": case_id,
                     "status": "error",
                     "error": result.error or "SAR generation failed",
-                    "generated_at": datetime.utcnow().isoformat()
+                    "generated_at": utc_now().isoformat()
                 }
 
         except Exception as e:
@@ -824,7 +829,7 @@ class AMLOfficer:
                 "case_id": case_id,
                 "status": "error",
                 "error": str(e),
-                "generated_at": datetime.utcnow().isoformat()
+                "generated_at": utc_now().isoformat()
             }
 
 

@@ -1,8 +1,13 @@
-from datetime import datetime
+from datetime import datetime, timezone
 from sqlalchemy import Column, Integer, String, DateTime, Text, JSON
 from sqlalchemy.dialects.postgresql import JSONB
 
 from src.database import Base
+
+
+def utc_now() -> datetime:
+    """Return current UTC time (timezone-aware)."""
+    return datetime.now(timezone.utc)
 
 
 class TravelRuleRequestRecord(Base):
@@ -19,6 +24,6 @@ class TravelRuleRequestRecord(Base):
     beneficiary = Column(JSON().with_variant(JSONB(), "postgresql"))
     message = Column(Text)
     status = Column(String(50), default="pending")
-    created_at = Column(DateTime, default=datetime.utcnow)
-    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    created_at = Column(DateTime, default=utc_now)
+    updated_at = Column(DateTime, default=utc_now, onupdate=utc_now)
     submitted_at = Column(DateTime)

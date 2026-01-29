@@ -6,12 +6,17 @@ from fastapi import APIRouter, Depends, HTTPException, Query, BackgroundTasks
 from sqlalchemy.orm import Session, joinedload
 from sqlalchemy import func, and_, or_
 from typing import List, Optional
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 import uuid
 import logging
 import os
 
 from src.database import get_db
+
+
+def utc_now() -> datetime:
+    """Return current UTC time (timezone-aware)."""
+    return datetime.now(timezone.utc)
 from src.tenancy.queries import get_tenant_filtered_query, set_tenant_on_create, ensure_tenant_match, require_tenant
 
 logger = logging.getLogger(__name__)
@@ -326,7 +331,7 @@ def update_transaction(
     for field, value in update_dict.items():
         setattr(transaction, field, value)
 
-    transaction.updated_at = datetime.utcnow()
+    transaction.updated_at = utc_now()
     record_event(
         db,
         event_type="transaction.updated",
@@ -355,7 +360,7 @@ def get_user_transaction_history(
 
     Uses eager loading to prevent N+1 queries when accessing alerts.
     """
-    start_date = datetime.utcnow() - timedelta(days=days)
+    start_date = utc_now() - timedelta(days=days)
 
     # Phase 4C: Tenant-filtered query
     transactions = get_tenant_filtered_query(Transaction, db).options(
@@ -402,7 +407,7 @@ def get_transaction_statistics(
     """
     Get transaction statistics for the monitoring dashboard.
     """
-    start_date = datetime.utcnow() - timedelta(days=days)
+    start_date = utc_now() - timedelta(days=days)
 
     # Phase 4C: Use tenant-filtered queries for all statistics
     base_query = get_tenant_filtered_query(Transaction, db)

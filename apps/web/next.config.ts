@@ -8,6 +8,10 @@ const nextConfig: NextConfig = {
         source: "/login",
         destination: "/",
       },
+      {
+        source: "/api/:path*",
+        destination: `${process.env.API_INTERNAL_URL || "http://api:8000"}/api/:path*`,
+      },
     ];
   },
 };

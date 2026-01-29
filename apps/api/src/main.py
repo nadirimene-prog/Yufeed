@@ -6,9 +6,10 @@ from .routers_autoload import register_routers
 from prometheus_fastapi_instrumentator import Instrumentator
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import Response, JSONResponse
-from fastapi.responses import JSONResponse
 import structlog
 import time
+import os
+import logging
 
 # OpenTelemetry imports
 from opentelemetry import trace
@@ -24,8 +25,7 @@ trace.get_tracer_provider().add_span_processor(
     BatchSpanProcessor(ConsoleSpanExporter())
 )
 
-import logging
-log = logging.getLogger(__name__)
+logger = logging.getLogger(__name__)
 
 # ----------------------------------------------------------------------
 # Existing imports (keep everything that was already here)
@@ -33,28 +33,48 @@ log = logging.getLogger(__name__)
 from src.middleware import limiter, custom_rate_limit_handler, configure_redis_storage
 from src.middleware.audit_log import AuditLogMiddleware
 from src.monitoring.metrics import setup_metrics
-# <-- keep all your router imports that were already present in the file
+from src.config import settings
+from slowapi.errors import RateLimitExceeded
 
 # ----------------------------------------------------------------------
 # FastAPI app – instrumented with OpenTelemetry
 # ----------------------------------------------------------------------
 app = FastAPI(
-
-# --- OpenAPI alias for Swagger (/api/docs) ---
-@app.get("/api/openapi.json", include_in_schema=False)
-def _openapi_alias():
-    return JSONResponse(app.openapi())
     title="EU Legal Monitoring MVP",
     docs_url="/api/docs",
     redoc_url="/api/redoc",
 )
 
+# --- Rate limiter configuration ---
+app.state.limiter = limiter
+app.add_exception_handler(RateLimitExceeded, custom_rate_limit_handler)
+
+@app.on_event("startup")
+async def startup_event():
+    """Configure services on startup."""
+    # Configure Redis for rate limiting (enables distributed rate limiting)
+    if settings.REDIS_URL:
+        configure_redis_storage(settings.REDIS_URL)
+        logger.info(f"Rate limiter configured with Redis: {settings.REDIS_URL}")
+    else:
+        logger.warning("REDIS_URL not configured - rate limiting uses in-memory storage")
+
+# --- OpenAPI alias for Swagger (/api/docs) ---
+@app.get("/api/openapi.json", include_in_schema=False)
+def _openapi_alias():
+    return JSONResponse(app.openapi())
+
+
 
 
 register_routers(app)
+
+# --- CORS Configuration ---
+raw_origins = os.getenv("ALLOWED_ORIGINS", "http://localhost:3000")
+allowed_origins = [o.strip() for o in raw_origins.split(",") if o.strip()]
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:3000"],
+    allow_origins=allowed_origins,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -83,18 +103,36 @@ def health_check():
 # ----------------------------------------------------------------------
 # Global exception handler that also logs the error in JSON
 # ----------------------------------------------------------------------
+from fastapi.exceptions import HTTPException
+
+@app.exception_handler(HTTPException)
+async def http_exception_handler(request: Request, exc: HTTPException):
+    return JSONResponse(
+        status_code=exc.status_code,
+        content={"detail": exc.detail},
+    )
+
 @app.exception_handler(Exception)
 async def generic_exception_handler(request: Request, exc: Exception):
+    import traceback
+    error_details = traceback.format_exc()
     structlog.get_logger().error(
         "unhandled_exception",
         path=request.url.path,
         method=request.method,
         exc_type=type(exc).__name__,
         exc_msg=str(exc),
+        traceback=error_details
     )
+    # Temporary: expose error details to UI for faster debugging
     return JSONResponse(
         status_code=500,
-        content={"detail": "Internal server error"},
+        content={
+            "detail": "Internal server error",
+            "error_type": type(exc).__name__,
+            "error_message": str(exc),
+            "traceback": error_details if os.getenv("DEBUG", "true") == "true" else None
+        },
     )
 
 # ----------------------------------------------------------------------
@@ -108,4 +146,4 @@ async def generic_exception_handler(request: Request, exc: Exception):
 
 @app.get("/health", tags=["monitoring"])
 async def health():
-    return {"status": "ok"}
+    return {"status": "ok", "v": "debug-1"}

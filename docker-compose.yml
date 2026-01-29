@@ -1,240 +1,59 @@
 name: yufeed
+
 services:
-  alertmanager:
-    command:
-      - --config.file=/etc/alertmanager/alertmanager.yml
-      - --storage.path=/alertmanager
-    container_name: yufeed-alertmanager
-    image: prom/alertmanager:v0.26.0
-    networks:
-      monitoring: null
-    ports:
-      - mode: ingress
-        target: 9093
-        published: "9093"
-        protocol: tcp
-    restart: unless-stopped
-    volumes:
-      - type: bind
-        source: /Users/imenenadir/Documents/Yufeed/monitoring/alertmanager/alertmanager.yml
-        target: /etc/alertmanager/alertmanager.yml
-        bind: {}
-      - type: volume
-        source: alertmanager_data
-        target: /alertmanager
-        volume: {}
-  api:
-    build:
-      context: /Users/imenenadir/Documents/Yufeed/apps/api
-      dockerfile: Dockerfile
-    command:
-      - uvicorn
-      - src.main:app
-      - --host
-      - 0.0.0.0
-      - --port
-      - "8000"
-    depends_on:
-      db:
-        condition: service_healthy
-        required: true
-      opensearch:
-        condition: service_started
-        required: true
-      redis:
-        condition: service_healthy
-        required: true
-    environment:
-      ACCESS_TOKEN_EXPIRE_MINUTES: "30"
-      ALGORITHM: HS256
-      ALLOWED_ORIGINS: http://localhost:3000,http://127.0.0.1:3000
-      ANTHROPIC_API_KEY: ""
-      CELEX_CACHE_ENABLED: "true"
-      CELEX_CACHE_TTL_HOURS: "24"
-      DATABASE_URL: postgresql://postgres:postgres@db:5432/yufeed
-      EMAILS_FROM_EMAIL: info@yufeed.eu
-      ENABLE_HSTS: "false"
-      EURLEX_LANGUAGES: en,fr
-      EURLEX_OJ_START_DATE: "2023-10-01"
-      EURLEX_SEARCH_PAGE_SIZE: "100"
-      EURLEX_SEARCH_TERMS_EN: payment service provider;payment services;electronic money institution;electronic money;crypto-asset service provider;virtual asset service provider;crypto-assets;emd2;psd2;psd3;mica;casp
-      EURLEX_SEARCH_TERMS_FR: prestataire de services de paiement;services de paiement;etablissement de monnaie electronique;monnaie electronique;prestataire de services sur actifs numeriques;actifs numeriques;crypto-actifs;psan;mica
-      LEGIFRANCE_API_BASE_URL: ""
-      LEGIFRANCE_API_TOKEN: ""
-      LEGIFRANCE_JORF_RSS_URL: https://legifrss.org/latest
-      NEXT_PUBLIC_API_URL: http://localhost:8000
-      OPENSEARCH_CA_CERT_PATH: /etc/ssl/certs/ca-certificates.crt
-      OPENSEARCH_PASSWORD: admin
-      OPENSEARCH_SECURITY_ENABLED: "false"
-      OPENSEARCH_URL: http://opensearch:9200
-      OPENSEARCH_USER: admin
-      POSTGRES_DB: yufeed
-      POSTGRES_HOST: db
-      POSTGRES_PASSWORD: postgres
-      POSTGRES_PORT: "5432"
-      POSTGRES_USER: postgres
-      REDIS_URL: redis://redis:6379/0
-      REGULATORY_SCOPE_FILTER: all
-      RSS_USER_AGENT: Yufeed/1.0
-      SECRET_KEY: dev-secret-change-me-please-32chars-min
-      SMTP_HOST: mailhog
-      SMTP_PASSWORD: test
-      SMTP_PORT: "1025"
-      SMTP_TLS: "false"
-      SMTP_USER: test
-    networks:
-      default: null
-    ports:
-      - mode: ingress
-        host_ip: 127.0.0.1
-        target: 8000
-        published: "8000"
-        protocol: tcp
-    restart: always
-    volumes:
-      - type: bind
-        source: /Users/imenenadir/Documents/Yufeed/apps/api
-        target: /app
-        bind: {}
+  # ============================================================================
+  # CORE SERVICES
+  # ============================================================================
+
   db:
+    image: postgres:15-alpine
+    container_name: yufeed-db
     environment:
       POSTGRES_DB: yufeed
-      POSTGRES_PASSWORD: postgres
       POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
     healthcheck:
-      test:
-        - CMD-SHELL
-        - pg_isready -U postgres
-      timeout: 5s
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
       interval: 5s
+      timeout: 5s
       retries: 5
-    image: postgres:15-alpine
-    networks:
-      default: null
     ports:
-      - mode: ingress
-        host_ip: 127.0.0.1
-        target: 5432
-        published: "5432"
-        protocol: tcp
-    restart: always
+      - "127.0.0.1:5432:5432"
     volumes:
-      - type: volume
-        source: postgres_data
-        target: /var/lib/postgresql/data
-        volume: {}
-  grafana:
-    container_name: yufeed-grafana
-    depends_on:
-      prometheus:
-        condition: service_started
-        required: true
-    environment:
-      GF_INSTALL_PLUGINS: grafana-piechart-panel
-      GF_SECURITY_ADMIN_PASSWORD: admin
-      GF_SECURITY_ADMIN_USER: admin
-      GF_SERVER_ROOT_URL: http://localhost:3001
-      GF_USERS_ALLOW_SIGN_UP: "false"
-    image: grafana/grafana:10.2.2
+      - postgres_data:/var/lib/postgresql/data
     networks:
-      monitoring: null
-    ports:
-      - mode: ingress
-        target: 3000
-        published: "3001"
-        protocol: tcp
-    restart: unless-stopped
-    volumes:
-      - type: volume
-        source: grafana_data
-        target: /var/lib/grafana
-        volume: {}
-      - type: bind
-        source: /Users/imenenadir/Documents/Yufeed/monitoring/grafana/provisioning
-        target: /etc/grafana/provisioning
-        bind: {}
-      - type: bind
-        source: /Users/imenenadir/Documents/Yufeed/monitoring/grafana/dashboards
-        target: /var/lib/grafana/dashboards
-        bind: {}
-  jaeger:
-    container_name: yufeed-jaeger
-    environment:
-      COLLECTOR_OTLP_ENABLED: "true"
-      COLLECTOR_ZIPKIN_HOST_PORT: :9411
-    image: jaegertracing/all-in-one:1.52
-    networks:
-      monitoring: null
-    ports:
-      - mode: ingress
-        target: 5775
-        published: "5775"
-        protocol: udp
-      - mode: ingress
-        target: 6831
-        published: "6831"
-        protocol: udp
-      - mode: ingress
-        target: 6832
-        published: "6832"
-        protocol: udp
-      - mode: ingress
-        target: 5778
-        published: "5778"
-        protocol: tcp
-      - mode: ingress
-        target: 16686
-        published: "16686"
-        protocol: tcp
-      - mode: ingress
-        target: 14250
-        published: "14250"
-        protocol: tcp
-      - mode: ingress
-        target: 14268
-        published: "14268"
-        protocol: tcp
-      - mode: ingress
-        target: 14269
-        published: "14269"
-        protocol: tcp
-      - mode: ingress
-        target: 9411
-        published: "9411"
-        protocol: tcp
-    restart: unless-stopped
-  mailhog:
-    image: mailhog/mailhog
-    networks:
-      default: null
-    ports:
-      - mode: ingress
-        host_ip: 127.0.0.1
-        target: 1025
-        published: "1025"
-        protocol: tcp
-      - mode: ingress
-        host_ip: 127.0.0.1
-        target: 8025
-        published: "8025"
-        protocol: tcp
+      - default
     restart: always
+
+  redis:
+    image: redis:7-alpine
+    container_name: yufeed-redis
+    command: >
+      redis-server
+      --appendonly yes
+      --maxmemory 512mb
+      --maxmemory-policy allkeys-lru
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    ports:
+      - "127.0.0.1:6379:6379"
+    volumes:
+      - redis_data:/data
+    networks:
+      - default
+    restart: always
+
   opensearch:
-    environment:
-      DISABLE_SECURITY_PLUGIN: "true"
-      OPENSEARCH_JAVA_OPTS: -Xms512m -Xmx512m
-      bootstrap.memory_lock: "true"
-      discovery.type: single-node
     image: opensearchproject/opensearch:2.11.0
-    networks:
-      default: null
-    ports:
-      - mode: ingress
-        host_ip: 127.0.0.1
-        target: 9200
-        published: "9200"
-        protocol: tcp
-    restart: always
+    container_name: yufeed-opensearch
+    environment:
+      - discovery.type=single-node
+      - bootstrap.memory_lock=true
+      - OPENSEARCH_JAVA_OPTS=-Xms512m -Xmx512m
+      - DISABLE_SECURITY_PLUGIN=true
     ulimits:
       memlock:
         soft: -1
@@ -242,12 +61,194 @@ services:
       nofile:
         soft: 65536
         hard: 65536
+    ports:
+      - "127.0.0.1:9200:9200"
     volumes:
-      - type: volume
-        source: opensearch_data
-        target: /usr/share/opensearch/data
-        volume: {}
+      - opensearch_data:/usr/share/opensearch/data
+    networks:
+      - default
+    restart: always
+
+  # ============================================================================
+  # APPLICATION SERVICES
+  # ============================================================================
+
+  api:
+    build:
+      context: ./apps/api
+      dockerfile: Dockerfile
+    container_name: yufeed-api
+    command: uvicorn src.main:app --host 0.0.0.0 --port 8000 --reload
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      opensearch:
+        condition: service_started
+    environment:
+      # Database
+      DATABASE_URL: postgresql://postgres:postgres@db:5432/yufeed
+      POSTGRES_HOST: db
+      POSTGRES_PORT: "5432"
+      POSTGRES_DB: yufeed
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      # Redis
+      REDIS_URL: redis://redis:6379/0
+      # OpenSearch
+      OPENSEARCH_URL: http://opensearch:9200
+      OPENSEARCH_SECURITY_ENABLED: "false"
+      OPENSEARCH_USER: admin
+      OPENSEARCH_PASSWORD: admin
+      OPENSEARCH_CA_CERT_PATH: /etc/ssl/certs/ca-certificates.crt
+      # Security
+      SECRET_KEY: ${SECRET_KEY:-}
+      ENVIRONMENT: ${ENVIRONMENT:-development}
+      ALGORITHM: HS256
+      ACCESS_TOKEN_EXPIRE_MINUTES: "30"
+      ALLOWED_ORIGINS: http://localhost:3000,http://127.0.0.1:3000
+      ENABLE_HSTS: "false"
+      # Email
+      SMTP_HOST: mailhog
+      SMTP_PORT: "1025"
+      SMTP_USER: test
+      SMTP_PASSWORD: test
+      SMTP_TLS: "false"
+      EMAILS_FROM_EMAIL: info@yufeed.eu
+      # AI
+      ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-}
+      # EUR-Lex Integration
+      CELEX_CACHE_ENABLED: "true"
+      CELEX_CACHE_TTL_HOURS: "24"
+      EURLEX_LANGUAGES: en,fr
+      EURLEX_OJ_START_DATE: "2023-10-01"
+      EURLEX_SEARCH_PAGE_SIZE: "100"
+      EURLEX_SEARCH_TERMS_EN: "payment service provider;payment services;electronic money institution;electronic money;crypto-asset service provider;virtual asset service provider;crypto-assets;emd2;psd2;psd3;mica;casp"
+      EURLEX_SEARCH_TERMS_FR: "prestataire de services de paiement;services de paiement;etablissement de monnaie electronique;monnaie electronique;prestataire de services sur actifs numeriques;actifs numeriques;crypto-actifs;psan;mica"
+      # Legifrance Integration
+      LEGIFRANCE_JORF_RSS_URL: https://legifrss.org/latest
+      LEGIFRANCE_API_BASE_URL: ${LEGIFRANCE_API_BASE_URL:-}
+      LEGIFRANCE_API_TOKEN: ${LEGIFRANCE_API_TOKEN:-}
+      # Other
+      RSS_USER_AGENT: Yufeed/1.0
+      REGULATORY_SCOPE_FILTER: all
+    healthcheck:
+      test: ["CMD-SHELL", "curl -f http://localhost:8000/healthz || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+    ports:
+      - "127.0.0.1:8000:8000"
+    volumes:
+      - ./apps/api:/app
+    networks:
+      - default
+      - monitoring
+    restart: always
+
+  worker:
+    build:
+      context: ./apps/api
+      dockerfile: Dockerfile
+    container_name: yufeed-worker
+    command: python -m celery -A src.worker.celery_app worker --loglevel=info
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    environment:
+      # Database
+      DATABASE_URL: postgresql://postgres:postgres@db:5432/yufeed
+      POSTGRES_HOST: db
+      POSTGRES_PORT: "5432"
+      POSTGRES_DB: yufeed
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      # Redis
+      REDIS_URL: redis://redis:6379/0
+      # OpenSearch
+      OPENSEARCH_URL: http://opensearch:9200
+      OPENSEARCH_SECURITY_ENABLED: "false"
+      OPENSEARCH_USER: admin
+      OPENSEARCH_PASSWORD: admin
+      # Security
+      SECRET_KEY: ${SECRET_KEY:-}
+      ENVIRONMENT: ${ENVIRONMENT:-development}
+      # AI
+      ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-}
+      # EUR-Lex Integration
+      CELEX_CACHE_ENABLED: "true"
+      CELEX_CACHE_TTL_HOURS: "24"
+      EURLEX_LANGUAGES: en,fr
+      EURLEX_SEARCH_TERMS_EN: "payment service provider;payment services;electronic money institution;electronic money;crypto-asset service provider;virtual asset service provider;crypto-assets;emd2;psd2;psd3;mica;casp"
+      EURLEX_SEARCH_TERMS_FR: "prestataire de services de paiement;services de paiement;etablissement de monnaie electronique;monnaie electronique;prestataire de services sur actifs numeriques;actifs numeriques;crypto-actifs;psan;mica"
+      # Legifrance
+      LEGIFRANCE_JORF_RSS_URL: https://legifrss.org/latest
+      LEGIFRANCE_API_BASE_URL: ${LEGIFRANCE_API_BASE_URL:-}
+      LEGIFRANCE_API_TOKEN: ${LEGIFRANCE_API_TOKEN:-}
+      # Email
+      SMTP_HOST: mailhog
+      SMTP_PORT: "1025"
+      SMTP_USER: test
+      SMTP_PASSWORD: test
+      SMTP_TLS: "false"
+      EMAILS_FROM_EMAIL: info@yufeed.eu
+      # Other
+      RSS_USER_AGENT: Yufeed/1.0
+      REGULATORY_SCOPE_FILTER: all
+    volumes:
+      - ./apps/api:/app
+    networks:
+      - default
+    restart: always
+
+  web:
+    build:
+      context: ./apps/web
+      dockerfile: Dockerfile
+    container_name: yufeed-web
+    command: npm run dev
+    depends_on:
+      api:
+        condition: service_healthy
+    environment:
+      NODE_ENV: development
+      NEXT_PUBLIC_API_URL: http://localhost:8000
+      API_INTERNAL_URL: http://api:8000
+    ports:
+      - "127.0.0.1:3000:3000"
+    volumes:
+      - ./apps/web:/app
+      - /app/node_modules
+      - /app/.next
+    networks:
+      - default
+    restart: always
+
+  # ============================================================================
+  # UTILITY SERVICES
+  # ============================================================================
+
+  mailhog:
+    image: mailhog/mailhog
+    container_name: yufeed-mailhog
+    ports:
+      - "127.0.0.1:1025:1025"
+      - "127.0.0.1:8025:8025"
+    networks:
+      - default
+    restart: always
+
+  # ============================================================================
+  # MONITORING SERVICES
+  # ============================================================================
+
   prometheus:
+    image: prom/prometheus:v2.48.0
+    container_name: yufeed-prometheus
     command:
       - --config.file=/etc/prometheus/prometheus.yml
       - --storage.tsdb.path=/prometheus
@@ -255,205 +256,89 @@ services:
       - --web.console.templates=/usr/share/prometheus/consoles
       - --web.enable-lifecycle
       - --storage.tsdb.retention.time=30d
-    container_name: yufeed-prometheus
-    image: prom/prometheus:v2.48.0
-    networks:
-      monitoring: null
     ports:
-      - mode: ingress
-        target: 9090
-        published: "9090"
-        protocol: tcp
+      - "9090:9090"
+    volumes:
+      - ./monitoring/prometheus/prometheus.yml:/etc/prometheus/prometheus.yml
+      - ./monitoring/prometheus/alerts.yml:/etc/prometheus/alerts.yml
+      - prometheus_data:/prometheus
+    networks:
+      - monitoring
     restart: unless-stopped
-    volumes:
-      - type: bind
-        source: /Users/imenenadir/Documents/Yufeed/monitoring/prometheus/prometheus.yml
-        target: /etc/prometheus/prometheus.yml
-        bind: {}
-      - type: bind
-        source: /Users/imenenadir/Documents/Yufeed/monitoring/prometheus/alerts.yml
-        target: /etc/prometheus/alerts.yml
-        bind: {}
-      - type: volume
-        source: prometheus_data
-        target: /prometheus
-        volume: {}
-  redis:
-    command:
-      - redis-server
-      - --appendonly
-      - "yes"
-      - --maxmemory
-      - 512mb
-      - --maxmemory-policy
-      - allkeys-lru
-    healthcheck:
-      test:
-        - CMD
-        - redis-cli
-        - ping
-      timeout: 5s
-      interval: 5s
-      retries: 5
-    image: redis:7-alpine
-    networks:
-      default: null
-    ports:
-      - mode: ingress
-        host_ip: 127.0.0.1
-        target: 6379
-        published: "6379"
-        protocol: tcp
-    restart: always
-    volumes:
-      - type: volume
-        source: redis_data
-        target: /data
-        volume: {}
-  web:
-    build:
-      context: /Users/imenenadir/Documents/Yufeed/apps/web
-      dockerfile: Dockerfile
-    command:
-      - npm
-      - run
-      - dev
-    environment:
-      ACCESS_TOKEN_EXPIRE_MINUTES: "30"
-      ALGORITHM: HS256
-      ALLOWED_ORIGINS: http://localhost:3000,http://127.0.0.1:3000
-      ANTHROPIC_API_KEY: ""
-      CELEX_CACHE_ENABLED: "true"
-      CELEX_CACHE_TTL_HOURS: "24"
-      DATABASE_URL: postgresql://postgres:postgres@db:5432/yufeed
-      EMAILS_FROM_EMAIL: info@yufeed.eu
-      ENABLE_HSTS: "false"
-      EURLEX_LANGUAGES: en,fr
-      EURLEX_OJ_START_DATE: "2023-10-01"
-      EURLEX_SEARCH_PAGE_SIZE: "100"
-      EURLEX_SEARCH_TERMS_EN: payment service provider;payment services;electronic money institution;electronic money;crypto-asset service provider;virtual asset service provider;crypto-assets;emd2;psd2;psd3;mica;casp
-      EURLEX_SEARCH_TERMS_FR: prestataire de services de paiement;services de paiement;etablissement de monnaie electronique;monnaie electronique;prestataire de services sur actifs numeriques;actifs numeriques;crypto-actifs;psan;mica
-      LEGIFRANCE_API_BASE_URL: ""
-      LEGIFRANCE_API_TOKEN: ""
-      LEGIFRANCE_JORF_RSS_URL: https://legifrss.org/latest
-      NEXT_PUBLIC_API_URL: http://localhost:8000
-      OPENSEARCH_CA_CERT_PATH: /etc/ssl/certs/ca-certificates.crt
-      OPENSEARCH_PASSWORD: admin
-      OPENSEARCH_SECURITY_ENABLED: "false"
-      OPENSEARCH_URL: http://opensearch:9200
-      OPENSEARCH_USER: admin
-      POSTGRES_DB: yufeed
-      POSTGRES_HOST: db
-      POSTGRES_PASSWORD: postgres
-      POSTGRES_PORT: "5432"
-      POSTGRES_USER: postgres
-      REDIS_URL: redis://redis:6379/0
-      REGULATORY_SCOPE_FILTER: all
-      RSS_USER_AGENT: Yufeed/1.0
-      SECRET_KEY: dev-secret-change-me-please-32chars-min
-      SMTP_HOST: mailhog
-      SMTP_PASSWORD: test
-      SMTP_PORT: "1025"
-      SMTP_TLS: "false"
-      SMTP_USER: test
-    networks:
-      default: null
-    ports:
-      - mode: ingress
-        host_ip: 127.0.0.1
-        target: 3000
-        published: "3000"
-        protocol: tcp
-    restart: always
-    volumes:
-      - type: bind
-        source: /Users/imenenadir/Documents/Yufeed/apps/web
-        target: /app
-        bind: {}
-      - type: volume
-        target: /app/node_modules
-        volume: {}
-  worker:
-    build:
-      context: /Users/imenenadir/Documents/Yufeed/apps/api
-      dockerfile: Dockerfile
-    command:
-      - python
-      - -m
-      - celery
-      - -A
-      - src.worker.celery_app
-      - worker
-      - --loglevel=info
+
+  grafana:
+    image: grafana/grafana:10.2.2
+    container_name: yufeed-grafana
     depends_on:
-      db:
-        condition: service_healthy
-        required: true
-      redis:
-        condition: service_healthy
-        required: true
+      - prometheus
     environment:
-      ACCESS_TOKEN_EXPIRE_MINUTES: "30"
-      ALGORITHM: HS256
-      ALLOWED_ORIGINS: http://localhost:3000,http://127.0.0.1:3000
-      ANTHROPIC_API_KEY: ""
-      CELEX_CACHE_ENABLED: "true"
-      CELEX_CACHE_TTL_HOURS: "24"
-      DATABASE_URL: postgresql://postgres:postgres@db:5432/yufeed
-      EMAILS_FROM_EMAIL: info@yufeed.eu
-      ENABLE_HSTS: "false"
-      EURLEX_LANGUAGES: en,fr
-      EURLEX_OJ_START_DATE: "2023-10-01"
-      EURLEX_SEARCH_PAGE_SIZE: "100"
-      EURLEX_SEARCH_TERMS_EN: payment service provider;payment services;electronic money institution;electronic money;crypto-asset service provider;virtual asset service provider;crypto-assets;emd2;psd2;psd3;mica;casp
-      EURLEX_SEARCH_TERMS_FR: prestataire de services de paiement;services de paiement;etablissement de monnaie electronique;monnaie electronique;prestataire de services sur actifs numeriques;actifs numeriques;crypto-actifs;psan;mica
-      LEGIFRANCE_API_BASE_URL: ""
-      LEGIFRANCE_API_TOKEN: ""
-      LEGIFRANCE_JORF_RSS_URL: https://legifrss.org/latest
-      NEXT_PUBLIC_API_URL: http://localhost:8000
-      OPENSEARCH_CA_CERT_PATH: /etc/ssl/certs/ca-certificates.crt
-      OPENSEARCH_PASSWORD: admin
-      OPENSEARCH_SECURITY_ENABLED: "false"
-      OPENSEARCH_URL: http://opensearch:9200
-      OPENSEARCH_USER: admin
-      POSTGRES_DB: yufeed
-      POSTGRES_HOST: db
-      POSTGRES_PASSWORD: postgres
-      POSTGRES_PORT: "5432"
-      POSTGRES_USER: postgres
-      REDIS_URL: redis://redis:6379/0
-      REGULATORY_SCOPE_FILTER: all
-      RSS_USER_AGENT: Yufeed/1.0
-      SECRET_KEY: dev-secret-change-me-please-32chars-min
-      SMTP_HOST: mailhog
-      SMTP_PASSWORD: test
-      SMTP_PORT: "1025"
-      SMTP_TLS: "false"
-      SMTP_USER: test
-    networks:
-      default: null
-    restart: always
+      GF_SECURITY_ADMIN_USER: admin
+      GF_SECURITY_ADMIN_PASSWORD: admin
+      GF_USERS_ALLOW_SIGN_UP: "false"
+      GF_SERVER_ROOT_URL: http://localhost:3001
+      GF_INSTALL_PLUGINS: grafana-piechart-panel
+    ports:
+      - "3001:3000"
     volumes:
-      - type: bind
-        source: /Users/imenenadir/Documents/Yufeed/apps/api
-        target: /app
-        bind: {}
+      - grafana_data:/var/lib/grafana
+      - ./monitoring/grafana/provisioning:/etc/grafana/provisioning
+      - ./monitoring/grafana/dashboards:/var/lib/grafana/dashboards
+    networks:
+      - monitoring
+    restart: unless-stopped
+
+  alertmanager:
+    image: prom/alertmanager:v0.26.0
+    container_name: yufeed-alertmanager
+    command:
+      - --config.file=/etc/alertmanager/alertmanager.yml
+      - --storage.path=/alertmanager
+    ports:
+      - "9093:9093"
+    volumes:
+      - ./monitoring/alertmanager/alertmanager.yml:/etc/alertmanager/alertmanager.yml
+      - alertmanager_data:/alertmanager
+    networks:
+      - monitoring
+    restart: unless-stopped
+
+  jaeger:
+    image: jaegertracing/all-in-one:1.52
+    container_name: yufeed-jaeger
+    environment:
+      COLLECTOR_ZIPKIN_HOST_PORT: ":9411"
+      COLLECTOR_OTLP_ENABLED: "true"
+    ports:
+      - "5775:5775/udp"
+      - "6831:6831/udp"
+      - "6832:6832/udp"
+      - "5778:5778"
+      - "16686:16686"
+      - "14250:14250"
+      - "14268:14268"
+      - "14269:14269"
+      - "9411:9411"
+    networks:
+      - monitoring
+    restart: unless-stopped
+
 networks:
   default:
     name: yufeed_default
   monitoring:
     name: yufeed_monitoring
     driver: bridge
+
 volumes:
-  alertmanager_data:
-    name: yufeed_alertmanager_data
-  grafana_data:
-    name: yufeed_grafana_data
-  opensearch_data:
-    name: yufeed_opensearch_data
   postgres_data:
     name: yufeed_postgres_data
-  prometheus_data:
-    name: yufeed_prometheus_data
   redis_data:
     name: yufeed_redis_data
+  opensearch_data:
+    name: yufeed_opensearch_data
+  prometheus_data:
+    name: yufeed_prometheus_data
+  grafana_data:
+    name: yufeed_grafana_data
+  alertmanager_data:
+    name: yufeed_alertmanager_data

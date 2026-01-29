@@ -55,17 +55,17 @@ export interface ImpactStats {
 }
 
 export async function analyzeDocumentImpact(celex: string, force: boolean = false) {
-    const response = await apiClient.post(`/impact/documents/${celex}/analyze`, { force });
+    const response = await apiClient.post(`/api/impact/documents/${celex}/analyze`, { force });
     return response.data;
 }
 
 export async function getImpactAssessment(celex: string): Promise<ImpactAssessment> {
-    const response = await apiClient.get(`/impact/documents/${celex}/assessment`);
+    const response = await apiClient.get(`/api/impact/documents/${celex}/assessment`);
     return response.data;
 }
 
 export async function getActionItems(celex: string): Promise<ActionItem[]> {
-    const response = await apiClient.get(`/impact/documents/${celex}/actions`);
+    const response = await apiClient.get(`/api/impact/documents/${celex}/actions`);
     return response.data;
 }
 
@@ -79,7 +79,7 @@ export async function updateActionItem(
         target_date?: string;
     }
 ) {
-    const response = await apiClient.put(`/impact/actions/${actionId}`, update);
+    const response = await apiClient.put(`/api/impact/actions/${actionId}`, update);
     return response.data;
 }
 
@@ -93,11 +93,11 @@ export async function getAllActionItems(filters?: {
     if (filters?.business_area) params.append('business_area', filters.business_area);
     if (filters?.assigned_to) params.append('assigned_to', filters.assigned_to);
 
-    const response = await apiClient.get(`/impact/actions/all?${params.toString()}`);
+    const response = await apiClient.get(`/api/impact/actions/all?${params.toString()}`);
     return response.data;
 }
 
 export async function getImpactDashboardStats(): Promise<ImpactStats> {
-    const response = await apiClient.get(`/impact/dashboard/stats`);
+    const response = await apiClient.get(`/api/impact/dashboard/stats`);
     return response.data;
 }

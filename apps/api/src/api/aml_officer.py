@@ -11,7 +11,12 @@ Provides endpoints for:
 - Proactive monitoring
 """
 
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
+
+
+def utc_now() -> datetime:
+    """Return current UTC time (timezone-aware)."""
+    return datetime.now(timezone.utc)
 from typing import Any, Dict, List, Optional
 from fastapi import APIRouter, Depends, HTTPException, Query, BackgroundTasks
 from pydantic import BaseModel, Field
@@ -724,7 +729,7 @@ async def health_check():
                 "investigation_agent": "healthy",
                 "sanctions_service": "healthy" if sanctions_healthy else "unhealthy"
             },
-            "timestamp": datetime.utcnow().isoformat()
+            "timestamp": utc_now().isoformat()
         }
 
     except Exception as e:
@@ -732,7 +737,7 @@ async def health_check():
         return {
             "status": "unhealthy",
             "error": str(e),
-            "timestamp": datetime.utcnow().isoformat()
+            "timestamp": utc_now().isoformat()
         }
 
 

@@ -6,7 +6,12 @@ from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.orm import Session, joinedload
 from sqlalchemy import func, and_, or_
 from typing import List, Optional
-from datetime import datetime
+from datetime import datetime, timezone
+
+
+def utc_now() -> datetime:
+    """Return current UTC time (timezone-aware)."""
+    return datetime.now(timezone.utc)
 import uuid
 
 from src.database import get_db
@@ -40,7 +45,7 @@ def create_case(
     - Regulatory investigations
     """
     # Generate case ID
-    case_id = f"CASE-{datetime.utcnow().strftime('%Y%m%d')}-{uuid.uuid4().hex[:8].upper()}"
+    case_id = f"CASE-{utc_now().strftime('%Y%m%d')}-{uuid.uuid4().hex[:8].upper()}"
 
     # Create case
     db_case = Case(
@@ -86,7 +91,7 @@ def create_case_from_alert(
         raise HTTPException(status_code=404, detail="Alert not found")
 
     # Generate case ID
-    case_id = f"CASE-{datetime.utcnow().strftime('%Y%m%d')}-{uuid.uuid4().hex[:8].upper()}"
+    case_id = f"CASE-{utc_now().strftime('%Y%m%d')}-{uuid.uuid4().hex[:8].upper()}"
 
     # Build case from alert
     title = f"Investigation: {alert.alert_type} - {alert.user_id}"
@@ -235,7 +240,7 @@ def update_case(
     for field, value in update_dict.items():
         setattr(case, field, value)
 
-    case.updated_at = datetime.utcnow()
+    case.updated_at = utc_now()
     record_event(
         db,
         event_type="case.updated",
@@ -283,7 +288,7 @@ def assign_case(
     if case.status == 'open':
         case.status = 'in_progress'
 
-    case.updated_at = datetime.utcnow()
+    case.updated_at = utc_now()
     record_event(
         db,
         event_type="case.assigned",
@@ -336,7 +341,7 @@ def escalate_case(
     else:
         case.summary = f"[ESCALATED] {escalation_notes}"
 
-    case.updated_at = datetime.utcnow()
+    case.updated_at = utc_now()
     record_event(
         db,
         event_type="case.escalated",
@@ -386,8 +391,8 @@ def close_case(
     case.status = 'closed'
     case.outcome = outcome
     case.outcome_notes = outcome_notes
-    case.closed_at = datetime.utcnow()
-    case.updated_at = datetime.utcnow()
+    case.closed_at = utc_now()
+    case.updated_at = utc_now()
 
     event_record = record_event(
         db,
@@ -581,7 +586,7 @@ def add_alert_to_case(
     # Update alert status
     alert.status = 'in_review'
 
-    case.updated_at = datetime.utcnow()
+    case.updated_at = utc_now()
     record_event(
         db,
         event_type="case.alert_added",
@@ -624,7 +629,7 @@ def add_evidence(
         case.evidence = {}
 
     case.evidence[evidence_key] = evidence_value
-    case.updated_at = datetime.utcnow()
+    case.updated_at = utc_now()
 
     record_event(
         db,

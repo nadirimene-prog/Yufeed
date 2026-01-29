@@ -9,8 +9,13 @@ Celery tasks for periodic feature updates:
 - Staleness monitoring
 """
 import logging
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from typing import List, Dict, Any
+
+
+def utc_now() -> datetime:
+    """Return current UTC time (timezone-aware)."""
+    return datetime.now(timezone.utc)
 
 from celery import Task
 from sqlalchemy import func, and_
@@ -43,7 +48,7 @@ def refresh_user_features(self: Task, user_id: str, version: int = 1) -> Dict[st
 
         # Extract time-series features
         ts_extractor = TimeSeriesFeatureExtractor(db)
-        current_time = datetime.utcnow()
+        current_time = utc_now()
 
         features = ts_extractor.extract_features(
             user_id=user_id,
@@ -117,7 +122,7 @@ def refresh_active_users_features(
         logger.info(f"Refreshing features for users active in last {days} days")
 
         # Find active users
-        start_date = datetime.utcnow() - timedelta(days=days)
+        start_date = utc_now() - timedelta(days=days)
 
         active_users = db.query(Transaction.user_id).filter(
             Transaction.timestamp >= start_date
@@ -149,7 +154,7 @@ def refresh_active_users_features(
             "errors": total_errors,
             "batch_size": batch_size,
             "version": version,
-            "started_at": datetime.utcnow().isoformat(),
+            "started_at": utc_now().isoformat(),
             "status": "completed"
         }
 
@@ -181,7 +186,7 @@ def monitor_feature_staleness(
     try:
         logger.info("Monitoring feature staleness")
 
-        staleness_threshold = datetime.utcnow() - timedelta(hours=staleness_threshold_hours)
+        staleness_threshold = utc_now() - timedelta(hours=staleness_threshold_hours)
 
         # Find stale features
         stale_features = db.query(
@@ -222,7 +227,7 @@ def monitor_feature_staleness(
             "active_stale": len(active_stale_users),
             "queued_for_refresh": len(active_stale_users),
             "staleness_threshold_hours": staleness_threshold_hours,
-            "checked_at": datetime.utcnow().isoformat(),
+            "checked_at": utc_now().isoformat(),
             "status": "completed"
         }
 
@@ -284,7 +289,7 @@ def compute_feature_importance(
                 "top_features": top_features,
                 "total_features": len(feature_names),
                 "model_path": model_path,
-                "computed_at": datetime.utcnow().isoformat(),
+                "computed_at": utc_now().isoformat(),
                 "status": "success"
             }
         else:

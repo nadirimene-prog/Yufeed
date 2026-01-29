@@ -41,26 +41,26 @@ export interface QuerySuggestions {
 }
 
 export async function askQuestion(request: QueryRequest): Promise<QueryResponse> {
-    const response = await apiClient.post(`/query/ask`, request);
+    const response = await apiClient.post(`/api/query/ask`, request);
     return response.data;
 }
 
 export async function conversationTurn(request: ConversationRequest): Promise<QueryResponse> {
-    const response = await apiClient.post(`/query/conversation`, request);
+    const response = await apiClient.post(`/api/query/conversation`, request);
     return response.data;
 }
 
 export async function clearConversation(conversationId: string): Promise<void> {
-    await apiClient.delete(`/query/conversation/${conversationId}`);
+    await apiClient.delete(`/api/query/conversation/${conversationId}`);
 }
 
 export async function getQuerySuggestions(domain?: string): Promise<QuerySuggestions> {
     const params = domain ? `?domain=${domain}` : '';
-    const response = await apiClient.get(`/query/suggestions${params}`);
+    const response = await apiClient.get(`/api/query/suggestions${params}`);
     return response.data;
 }
 
 export async function queryHealthCheck(): Promise<{ status: string; ai_available: boolean; active_conversations: number }> {
-    const response = await apiClient.get(`/query/health`);
+    const response = await apiClient.get(`/api/query/health`);
     return response.data;
 }
