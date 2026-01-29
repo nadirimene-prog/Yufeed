@@ -62,3 +62,34 @@ Each source is stored in `regulatory_sources` with:
 3. **OJ act-by-act**: run a 7-day sample with `--dry-run`, then verify act count > 0 for at least one day.
 4. **OJ act-by-act write**: run without `--dry-run`, then verify `official_journal_acts` row count increases.
 5. **Full-text batch**: select a small CELEX list and verify `legal_document_texts` rows + `word_count`.
+
+---
+
+## Implementation Status
+
+**Date:** January 29, 2026  
+**Status:** Phase 4 implementation plan ready
+
+This ingestion plan is part of the larger **Regulatory Intelligence Pipeline** (Phase 4) which includes:
+
+- **Phase 1:** Ingestion Enhancement (this document)
+- **Phase 2:** AI Analysis & Obligation Extraction
+- **Phase 3-10:** Policy Management, Internal Rules, Dashboard Integration
+
+### Related Documentation
+
+- Full implementation plan: `docs/product/regulatory-pipeline-plan.md`
+- Product backlog (47 User Stories): `docs/product/regulatory-pipeline-backlog.md`
+- Rollout validation: `docs/product/regulatory-pipeline-rollout.md`
+- Policy taxonomy: `docs/product/policy-taxonomy.md`
+
+### New Components Added
+
+| Component | Description |
+|-----------|-------------|
+| `OJActFetcher` | Ingest OJ Act-by-Act via SPARQL |
+| `BatchContentFetcher` | Backfill empty `full_text` fields |
+| `regulatory_alerts.py` | Create alerts from approved obligations |
+| `policy_writer.py` | AI-generated policy sections |
+| `deadline_monitor.py` | Celery jobs for deadline tracking |
+

@@ -3,6 +3,8 @@
 YuFeed is an AI-powered EU legal monitoring & AML compliance platform.
 It combines regulatory intelligence (EUR-Lex/CELEX ingestion + search) with transaction monitoring, investigations, and reporting workflows.
 
+**New:** End-to-end regulatory intelligence pipeline with AI policy generation, obligation tracking, and automated compliance enforcement.
+
 ## Repository structure
 
 - `apps/api` — FastAPI backend (SQLAlchemy/Alembic), ingestion, AI agents, monitoring
@@ -33,6 +35,8 @@ docker compose up --build
 
 - Architecture: `docs/architecture/architecture.md`
 - Product docs: `docs/product/`
+- **Regulatory Pipeline:** `docs/product/regulatory-pipeline-plan.md`
+- **Product Backlog:** `docs/product/regulatory-pipeline-backlog.md`
 - Engineering notes: `docs/engineering/`
 - Development setup & troubleshooting: `docs/dev/`
 
