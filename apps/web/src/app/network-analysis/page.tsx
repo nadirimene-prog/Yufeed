@@ -6,6 +6,7 @@ import { motion } from 'framer-motion';
 import toast from 'react-hot-toast';
 import dynamic from 'next/dynamic';
 import { fetchWithAuth } from '@/lib/auth';
+import { getApiBaseUrl } from '@/lib/apiBaseUrl';
 
 // Dynamically import NetworkGraph to avoid SSR issues
 const NetworkGraph = dynamic(() => import('@/components/NetworkGraph'), { ssr: false });

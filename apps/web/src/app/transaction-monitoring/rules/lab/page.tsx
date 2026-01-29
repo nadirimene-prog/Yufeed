@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { FlaskConical, PlayCircle, LineChart, CheckCircle2, XCircle } from "lucide-react";
 import { fetchWithAuth } from "@/lib/auth";
+import { getApiBaseUrl } from "@/lib/apiBaseUrl";
 
 const API_URL = getApiBaseUrl();
 

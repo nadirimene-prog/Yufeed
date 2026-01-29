@@ -7,6 +7,7 @@ import AuditTable, { AuditLog } from "./audit-table";
 import AuditDetail from "./audit-detail";
 import { TableSkeleton } from "@/components/ui/skeleton";
 import { fetchWithAuth } from "@/lib/auth";
+import { getApiBaseUrl } from "@/lib/apiBaseUrl";
 
 const API_URL = getApiBaseUrl();
 

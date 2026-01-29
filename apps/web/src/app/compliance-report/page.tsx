@@ -6,6 +6,7 @@ import { BarChart, Bar, PieChart, Pie, Cell, LineChart, Line, XAxis, YAxis, Cart
 import { motion } from 'framer-motion';
 import toast from 'react-hot-toast';
 import { fetchWithAuth } from '@/lib/auth';
+import { getApiBaseUrl } from '@/lib/apiBaseUrl';
 
 const API_URL = getApiBaseUrl();
 

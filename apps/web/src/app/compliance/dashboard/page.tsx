@@ -114,28 +114,28 @@ export default function ComplianceDashboardPage() {
                     title="Total Obligations"
                     value={obligationCounts.total}
                     icon={<Scale className="h-5 w-5" />}
-                    trend={{ value: obligationCounts.approved, label: "approved" }}
+                    trend={{ direction: "up", value: String(obligationCounts.approved), label: "approved" }}
                     className="bg-gradient-to-br from-[#6d5acd]/20 to-transparent"
                 />
                 <MetricCard
                     title="Pending Review"
                     value={obligationCounts.in_review + obligationCounts.draft}
                     icon={<Clock className="h-5 w-5" />}
-                    trend={{ value: obligationCounts.in_review, label: "in review" }}
+                    trend={{ direction: "neutral", value: String(obligationCounts.in_review), label: "in review" }}
                     className="bg-gradient-to-br from-amber-500/20 to-transparent"
                 />
                 <MetricCard
                     title="Active Policies"
                     value={activePolicies}
                     icon={<FileText className="h-5 w-5" />}
-                    trend={{ value: policies.length, label: "total" }}
+                    trend={{ direction: "up", value: String(policies.length), label: "total" }}
                     className="bg-gradient-to-br from-blue-500/20 to-transparent"
                 />
                 <MetricCard
                     title="High Priority Risks"
                     value={highRisks}
                     icon={<AlertTriangle className="h-5 w-5" />}
-                    trend={{ value: riskMap?.total_entries || 0, label: "total risks" }}
+                    trend={{ direction: highRisks > 0 ? "up" : "neutral", value: String(riskMap?.total_entries || 0), label: "total risks" }}
                     className="bg-gradient-to-br from-red-500/20 to-transparent"
                 />
             </div>

@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { ArrowLeft, AlertTriangle, User, DollarSign, MapPin, Clock, Shield, Sparkles, FileText, ChevronRight, ExternalLink } from 'lucide-react';
 import { fetchWithAuth } from '@/lib/auth';
+import { getApiBaseUrl } from '@/lib/apiBaseUrl';
 
 const API_URL = getApiBaseUrl();
 

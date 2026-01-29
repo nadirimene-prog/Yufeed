@@ -4,6 +4,7 @@ import { useEffect, useState, Suspense } from 'react';
 import { useSearchParams, useRouter } from 'next/navigation';
 import { FileText, AlertTriangle, CheckCircle, Download, Send } from 'lucide-react';
 import { fetchWithAuth } from '@/lib/auth';
+import { getApiBaseUrl } from '@/lib/apiBaseUrl';
 
 const API_URL = getApiBaseUrl();
 

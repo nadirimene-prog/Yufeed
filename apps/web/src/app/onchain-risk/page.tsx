@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { Link2, ShieldCheck } from "lucide-react";
 import { fetchWithAuth } from "@/lib/auth";
+import { getApiBaseUrl } from "@/lib/apiBaseUrl";
 
 const API_URL = getApiBaseUrl();
 

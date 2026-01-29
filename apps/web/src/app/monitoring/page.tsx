@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react';
 import { AlertCircle, Clock, AlertTriangle, TrendingUp, Activity, Shield, CheckCircle, XCircle } from 'lucide-react';
 import { fetchWithAuth } from '@/lib/auth';
+import { getApiBaseUrl } from '@/lib/apiBaseUrl';
 
 const API_URL = getApiBaseUrl();
 

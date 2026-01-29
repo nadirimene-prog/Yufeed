@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { Plus, LineChart, UploadCloud, Rocket } from "lucide-react";
 import { fetchWithAuth } from "@/lib/auth";
+import { getApiBaseUrl } from "@/lib/apiBaseUrl";
 
 const API_URL = getApiBaseUrl();
 

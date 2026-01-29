@@ -105,7 +105,7 @@ function TreeNode({ category, level, selectedCategoryId, onSelectCategory }: Tre
                 </span>
 
                 {/* Entries Count */}
-                {category.entries_count > 0 && (
+                {(category.entries_count ?? 0) > 0 && (
                     <span className="text-xs text-white/40 bg-white/10 px-1.5 py-0.5 rounded">
                         {category.entries_count}
                     </span>

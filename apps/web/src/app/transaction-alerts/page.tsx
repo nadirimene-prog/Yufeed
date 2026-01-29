@@ -6,6 +6,7 @@ import { AlertCircle, Search, AlertTriangle, CheckCircle, Clock, Shield, Sparkle
 import { motion, AnimatePresence } from 'framer-motion';
 import toast from 'react-hot-toast';
 import { fetchWithAuth } from '@/lib/auth';
+import { getApiBaseUrl } from '@/lib/apiBaseUrl';
 
 const API_URL = getApiBaseUrl();
 
