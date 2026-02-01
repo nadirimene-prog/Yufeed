@@ -78,3 +78,6 @@ yarn-error.log*
 # OS
 Thumbs.db
 apply-v2.sh
+
+# Secrets
+.env.bak
