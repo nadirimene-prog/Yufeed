@@ -24,6 +24,8 @@ export interface InputProps
   error?: boolean;
   /** Error message */
   errorMessage?: string;
+  /** Optional id for the error message */
+  errorMessageId?: string;
 }
 
 const Input = React.forwardRef<HTMLInputElement, InputProps>(
@@ -36,12 +38,15 @@ const Input = React.forwardRef<HTMLInputElement, InputProps>(
       rightElement,
       error,
       errorMessage,
+      errorMessageId,
       disabled,
       ...props
     },
     ref
   ) => {
     const [isFocused, setIsFocused] = React.useState(false);
+    const resolvedErrorId =
+      errorMessageId || (props.id ? `${props.id}-error` : undefined);
 
     const variantStyles = {
       default: cn(
@@ -120,7 +125,13 @@ const Input = React.forwardRef<HTMLInputElement, InputProps>(
 
         {/* Error message */}
         {error && errorMessage && (
-          <p className="mt-1.5 text-xs text-[#ff3366]">{errorMessage}</p>
+          <p
+            id={resolvedErrorId}
+            className="mt-1.5 text-xs text-[#ff3366]"
+            aria-live="polite"
+          >
+            {errorMessage}
+          </p>
         )}
       </div>
     );
@@ -196,6 +207,8 @@ export interface TextareaProps
   error?: boolean;
   /** Error message */
   errorMessage?: string;
+  /** Optional id for the error message */
+  errorMessageId?: string;
 }
 
 const Textarea = React.forwardRef<HTMLTextAreaElement, TextareaProps>(
@@ -205,10 +218,13 @@ const Textarea = React.forwardRef<HTMLTextAreaElement, TextareaProps>(
       variant = "glass",
       error,
       errorMessage,
+      errorMessageId,
       ...props
     },
     ref
   ) => {
+    const resolvedErrorId =
+      errorMessageId || (props.id ? `${props.id}-error` : undefined);
     const variantStyles = {
       default: cn(
         "border-white/10 bg-white/5",
@@ -245,7 +261,13 @@ const Textarea = React.forwardRef<HTMLTextAreaElement, TextareaProps>(
 
         {/* Error message */}
         {error && errorMessage && (
-          <p className="mt-1.5 text-xs text-[#ff3366]">{errorMessage}</p>
+          <p
+            id={resolvedErrorId}
+            className="mt-1.5 text-xs text-[#ff3366]"
+            aria-live="polite"
+          >
+            {errorMessage}
+          </p>
         )}
       </div>
     );

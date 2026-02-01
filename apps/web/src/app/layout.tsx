@@ -1,12 +1,8 @@
 import type { Metadata } from "next";
 import { Inter, JetBrains_Mono, Space_Grotesk } from "next/font/google";
 import "./globals.css";
-import Header from "@/components/header";
-import Sidebar from "@/components/sidebar";
 import { cn } from "@/lib/utils";
-import ToastProvider from "@/components/ToastProvider";
-import { CommandMenu } from "@/components/command-menu";
-import { WebSocketProvider } from "@/components/WebSocketProvider";
+import AppShell from "@/components/app-shell";
 
 /**
  * ═══════════════════════════════════════════════════════════════════
@@ -60,17 +56,7 @@ export default function RootLayout({
                 {/* Ambient Canvas - Living Background */}
                 <div className="ambient-canvas" aria-hidden="true" />
 
-                <WebSocketProvider>
-                    <CommandMenu />
-                    <Sidebar />
-                    <div className="relative flex flex-col flex-1 overflow-y-auto overflow-x-hidden z-10">
-                        <Header />
-                        <main className="container mx-auto py-6 px-4 md:px-8 max-w-7xl">
-                            {children}
-                        </main>
-                    </div>
-                    <ToastProvider />
-                </WebSocketProvider>
+                <AppShell>{children}</AppShell>
             </body>
         </html>
     );

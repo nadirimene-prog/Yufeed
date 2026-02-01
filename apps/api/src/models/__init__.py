@@ -11,6 +11,7 @@ from .compliance_workflow import (
     LegalDocumentText,
     RegulatoryObligation,
     PolicyDocument,
+    PolicyTemplate,
     PolicySection,
     InternalRule,
     InternalRuleMapping,

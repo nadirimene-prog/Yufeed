@@ -71,6 +71,45 @@ class PolicySectionResponse(BaseModel):
         from_attributes = True
 
 
+class PolicyTemplateResponse(BaseModel):
+    """Response schema for a policy template."""
+    id: int
+    template_id: str
+    name: str
+    category: str
+    version: Optional[str] = None
+    owner: Optional[str] = None
+    review_frequency_months: Optional[int] = None
+    regulatory_basis: Optional[List[str]] = None
+    source_url: Optional[str] = None
+    content: Optional[str] = None
+    metadata: Optional[Dict[str, Any]] = None
+    is_active: bool = True
+    created_at: Optional[str] = None
+    updated_at: Optional[str] = None
+
+    class Config:
+        from_attributes = True
+
+
+class PolicyTemplateListResponse(BaseModel):
+    """Response schema for paginated policy template list."""
+    total: int
+    items: List[PolicyTemplateResponse]
+
+
+class PolicyFromTemplateCreate(BaseModel):
+    """Schema for creating a policy from a template with optional overrides."""
+    name: Optional[str] = None
+    owner: Optional[str] = None
+    status: Optional[str] = Field(None, pattern="^(draft|in_review|approved|active|retired)$")
+    language: Optional[str] = Field(None, max_length=10)
+    effective_date: Optional[datetime] = None
+    source_url: Optional[str] = Field(None, max_length=1000)
+    content: Optional[str] = None
+    metadata: Optional[Dict[str, Any]] = None
+
+
 class PolicyResponse(BaseModel):
     """Response schema for a policy document."""
     id: int

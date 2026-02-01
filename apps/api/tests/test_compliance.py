@@ -25,9 +25,12 @@ def override_get_db():
     finally:
         db.close()
 
-app.dependency_overrides[get_db] = override_get_db
-
-client = TestClient(app)
+@pytest.fixture
+def client():
+    app.dependency_overrides[get_db] = override_get_db
+    with TestClient(app) as test_client:
+        yield test_client
+    app.dependency_overrides.clear()
 
 @pytest.fixture(autouse=True)
 def init_db():
@@ -35,7 +38,7 @@ def init_db():
     yield
     Base.metadata.drop_all(bind=engine)
 
-def test_create_kyc_profile():
+def test_create_kyc_profile(client):
     response = client.post(
         "/compliance/kyc",
         json={
@@ -53,7 +56,7 @@ def test_create_kyc_profile():
     assert data["risk_level"] == "low"
     assert data["type"] == "kyc"
 
-def test_create_kyb_profile():
+def test_create_kyb_profile(client):
     response = client.post(
         "/compliance/kyb",
         json={
@@ -68,7 +71,7 @@ def test_create_kyb_profile():
     assert data["company_name"] == "Acme Corp"
     assert data["type"] == "kyb"
 
-def test_get_cases():
+def test_get_cases(client):
     # Create a profile first
     client.post(
         "/compliance/kyc",
@@ -86,7 +89,7 @@ def test_get_cases():
     assert len(data) >= 1
     assert data[0]["email"] == "alice@example.com"
 
-def test_review_case():
+def test_review_case(client):
     # Create
     create_res = client.post(
         "/compliance/kyc",

@@ -74,6 +74,24 @@ SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=sync_engine)
 
 Base = declarative_base()
 
+_schema_initialized = False
+
+
+def _ensure_schema() -> None:
+    """Create DB schema in test environments when using the sync engine."""
+    global _schema_initialized
+    if _schema_initialized:
+        return
+    if os.getenv("ENVIRONMENT", "").lower() not in {"test", "testing"}:
+        return
+    try:
+        # Import models to register all tables before creating schema.
+        import src.models  # noqa: F401
+        Base.metadata.create_all(bind=sync_engine)
+        _schema_initialized = True
+    except Exception as exc:
+        log.warning("Failed to initialize test schema: %s", exc)
+
 # ----------------------------------------------------------------------
 # Connection‑pool monitoring (useful for Prometheus / Grafana alerts)
 # ----------------------------------------------------------------------
@@ -100,6 +118,7 @@ async def get_async_db():
 # Sync dependency – retained for Alembic and any legacy scripts.
 # ----------------------------------------------------------------------
 def get_sync_db():
+    _ensure_schema()
     db = SessionLocal()
     try:
         yield db
@@ -107,9 +126,9 @@ def get_sync_db():
         db.close()
 
 def get_db() -> "Session":
+    _ensure_schema()
     db = SessionLocal()
     try:
         yield db
     finally:
         db.close()
-

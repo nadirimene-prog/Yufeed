@@ -126,6 +126,25 @@ class PolicyDocument(Base):
     sections = relationship("PolicySection", back_populates="policy", cascade="all, delete-orphan")
 
 
+class PolicyTemplate(Base):
+    __tablename__ = "policy_templates"
+
+    id = Column(Integer, primary_key=True)
+    template_id = Column(String(64), unique=True, nullable=False, index=True)
+    name = Column(String(255), nullable=False)
+    category = Column(String(100), nullable=False)
+    version = Column(String(50), nullable=True)
+    owner = Column(String(255), nullable=True)
+    review_frequency_months = Column(Integer, nullable=True)
+    regulatory_basis = Column(JSON().with_variant(JSONB(), "postgresql"), nullable=True)
+    source_url = Column(String(1000), nullable=True)
+    content = Column(Text, nullable=True)
+    metadata_json = Column("metadata", JSON().with_variant(JSONB(), "postgresql"), nullable=True)
+    is_active = Column(Boolean, default=True)
+    created_at = Column(DateTime, default=utc_now)
+    updated_at = Column(DateTime, default=utc_now, onupdate=utc_now)
+
+
 class PolicySection(Base):
     __tablename__ = "policy_sections"
 

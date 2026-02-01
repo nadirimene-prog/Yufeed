@@ -111,6 +111,23 @@ export interface PolicyUpdate {
     metadata?: Record<string, unknown>;
 }
 
+export interface PolicyTemplate {
+    id: number;
+    template_id: string;
+    name: string;
+    category: string;
+    version?: string;
+    owner?: string;
+    review_frequency_months?: number;
+    regulatory_basis?: string[];
+    source_url?: string;
+    content?: string;
+    metadata?: Record<string, unknown>;
+    is_active?: boolean;
+    created_at?: string;
+    updated_at?: string;
+}
+
 // ========== Risk Types ==========
 
 export type RiskLevelType = "low" | "medium" | "high" | "critical";

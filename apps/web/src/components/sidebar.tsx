@@ -1,17 +1,17 @@
 "use client";
 
 import Link from "next/link";
-import { usePathname, useRouter } from "next/navigation";
+import { usePathname } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
 import {
     Scale, Search, List, Bell, Brain, FileText, Network,
-    Settings, LogOut, ChevronLeft, ChevronRight, LayoutDashboard, ShieldCheck, Zap,
+    Settings, ChevronLeft, ChevronRight, LayoutDashboard, ShieldCheck, Zap,
     Route, Link2, Cpu, Sparkles, Activity, Shield, Map
 } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { clearAuthTokens } from "@/lib/auth";
 import { useState } from "react";
-import { sidebarItem, staggerContainer, springs, transitions } from "@/lib/motion";
+import { staggerContainer, springs, transitions } from "@/lib/motion";
+import { Tooltip } from "@/components/ui/tooltip";
 
 /**
  * ═══════════════════════════════════════════════════════════════════
@@ -76,7 +76,6 @@ const navSections: NavSection[] = [
 
 export default function Sidebar() {
     const pathname = usePathname();
-    const router = useRouter();
     const [collapsed, setCollapsed] = useState(false);
 
     const toggleCollapse = () => setCollapsed(!collapsed);
@@ -193,7 +192,10 @@ export default function Sidebar() {
                                     <NavLink
                                         key={item.href}
                                         item={item}
-                                        isActive={pathname.startsWith(item.href)}
+                                        isActive={
+                                            pathname === item.href ||
+                                            pathname.startsWith(`${item.href}/`)
+                                        }
                                         collapsed={collapsed}
                                     />
                                 ))}
@@ -258,21 +260,23 @@ export default function Sidebar() {
                             exit={{ opacity: 0 }}
                             className="flex justify-center"
                         >
-                            <div className="relative">
-                                <Activity className="h-5 w-5 text-[#06d6a0]" />
-                                <motion.span
-                                    className="absolute -top-0.5 -right-0.5 h-2 w-2 rounded-full bg-[#06d6a0]"
-                                    animate={{
-                                        scale: [1, 1.3, 1],
-                                        opacity: [1, 0.5, 1],
-                                    }}
-                                    transition={{
-                                        duration: 2,
-                                        repeat: Infinity,
-                                        ease: "easeInOut",
-                                    }}
-                                />
-                            </div>
+                            <Tooltip content="System status: all operational" side="right">
+                                <div className="relative">
+                                    <Activity className="h-5 w-5 text-[#06d6a0]" />
+                                    <motion.span
+                                        className="absolute -top-0.5 -right-0.5 h-2 w-2 rounded-full bg-[#06d6a0]"
+                                        animate={{
+                                            scale: [1, 1.3, 1],
+                                            opacity: [1, 0.5, 1],
+                                        }}
+                                        transition={{
+                                            duration: 2,
+                                            repeat: Infinity,
+                                            ease: "easeInOut",
+                                        }}
+                                    />
+                                </div>
+                            </Tooltip>
                         </motion.div>
                     )}
                 </AnimatePresence>
@@ -283,6 +287,7 @@ export default function Sidebar() {
                 {/* Collapse Toggle */}
                 <motion.button
                     onClick={toggleCollapse}
+                    aria-label={collapsed ? "Expand sidebar" : "Collapse sidebar"}
                     className={cn(
                         "flex w-full items-center gap-3 px-3 py-2.5 text-sm font-medium rounded-lg transition-colors",
                         "text-white/50 hover:text-white/80 hover:bg-white/[0.05]",
@@ -314,35 +319,32 @@ export default function Sidebar() {
                 <div className="my-2 h-px bg-white/[0.06]" />
 
                 {/* Settings */}
-                <Link
-                    href="/settings"
-                    className={cn(
-                        "flex items-center gap-3 px-3 py-2.5 text-sm font-medium rounded-lg transition-all",
-                        "text-white/50 hover:text-white/80 hover:bg-white/[0.05]",
-                        collapsed && "justify-center"
-                    )}
-                >
-                    <Settings className="h-4 w-4" />
-                    {!collapsed && <span>Settings</span>}
-                </Link>
+                {collapsed ? (
+                    <Tooltip content="Settings" side="right">
+                        <Link
+                            href="/settings"
+                            className={cn(
+                                "flex items-center gap-3 px-3 py-2.5 text-sm font-medium rounded-lg transition-all",
+                                "text-white/50 hover:text-white/80 hover:bg-white/[0.05]",
+                                "justify-center"
+                            )}
+                        >
+                            <Settings className="h-4 w-4" />
+                        </Link>
+                    </Tooltip>
+                ) : (
+                    <Link
+                        href="/settings"
+                        className={cn(
+                            "flex items-center gap-3 px-3 py-2.5 text-sm font-medium rounded-lg transition-all",
+                            "text-white/50 hover:text-white/80 hover:bg-white/[0.05]"
+                        )}
+                    >
+                        <Settings className="h-4 w-4" />
+                        <span>Settings</span>
+                    </Link>
+                )}
 
-                {/* Logout */}
-                <motion.button
-                    onClick={() => {
-                        clearAuthTokens();
-                        router.push("/login");
-                    }}
-                    className={cn(
-                        "flex w-full items-center gap-3 px-3 py-2.5 text-sm font-medium rounded-lg transition-all",
-                        "text-white/50 hover:text-[#ff3366] hover:bg-[#ff3366]/10",
-                        collapsed && "justify-center"
-                    )}
-                    whileHover={{ x: collapsed ? 0 : 2 }}
-                    whileTap={{ scale: 0.98 }}
-                >
-                    <LogOut className="h-4 w-4" />
-                    {!collapsed && <span>Logout</span>}
-                </motion.button>
             </div>
         </aside>
     );
@@ -359,11 +361,10 @@ interface NavLinkProps {
 
 function NavLink({ item, isActive, collapsed }: NavLinkProps) {
     const Icon = item.icon;
-
-    return (
+    const link = (
         <Link
             href={item.href}
-            title={collapsed ? item.label : undefined}
+            aria-current={isActive ? "page" : undefined}
         >
             <motion.div
                 className={cn(
@@ -455,4 +456,14 @@ function NavLink({ item, isActive, collapsed }: NavLinkProps) {
             </motion.div>
         </Link>
     );
+
+    if (collapsed) {
+        return (
+            <Tooltip content={item.label} side="right">
+                {link}
+            </Tooltip>
+        );
+    }
+
+    return link;
 }

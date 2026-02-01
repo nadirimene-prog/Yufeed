@@ -9,7 +9,7 @@ from sqlalchemy import func
 
 from src.database import get_db
 from src.auth.dependencies import require_any_role, CurrentUser
-from src.models.compliance_workflow import PolicyDocument, PolicySection, RegulatoryObligation
+from src.models.compliance_workflow import PolicyDocument, PolicySection, RegulatoryObligation, PolicyTemplate
 from src.schemas.policy_schemas import (
     PolicyCreate,
     PolicyUpdate,
@@ -19,6 +19,7 @@ from src.schemas.policy_schemas import (
     PolicyResponse,
     PolicyListResponse,
     PolicySectionResponse,
+    PolicyFromTemplateCreate,
 )
 from src.websocket.manager import ws_manager
 from src.websocket.events import EventType, NotificationEvent
@@ -81,6 +82,120 @@ def section_to_dict(section: PolicySection) -> dict:
         "created_at": section.created_at.isoformat() if section.created_at else None,
         "updated_at": section.updated_at.isoformat() if section.updated_at else None,
     }
+
+
+def template_to_dict(template: PolicyTemplate) -> dict:
+    return {
+        "id": template.id,
+        "template_id": template.template_id,
+        "name": template.name,
+        "category": template.category,
+        "version": template.version,
+        "owner": template.owner,
+        "review_frequency_months": template.review_frequency_months,
+        "regulatory_basis": template.regulatory_basis,
+        "source_url": template.source_url,
+        "content": template.content,
+        "metadata": template.metadata_json,
+        "is_active": template.is_active,
+        "created_at": template.created_at.isoformat() if template.created_at else None,
+        "updated_at": template.updated_at.isoformat() if template.updated_at else None,
+    }
+
+
+@router.get("/templates")
+def list_policy_templates(
+    category: Optional[str] = Query(None, description="Filter by category"),
+    q: Optional[str] = Query(None, description="Search by name or template_id"),
+    skip: int = Query(0, ge=0),
+    limit: int = Query(50, ge=1, le=200),
+    db: Session = Depends(get_db),
+    _: CurrentUser = Depends(require_any_role(["admin", "compliance", "aml_officer", "auditor", "user"])),
+):
+    query = db.query(PolicyTemplate).filter(PolicyTemplate.is_active == True)
+    if category:
+        query = query.filter(PolicyTemplate.category.ilike(f"%{category}%"))
+    if q:
+        like = f"%{q}%"
+        query = query.filter(
+            (PolicyTemplate.name.ilike(like)) | (PolicyTemplate.template_id.ilike(like))
+        )
+
+    total = query.count()
+    items = query.order_by(PolicyTemplate.name.asc()).offset(skip).limit(limit).all()
+    return {"total": total, "items": [template_to_dict(item) for item in items]}
+
+
+@router.get("/templates/{template_id}")
+def get_policy_template(
+    template_id: str,
+    db: Session = Depends(get_db),
+    _: CurrentUser = Depends(require_any_role(["admin", "compliance", "aml_officer", "auditor", "user"])),
+):
+    template = db.query(PolicyTemplate).filter(
+        PolicyTemplate.template_id == template_id
+    ).first()
+    if not template:
+        raise HTTPException(status_code=404, detail="Policy template not found")
+    return template_to_dict(template)
+
+
+@router.post("/from-template/{template_id}")
+async def create_policy_from_template(
+    template_id: str,
+    payload: PolicyFromTemplateCreate,
+    db: Session = Depends(get_db),
+    current_user: CurrentUser = Depends(require_any_role(["admin", "compliance", "aml_officer"])),
+):
+    template = db.query(PolicyTemplate).filter(
+        PolicyTemplate.template_id == template_id,
+        PolicyTemplate.is_active == True,
+    ).first()
+    if not template:
+        raise HTTPException(status_code=404, detail="Policy template not found")
+
+    metadata = dict(template.metadata_json or {})
+    metadata.update({
+        "template_id": template.template_id,
+        "category": template.category,
+        "regulatory_basis": template.regulatory_basis,
+        "review_frequency_months": template.review_frequency_months,
+    })
+    if payload.metadata:
+        metadata.update(payload.metadata)
+
+    policy = PolicyDocument(
+        policy_id=generate_policy_id(),
+        name=payload.name or template.name,
+        version=template.version,
+        owner=payload.owner or template.owner or current_user.email,
+        status=payload.status or "draft",
+        language=payload.language or "en",
+        effective_date=payload.effective_date,
+        source_url=payload.source_url or template.source_url,
+        content=payload.content or template.content,
+        metadata_json=metadata or None,
+        created_at=utc_now(),
+        updated_at=utc_now(),
+    )
+
+    db.add(policy)
+    db.commit()
+    db.refresh(policy)
+
+    try:
+        await ws_manager.broadcast(NotificationEvent(
+            event_type=EventType.POLICY_CREATED,
+            title="Policy Created",
+            message=f"New policy created from template: {policy.name}",
+            data={"policy_id": policy.policy_id, "name": policy.name},
+            priority="normal",
+            link=f"/compliance/policies?id={policy.id}",
+        ))
+    except Exception:
+        pass
+
+    return policy_to_dict(policy, db)
 
 
 @router.get("")
@@ -300,6 +415,49 @@ def list_policy_obligations(
             }
             for o in obligations
         ],
+    }
+
+
+@router.post("/{policy_id}/link-obligation/{obligation_id}")
+async def link_obligation_to_policy(
+    policy_id: int,
+    obligation_id: int,
+    db: Session = Depends(get_db),
+    current_user: CurrentUser = Depends(require_any_role(["admin", "compliance", "aml_officer"])),
+):
+    """Link an obligation to a policy."""
+    policy = db.query(PolicyDocument).filter(PolicyDocument.id == policy_id).first()
+    if not policy:
+        raise HTTPException(status_code=404, detail="Policy not found")
+
+    obligation = db.query(RegulatoryObligation).filter(RegulatoryObligation.id == obligation_id).first()
+    if not obligation:
+        raise HTTPException(status_code=404, detail="Obligation not found")
+
+    obligation.linked_policy_id = policy.id
+    obligation.updated_at = utc_now()
+    db.commit()
+    db.refresh(obligation)
+
+    try:
+        await ws_manager.broadcast(NotificationEvent(
+            event_type=EventType.OBLIGATION_UPDATED,
+            title="Obligation Linked",
+            message=f"Linked obligation {obligation.obligation_id} to policy {policy.name}",
+            data={
+                "obligation_id": obligation.obligation_id,
+                "policy_id": policy.policy_id,
+            },
+            priority="normal",
+            link=f"/compliance/obligations/{obligation.id}",
+        ))
+    except Exception:
+        pass
+
+    return {
+        "message": "Obligation linked",
+        "policy_id": policy.policy_id,
+        "obligation_id": obligation.obligation_id,
     }
 
 

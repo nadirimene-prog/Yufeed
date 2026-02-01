@@ -34,6 +34,7 @@ from src.middleware import limiter, custom_rate_limit_handler, configure_redis_s
 from src.middleware.audit_log import AuditLogMiddleware
 from src.monitoring.metrics import setup_metrics
 from src.config import settings
+from src.tenancy.middleware import TenantMiddleware
 from slowapi.errors import RateLimitExceeded
 
 # ----------------------------------------------------------------------
@@ -59,6 +60,11 @@ async def startup_event():
     else:
         logger.warning("REDIS_URL not configured - rate limiting uses in-memory storage")
 
+    # Ensure test DB schema exists for integration tests
+    if os.getenv("ENVIRONMENT", "").lower() in {"test", "testing"}:
+        from src.database import Base, sync_engine
+        Base.metadata.create_all(bind=sync_engine)
+
 # --- OpenAPI alias for Swagger (/api/docs) ---
 @app.get("/api/openapi.json", include_in_schema=False)
 def _openapi_alias():
@@ -68,6 +74,10 @@ def _openapi_alias():
 
 
 register_routers(app)
+
+# Compatibility: expose compliance routes without /api prefix for legacy tests
+from src.api.compliance import router as compliance_router
+app.include_router(compliance_router)
 
 # --- CORS Configuration ---
 raw_origins = os.getenv("ALLOWED_ORIGINS", "http://localhost:3000")
@@ -81,6 +91,9 @@ app.add_middleware(
 )
 Instrumentator().instrument(app).expose(app, endpoint="/metrics", include_in_schema=False)
 FastAPIInstrumentor().instrument_app(app)
+
+# Register tenant context middleware before audit logging
+app.add_middleware(TenantMiddleware)
 
 # Register the audit‑log middleware (runs on every request)
 app.add_middleware(AuditLogMiddleware)

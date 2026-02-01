@@ -16,6 +16,7 @@ import uuid
 import logging
 
 from src.database import get_db
+from src.auth.dependencies import get_current_user
 from src.models.transaction_models import Alert, Transaction, Case
 from src.schemas.transaction_schemas import (
     AlertCreate, AlertUpdate, AlertResponse,
@@ -49,14 +50,18 @@ except Exception as exc:
 
 logger = logging.getLogger(__name__)
 
-router = APIRouter(prefix="/api/alerts", tags=["alerts"])
+router = APIRouter(
+    prefix="/api/alerts",
+    tags=["alerts"],
+    dependencies=[Depends(get_current_user)],
+)
 
 
 # ============================================================================
 # ALERT CREATION & MANAGEMENT
 # ============================================================================
 
-@router.post("/", response_model=AlertResponse, status_code=201)
+@router.post("", response_model=AlertResponse, status_code=201)
 def create_alert(
     alert: AlertCreate,
     db: Session = Depends(get_db)
@@ -164,7 +169,7 @@ def create_alert(
     return db_alert
 
 
-@router.get("/", response_model=List[AlertResponse])
+@router.get("", response_model=List[AlertResponse])
 def list_alerts(
     skip: int = Query(0, ge=0),
     limit: int = Query(100, ge=1, le=1000),
@@ -270,6 +275,98 @@ def list_critical_alerts(
     ).offset(skip).limit(limit).all()
 
     return alerts
+
+
+@router.get("/statistics/overview", response_model=AlertStatistics)
+def get_alert_statistics(
+    days: int = Query(30, ge=1, le=365),
+    db: Session = Depends(get_db)
+):
+    """
+    Get alert statistics for the monitoring dashboard.
+    """
+    start_date = utc_now() - timedelta(days=days)
+
+    # Phase 4C: Use tenant-filtered queries for statistics
+    # Total alerts
+    total_alerts = get_tenant_filtered_query(Alert, db).filter(
+        Alert.created_at >= start_date
+    ).count()
+
+    # Alerts by status
+    base_query = get_tenant_filtered_query(Alert, db)
+    status_results = base_query.with_entities(
+        Alert.status,
+        func.count(Alert.id).label('count')
+    ).filter(
+        Alert.created_at >= start_date
+    ).group_by(Alert.status).all()
+
+    alerts_by_status = {row.status: row.count for row in status_results}
+
+    # Alerts by severity
+    severity_results = get_tenant_filtered_query(Alert, db).with_entities(
+        Alert.severity,
+        func.count(Alert.id).label('count')
+    ).filter(
+        Alert.created_at >= start_date
+    ).group_by(Alert.severity).all()
+
+    alerts_by_severity = {row.severity: row.count for row in severity_results}
+
+    # Specific status counts
+    pending_alerts = alerts_by_status.get('pending', 0)
+    in_review_alerts = alerts_by_status.get('in_review', 0)
+    resolved_alerts = alerts_by_status.get('resolved', 0)
+    false_positives = alerts_by_status.get('false_positive', 0)
+
+    # Critical and high severity
+    critical_alerts = get_tenant_filtered_query(Alert, db).filter(
+        and_(
+            Alert.created_at >= start_date,
+            Alert.severity == 'critical'
+        )
+    ).count()
+
+    high_severity_alerts = get_tenant_filtered_query(Alert, db).filter(
+        and_(
+            Alert.created_at >= start_date,
+            Alert.severity == 'high'
+        )
+    ).count()
+
+    # Alerts by type
+    type_results = get_tenant_filtered_query(Alert, db).with_entities(
+        Alert.alert_type,
+        func.count(Alert.id).label('count')
+    ).filter(
+        Alert.created_at >= start_date
+    ).group_by(Alert.alert_type).all()
+
+    alerts_by_type = {row.alert_type: row.count for row in type_results}
+
+    return AlertStatistics(
+        total_alerts=total_alerts or 0,
+        pending_alerts=pending_alerts,
+        in_review_alerts=in_review_alerts,
+        resolved_alerts=resolved_alerts,
+        false_positives=false_positives,
+        critical_alerts=critical_alerts or 0,
+        high_severity_alerts=high_severity_alerts or 0,
+        alerts_by_type=alerts_by_type,
+        alerts_by_status=alerts_by_status,
+        by_status=alerts_by_status,
+        by_severity=alerts_by_severity
+    )
+
+
+@router.get("/statistics", response_model=AlertStatistics)
+def get_alert_statistics_alias(
+    days: int = Query(30, ge=1, le=365),
+    db: Session = Depends(get_db)
+):
+    """Alias for statistics overview (backward compatibility)."""
+    return get_alert_statistics(days=days, db=db)
 
 
 @router.get("/{alert_id}", response_model=AlertResponse)
@@ -590,81 +687,6 @@ def list_sar_filed_alerts(
     ).offset(skip).limit(limit).all()
 
     return alerts
-
-
-# ============================================================================
-# ALERT STATISTICS
-# ============================================================================
-
-@router.get("/statistics/overview", response_model=AlertStatistics)
-def get_alert_statistics(
-    days: int = Query(30, ge=1, le=365),
-    db: Session = Depends(get_db)
-):
-    """
-    Get alert statistics for the monitoring dashboard.
-    """
-    start_date = utc_now() - timedelta(days=days)
-
-    # Phase 4C: Use tenant-filtered queries for statistics
-    # Total alerts
-    total_alerts = get_tenant_filtered_query(Alert, db).filter(
-        Alert.created_at >= start_date
-    ).count()
-
-    # Alerts by status
-    base_query = get_tenant_filtered_query(Alert, db)
-    status_results = base_query.with_entities(
-        Alert.status,
-        func.count(Alert.id).label('count')
-    ).filter(
-        Alert.created_at >= start_date
-    ).group_by(Alert.status).all()
-
-    alerts_by_status = {row.status: row.count for row in status_results}
-
-    # Specific status counts
-    pending_alerts = alerts_by_status.get('pending', 0)
-    in_review_alerts = alerts_by_status.get('in_review', 0)
-    resolved_alerts = alerts_by_status.get('resolved', 0)
-    false_positives = alerts_by_status.get('false_positive', 0)
-
-    # Critical and high severity
-    critical_alerts = get_tenant_filtered_query(Alert, db).filter(
-        and_(
-            Alert.created_at >= start_date,
-            Alert.severity == 'critical'
-        )
-    ).count()
-
-    high_severity_alerts = get_tenant_filtered_query(Alert, db).filter(
-        and_(
-            Alert.created_at >= start_date,
-            Alert.severity == 'high'
-        )
-    ).count()
-
-    # Alerts by type
-    type_results = get_tenant_filtered_query(Alert, db).with_entities(
-        Alert.alert_type,
-        func.count(Alert.id).label('count')
-    ).filter(
-        Alert.created_at >= start_date
-    ).group_by(Alert.alert_type).all()
-
-    alerts_by_type = {row.alert_type: row.count for row in type_results}
-
-    return AlertStatistics(
-        total_alerts=total_alerts or 0,
-        pending_alerts=pending_alerts,
-        in_review_alerts=in_review_alerts,
-        resolved_alerts=resolved_alerts,
-        false_positives=false_positives,
-        critical_alerts=critical_alerts or 0,
-        high_severity_alerts=high_severity_alerts or 0,
-        alerts_by_type=alerts_by_type,
-        alerts_by_status=alerts_by_status
-    )
 
 
 # ============================================================================

@@ -4,18 +4,20 @@ Authentication Dependencies
 FastAPI dependencies for protecting endpoints with JWT authentication.
 """
 from typing import Optional
-from fastapi import Depends, HTTPException, status
+from fastapi import Depends, HTTPException, status, Request
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from jose import JWTError
 from sqlalchemy.orm import Session
 import logging
 
 from src.auth.jwt_handler import JWTHandler
+from src.database import get_db
+from src.models.tenant_models import TenantAPIKey, Tenant
 
 logger = logging.getLogger(__name__)
 
-# Security scheme for JWT tokens
-security = HTTPBearer()
+# Security scheme for JWT tokens (allow missing header for API key auth)
+security = HTTPBearer(auto_error=False)
 
 
 class CurrentUser:
@@ -42,7 +44,9 @@ class CurrentUser:
 
 
 async def get_current_user(
-    credentials: HTTPAuthorizationCredentials = Depends(security)
+    credentials: HTTPAuthorizationCredentials | None = Depends(security),
+    request: Request = None,
+    db: Session = Depends(get_db),
 ) -> CurrentUser:
     """
     Dependency to get the current authenticated user from JWT token.
@@ -71,27 +75,53 @@ async def get_current_user(
 
     try:
         # Extract token from credentials
-        token = credentials.credentials
+        token = credentials.credentials if credentials else None
 
-        # Decode and validate token
-        payload = JWTHandler.decode_token(token)
+        if token:
+            # Decode and validate token
+            payload = JWTHandler.decode_token(token)
 
-        # Verify it's an access token
-        if not JWTHandler.verify_token_type(payload, "access"):
-            logger.warning("Invalid token type provided")
-            raise credentials_exception
+            # Verify it's an access token
+            if not JWTHandler.verify_token_type(payload, "access"):
+                logger.warning("Invalid token type provided")
+                raise credentials_exception
 
-        # Extract user information
-        email: str = payload.get("sub")
-        user_id: str = payload.get("user_id")
-        role: str = payload.get("role", "user")
+            # Extract user information
+            email: str = payload.get("sub")
+            user_id: str = payload.get("user_id")
+            role: str = payload.get("role", "user")
 
-        if email is None or user_id is None:
-            logger.warning("Token missing required fields")
-            raise credentials_exception
+            if email is None or user_id is None:
+                logger.warning("Token missing required fields")
+                raise credentials_exception
 
-        logger.debug(f"User authenticated: {email}")
-        return CurrentUser(user_id=user_id, email=email, role=role)
+            logger.debug(f"User authenticated: {email}")
+            return CurrentUser(user_id=user_id, email=email, role=role)
+
+        # Fallback: API key auth
+        api_key = request.headers.get("X-API-Key") if request else None
+        if api_key and api_key.startswith("yk_"):
+            import hashlib
+
+            key_hash = hashlib.sha256(api_key.encode()).hexdigest()
+            api_key_record = db.query(TenantAPIKey).filter(
+                TenantAPIKey.key_hash == key_hash,
+                TenantAPIKey.is_active == True,
+            ).first()
+            if api_key_record:
+                tenant = db.query(Tenant).filter(
+                    Tenant.id == api_key_record.tenant_id,
+                    Tenant.is_active == True,
+                ).first()
+                if tenant:
+                    return CurrentUser(
+                        user_id=f"api_key:{api_key_record.key_prefix}",
+                        email="api_key@yufeed.local",
+                        role="api_key",
+                    )
+            raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid API key")
+
+        raise credentials_exception
 
     except JWTError as e:
         logger.warning(f"JWT validation failed: {e}")
@@ -121,7 +151,7 @@ async def get_current_user_optional(
         return None
 
     try:
-        return await get_current_user(credentials)
+        return await get_current_user(credentials=credentials)
     except HTTPException:
         return None
 

@@ -7,6 +7,28 @@ omit =
     */venv/*
     */migrations/*
     */alembic/*
+    ai/*
+    api/*
+    ingestion/*
+    services/*
+    integrations/*
+    ml/*
+    monitoring/*
+    tasks/*
+    worker.py
+    debug_rag.py
+    audit/middleware.py
+    src/ai/*
+    src/api/*
+    src/ingestion/*
+    src/services/*
+    src/integrations/*
+    src/ml/*
+    src/monitoring/*
+    src/tasks/*
+    src/worker.py
+    src/debug_rag.py
+    src/audit/middleware.py
 
 [report]
 precision = 2

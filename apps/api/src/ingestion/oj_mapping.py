@@ -54,7 +54,7 @@ def extract_oj_series(oj_ref: Optional[str]) -> Optional[str]:
     if "JOC" in ref:
         return "C"
 
-    series_match = re.search(r"\\bOJ\\s*([A-Z]{1,3})\\b", ref)
+    series_match = re.search(r"\bOJ\s*([A-Z]{1,3})\b", ref)
     if series_match:
         return series_match.group(1)
 

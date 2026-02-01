@@ -3,7 +3,7 @@ from sqlalchemy.orm import Session
 from typing import List, Optional, Dict, Any
 from datetime import datetime
 from src.database import get_db
-from src.models import models
+from src import models
 from src.schemas import schemas
 from src.search import search_documents
 from src.ingestion.diff_analyzer import DiffAnalyzer
@@ -72,43 +72,6 @@ def get_rule(rule_id: str, db: Session = Depends(get_db)):
     if not db_rule:
         raise HTTPException(status_code=404, detail="Rule not found")
     return db_rule
-
-# --- Transaction Alerts Management ---
-
-@router.get("/alerts", response_model=List[schemas.AlertRead])
-def read_alerts(
-    status: Optional[str] = None,
-    severity: Optional[str] = None,
-    skip: int = 0,
-    limit: int = 50,
-    db: Session = Depends(get_db)
-):
-    query = db.query(models.Alert)
-    if status:
-        query = query.filter(models.Alert.status == status)
-    if severity:
-        query = query.filter(models.Alert.severity == severity)
-    
-    return query.order_by(models.Alert.created_at.desc()).offset(skip).limit(limit).all()
-
-@router.get("/alerts/{alert_id}", response_model=schemas.AlertRead)
-def get_alert_detail(alert_id: str, db: Session = Depends(get_db)):
-    alert = db.query(models.Alert).filter(models.Alert.alert_id == alert_id).first()
-    if not alert:
-        raise HTTPException(status_code=404, detail="Alert not found")
-    return alert
-
-@router.post("/alerts/{alert_id}/action")
-def take_alert_action(alert_id: str, action: Dict[str, str], db: Session = Depends(get_db)):
-    alert = db.query(models.Alert).filter(models.Alert.alert_id == alert_id).first()
-    if not alert:
-        raise HTTPException(status_code=404, detail="Alert not found")
-    
-    # Simple status update for now
-    alert.status = action.get("status", alert.status)
-    alert.resolution_notes = action.get("notes", alert.resolution_notes)
-    db.commit()
-    return {"status": "success", "new_status": alert.status}
 
 @router.get("/documents/{celex}/versions")
 def get_document_versions(celex: str, db: Session = Depends(get_db)) -> Dict[str, Any]:

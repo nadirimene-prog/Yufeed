@@ -77,12 +77,13 @@ class TenantResponse(TenantBase):
     settings: Optional[Dict[str, Any]] = None
     rate_limits: Optional[Dict[str, Any]] = None
     feature_flags: Optional[Dict[str, Any]] = None
-    metadata: Optional[Dict[str, Any]] = None
+    metadata: Optional[Dict[str, Any]] = Field(default=None, validation_alias="metadata_json")
     created_at: datetime
     updated_at: Optional[datetime] = None
 
     class Config:
         from_attributes = True
+        populate_by_name = True
 
 
 class TenantStats(BaseModel):

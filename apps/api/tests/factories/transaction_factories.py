@@ -53,7 +53,7 @@ class TransactionFactory(BaseSQLAlchemyFactory):
     geo_location = factory.Faker("city")
 
     # Risk data
-    risk_score = factory.Faker("pydecimal", left_digits=2, right_digits=2, positive=True, min_value=0, max_value=100)
+    risk_score = factory.Faker("pydecimal", left_digits=2, right_digits=2, positive=True, min_value=1, max_value=100)
     risk_level = factory.Faker("random_element", elements=["low", "medium", "high", "critical"])
     risk_factors = factory.LazyFunction(lambda: {
         "velocity": "high",
@@ -105,10 +105,10 @@ class AlertFactory(BaseSQLAlchemyFactory):
 
     # Alert details
     description = factory.Faker("paragraph")
-    risk_score = factory.Faker("pydecimal", left_digits=2, right_digits=2, positive=True, min_value=0, max_value=100)
-    matched_rules_data = factory.LazyFunction(lambda: [
-        {"rule_id": "rule_001", "rule_name": "High Value Transaction", "matched": True}
-    ])
+    risk_score = factory.Faker("pydecimal", left_digits=2, right_digits=2, positive=True, min_value=1, max_value=100)
+    matched_rules_data = factory.LazyFunction(lambda: {
+        "rule_001": {"rule_name": "High Value Transaction", "matched": True}
+    })
     evidence = factory.LazyFunction(lambda: {
         "transactions": ["txn_001", "txn_002"],
         "patterns": ["rapid_succession", "round_amounts"]

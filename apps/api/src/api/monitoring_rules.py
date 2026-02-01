@@ -84,6 +84,7 @@ def create_rule(
     db.refresh(db_rule)
 
     version = RuleVersion(
+        tenant_id=db_rule.tenant_id,
         rule_id=db_rule.id,
         version_number=db_rule.version,
         status="approved",
@@ -376,6 +377,7 @@ def create_rule_version(
 
     next_version = rule.version + 1
     version = RuleVersion(
+        tenant_id=rule.tenant_id,
         rule_id=rule.id,
         version_number=next_version,
         status="pending",
@@ -497,6 +499,10 @@ def reject_rule_version(
     db.commit()
     db.refresh(version)
 
+    rule = db.query(MonitoringRule).filter(
+        MonitoringRule.id == version.rule_id
+    ).first()
+
     audit_entry = AuditLog(
         audit_id=uuid.uuid4().hex,
         actor_id=_.user_id,
@@ -510,7 +516,7 @@ def reject_rule_version(
         entity_id=str(version.id),
         status_code=200,
         changes={"status": "rejected", "version_number": version.version_number},
-        metadata_json={"rule_id": rule.rule_id},
+        metadata_json={"rule_id": rule.rule_id if rule else None},
     )
     db.add(audit_entry)
     db.commit()
@@ -715,6 +721,7 @@ def create_high_risk_country_rule(
         rule_id=rule_id,
         **rule_data
     )
+    set_tenant_on_create(db_rule)
 
     db.add(db_rule)
     db.commit()
@@ -869,7 +876,7 @@ def get_rules_statistics(db: Session = Depends(get_db)):
 @router.get("/performance/top-performers")
 def get_top_performing_rules(
     limit: int = Query(10, ge=1, le=50),
-    metric: str = Query("alert_count", regex="^(alert_count|true_positive_rate)$"),
+    metric: str = Query("alert_count", pattern="^(alert_count|true_positive_rate)$"),
     db: Session = Depends(get_db)
 ):
     """

@@ -35,10 +35,11 @@ class TestRulesEngineEvaluation:
         db_session.commit()
 
         # Evaluate rule
-        result = RulesEngine.evaluate_transaction(db_session, transaction)
+        engine = RulesEngine(db_session)
+        result = engine.evaluate_transaction(transaction.id)
 
         assert len(result) > 0
-        assert any(hit["rule_id"] == rule.rule_id for hit in result)
+        assert any(rule.rule_id in (alert.matched_rules_data or {}) for alert in result)
 
     def test_compound_and_condition(self, db_session):
         """Test compound AND condition."""
@@ -63,7 +64,8 @@ class TestRulesEngineEvaluation:
         )
         db_session.commit()
 
-        result = RulesEngine.evaluate_transaction(db_session, transaction1)
+        engine = RulesEngine(db_session)
+        result = engine.evaluate_transaction(transaction1.id)
         assert len(result) > 0
 
         # Transaction matching only one condition
@@ -74,8 +76,8 @@ class TestRulesEngineEvaluation:
         )
         db_session.commit()
 
-        result = RulesEngine.evaluate_transaction(db_session, transaction2)
-        assert not any(hit["rule_id"] == rule.rule_id for hit in result)
+        result = engine.evaluate_transaction(transaction2.id)
+        assert not any(rule.rule_id in (alert.matched_rules_data or {}) for alert in result)
 
     def test_compound_or_condition(self, db_session):
         """Test compound OR condition."""
@@ -100,8 +102,9 @@ class TestRulesEngineEvaluation:
         )
         db_session.commit()
 
-        result = RulesEngine.evaluate_transaction(db_session, transaction1)
-        assert any(hit["rule_id"] == rule.rule_id for hit in result)
+        engine = RulesEngine(db_session)
+        result = engine.evaluate_transaction(transaction1.id)
+        assert any(rule.rule_id in (alert.matched_rules_data or {}) for alert in result)
 
         # Transaction matching second condition
         transaction2 = TransactionFactory(
@@ -111,8 +114,8 @@ class TestRulesEngineEvaluation:
         )
         db_session.commit()
 
-        result = RulesEngine.evaluate_transaction(db_session, transaction2)
-        assert any(hit["rule_id"] == rule.rule_id for hit in result)
+        result = engine.evaluate_transaction(transaction2.id)
+        assert any(rule.rule_id in (alert.matched_rules_data or {}) for alert in result)
 
     def test_country_risk_condition(self, db_session):
         """Test country-based risk condition."""
@@ -135,8 +138,9 @@ class TestRulesEngineEvaluation:
         )
         db_session.commit()
 
-        result = RulesEngine.evaluate_transaction(db_session, transaction)
-        assert any(hit["rule_id"] == rule.rule_id for hit in result)
+        engine = RulesEngine(db_session)
+        result = engine.evaluate_transaction(transaction.id)
+        assert any(rule.rule_id in (alert.matched_rules_data or {}) for alert in result)
 
     def test_disabled_rule_not_evaluated(self, db_session):
         """Test that disabled rules are not evaluated."""
@@ -161,10 +165,11 @@ class TestRulesEngineEvaluation:
         db_session.commit()
 
         # Evaluate
-        result = RulesEngine.evaluate_transaction(db_session, transaction)
+        engine = RulesEngine(db_session)
+        result = engine.evaluate_transaction(transaction.id)
 
         # Disabled rule should not trigger
-        assert not any(hit["rule_id"] == rule.rule_id for hit in result)
+        assert not any(rule.rule_id in (alert.matched_rules_data or {}) for alert in result)
 
 
 @pytest.mark.unit

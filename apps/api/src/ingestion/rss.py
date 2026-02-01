@@ -253,6 +253,11 @@ class RSSFetcher:
             link = ""
             if link_tag:
                 link = link_tag.get("href") or (link_tag.text or "").strip()
+            if not link:
+                text_blob = item.get_text(" ", strip=True) if hasattr(item, "get_text") else ""
+                url_match = re.search(r"https?://[^\s<]+", text_blob)
+                if url_match:
+                    link = url_match.group(0)
 
             title = (title_tag.text or "").strip() if title_tag else "No Title"
             description = (desc_tag.text or "").strip() if desc_tag else ""
@@ -417,7 +422,7 @@ class RSSFetcher:
             r"oj:(JOL|JOC)_[0-9_]+",
             r"JOL_[0-9_]+",
             r"JOC_[0-9_]+",
-            r"OJ\\s*[LC]",
+            r"OJ\s*[LC]",
             r"Official Journal",
             r"Journal officiel",
         ]
@@ -431,9 +436,9 @@ class RSSFetcher:
         if not oj_ref:
             return None
         ref_upper = oj_ref.upper()
-        if "JOL" in ref_upper or re.search(r"OJ\\s*L", ref_upper):
+        if "JOL" in ref_upper or re.search(r"OJ\s*L", ref_upper):
             return "L"
-        if "JOC" in ref_upper or re.search(r"OJ\\s*C", ref_upper):
+        if "JOC" in ref_upper or re.search(r"OJ\s*C", ref_upper):
             return "C"
         return None
 

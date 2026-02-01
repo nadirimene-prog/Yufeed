@@ -12,7 +12,7 @@ import hashlib
 import secrets
 
 from src.main import app
-from src.database import get_db, SessionLocal
+from src.database import get_db, SessionLocal, Base, sync_engine
 from src.models.tenant_models import Tenant, TenantAPIKey
 from src.models.transaction_models import Transaction, Alert, Case, MonitoringRule
 from src.tenancy.context import TenantContext
@@ -28,9 +28,12 @@ client = TestClient(app)
 @pytest.fixture(scope="module")
 def db():
     """Database session fixture."""
+    Base.metadata.drop_all(bind=sync_engine)
+    Base.metadata.create_all(bind=sync_engine)
     session = SessionLocal()
     yield session
     session.close()
+    Base.metadata.drop_all(bind=sync_engine)
 
 
 @pytest.fixture(scope="module")
@@ -128,7 +131,7 @@ def api_key_tenant_b(db: Session, tenant_b: Tenant):
 class TestTenantManagement:
     """Test tenant CRUD operations."""
 
-    def test_create_tenant(self):
+    def test_create_tenant(self, db: Session):
         """Test creating a new tenant."""
         response = client.post(
             "/api/tenants",

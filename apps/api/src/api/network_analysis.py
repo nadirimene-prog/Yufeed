@@ -43,7 +43,7 @@ def analyze_user_network(
 @router.get("/related/{user_id}")
 def find_related_users(
     user_id: str,
-    relationship_type: str = Query("all", regex="^(all|transaction|ip|device)$"),
+    relationship_type: str = Query("all", pattern="^(all|transaction|ip|device)$"),
     db: Session = Depends(get_db)
 ):
     """

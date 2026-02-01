@@ -18,6 +18,7 @@ from concurrent.futures import ThreadPoolExecutor
 from functools import partial
 from typing import Optional
 from fastapi import Request, Response, HTTPException
+from fastapi.responses import JSONResponse
 from starlette.middleware.base import BaseHTTPMiddleware
 from starlette.types import ASGIApp
 
@@ -78,8 +79,8 @@ class TenantMiddleware(BaseHTTPMiddleware):
             response = await call_next(request)
             return response
 
-        except HTTPException:
-            raise
+        except HTTPException as exc:
+            return JSONResponse(status_code=exc.status_code, content={"detail": exc.detail})
         except Exception as e:
             logger.error(f"Tenant middleware error: {e}", exc_info=True)
             raise HTTPException(status_code=500, detail="Internal server error")
@@ -107,6 +108,7 @@ class TenantMiddleware(BaseHTTPMiddleware):
             tenant_id = await self._extract_tenant_from_api_key(api_key)
             if tenant_id:
                 return tenant_id
+            raise HTTPException(status_code=401, detail="Invalid API key")
 
         # 2. Try JWT token
         # TODO: Extract from JWT when auth is fully implemented

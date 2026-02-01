@@ -2,6 +2,7 @@
 Pytest configuration and fixtures for YuFeed API tests.
 """
 import os
+from pathlib import Path
 import pytest
 from typing import Generator
 from sqlalchemy import create_engine
@@ -23,16 +24,27 @@ from src.config import settings
 @pytest.fixture(scope="session")
 def test_db_engine():
     """
-    Create a test database engine with in-memory SQLite for fast testing.
-    Use StaticPool to share the same connection across all tests.
+    Create a test database engine using DATABASE_URL.
+    For SQLite, reuse a shared file-backed DB to support async + sync sessions.
     """
-    # Use in-memory SQLite for unit tests (fast, isolated)
-    engine = create_engine(
-        "sqlite:///:memory:",
-        connect_args={"check_same_thread": False},
-        poolclass=StaticPool,
-        echo=False
-    )
+    db_url = os.getenv("DATABASE_URL", "sqlite:///:memory:")
+    connect_args = {}
+    poolclass = None
+
+    if db_url.startswith("sqlite"):
+        connect_args = {"check_same_thread": False}
+        if db_url.endswith(":memory:"):
+            poolclass = StaticPool
+
+    engine_kwargs = {
+        "echo": False,
+    }
+    if connect_args:
+        engine_kwargs["connect_args"] = connect_args
+    if poolclass:
+        engine_kwargs["poolclass"] = poolclass
+
+    engine = create_engine(db_url, **engine_kwargs)
 
     # Create all tables
     Base.metadata.create_all(bind=engine)
@@ -42,16 +54,27 @@ def test_db_engine():
     # Cleanup
     Base.metadata.drop_all(bind=engine)
     engine.dispose()
+    if db_url.startswith("sqlite") and not db_url.endswith(":memory:"):
+        try:
+            path = Path(db_url.replace("sqlite:///", "", 1))
+            if path.exists():
+                path.unlink()
+        except Exception:
+            pass
 
 
 @pytest.fixture(scope="function")
-def db_session(test_db_engine) -> Generator[Session, None, None]:
+def db_session(request, test_db_engine) -> Generator[Session, None, None]:
     """
     Create a new database session for each test.
     Automatically rolls back after each test for isolation.
     """
     connection = test_db_engine.connect()
-    transaction = connection.begin()
+    use_outer_tx = request.node.get_closest_marker("integration") is None
+
+    transaction = None
+    if use_outer_tx:
+        transaction = connection.begin()
 
     SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=connection)
     session = SessionLocal()
@@ -83,7 +106,8 @@ def db_session(test_db_engine) -> Generator[Session, None, None]:
 
     # Rollback and cleanup
     session.close()
-    transaction.rollback()
+    if transaction is not None:
+        transaction.rollback()
     connection.close()
 
 

@@ -13,7 +13,7 @@ def utc_now() -> datetime:
 from pydantic import BaseModel
 
 from src.database import get_db
-from src.models import models
+from src import models
 from src.models.impact_assessment import (
     ImpactAssessment, ActionItem, GapAnalysis,
     ImpactLevel, BusinessArea, ActionStatus

@@ -52,7 +52,7 @@ def create_tenant(
     # Check if tenant_id already exists
     existing = db.query(Tenant).filter(Tenant.tenant_id == tenant.tenant_id).first()
     if existing:
-        raise HTTPException(status_code=409, detail="Tenant ID already exists")
+        raise HTTPException(status_code=400, detail="Tenant ID already exists")
 
     # Create tenant
     db_tenant = Tenant(

@@ -4,7 +4,7 @@ Provides comprehensive dashboard data for transaction monitoring.
 """
 from fastapi import APIRouter, Depends, Query
 from sqlalchemy.orm import Session
-from sqlalchemy import func, and_, or_
+from sqlalchemy import func, and_, or_, case
 from typing import List
 from datetime import datetime, timedelta, timezone
 
@@ -154,21 +154,24 @@ def get_alert_trends(
     # Get daily alert counts
     from sqlalchemy import cast, Date
 
+    dialect = db.get_bind().dialect.name if db.get_bind() else ""
+    date_expr = func.date(Alert.created_at) if dialect == "sqlite" else cast(Alert.created_at, Date)
+
     daily_alerts = db.query(
-        cast(Alert.created_at, Date).label('date'),
+        date_expr.label('date'),
         Alert.severity,
         func.count(Alert.id).label('count')
     ).filter(
         Alert.created_at >= start_date
     ).group_by(
-        'date',
+        date_expr,
         Alert.severity
     ).order_by('date').all()
 
     # Format for chart
     trends = {}
     for date, severity, count in daily_alerts:
-        date_str = date.isoformat()
+        date_str = date.isoformat() if hasattr(date, "isoformat") else str(date)
         if date_str not in trends:
             trends[date_str] = {
                 'date': date_str,
@@ -202,7 +205,7 @@ def get_transaction_trends(
     from sqlalchemy import cast, Date
 
     daily_transactions = db.query(
-        cast(Transaction.timestamp, Date).label('date'),
+        (func.date(Transaction.timestamp) if (db.get_bind().dialect.name if db.get_bind() else "") == "sqlite" else cast(Transaction.timestamp, Date)).label('date'),
         func.count(Transaction.id).label('count'),
         func.sum(Transaction.amount).label('volume'),
         func.avg(Transaction.amount).label('avg_amount')
@@ -213,7 +216,7 @@ def get_transaction_trends(
     trends = []
     for date, count, volume, avg_amount in daily_transactions:
         trends.append({
-            'date': date.isoformat(),
+            'date': date.isoformat() if hasattr(date, "isoformat") else str(date),
             'transaction_count': count,
             'total_volume': float(volume or 0),
             'average_amount': float(avg_amount or 0)
@@ -292,7 +295,7 @@ def get_compliance_coverage(db: Session = Depends(get_db)):
     category_coverage = db.query(
         MonitoringRule.category,
         func.count(MonitoringRule.id).label('total'),
-        func.sum(func.case((MonitoringRule.regulatory_source_id.isnot(None), 1), else_=0)).label('with_regulations')
+        func.sum(case((MonitoringRule.regulatory_source_id.isnot(None), 1), else_=0)).label('with_regulations')
     ).group_by(MonitoringRule.category).all()
 
     categories = []
@@ -333,6 +336,15 @@ def _get_alert_statistics(db: Session, start_date: datetime) -> AlertStatistics:
 
     alerts_by_status = {row.status: row.count for row in status_results}
 
+    severity_results = db.query(
+        Alert.severity,
+        func.count(Alert.id).label('count')
+    ).filter(
+        Alert.created_at >= start_date
+    ).group_by(Alert.severity).all()
+
+    alerts_by_severity = {row.severity: row.count for row in severity_results}
+
     pending_alerts = alerts_by_status.get('pending', 0)
     in_review_alerts = alerts_by_status.get('in_review', 0)
     resolved_alerts = alerts_by_status.get('resolved', 0)
@@ -372,7 +384,9 @@ def _get_alert_statistics(db: Session, start_date: datetime) -> AlertStatistics:
         critical_alerts=critical_alerts,
         high_severity_alerts=high_severity_alerts,
         alerts_by_type=alerts_by_type,
-        alerts_by_status=alerts_by_status
+        alerts_by_status=alerts_by_status,
+        by_status=alerts_by_status,
+        by_severity=alerts_by_severity
     )
 
 

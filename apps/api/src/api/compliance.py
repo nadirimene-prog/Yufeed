@@ -11,7 +11,7 @@ def utc_now() -> datetime:
     """Return current UTC time (timezone-aware)."""
     return datetime.now(timezone.utc)
 from src.database import get_db
-from src.models import models
+from src import models
 from src.models.annotation import Annotation
 from src.schemas import schemas
 from src.schemas import compliance as comp_schemas

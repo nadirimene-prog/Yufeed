@@ -1,5 +1,6 @@
 # apps/api/src/middleware/audit_log.py
 import json
+import re
 import uuid
 from datetime import datetime, timezone
 from fastapi import Request, Response
@@ -36,6 +37,18 @@ class AuditLogMiddleware(BaseHTTPMiddleware):
         try:
             async with AsyncSessionLocal() as session:
                 async with session.begin():
+                    entity_type = request.headers.get("X-Entity-Type")
+                    entity_id = request.headers.get("X-Entity-Id")
+
+                    if not entity_type:
+                        if request.url.path.startswith("/api/alerts"):
+                            entity_type = "alerts"
+
+                    if not entity_id:
+                        match = re.match(r"^/api/alerts/([^/]+)", request.url.path)
+                        if match:
+                            entity_id = match.group(1)
+
                     audit = AuditLog(
                         audit_id=request_id,
                         actor_id=getattr(request.state, "user", None).user_id
@@ -44,14 +57,16 @@ class AuditLogMiddleware(BaseHTTPMiddleware):
                         if hasattr(request.state, "user") else None,
                         actor_role=getattr(request.state, "user", None).role
                         if hasattr(request.state, "user") else None,
+                        actor_ip=request.client.host if request.client else None,
+                        user_agent=request.headers.get("User-Agent"),
                         action=request.method.lower(),
                         method=request.method,
                         path=request.url.path,
-                        entity_type=request.headers.get("X-Entity-Type"),
-                        entity_id=request.headers.get("X-Entity-Id"),
+                        entity_type=entity_type,
+                        entity_id=entity_id,
                         status_code=response.status_code,
                         changes=payload,
-                        metadata_report={
+                        metadata_json={
                             "user_agent": request.headers.get("User-Agent"),
                             "ip": request.client.host,
                         },

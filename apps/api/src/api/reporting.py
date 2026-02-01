@@ -4,7 +4,7 @@ Regulatory reporting, analytics, and audit trails.
 """
 from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.orm import Session
-from sqlalchemy import func, and_, or_, case
+from sqlalchemy import func, and_, or_, case, select
 import sqlalchemy as sa
 from sqlalchemy.inspection import inspect as sa_inspect
 from typing import Optional
@@ -124,7 +124,7 @@ def prepare_sar(
 @router.post("/sar/file/{case_id}")
 def file_sar(
     case_id: str,
-    jurisdiction: str = Query("EU", regex="^(US|EU|INTL)$"),
+    jurisdiction: str = Query("EU", pattern="^(US|EU|INTL)$"),
     dry_run: bool = Query(True),
     db: Session = Depends(get_db),
     _: CurrentUser = Depends(require_any_role(["admin", "compliance", "aml_officer"]))
@@ -299,7 +299,7 @@ def get_compliance_dashboard(
     total_rules = db.query(func.count(MonitoringRule.id)).scalar() or 1  # Avoid division by zero
 
     recent_updates = db.query(LegalDocument).filter(
-        LegalDocument.created_at >= date_from
+        LegalDocument.last_modified >= date_from
     ).count()
 
     # Risk metrics
@@ -510,6 +510,7 @@ def compliance_home_dashboard(
     docs_query = db.query(LegalDocument)
     docs_query = _apply_scope_filter_to_docs(docs_query, scopes, db)
     scope_doc_ids_subq = docs_query.with_entities(LegalDocument.id).subquery()
+    scope_doc_ids_select = select(scope_doc_ids_subq.c.id)
 
     total_docs = docs_query.count()
     rules_total = db.query(func.count(MonitoringRule.id)).scalar() or 0
@@ -518,7 +519,7 @@ def compliance_home_dashboard(
     ).scalar() or 0
     celex_covered = db.query(func.count(func.distinct(MonitoringRule.regulatory_source_id))).filter(
         MonitoringRule.regulatory_source_id.isnot(None),
-        MonitoringRule.regulatory_source_id.in_(scope_doc_ids_subq),
+        MonitoringRule.regulatory_source_id.in_(scope_doc_ids_select),
     ).scalar() or 0
 
     celex_coverage_pct = round((celex_covered / total_docs * 100), 2) if total_docs > 0 else 0
@@ -527,9 +528,10 @@ def compliance_home_dashboard(
     mapped_ids_subq = db.query(MonitoringRule.regulatory_source_id).filter(
         MonitoringRule.regulatory_source_id.isnot(None)
     ).subquery()
+    mapped_ids_select = select(mapped_ids_subq.c.regulatory_source_id)
 
     uncovered_docs = docs_query.filter(
-        ~LegalDocument.id.in_(mapped_ids_subq)
+        ~LegalDocument.id.in_(mapped_ids_select)
     ).order_by(LegalDocument.publication_date.desc()).limit(5).all()
 
     rules_without_celex = db.query(MonitoringRule).filter(
@@ -993,8 +995,19 @@ def get_alerts_summary_report(
     # Top triggered rules
     rule_counts = {}
     for alert in alerts:
-        if alert.rule_id:
-            rule_counts[alert.rule_id] = rule_counts.get(alert.rule_id, 0) + 1
+        matched = getattr(alert, "matched_rules_data", None)
+        if isinstance(matched, dict):
+            for rule_id in matched.keys():
+                rule_counts[rule_id] = rule_counts.get(rule_id, 0) + 1
+        elif isinstance(matched, list):
+            for rule_id in matched:
+                rule_counts[rule_id] = rule_counts.get(rule_id, 0) + 1
+        else:
+            rule_hits = getattr(alert, "rule_hits", []) or []
+            for hit in rule_hits:
+                rule = getattr(hit, "rule", None)
+                if rule and getattr(rule, "rule_id", None):
+                    rule_counts[rule.rule_id] = rule_counts.get(rule.rule_id, 0) + 1
 
     top_rules = sorted(rule_counts.items(), key=lambda x: x[1], reverse=True)[:10]
 

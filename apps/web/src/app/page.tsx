@@ -1,8 +1,13 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
+import { FileSearch, Radar, ShieldCheck, Sparkles } from "lucide-react";
 import { getAuthToken, loginWithPassword } from "@/lib/auth";
+import { Button } from "@/components/ui/button";
+import { GlassCard } from "@/components/ui/glass-card";
+import { Input } from "@/components/ui/input";
 
 export default function Home() {
   const router = useRouter();
@@ -12,6 +17,27 @@ export default function Home() {
   const [remember, setRemember] = useState(true);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const errorId = error ? "login-error" : undefined;
+  const emailInvalid = email.length > 0 && !/^\S+@\S+\.\S+$/.test(email);
+  const emailErrorId = emailInvalid ? "login-email-error" : undefined;
+
+  const highlights = [
+    {
+      icon: Radar,
+      title: "Regulatory radar",
+      description: "Track EU legal updates and map them to obligations.",
+    },
+    {
+      icon: ShieldCheck,
+      title: "AML monitoring",
+      description: "Triage alerts with risk context and automated workflows.",
+    },
+    {
+      icon: FileSearch,
+      title: "Audit-ready evidence",
+      description: "Keep every decision, action, and report traceable.",
+    },
+  ];
 
   useEffect(() => {
     if (getAuthToken()) {
@@ -41,86 +67,186 @@ export default function Home() {
 
   if (!ready) {
     return (
-      <div className="min-h-screen bg-gray-50 dark:bg-gray-900 flex items-center justify-center p-6">
-        <div className="text-sm text-gray-500 dark:text-gray-400">
-          Checking session...
-        </div>
+      <div className="flex min-h-[60vh] items-center justify-center">
+        <div className="text-sm text-muted-foreground">Checking session...</div>
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-gray-50 dark:bg-gray-900 flex items-center justify-center p-6">
-      <div className="w-full max-w-md rounded-2xl border border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-950 shadow-xl p-8">
-        <div className="mb-6 text-center">
-          <div className="text-xs uppercase tracking-[0.2em] text-gray-500">
-            YuFeed Risk OS
+    <section className="relative overflow-hidden">
+      <div className="pointer-events-none absolute -top-24 left-12 h-60 w-60 rounded-full bg-[#6d5acd]/20 blur-3xl" />
+      <div className="pointer-events-none absolute -bottom-20 right-0 h-72 w-72 rounded-full bg-[#00d4ff]/15 blur-3xl" />
+
+      <div className="grid items-center gap-10 lg:grid-cols-[1.1fr_0.9fr]">
+        <div className="space-y-6">
+          <div className="space-y-3">
+            <div className="text-xs uppercase tracking-[0.3em] text-[#00d4ff]/80">
+              YuFeed Sentinel
+            </div>
+            <h1 className="text-3xl font-semibold text-foreground md:text-4xl">
+              Compliance clarity in minutes, not weeks.
+            </h1>
+            <p className="text-sm text-muted-foreground md:text-base">
+              YuFeed unifies EU regulatory intelligence, AML monitoring, and
+              investigation workflows so your team can act with confidence.
+            </p>
           </div>
-          <h1 className="mt-2 text-2xl font-semibold text-gray-900 dark:text-gray-100">
-            Sign in to Console
-          </h1>
-          <p className="mt-2 text-sm text-gray-600 dark:text-gray-400">
-            Access compliance workflows, audit trails, and risk decisioning.
-          </p>
+
+          <div className="space-y-4">
+            {highlights.map((item) => (
+              <div key={item.title} className="flex gap-3">
+                <div className="mt-1 flex h-10 w-10 items-center justify-center rounded-xl bg-white/5 text-[#00d4ff] shadow-[0_0_20px_rgba(0,212,255,0.12)]">
+                  <item.icon className="h-5 w-5" />
+                </div>
+                <div>
+                  <div className="text-sm font-semibold text-foreground">
+                    {item.title}
+                  </div>
+                  <p className="text-sm text-muted-foreground">
+                    {item.description}
+                  </p>
+                </div>
+              </div>
+            ))}
+          </div>
+
+          <div className="flex flex-wrap gap-2 text-xs text-muted-foreground">
+            {[
+              "EU legal coverage",
+              "Encrypted at rest",
+              "Audit-ready reporting",
+              "24/7 monitoring",
+            ].map((item) => (
+              <span
+                key={item}
+                className="rounded-full border border-white/10 bg-white/5 px-3 py-1"
+              >
+                {item}
+              </span>
+            ))}
+          </div>
         </div>
 
-        <form onSubmit={handleSubmit} className="space-y-4">
-          <div>
-            <label className="block text-xs font-medium text-gray-600 dark:text-gray-400">
-              Email
-            </label>
-            <input
-              type="email"
-              required
-              value={email}
-              onChange={(event) => setEmail(event.target.value)}
-              className="mt-1 w-full rounded-md border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900 px-3 py-2 text-sm text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-gray-900 dark:focus:ring-gray-100"
-              placeholder="name@company.com"
-            />
-          </div>
-
-          <div>
-            <label className="block text-xs font-medium text-gray-600 dark:text-gray-400">
-              Password
-            </label>
-            <input
-              type="password"
-              required
-              value={password}
-              onChange={(event) => setPassword(event.target.value)}
-              className="mt-1 w-full rounded-md border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900 px-3 py-2 text-sm text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-gray-900 dark:focus:ring-gray-100"
-              placeholder="••••••••"
-            />
-          </div>
-
-          <div className="flex items-center justify-between text-xs text-gray-600 dark:text-gray-400">
-            <label className="flex items-center gap-2">
-              <input
-                type="checkbox"
-                checked={remember}
-                onChange={(event) => setRemember(event.target.checked)}
-                className="h-4 w-4 rounded border-gray-300 dark:border-gray-700"
-              />
-              Remember me
-            </label>
-            <span className="text-gray-400">JWT access only</span>
-          </div>
-
-          {error ? (
-            <div className="rounded-md border border-red-200 bg-red-50 text-red-700 dark:border-red-900/50 dark:bg-red-900/20 dark:text-red-200 px-3 py-2 text-xs">
-              {error}
+        <GlassCard variant="elevated" glow="primary" className="p-8">
+          <div className="space-y-6">
+            <div className="space-y-2">
+              <div className="inline-flex items-center gap-2 text-xs uppercase tracking-[0.2em] text-white/40">
+                <Sparkles className="h-4 w-4 text-[#6d5acd]" />
+                Secure Console
+              </div>
+              <h2 className="text-xl font-semibold text-foreground">
+                Sign in to your workspace
+              </h2>
+              <p className="text-sm text-muted-foreground">
+                Use your work email to access alerts, cases, and compliance
+                reporting.
+              </p>
             </div>
-          ) : null}
 
-          <button
-            type="submit"
-            disabled={loading}
-            className="w-full rounded-md bg-gray-900 text-white py-2 text-sm font-medium hover:bg-gray-800 disabled:opacity-60"
-          >
-            {loading ? "Signing in..." : "Sign in"}
-          </button>
-        </form>
+            <form onSubmit={handleSubmit} className="space-y-4">
+              <div className="space-y-2">
+                <label
+                  htmlFor="email"
+                  className="block text-xs font-medium text-white/60"
+                >
+                  Work email
+                </label>
+                <Input
+                  id="email"
+                  type="email"
+                  required
+                  value={email}
+                  onChange={(event) => setEmail(event.target.value)}
+                  placeholder="name@company.com"
+                  autoComplete="email"
+                  inputMode="email"
+                  error={emailInvalid}
+                  errorMessage={emailInvalid ? "Enter a valid work email." : undefined}
+                  errorMessageId={emailErrorId}
+                  aria-invalid={emailInvalid || Boolean(error)}
+                  aria-describedby={[errorId, emailErrorId].filter(Boolean).join(" ") || undefined}
+                />
+              </div>
+
+              <div className="space-y-2">
+                <label
+                  htmlFor="password"
+                  className="block text-xs font-medium text-white/60"
+                >
+                  Password
+                </label>
+                <Input
+                  id="password"
+                  type="password"
+                  required
+                  value={password}
+                  onChange={(event) => setPassword(event.target.value)}
+                  placeholder="Enter your password"
+                  autoComplete="current-password"
+                  error={Boolean(error)}
+                  aria-invalid={Boolean(error)}
+                  aria-describedby={errorId}
+                />
+              </div>
+
+              <div className="flex items-center justify-between text-xs text-muted-foreground">
+                <label className="flex items-center gap-2">
+                  <input
+                    id="remember"
+                    type="checkbox"
+                    checked={remember}
+                    onChange={(event) => setRemember(event.target.checked)}
+                    className="h-4 w-4 rounded border-white/20 bg-white/5"
+                  />
+                  Keep me signed in on this device
+                </label>
+                <Link
+                  href="/forgot-password"
+                  className="text-[#00d4ff]/80 hover:text-[#00d4ff]"
+                >
+                  Forgot password?
+                </Link>
+              </div>
+
+              {error ? (
+                <div
+                  id={errorId}
+                  role="alert"
+                  aria-live="polite"
+                  className="rounded-lg border border-[#ff3366]/30 bg-[#ff3366]/10 px-3 py-2 text-xs text-[#ff99b3]"
+                >
+                  {error}
+                </div>
+              ) : null}
+
+              <Button
+                type="submit"
+                variant="gradient"
+                size="lg"
+                loading={loading}
+                disabled={emailInvalid}
+                className="w-full"
+              >
+                Sign in
+              </Button>
+            </form>
+
+            <div className="flex flex-wrap items-center justify-between gap-2 text-xs text-muted-foreground">
+              <span>
+                New here?{" "}
+                <Link
+                  href="/request-access"
+                  className="text-[#00d4ff]/80 hover:text-[#00d4ff]"
+                >
+                  Request access
+                </Link>
+              </span>
+              <span>Need help? support@yufeed.com</span>
+            </div>
+          </div>
+        </GlassCard>
       </div>
-    </div>
+    </section>
   );
 }

@@ -1,15 +1,16 @@
 "use client";
 
 import { motion, AnimatePresence } from "framer-motion";
-import { Bell, Search, User, ChevronRight, Command, Moon, Sun, Sparkles } from "lucide-react";
+import { ChevronRight, LogOut, Moon, Settings, Sparkles, Sun, User } from "lucide-react";
 import Link from "next/link";
-import { usePathname } from "next/navigation";
-import { useState, useEffect } from "react";
+import { usePathname, useRouter } from "next/navigation";
+import { useEffect, useRef, useState } from "react";
 import { cn } from "@/lib/utils";
 import { NotificationBell } from "./NotificationBell";
 import { SearchInput } from "./ui/input";
 import { Tooltip } from "./ui/tooltip";
 import { springs, transitions } from "@/lib/motion";
+import { clearAuthTokens } from "@/lib/auth";
 
 /**
  * ═══════════════════════════════════════════════════════════════════
@@ -20,17 +21,18 @@ import { springs, transitions } from "@/lib/motion";
 
 export default function Header() {
     const pathname = usePathname();
+    const router = useRouter();
     const [searchFocused, setSearchFocused] = useState(false);
     const [isDark, setIsDark] = useState(true);
+    const [menuOpen, setMenuOpen] = useState(false);
+    const menuRef = useRef<HTMLDivElement>(null);
 
     // Simple breadcrumb logic: split path and capitalize
-    const breadcrumbs = pathname
-        .split("/")
-        .filter(Boolean)
-        .map((segment) => ({
-            label: segment.charAt(0).toUpperCase() + segment.slice(1).replace(/-/g, " "),
-            href: "/" + pathname.split("/").slice(1, pathname.split("/").indexOf(segment) + 2).join("/"),
-        }));
+    const segments = pathname.split("/").filter(Boolean);
+    const breadcrumbs = segments.map((segment, index) => ({
+        label: segment.charAt(0).toUpperCase() + segment.slice(1).replace(/-/g, " "),
+        href: "/" + segments.slice(0, index + 1).join("/"),
+    }));
 
     // Sync with document class on mount
     useEffect(() => {
@@ -41,6 +43,29 @@ export default function Header() {
         document.documentElement.classList.toggle("dark");
         setIsDark(!isDark);
     };
+
+    useEffect(() => {
+        const handleClick = (event: MouseEvent) => {
+            if (!menuRef.current) return;
+            if (!menuRef.current.contains(event.target as Node)) {
+                setMenuOpen(false);
+            }
+        };
+
+        const handleKey = (event: KeyboardEvent) => {
+            if (event.key === "Escape") {
+                setMenuOpen(false);
+            }
+        };
+
+        document.addEventListener("mousedown", handleClick);
+        document.addEventListener("keydown", handleKey);
+
+        return () => {
+            document.removeEventListener("mousedown", handleClick);
+            document.removeEventListener("keydown", handleKey);
+        };
+    }, []);
 
     return (
         <header className="sticky top-0 z-40 w-full">
@@ -62,7 +87,10 @@ export default function Header() {
 
             <div className="relative flex h-16 items-center px-4 md:px-6 gap-4">
                 {/* Left: Breadcrumbs */}
-                <nav className="flex items-center gap-1.5 text-sm min-w-0 flex-shrink-0">
+                <nav
+                    className="flex items-center gap-1.5 text-sm min-w-0 flex-shrink-0"
+                    aria-label="Breadcrumb"
+                >
                     <Link
                         href="/dashboard"
                         className="hidden md:flex items-center gap-1.5 text-white/40 hover:text-white/70 transition-colors"
@@ -129,6 +157,7 @@ export default function Header() {
                             shortcut="⌘K"
                             onFocus={() => setSearchFocused(true)}
                             onBlur={() => setSearchFocused(false)}
+                            aria-label="Global search"
                             className={cn(
                                 "w-full transition-all duration-200",
                                 searchFocused && "shadow-[0_0_30px_rgba(109,90,205,0.2)]"
@@ -165,6 +194,7 @@ export default function Header() {
                                     "text-[#00d4ff] hover:text-white",
                                     "transition-colors"
                                 )}
+                                aria-label="Open AI Officer"
                                 whileHover={{ scale: 1.05 }}
                                 whileTap={{ scale: 0.95 }}
                             >
@@ -193,6 +223,7 @@ export default function Header() {
                     <Tooltip content={isDark ? "Light mode" : "Dark mode"} side="bottom">
                         <motion.button
                             onClick={toggleTheme}
+                            aria-label={isDark ? "Switch to light mode" : "Switch to dark mode"}
                             className={cn(
                                 "flex items-center justify-center h-9 w-9 rounded-lg",
                                 "text-white/50 hover:text-white hover:bg-white/[0.05]",
@@ -231,43 +262,107 @@ export default function Header() {
                     <div className="h-6 w-px bg-white/[0.08] mx-1" />
 
                     {/* User Menu */}
-                    <motion.button
-                        className={cn(
-                            "flex items-center gap-2.5 rounded-lg pl-1.5 pr-3 py-1.5",
-                            "hover:bg-white/[0.05] transition-colors"
-                        )}
-                        whileHover={{ scale: 1.02 }}
-                        whileTap={{ scale: 0.98 }}
-                    >
-                        {/* Avatar with gradient ring */}
-                        <div className="relative">
-                            <div
-                                className="absolute inset-0 rounded-full"
-                                style={{
-                                    background: "linear-gradient(135deg, #6d5acd 0%, #00d4ff 100%)",
-                                    padding: "2px",
-                                }}
-                            />
-                            <div className="relative h-8 w-8 rounded-full bg-[#0a0a12] flex items-center justify-center">
-                                <span className="text-xs font-bold text-white">AU</span>
+                    <div className="relative" ref={menuRef}>
+                        <motion.button
+                            onClick={() => setMenuOpen((open) => !open)}
+                            className={cn(
+                                "flex items-center gap-2.5 rounded-lg pl-1.5 pr-3 py-1.5",
+                                "hover:bg-white/[0.05] transition-colors"
+                            )}
+                            aria-label="Open user menu"
+                            aria-haspopup="menu"
+                            aria-expanded={menuOpen}
+                            whileHover={{ scale: 1.02 }}
+                            whileTap={{ scale: 0.98 }}
+                        >
+                            {/* Avatar with gradient ring */}
+                            <div className="relative">
+                                <div
+                                    className="absolute inset-0 rounded-full"
+                                    style={{
+                                        background: "linear-gradient(135deg, #6d5acd 0%, #00d4ff 100%)",
+                                        padding: "2px",
+                                    }}
+                                />
+                                <div className="relative h-8 w-8 rounded-full bg-[#0a0a12] flex items-center justify-center">
+                                    <span className="text-xs font-bold text-white">AU</span>
+                                </div>
+                                {/* Online indicator */}
+                                <span className="absolute -bottom-0.5 -right-0.5 h-2.5 w-2.5 rounded-full bg-[#06d6a0] border-2 border-[#0a0a12]" />
                             </div>
-                            {/* Online indicator */}
-                            <span className="absolute -bottom-0.5 -right-0.5 h-2.5 w-2.5 rounded-full bg-[#06d6a0] border-2 border-[#0a0a12]" />
-                        </div>
 
-                        {/* User info */}
-                        <div className="hidden md:block text-left">
-                            <p className="text-sm font-medium text-white leading-none">
-                                Admin User
-                            </p>
-                            <p className="text-[11px] text-white/40 mt-0.5">
-                                admin@yufeed.eu
-                            </p>
-                        </div>
+                            {/* User info */}
+                            <div className="hidden md:block text-left">
+                                <p className="text-sm font-medium text-white leading-none">
+                                    Admin User
+                                </p>
+                                <p className="text-[11px] text-white/40 mt-0.5">
+                                    admin@yufeed.eu
+                                </p>
+                            </div>
 
-                        {/* Dropdown indicator */}
-                        <ChevronRight className="h-3.5 w-3.5 text-white/30 rotate-90 hidden md:block" />
-                    </motion.button>
+                            {/* Dropdown indicator */}
+                            <ChevronRight className="h-3.5 w-3.5 text-white/30 rotate-90 hidden md:block" />
+                        </motion.button>
+
+                        <AnimatePresence>
+                            {menuOpen && (
+                                <motion.div
+                                    initial={{ opacity: 0, y: 8 }}
+                                    animate={{ opacity: 1, y: 0 }}
+                                    exit={{ opacity: 0, y: 8 }}
+                                    transition={transitions.fast}
+                                    className={cn(
+                                        "absolute right-0 mt-2 w-56 overflow-hidden rounded-xl",
+                                        "border border-white/[0.08] bg-[#0a0a12]/95 backdrop-blur-xl",
+                                        "shadow-[0_20px_60px_rgba(0,0,0,0.35)]"
+                                    )}
+                                    role="menu"
+                                >
+                                    <div className="px-3 py-2 text-[11px] uppercase tracking-[0.2em] text-white/30">
+                                        Workspace
+                                    </div>
+                                    <div className="px-3 pb-2 text-xs text-white/70">
+                                        admin@yufeed.eu
+                                    </div>
+                                    <div className="h-px bg-white/[0.06]" />
+                                    <div className="p-2 space-y-1">
+                                        <Link
+                                            href="/profile"
+                                            className="flex items-center gap-2 rounded-lg px-2.5 py-2 text-sm text-white/70 hover:text-white hover:bg-white/[0.06]"
+                                            onClick={() => setMenuOpen(false)}
+                                            role="menuitem"
+                                        >
+                                            <User className="h-4 w-4" />
+                                            Profile
+                                        </Link>
+                                        <Link
+                                            href="/settings"
+                                            className="flex items-center gap-2 rounded-lg px-2.5 py-2 text-sm text-white/70 hover:text-white hover:bg-white/[0.06]"
+                                            onClick={() => setMenuOpen(false)}
+                                            role="menuitem"
+                                        >
+                                            <Settings className="h-4 w-4" />
+                                            Settings
+                                        </Link>
+                                    </div>
+                                    <div className="h-px bg-white/[0.06]" />
+                                    <button
+                                        onClick={() => {
+                                            clearAuthTokens();
+                                            setMenuOpen(false);
+                                            router.push("/");
+                                        }}
+                                        className="flex w-full items-center gap-2 px-4 py-2.5 text-sm text-[#ff8aa8] hover:bg-[#ff3366]/10"
+                                        role="menuitem"
+                                    >
+                                        <LogOut className="h-4 w-4" />
+                                        Sign out
+                                    </button>
+                                </motion.div>
+                            )}
+                        </AnimatePresence>
+                    </div>
                 </div>
             </div>
         </header>

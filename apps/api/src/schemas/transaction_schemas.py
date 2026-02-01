@@ -435,6 +435,8 @@ class AlertStatistics(BaseModel):
     high_severity_alerts: int
     alerts_by_type: Dict[str, int]
     alerts_by_status: Dict[str, int]
+    by_status: Dict[str, int] = Field(default_factory=dict)
+    by_severity: Dict[str, int] = Field(default_factory=dict)
 
 
 class TransactionStatistics(BaseModel):
