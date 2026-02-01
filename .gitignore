@@ -39,6 +39,7 @@ htmlcov/
 
 # Temporary/generated files
 *.txt.tmp
+*.bak
 all_downs.txt
 all_revs.txt
 

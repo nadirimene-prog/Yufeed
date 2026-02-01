@@ -21,6 +21,9 @@ from src.search import search_rag_chunks
 OPENAI_RETRIES = 0
 OPENAI_BACKOFF = 2.0
 OPENAI_DELAY = 0.0
+REPO_ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(__file__))))
+DEFAULT_QUERIES_PATH = os.path.join(REPO_ROOT, "docs", "eval", "rag_eval_queries.jsonl")
+DEFAULT_OUTPUT_PATH = os.path.join(REPO_ROOT, "docs", "eval", "results", "rag_eval_results.jsonl")
 
 
 @dataclass
@@ -33,12 +36,7 @@ class ProviderResult:
 
 def load_queries(path: Optional[str]) -> List[Dict[str, Any]]:
     if not path:
-        path = os.path.join(
-            os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(__file__)))),
-            "docs",
-            "eval",
-            "rag_eval_queries.jsonl",
-        )
+        path = DEFAULT_QUERIES_PATH
     queries: List[Dict[str, Any]] = []
     with open(path, "r", encoding="utf-8") as handle:
         for line in handle:
@@ -153,7 +151,7 @@ def main() -> None:
     parser.add_argument("--queries", help="Path to JSONL queries")
     parser.add_argument("--providers", default="anthropic,openai", help="Comma-separated providers")
     parser.add_argument("--limit", type=int, default=None, help="Limit number of questions")
-    parser.add_argument("--output", default="rag_eval_results.jsonl", help="Output JSONL file")
+    parser.add_argument("--output", default=DEFAULT_OUTPUT_PATH, help="Output JSONL file")
     parser.add_argument("--retries", type=int, default=0, help="Retries for 429 errors")
     parser.add_argument("--backoff", type=float, default=2.0, help="Backoff base seconds")
     parser.add_argument("--delay", type=float, default=0.0, help="Delay between questions (seconds)")
@@ -173,6 +171,10 @@ def main() -> None:
     total = 0
     expected_hits = 0
     written = 0
+
+    output_dir = os.path.dirname(args.output)
+    if output_dir:
+        os.makedirs(output_dir, exist_ok=True)
 
     with open(args.output, "w", encoding="utf-8") as handle:
         for item in queries:

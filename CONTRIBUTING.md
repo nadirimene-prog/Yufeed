@@ -2,6 +2,8 @@
 
 Thank you for your interest in contributing to Yufeed! This guide will help you understand our development workflow, coding standards, and best practices.
 
+By participating, you agree to follow our `CODE_OF_CONDUCT.md`. For security issues, please follow `SECURITY.md` instead of opening a public issue.
+
 ---
 
 ## Table of Contents
@@ -1254,4 +1256,3 @@ By contributing, you agree that your contributions will be licensed under the sa
 ---
 
 **Thank you for contributing to Yufeed!** 🎉
-

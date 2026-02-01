@@ -37,9 +37,18 @@ docker compose up --build
 - Product docs: `docs/product/`
 - **Regulatory Pipeline:** `docs/product/regulatory-pipeline-plan.md`
 - **Product Backlog:** `docs/product/regulatory-pipeline-backlog.md`
+- Evaluation assets: `docs/eval/`
 - Engineering notes: `docs/engineering/`
 - Development setup & troubleshooting: `docs/dev/`
 
 ## Contributing
 
 See `CONTRIBUTING.md`.
+
+## Security
+
+See `SECURITY.md` for vulnerability reporting.
+
+## Code of Conduct
+
+See `CODE_OF_CONDUCT.md`.
