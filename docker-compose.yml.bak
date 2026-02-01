@@ -140,7 +140,7 @@ services:
       retries: 3
       start_period: 40s
     ports:
-      - "8000:8000"
+      - "127.0.0.1:8000:8000"
     volumes:
       - ./apps/api:/app
     networks:
