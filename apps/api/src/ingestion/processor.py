@@ -2,6 +2,7 @@ import logging
 import datetime
 from datetime import timezone
 from sqlalchemy.orm import Session
+from typing import Optional
 
 
 def utc_now() -> datetime.datetime:
@@ -14,12 +15,15 @@ from src.models import (
     LegalDocumentText,
     VersionKind,
     OfficialJournalAct,
+    LegalRelation,
 )
 from src.ingestion.cellar import CellarClient
 from src.ingestion.content_extractor import ContentExtractor
 from src.ingestion.oj_mapping import extract_oj_act_identifier
 from src.search import index_document
 from src.ai.analyzer import analyze_document
+from src.ai.cost_tracker import log_usage_from_analysis
+from src.ai.rag_indexer import RAGIndexer
 from src.services.obligation_service import seed_obligations_for_doc
 from src.compliance.scope import infer_scope_tags, normalize_scopes, scope_keywords
 from src.config import settings
@@ -31,6 +35,14 @@ class IngestionProcessor:
         self.db = db
         self.cellar = CellarClient()
         self.content_extractor = ContentExtractor()
+        self._rag_indexer: Optional[RAGIndexer] = None
+
+    def _get_rag_indexer(self) -> Optional[RAGIndexer]:
+        if not settings.RAG_INDEX_ENABLED:
+            return None
+        if self._rag_indexer is None:
+            self._rag_indexer = RAGIndexer(self.db)
+        return self._rag_indexer
 
     def process_entry(self, entry: dict):
         """
@@ -158,6 +170,10 @@ class IngestionProcessor:
                     try:
                         index_document(new_doc)
                         logger.info(f"Document {celex} indexed in OpenSearch")
+                        rag_indexer = self._get_rag_indexer()
+                        if rag_indexer:
+                            rag_indexer.index_document(new_doc)
+                            logger.info(f"RAG chunks indexed for {celex}")
                     except Exception as idx_err:
                         logger.warning(f"Failed to index {celex} in OpenSearch: {idx_err}")
 

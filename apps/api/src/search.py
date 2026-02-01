@@ -1,8 +1,12 @@
 from opensearchpy import OpenSearch
 from src.config import settings
-from typing import List, Optional, Dict, Any
+from typing import List, Optional, Dict, Any, Tuple
 from datetime import datetime
 import os
+import logging
+
+logger = logging.getLogger(__name__)
+_embedding_provider = None
 
 def get_opensearch_client():
     """
@@ -89,6 +93,72 @@ def init_indices():
     if not client.indices.exists(index=index_name):
         client.indices.create(index=index_name, body=index_body)
 
+
+def init_rag_index(embedding_dim: int) -> None:
+    client = get_opensearch_client()
+    index_name = settings.RAG_INDEX_NAME
+    index_body = {
+        "settings": {
+            "index": {
+                "number_of_shards": 1,
+                "number_of_replicas": 0,
+                "knn": True,
+            }
+        },
+        "mappings": {
+            "properties": {
+                "chunk_id": {"type": "keyword"},
+                "doc_id": {"type": "integer"},
+                "celex": {"type": "keyword"},
+                "title": {"type": "text"},
+                "chunk_text": {"type": "text"},
+                "section_title": {"type": "text"},
+                "article_ref": {"type": "keyword"},
+                "source_system": {"type": "keyword"},
+                "jurisdiction": {"type": "keyword"},
+                "language": {"type": "keyword"},
+                "publication_date": {"type": "date"},
+                "implementation_deadline": {"type": "date"},
+                "compliance_domain": {"type": "keyword"},
+                "risk_level": {"type": "keyword"},
+                "scope_tags": {"type": "keyword"},
+                "subject_tags": {"type": "keyword"},
+                "chunk_index": {"type": "integer"},
+                "char_count": {"type": "integer"},
+                "token_count": {"type": "integer"},
+                "embedding": {
+                    "type": "knn_vector",
+                    "dimension": embedding_dim,
+                    "method": {
+                        "engine": "nmslib",
+                        "space_type": "cosinesimil",
+                        "name": "hnsw",
+                        "parameters": {"ef_construction": 256, "m": 16},
+                    },
+                },
+            }
+        },
+    }
+
+    if not client.indices.exists(index=index_name):
+        client.indices.create(index=index_name, body=index_body)
+        return
+
+    try:
+        existing = client.indices.get_mapping(index=index_name)
+        properties = existing.get(index_name, {}).get("mappings", {}).get("properties", {})
+        embedding = properties.get("embedding") if isinstance(properties, dict) else None
+        existing_dim = embedding.get("dimension") if isinstance(embedding, dict) else None
+        if existing_dim and existing_dim != embedding_dim:
+            logger.warning(
+                "RAG index %s exists with embedding_dim=%s (expected %s)",
+                index_name,
+                existing_dim,
+                embedding_dim,
+            )
+    except Exception as exc:
+        logger.warning("Failed to inspect RAG index mapping: %s", exc)
+
 def search_documents(
     q: Optional[str] = None,
     doc_type: Optional[str] = None,
@@ -168,6 +238,163 @@ def search_documents(
     return {
         "total": total,
         "results": results
+    }
+
+
+def _rrf_scores(hits: List[Dict[str, Any]], k: int = 60) -> Dict[str, float]:
+    scores: Dict[str, float] = {}
+    for rank, hit in enumerate(hits, start=1):
+        doc_id = hit.get("_id")
+        if not doc_id:
+            continue
+        scores[doc_id] = 1.0 / (k + rank)
+    return scores
+
+
+def _merge_hybrid_results(
+    bm25_hits: List[Dict[str, Any]],
+    vector_hits: List[Dict[str, Any]],
+    alpha: float,
+    size: int,
+) -> List[Dict[str, Any]]:
+    bm25_scores = _rrf_scores(bm25_hits)
+    vector_scores = _rrf_scores(vector_hits)
+
+    merged: Dict[str, Dict[str, Any]] = {}
+    for hit in bm25_hits + vector_hits:
+        doc_id = hit.get("_id")
+        if not doc_id:
+            continue
+        if doc_id not in merged:
+            merged[doc_id] = hit
+
+    scored: List[Tuple[float, Dict[str, Any]]] = []
+    for doc_id, hit in merged.items():
+        bm25 = bm25_scores.get(doc_id, 0.0)
+        vector = vector_scores.get(doc_id, 0.0)
+        score = (alpha * bm25) + ((1.0 - alpha) * vector)
+        hit["_hybrid_score"] = score
+        hit["_bm25_score"] = bm25
+        hit["_vector_score"] = vector
+        scored.append((score, hit))
+
+    scored.sort(key=lambda item: item[0], reverse=True)
+    return [hit for _, hit in scored[:size]]
+
+
+def search_rag_chunks(
+    q: str,
+    size: int = 8,
+    filters: Optional[Dict[str, Any]] = None,
+    alpha: Optional[float] = None,
+) -> Dict[str, Any]:
+    client = get_opensearch_client()
+    index_name = settings.RAG_INDEX_NAME
+    filters = filters or {}
+    alpha = settings.RAG_HYBRID_ALPHA if alpha is None else alpha
+
+    filter_clauses = []
+    for field in [
+        "compliance_domain",
+        "risk_level",
+        "jurisdiction",
+        "language",
+        "source_system",
+    ]:
+        if filters.get(field):
+            filter_clauses.append({"term": {field: filters[field]}})
+
+    if filters.get("publication_date"):
+        filter_clauses.append({"range": {"publication_date": filters["publication_date"]}})
+
+    bm25_body = {
+        "query": {
+            "bool": {
+                "must": [
+                    {
+                        "multi_match": {
+                            "query": q,
+                            "fields": [
+                                "chunk_text^2",
+                                "title^1.5",
+                                "section_title",
+                                "article_ref",
+                                "celex",
+                            ],
+                        }
+                    }
+                ],
+                "filter": filter_clauses,
+            }
+        },
+        "size": max(size * 3, 10),
+        "track_total_hits": True,
+    }
+
+    bm25_response = client.search(index=index_name, body=bm25_body)
+    bm25_hits = bm25_response.get("hits", {}).get("hits", [])
+
+    vector_hits: List[Dict[str, Any]] = []
+    if alpha < 1.0:
+        try:
+            from src.ai.embeddings import EmbeddingProvider
+
+            global _embedding_provider
+            if _embedding_provider is None:
+                _embedding_provider = EmbeddingProvider()
+            provider = _embedding_provider
+            if provider.available:
+                vector = provider.embed_query(q)
+            else:
+                vector = None
+        except Exception as exc:
+            logger.warning("Embedding provider unavailable: %s", exc)
+            vector = None
+
+        if vector:
+            vector_query = {
+                "bool": {
+                    "filter": filter_clauses,
+                    "must": [
+                        {
+                            "knn": {
+                                "embedding": {
+                                    "vector": vector,
+                                    "k": max(size * 5, 20),
+                                }
+                            }
+                        }
+                    ],
+                }
+            }
+            vector_body = {
+                "query": vector_query,
+                "size": max(size * 3, 10),
+                "track_total_hits": True,
+            }
+            try:
+                vector_response = client.search(index=index_name, body=vector_body)
+                vector_hits = vector_response.get("hits", {}).get("hits", [])
+            except Exception as exc:
+                logger.warning("Vector search failed, falling back to BM25 only: %s", exc)
+                vector_hits = []
+
+    if not vector_hits or alpha >= 1.0:
+        hits = bm25_hits[:size]
+    else:
+        hits = _merge_hybrid_results(bm25_hits, vector_hits, alpha=alpha, size=size)
+
+    results = []
+    for hit in hits:
+        source = hit.get("_source", {})
+        source["score"] = hit.get("_hybrid_score", hit.get("_score", 0.0))
+        source["bm25_score"] = hit.get("_bm25_score")
+        source["vector_score"] = hit.get("_vector_score")
+        results.append(source)
+
+    return {
+        "total": len(results),
+        "results": results,
     }
 
 

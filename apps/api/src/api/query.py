@@ -32,6 +32,10 @@ class SourceDocument(BaseModel):
     publication_date: Optional[str] = None
     compliance_domain: Optional[str] = None
     risk_level: Optional[str] = None
+    article_ref: Optional[str] = None
+    section_title: Optional[str] = None
+    chunk_id: Optional[str] = None
+    snippet: Optional[str] = None
 
 
 class QueryResponse(BaseModel):
@@ -57,7 +61,7 @@ conversations: Dict[str, ConversationManager] = {}
 
 
 @router.post("/ask", response_model=QueryResponse)
-def ask_question(
+async def ask_question(
     request: QueryRequest,
     db: Session = Depends(get_db)
 ):
@@ -90,7 +94,7 @@ def ask_question(
         filters["risk_level"] = request.risk_level
 
     try:
-        result = rag_service.answer_query(
+        result = await rag_service.answer_query(
             query=request.query,
             db=db,
             max_documents=request.max_documents,
@@ -117,7 +121,7 @@ def ask_question(
 
 
 @router.post("/conversation", response_model=QueryResponse)
-def conversation_turn(
+async def conversation_turn(
     request: ConversationRequest,
     db: Session = Depends(get_db)
 ):
@@ -154,7 +158,7 @@ def conversation_turn(
     conv_manager = conversations[conv_id]
 
     try:
-        result = conv_manager.ask(
+        result = await conv_manager.ask(
             query=request.query,
             filters=request.filters
         )

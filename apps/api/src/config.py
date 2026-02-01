@@ -58,6 +58,68 @@ class Settings(BaseSettings):
     # Generate with: python -c "import secrets; print(secrets.token_hex(32))"
     SECRET_KEY: str = ""  # Must be set via environment variable
 
+    # ===========================================
+    # REGULATORY INTELLIGENCE PIPELINE
+    # ===========================================
+
+    # AI Configuration (Anthropic Claude)
+    ANTHROPIC_API_KEY: str = ""
+    ANTHROPIC_MODEL: str = "claude-3-5-sonnet-20241022"
+    ANTHROPIC_MAX_TOKENS_POLICY: int = 2000
+    ANTHROPIC_MAX_TOKENS_EXTRACTION: int = 4000
+    AI_DAILY_COST_THRESHOLD_USD: float = 10.0
+    AI_COST_CHECK_SCHEDULE: str = "0 7 * * *"
+    CONTENT_BACKFILL_SCHEDULE: str = "0 2 1 * *"
+
+    # RAG Configuration
+    RAG_INDEX_NAME: str = "legal_chunks"
+    RAG_INDEX_ENABLED: bool = True
+    RAG_EMBEDDING_PROVIDER: str = "sentence_transformers"  # sentence_transformers | disabled
+    RAG_EMBEDDING_MODEL: str = "BAAI/bge-m3"
+    RAG_EMBEDDING_DIM: int = 1024
+    RAG_CHUNK_SIZE: int = 2000  # characters
+    RAG_CHUNK_OVERLAP: int = 200  # characters
+    RAG_HYBRID_ALPHA: float = 0.5  # 0=vector only, 1=BM25 only
+
+    # Deadline Monitoring
+    DEADLINE_ALERT_THRESHOLDS: str = "90,60,30,7,1"
+    DEADLINE_CHECK_SCHEDULE: str = "0 8 * * *"
+    OVERDUE_CHECK_SCHEDULE: str = "0 9 * * *"
+
+    # Email Escalation
+    ESCALATION_ENABLED: bool = False
+    ESCALATION_DAYS_THRESHOLD: int = 7
+    MLRO_EMAIL: str = ""
+
+    # Policy Templates
+    POLICY_TEMPLATES_AUTO_SEED: bool = True
+
+    # Feature Flags
+    FEATURE_AI_POLICY_WRITER: bool = False
+    FEATURE_MONITORING_SUGGESTIONS: bool = False
+    FEATURE_DEADLINE_ALERTS: bool = True
+    FEATURE_AUDIT_TRAIL: bool = True
+
+    @property
+    def deadline_thresholds(self) -> list:
+        """Parse deadline thresholds from comma-separated string."""
+        return [int(x.strip()) for x in self.DEADLINE_ALERT_THRESHOLDS.split(",") if x.strip()]
+
+    @property
+    def escalation_enabled(self) -> bool:
+        """Check if escalation is enabled."""
+        return self.ESCALATION_ENABLED
+
+    @property
+    def escalation_days_threshold(self) -> int:
+        """Get escalation days threshold."""
+        return self.ESCALATION_DAYS_THRESHOLD
+
+    @property
+    def mlro_email(self) -> str:
+        """Get MLRO email for escalation."""
+        return self.MLRO_EMAIL
+
     model_config = SettingsConfigDict(env_file=".env", extra="allow")
 
     @model_validator(mode="after")

@@ -282,6 +282,25 @@ EPIC-010: Operational Excellence (Optional)
 
 ---
 
+### US-012A: RAG Chunk Indexing & Hybrid Retrieval
+**As a** Compliance Officer  
+**I want** regulatory text indexed into semantic chunks with hybrid retrieval  
+**So that** I can ask natural language questions grounded in exact citations
+
+**Acceptance Criteria:**
+- [ ] Legal documents chunked into `legal_chunks` table (article-aware when possible)
+- [ ] Chunks indexed into OpenSearch with vector + BM25 fields
+- [ ] Hybrid retrieval supports compliance_domain/risk_level filters
+- [ ] Ingestion + content backfill trigger RAG indexing automatically
+- [ ] Batch script available to (re)index all documents
+
+**Story Points:** 5  
+**Sprint:** 2  
+**Dependencies:** US-007, US-008  
+**Tech Notes (CTO):** New `rag_indexer.py`, `search_rag_chunks`, `LegalChunk` model + migration
+
+---
+
 ## EPIC-003: Regulatory Alert Pipeline
 
 ### US-013: Create Alert on Obligation Approval

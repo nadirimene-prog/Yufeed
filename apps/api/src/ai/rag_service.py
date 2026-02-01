@@ -6,10 +6,10 @@ and get AI-powered answers based on the document corpus.
 """
 
 from typing import List, Dict, Any, Optional
-from anthropic import Anthropic, AsyncAnthropic
+from anthropic import AsyncAnthropic
 from sqlalchemy.orm import Session
 from src.models.models import LegalDocument
-from src.search import search_documents as opensearch_documents
+from src.search import search_documents as opensearch_documents, search_rag_chunks
 import os
 import logging
 
@@ -53,15 +53,15 @@ class RAGService:
         if not db:
             raise ValueError("Database session is required for RAGService")
 
-        # Step 1: Retrieve relevant documents
-        retrieved_docs = self._retrieve_documents(
+        # Step 1: Retrieve relevant chunks (RAG)
+        retrieved_chunks = self._retrieve_chunks(
             query=query,
             db=db,
             max_documents=max_documents,
             filters=filters
         )
 
-        if not retrieved_docs:
+        if not retrieved_chunks:
             return {
                 "answer": "I couldn't find any relevant documents to answer your question. Please try rephrasing or use different search terms.",
                 "sources": [],
@@ -71,27 +71,32 @@ class RAGService:
 
         # Step 2: Generate answer using Claude
         if self.client:
-            answer_data = await self._generate_answer(query, retrieved_docs)
+            answer_data = await self._generate_answer(query, retrieved_chunks)
         else:
-            answer_data = self._fallback_answer(query, retrieved_docs)
+            answer_data = self._fallback_answer(query, retrieved_chunks)
 
-        # Add source documents
+        # Add source chunks
         answer_data["sources"] = [
             {
-                "celex": doc["celex"],
-                "title": doc["title"],
-                "relevance_score": doc.get("_score", 0),
-                "publication_date": doc.get("publication_date"),
-                "compliance_domain": doc.get("compliance_domain"),
-                "risk_level": doc.get("risk_level")
+                "celex": chunk.get("celex"),
+                "title": chunk.get("title"),
+                "relevance_score": chunk.get("score", 0),
+                "publication_date": chunk.get("publication_date"),
+                "compliance_domain": chunk.get("compliance_domain"),
+                "risk_level": chunk.get("risk_level"),
+                "implementation_deadline": chunk.get("implementation_deadline"),
+                "article_ref": chunk.get("article_ref"),
+                "section_title": chunk.get("section_title"),
+                "chunk_id": chunk.get("chunk_id"),
+                "snippet": (chunk.get("chunk_text") or "")[:300],
             }
-            for doc in retrieved_docs
+            for chunk in retrieved_chunks
         ]
-        answer_data["document_count"] = len(retrieved_docs)
+        answer_data["document_count"] = len({c.get("celex") for c in retrieved_chunks if c.get("celex")})
 
         return answer_data
 
-    def _retrieve_documents(
+    def _retrieve_chunks(
         self,
         query: str,
         db: Session,
@@ -99,44 +104,73 @@ class RAGService:
         filters: Optional[Dict[str, Any]] = None
     ) -> List[Dict[str, Any]]:
         """
-        Retrieve relevant documents using OpenSearch.
-
-        Uses hybrid search combining:
-        - Full-text search on title, summary, obligations
-        - Filters for compliance domain, risk level, etc.
+        Retrieve relevant chunks using OpenSearch hybrid search.
         """
         filters = filters or {}
 
-        # Search OpenSearch
+        # Hybrid chunk search (BM25 + vector when available)
+        try:
+            search_results = search_rag_chunks(
+                q=query,
+                size=max(max_documents * 3, 5),
+                filters=filters,
+            )
+            chunks = search_results.get("results", [])
+        except Exception as exc:
+            logger.warning("RAG chunk search failed: %s", exc)
+            chunks = []
+
+        if chunks:
+            return chunks
+
+        # Fallback: document-level search when no chunks are indexed yet
         search_results = opensearch_documents(
             q=query,
             size=max_documents,
             compliance_domain=filters.get("compliance_domain"),
-            risk_level=filters.get("risk_level")
+            risk_level=filters.get("risk_level"),
         )
 
-        # Enrich with database data
-        enriched_docs = []
+        enriched_docs: List[Dict[str, Any]] = []
         for source in search_results.get("results", []):
-            # Get full document from database for additional context
             doc = db.query(LegalDocument).filter(
-                LegalDocument.celex == source["celex"]
+                LegalDocument.celex == source.get("celex")
             ).first()
-
             if doc:
                 source["ai_summary"] = doc.ai_summary
                 source["obligations_json"] = doc.obligations_json
                 source["implementation_deadline"] = doc.implementation_deadline
                 source["compliance_domain"] = doc.compliance_domain
                 source["risk_level"] = doc.risk_level
+                source["publication_date"] = doc.publication_date
+                source["title"] = doc.title
 
-            enriched_docs.append(source)
+            chunk_text = (
+                source.get("ai_summary")
+                or source.get("full_text")
+                or source.get("title")
+                or ""
+            )
+            enriched_docs.append(
+                {
+                    "chunk_id": f"{source.get('celex')}_summary",
+                    "celex": source.get("celex"),
+                    "title": source.get("title"),
+                    "chunk_text": chunk_text,
+                    "section_title": None,
+                    "article_ref": None,
+                    "score": source.get("score", 0),
+                    "publication_date": source.get("publication_date"),
+                    "compliance_domain": source.get("compliance_domain"),
+                    "risk_level": source.get("risk_level"),
+                }
+            )
 
         return enriched_docs
 
-    async def _generate_answer(self, query: str, documents: List[Dict[str, Any]]) -> Dict[str, Any]:
+    async def _generate_answer(self, query: str, chunks: List[Dict[str, Any]]) -> Dict[str, Any]:
         """
-        Generate an answer using Claude with retrieved documents as context.
+        Generate an answer using Claude with retrieved chunks as context.
         """
         if not self.client:
             logger.info("RAGService operating in Demo Mode (no API key)")
@@ -145,13 +179,13 @@ class RAGService:
                     "I am currently operating in **Demo Mode** because no `ANTHROPIC_API_KEY` was found. "
                     "In a live environment, I would analyze the retrieved legal documents to provide a precise answer. "
                     "\n\n**Retrieved Documents:**\n" + 
-                    "\n".join([f"- {d['title']} ({d['celex']})" for d in documents[:3]])
+                    "\n".join([f"- {d.get('title')} ({d.get('celex')})" for d in chunks[:3]])
                 ),
                 "confidence": "low",
                 "model": "demo-fallback"
             }
 
-        prompt = self._build_rag_prompt(query, documents)
+        prompt = self._build_rag_prompt(query, chunks)
 
         try:
             message = await self.client.messages.create(
@@ -166,8 +200,8 @@ class RAGService:
 
             answer_text = message.content[0].text
 
-            # Determine confidence based on document relevance
-            avg_score = sum(d.get("_score", 0) for d in documents) / len(documents)
+            # Determine confidence based on relevance
+            avg_score = sum(d.get("score", 0) for d in chunks) / len(chunks)
             confidence = "high" if avg_score > 5.0 else "medium" if avg_score > 2.0 else "low"
 
             return {
@@ -178,27 +212,29 @@ class RAGService:
 
         except Exception as e:
             logger.error(f"RAG generation error: {e}")
-            return self._fallback_answer(query, documents)
+            return self._fallback_answer(query, chunks)
 
-    def _fallback_answer(self, query: str, documents: List[Dict[str, Any]]) -> Dict[str, Any]:
+    def _fallback_answer(self, query: str, chunks: List[Dict[str, Any]]) -> Dict[str, Any]:
         """
         Fallback answer when AI is unavailable.
         Returns a summary of retrieved documents.
         """
+        doc_count = len({c.get("celex") for c in chunks if c.get("celex")})
         answer_parts = [
             "⚠️ **Demo Mode**: No `ANTHROPIC_API_KEY` configured. Showing retrieved documents without AI analysis.\n",
-            f"Found {len(documents)} relevant document(s):\n"
+            f"Found {doc_count} relevant document(s) across {len(chunks)} passages:\n"
         ]
 
-        for i, doc in enumerate(documents[:3], 1):
-            answer_parts.append(f"\n{i}. {doc['title']} ({doc['celex']})")
-            if doc.get("ai_summary"):
-                answer_parts.append(f"   Summary: {doc['ai_summary'][:200]}...")
-            if doc.get("compliance_domain"):
-                answer_parts.append(f"   Domain: {doc['compliance_domain']}")
+        for i, chunk in enumerate(chunks[:3], 1):
+            answer_parts.append(f"\n{i}. {chunk.get('title')} ({chunk.get('celex')})")
+            text = (chunk.get("chunk_text") or "")[:200]
+            if text:
+                answer_parts.append(f"   Excerpt: {text}...")
+            if chunk.get("compliance_domain"):
+                answer_parts.append(f"   Domain: {chunk.get('compliance_domain')}")
 
-        if len(documents) > 3:
-            answer_parts.append(f"\n... and {len(documents) - 3} more documents")
+        if len(chunks) > 3:
+            answer_parts.append(f"\n... and {len(chunks) - 3} more passages")
 
         return {
             "answer": "\n".join(answer_parts),
@@ -206,35 +242,26 @@ class RAGService:
             "model": "fallback"
         }
 
-    def _build_rag_prompt(self, query: str, documents: List[Dict[str, Any]]) -> str:
+    def _build_rag_prompt(self, query: str, chunks: List[Dict[str, Any]]) -> str:
         """
-        Build a RAG prompt for Claude with retrieved documents.
+        Build a RAG prompt for Claude with retrieved chunks.
         """
         context_parts = []
 
-        for i, doc in enumerate(documents, 1):
-            context = f"Document {i}: {doc['title']} ({doc['celex']})\n"
+        max_chunks = min(len(chunks), 8)
+        for i, chunk in enumerate(chunks[:max_chunks], 1):
+            excerpt = chunk.get("chunk_text") or ""
+            if len(excerpt) > 1200:
+                excerpt = f"{excerpt[:1200]}..."
 
-            if doc.get("ai_summary"):
-                context += f"Summary: {doc['ai_summary']}\n"
+            article_ref = chunk.get("article_ref") or "N/A"
+            section_title = chunk.get("section_title") or ""
+            header = f"[{i}] {chunk.get('title')} ({chunk.get('celex')})"
+            if section_title:
+                header += f" | {section_title}"
+            header += f" | Article: {article_ref}"
 
-            if doc.get("obligations_json"):
-                obligations = doc["obligations_json"]
-                if isinstance(obligations, dict):
-                    context += "Key Obligations:\n"
-                    for key, value in list(obligations.items())[:5]:
-                        context += f"  - {value}\n"
-
-            if doc.get("compliance_domain"):
-                context += f"Compliance Domain: {doc['compliance_domain']}\n"
-
-            if doc.get("risk_level"):
-                context += f"Risk Level: {doc['risk_level']}\n"
-
-            if doc.get("implementation_deadline"):
-                context += f"Deadline: {doc['implementation_deadline']}\n"
-
-            context_parts.append(context)
+            context_parts.append(f"{header}\n{excerpt}\n")
 
         prompt = f"""You are an expert AML/CFT compliance analyst helping banking compliance officers understand EU regulations.
 
@@ -248,10 +275,10 @@ Based on the following EU legal documents, provide a comprehensive, accurate ans
 
 Instructions:
 1. Answer the question directly and concisely
-2. Reference specific documents by CELEX number when making claims
-3. Highlight key obligations and deadlines
-4. If the question asks about implementation, provide actionable guidance
-5. If the documents don't fully answer the question, acknowledge limitations
+2. Cite sources using the bracket IDs like [1], [2] that correspond to the excerpts
+3. Reference specific CELEX numbers when making claims
+4. Highlight key obligations and deadlines
+5. If the excerpts don't fully answer the question, acknowledge limitations
 6. Use clear, professional language suitable for compliance officers
 7. Structure your answer with bullet points or sections if appropriate
 
@@ -327,7 +354,7 @@ class ConversationManager:
 
     def __init__(self, db: Session):
         self.db = db
-        self.rag_service = RAGService()
+        self.rag_service = RAGService(db)
         self.conversation_history: List[Dict[str, str]] = []
 
     async def ask(self, query: str, filters: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
