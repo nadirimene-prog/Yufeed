@@ -4,9 +4,23 @@ from typing import List, Optional, Dict, Any, Tuple
 from datetime import datetime
 import os
 import logging
+import threading
 
 logger = logging.getLogger(__name__)
 _embedding_provider = None
+_embedding_lock = threading.Lock()
+_opensearch_client = None
+_opensearch_lock = threading.Lock()
+
+
+def get_embedding_provider():
+    global _embedding_provider
+    if _embedding_provider is None:
+        with _embedding_lock:
+            if _embedding_provider is None:
+                from src.ai.embeddings import EmbeddingProvider
+                _embedding_provider = EmbeddingProvider()
+    return _embedding_provider
 
 def get_opensearch_client():
     """
@@ -17,6 +31,10 @@ def get_opensearch_client():
     - Set OPENSEARCH_USER and OPENSEARCH_PASSWORD
     - Enable SSL/TLS with proper certificates
     """
+    global _opensearch_client
+    if _opensearch_client is not None:
+        return _opensearch_client
+
     # Parse URL
     hosts = [settings.OPENSEARCH_URL]
     if "http" not in settings.OPENSEARCH_URL:
@@ -40,7 +58,11 @@ def get_opensearch_client():
             use_ssl=True,
             verify_certs=True,
             ssl_show_warn=True,
-            ca_certs=os.getenv("OPENSEARCH_CA_CERT_PATH", "/etc/ssl/certs/ca-certificates.crt")
+            ca_certs=os.getenv("OPENSEARCH_CA_CERT_PATH", "/etc/ssl/certs/ca-certificates.crt"),
+            connections_per_node=10,
+            max_retries=3,
+            retry_on_timeout=True,
+            timeout=30,
         )
     else:
         # Development configuration (insecure - for local testing only)
@@ -50,10 +72,17 @@ def get_opensearch_client():
             use_ssl=False,
             verify_certs=False,
             ssl_assert_hostname=False,
-            ssl_show_warn=False
+            ssl_show_warn=False,
+            connections_per_node=10,
+            max_retries=3,
+            retry_on_timeout=True,
+            timeout=30,
         )
 
-    return client
+    with _opensearch_lock:
+        if _opensearch_client is None:
+            _opensearch_client = client
+    return _opensearch_client
 
 def init_indices():
     client = get_opensearch_client()
@@ -337,13 +366,8 @@ def search_rag_chunks(
     vector_hits: List[Dict[str, Any]] = []
     if alpha < 1.0:
         try:
-            from src.ai.embeddings import EmbeddingProvider
-
-            global _embedding_provider
-            if _embedding_provider is None:
-                _embedding_provider = EmbeddingProvider()
-            provider = _embedding_provider
-            if provider.available:
+            provider = get_embedding_provider()
+            if provider and provider.available:
                 vector = provider.embed_query(q)
             else:
                 vector = None

@@ -6,6 +6,8 @@ and get AI-powered answers based on the document corpus.
 """
 
 from typing import List, Dict, Any, Optional
+import asyncio
+import re
 from anthropic import AsyncAnthropic
 from sqlalchemy.orm import Session
 from src.models.models import LegalDocument
@@ -14,6 +16,8 @@ import os
 import logging
 
 logger = logging.getLogger(__name__)
+MAX_QUERY_LENGTH = 2000
+CONTROL_CHAR_RE = re.compile(r"[\x00-\x08\x0b\x0c\x0e-\x1f\x7f]")
 
 
 class RAGService:
@@ -53,8 +57,10 @@ class RAGService:
         if not db:
             raise ValueError("Database session is required for RAGService")
 
+        query = self._sanitize_query(query)
+
         # Step 1: Retrieve relevant chunks (RAG)
-        retrieved_chunks = self._retrieve_chunks(
+        retrieved_chunks = await self._retrieve_chunks(
             query=query,
             db=db,
             max_documents=max_documents,
@@ -96,7 +102,7 @@ class RAGService:
 
         return answer_data
 
-    def _retrieve_chunks(
+    async def _retrieve_chunks(
         self,
         query: str,
         db: Session,
@@ -110,7 +116,8 @@ class RAGService:
 
         # Hybrid chunk search (BM25 + vector when available)
         try:
-            search_results = search_rag_chunks(
+            search_results = await asyncio.to_thread(
+                search_rag_chunks,
                 q=query,
                 size=max(max_documents * 3, 5),
                 filters=filters,
@@ -124,7 +131,8 @@ class RAGService:
             return chunks
 
         # Fallback: document-level search when no chunks are indexed yet
-        search_results = opensearch_documents(
+        search_results = await asyncio.to_thread(
+            opensearch_documents,
             q=query,
             size=max_documents,
             compliance_domain=filters.get("compliance_domain"),
@@ -345,6 +353,16 @@ Answer:"""
             suggestions.append("What is the operational impact of these regulations?")
 
         return suggestions[:3]  # Return top 3 suggestions
+
+    def _sanitize_query(self, query: str) -> str:
+        if not isinstance(query, str):
+            raise ValueError("Query must be a string")
+        cleaned = CONTROL_CHAR_RE.sub("", query).strip()
+        if not cleaned:
+            raise ValueError("Query cannot be empty")
+        if len(cleaned) > MAX_QUERY_LENGTH:
+            raise ValueError("Query too long")
+        return cleaned
 
 
 class ConversationManager:
