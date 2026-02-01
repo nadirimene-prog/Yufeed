@@ -4,7 +4,7 @@ User Authentication Models
 Stores user credentials and profile information for authentication.
 """
 from sqlalchemy import (
-    Column, Integer, String, Boolean, Index, TIMESTAMP
+    Column, Integer, String, Boolean, Index, TIMESTAMP, JSON
 )
 from sqlalchemy.dialects.postgresql import JSONB
 from datetime import datetime, timezone
@@ -55,7 +55,7 @@ class User(Base):
     password_changed_at = Column(TIMESTAMP(timezone=True))
 
     # Preferences
-    preferences = Column(JSONB)  # User preferences (theme, notifications, etc.)
+    preferences = Column(JSON().with_variant(JSONB(), "postgresql"))  # User preferences (theme, notifications, etc.)
 
     # Timestamps - explicitly timezone-aware
     created_at = Column(TIMESTAMP(timezone=True), default=utc_now, nullable=False)

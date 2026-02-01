@@ -80,8 +80,8 @@ class RAGIndexer:
                 "implementation_deadline": document.implementation_deadline.isoformat() if document.implementation_deadline else None,
                 "compliance_domain": document.compliance_domain,
                 "risk_level": document.risk_level,
-                "scope_tags": document.scope_tags,
-                "subject_tags": document.subject_tags,
+                "scope_tags": getattr(document, "scope_tags", None),
+                "subject_tags": getattr(document, "subject_tags", None),
                 "chunk_index": int(chunk["chunk_index"]),
                 "char_count": len(text),
                 "token_count": len(text.split()),
@@ -118,4 +118,3 @@ class RAGIndexer:
                 logger.warning("Failed to index %s: %s", doc.celex, exc)
 
         return total_chunks
-
