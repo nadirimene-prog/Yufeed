@@ -146,7 +146,7 @@ export default function DocTabs({ document, celex }: DocTabsProps) {
                                     <div>
                                         <h4 className="text-sm font-semibold mb-2">Key Obligations</h4>
                                         <ul className="list-disc list-inside space-y-1 text-sm text-gray-700 dark:text-gray-300">
-                                            {Object.entries(document.obligations_json).map(([key, value]: [string, any]) => (
+                                            {Object.entries(document.obligations_json).map(([key, value]: [string, unknown]) => (
                                                 <li key={key}>{typeof value === 'string' ? value : JSON.stringify(value)}</li>
                                             ))}
                                         </ul>
@@ -159,7 +159,7 @@ export default function DocTabs({ document, celex }: DocTabsProps) {
                             </>
                         ) : (
                             <div className="text-center py-8">
-                                <p className="text-gray-500 mb-4">This document hasn't been analyzed yet.</p>
+                                <p className="text-gray-500 mb-4">This document hasn&apos;t been analyzed yet.</p>
                                 <button className="rounded-md bg-blue-600 px-4 py-2 text-sm font-semibold text-white hover:bg-blue-700">
                                     Analyze Document
                                 </button>

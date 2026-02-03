@@ -49,12 +49,6 @@ export default function MonitoringDashboard() {
   const [recentTransactions, setRecentTransactions] = useState<Transaction[]>([]);
   const [loading, setLoading] = useState(true);
 
-  useEffect(() => {
-    fetchData();
-    const interval = setInterval(fetchData, 30000); // Refresh every 30 seconds
-    return () => clearInterval(interval);
-  }, []);
-
   const fetchData = async () => {
     try {
       // Fetch realtime metrics
@@ -78,6 +72,18 @@ export default function MonitoringDashboard() {
       setLoading(false);
     }
   };
+
+  useEffect(() => {
+    let interval: ReturnType<typeof setInterval> | null = null;
+    const frameId = requestAnimationFrame(() => {
+      fetchData();
+      interval = setInterval(fetchData, 30000); // Refresh every 30 seconds
+    });
+    return () => {
+      cancelAnimationFrame(frameId);
+      if (interval) clearInterval(interval);
+    };
+  }, []);
 
   if (loading) {
     return (

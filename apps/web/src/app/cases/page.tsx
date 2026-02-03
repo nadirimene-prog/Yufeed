@@ -38,29 +38,35 @@ export default function CasesPage() {
   });
 
   useEffect(() => {
+    let mounted = true;
+    const fetchCases = async () => {
+      try {
+        let url = `${API_URL}/api/cases/?limit=50`;
+
+        if (filters.status !== 'all') {
+          url += `&status=${filters.status}`;
+        }
+        if (filters.severity !== 'all') {
+          url += `&severity=${filters.severity}`;
+        }
+
+        const res = await fetchWithAuth(url);
+        const data = await res.json();
+        if (!mounted) return;
+        setCases(data);
+        setLoading(false);
+      } catch (error) {
+        if (!mounted) return;
+        console.error('Error fetching cases:', error);
+        setLoading(false);
+      }
+    };
+
     fetchCases();
+    return () => {
+      mounted = false;
+    };
   }, [filters]);
-
-  const fetchCases = async () => {
-    try {
-      let url = `${API_URL}/api/cases/?limit=50`;
-
-      if (filters.status !== 'all') {
-        url += `&status=${filters.status}`;
-      }
-      if (filters.severity !== 'all') {
-        url += `&severity=${filters.severity}`;
-      }
-
-      const res = await fetchWithAuth(url);
-      const data = await res.json();
-      setCases(data);
-      setLoading(false);
-    } catch (error) {
-      console.error('Error fetching cases:', error);
-      setLoading(false);
-    }
-  };
 
   const filteredCases = cases.filter(caseItem => {
     if (filters.search) {
@@ -80,14 +86,14 @@ export default function CasesPage() {
     escalated: 'bg-orange-100 text-orange-800 dark:bg-orange-900/20 dark:text-orange-400',
     closed: 'bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-300',
     sar_filed: 'bg-red-100 text-red-800 dark:bg-red-900/20 dark:text-red-400',
-  };
+  } as const;
 
   const severityColors = {
     critical: 'border-red-500',
     high: 'border-orange-500',
     medium: 'border-yellow-500',
     low: 'border-blue-500',
-  };
+  } as const;
 
   if (loading) {
     return (
@@ -244,11 +250,14 @@ function StatCard({ title, value, icon, color }: {
   );
 }
 
+type StatusColors = Record<string, string>;
+type SeverityColors = Record<string, string>;
+
 function CaseCard({ caseItem, onClick, statusColors, severityColors }: {
   caseItem: Case;
   onClick: () => void;
-  statusColors: any;
-  severityColors: any;
+  statusColors: StatusColors;
+  severityColors: SeverityColors;
 }) {
   const daysSinceOpened = Math.floor(
     (new Date().getTime() - new Date(caseItem.opened_at).getTime()) / (1000 * 60 * 60 * 24)

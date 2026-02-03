@@ -57,8 +57,12 @@ export default function QueryChat() {
                 followup_questions: response.followup_questions || []
             }]);
 
-        } catch (err: any) {
-            setError(err.response?.data?.detail || "Failed to process query. Please try again.");
+        } catch (err: unknown) {
+            const detail =
+                err && typeof err === "object" && "response" in err
+                    ? (err as { response?: { data?: { detail?: string } } }).response?.data?.detail
+                    : undefined;
+            setError(detail || "Failed to process query. Please try again.");
             // Remove the user message on error
             setMessages(prev => prev.slice(0, -1));
         } finally {

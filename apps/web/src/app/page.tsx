@@ -65,9 +65,10 @@ export default function Home() {
       });
       router.replace("/dashboard");
     } catch (err) {
-      if (err instanceof AuthError && err.availableTenants?.length) {
-        setAvailableTenants(err.availableTenants);
-        setSelectedTenant((prev) => prev || err.availableTenants[0]);
+      const tenants = err instanceof AuthError ? err.availableTenants : undefined;
+      if (tenants && tenants.length) {
+        setAvailableTenants(tenants);
+        setSelectedTenant((prev) => prev || tenants[0] || "");
       }
       const message =
         err instanceof Error ? err.message : "Login failed. Please try again.";

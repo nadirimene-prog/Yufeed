@@ -777,16 +777,25 @@ export const motionSafePresets = {
  * );
  */
 export function useReducedMotion(): boolean {
-  const [prefersReduced, setPrefersReduced] = useState(false);
+  const [prefersReduced, setPrefersReduced] = useState(() => {
+    if (typeof window === "undefined") return false;
+    return window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+  });
 
   useEffect(() => {
+    if (typeof window === "undefined") return;
     // Check initial preference
     const mediaQuery = window.matchMedia("(prefers-reduced-motion: reduce)");
-    setPrefersReduced(mediaQuery.matches);
+    const updatePreference = (matches: boolean) => {
+      requestAnimationFrame(() => {
+        setPrefersReduced(matches);
+      });
+    };
+    updatePreference(mediaQuery.matches);
 
     // Listen for changes
     const handleChange = (event: MediaQueryListEvent) => {
-      setPrefersReduced(event.matches);
+      updatePreference(event.matches);
     };
 
     // Modern browsers

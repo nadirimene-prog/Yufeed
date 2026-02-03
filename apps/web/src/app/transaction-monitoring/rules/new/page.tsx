@@ -41,6 +41,8 @@ interface LogicGroup {
     conditions: (Condition | LogicGroup)[];
 }
 
+const isCondition = (value: Condition | LogicGroup): value is Condition => "field" in value;
+
 export default function RuleBuilderPage() {
     const router = useRouter();
     const [name, setName] = useState("");
@@ -76,8 +78,8 @@ export default function RuleBuilderPage() {
         setRootGroup((prev) => ({
             ...prev,
             conditions: prev.conditions.map((condition) =>
-                (condition as Condition).id === id
-                    ? { ...(condition as Condition), [field]: value }
+                isCondition(condition) && condition.id === id
+                    ? { ...condition, [field]: value }
                     : condition
             )
         }));
@@ -86,7 +88,9 @@ export default function RuleBuilderPage() {
     const removeCondition = (id: string) => {
         setRootGroup((prev) => ({
             ...prev,
-            conditions: prev.conditions.filter((condition) => (condition as Condition).id !== id)
+            conditions: prev.conditions.filter((condition) =>
+                !(isCondition(condition) && condition.id === id)
+            )
         }));
     };
 
@@ -105,15 +109,15 @@ export default function RuleBuilderPage() {
         try {
             const conditions = {
                 logic: rootGroup.logic,
-                conditions: rootGroup.conditions.map((condition) => ({
-                    field: (condition as Condition).field,
-                    operator: (condition as Condition).operator,
-                    value: parseValue((condition as Condition).value),
+                conditions: rootGroup.conditions.filter(isCondition).map((condition) => ({
+                    field: condition.field,
+                    operator: condition.operator,
+                    value: parseValue(condition.value),
                 })),
             };
             const thresholdsPayload = thresholds.trim() ? JSON.parse(thresholds) : undefined;
 
-            const payload: Record<string, any> = {
+            const payload: Record<string, unknown> = {
                 name,
                 description: description || undefined,
                 category: category || undefined,
@@ -240,7 +244,7 @@ export default function RuleBuilderPage() {
                             <TriangleAlert className="h-5 w-5 text-blue-600 shrink-0" />
                             <div className="text-sm">
                                 <p className="font-semibold text-blue-900 dark:text-blue-100">Pro Tip</p>
-                                <p className="text-blue-700/80 dark:text-blue-300">Rules with 'Critical' severity will automatically trigger a block on the transaction.</p>
+                                <p className="text-blue-700/80 dark:text-blue-300">Rules with &apos;Critical&apos; severity will automatically trigger a block on the transaction.</p>
                             </div>
                         </div>
                     </div>
@@ -286,12 +290,12 @@ export default function RuleBuilderPage() {
                                     </div>
 
                                     <div className="space-y-4">
-                                        {rootGroup.conditions.map((condition: any) => (
+                                        {rootGroup.conditions.filter(isCondition).map((condition) => (
                                             <div key={condition.id} className="flex items-center gap-3 animate-in slide-in-from-left-4 duration-300">
                                                 <div className="h-px w-6 bg-gray-200 dark:bg-gray-800" />
                                                 <div className="flex-1 flex items-center gap-4 p-4 rounded-xl border border-gray-100 bg-white dark:border-gray-800 dark:bg-gray-950 shadow-sm">
                                                     <select
-                                                        value={(condition as Condition).field}
+                                                        value={condition.field}
                                                         onChange={(e) => updateCondition(condition.id, "field", e.target.value)}
                                                         className="bg-transparent text-sm font-medium outline-none"
                                                     >
@@ -303,7 +307,7 @@ export default function RuleBuilderPage() {
                                                     </select>
                                                     <span className="text-gray-300">/</span>
                                                     <select
-                                                        value={(condition as Condition).operator}
+                                                        value={condition.operator}
                                                         onChange={(e) => updateCondition(condition.id, "operator", e.target.value)}
                                                         className="bg-transparent text-sm font-bold text-blue-600 outline-none"
                                                     >
@@ -321,7 +325,7 @@ export default function RuleBuilderPage() {
                                                     </select>
                                                     <input
                                                         type="text"
-                                                        value={(condition as Condition).value}
+                                                        value={condition.value}
                                                         onChange={(e) => updateCondition(condition.id, "value", e.target.value)}
                                                         className="flex-1 bg-transparent text-sm outline-none px-2"
                                                         placeholder="Value..."
@@ -358,10 +362,10 @@ export default function RuleBuilderPage() {
                                     enabled,
                                     conditions: {
                                         logic: rootGroup.logic,
-                                        conditions: rootGroup.conditions.map(c => ({
-                                            field: (c as any).field,
-                                            operator: (c as any).operator,
-                                            value: (c as any).value
+                                        conditions: rootGroup.conditions.filter(isCondition).map((c) => ({
+                                            field: c.field,
+                                            operator: c.operator,
+                                            value: c.value
                                         }))
                                     }
                                 }, null, 2)}</pre>

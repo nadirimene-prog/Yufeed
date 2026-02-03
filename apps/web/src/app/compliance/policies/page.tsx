@@ -11,7 +11,7 @@ import {
   getPolicySections,
   getPolicyTemplates,
 } from "@/lib/compliance-api";
-import type { PolicyTemplate } from "@/types/compliance";
+import type { PolicyCreate, PolicyStatus, PolicyTemplate } from "@/types/compliance";
 
 interface Policy {
   id: number;
@@ -38,10 +38,11 @@ interface PolicySection {
 
 const policyStatusStyle = (status?: string | null) => {
   const value = (status || "draft").toLowerCase();
-  if (value === "approved") return "bg-emerald-50 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-300";
-  if (value === "in_review") return "bg-blue-50 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300";
-  if (value === "archived") return "bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-300";
-  return "bg-amber-50 text-amber-700 dark:bg-amber-900/30 dark:text-amber-300";
+  if (value === "active") return "bg-emerald-50 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-300";
+  if (value === "approved") return "bg-blue-50 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300";
+  if (value === "in_review") return "bg-amber-50 text-amber-700 dark:bg-amber-900/30 dark:text-amber-300";
+  if (value === "retired") return "bg-rose-50 text-rose-700 dark:bg-rose-900/30 dark:text-rose-300";
+  return "bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-300";
 };
 
 const useDebouncedValue = <T,>(value: T, delayMs: number) => {
@@ -80,8 +81,8 @@ export default function PoliciesPage() {
   const [sectionsLoading, setSectionsLoading] = useState(false);
   const [selectedPolicyId, setSelectedPolicyId] = useState<number | null>(null);
   const [query, setQuery] = useState("");
-  const [statusFilter, setStatusFilter] = useState("all");
-  const [policyForm, setPolicyForm] = useState({
+  const [statusFilter, setStatusFilter] = useState<PolicyStatus | "all">("all");
+  const [policyForm, setPolicyForm] = useState<PolicyCreate & { owner: string; status: PolicyStatus; language: string; source_url: string }>({
     name: "",
     owner: "",
     status: "draft",
@@ -186,7 +187,7 @@ export default function PoliciesPage() {
     if (!policyForm.name.trim()) return;
     setActionLoading("policy");
     try {
-      const payload = {
+      const payload: PolicyCreate = {
         name: policyForm.name.trim(),
         owner: policyForm.owner.trim() || undefined,
         status: policyForm.status,
@@ -271,14 +272,15 @@ export default function PoliciesPage() {
           />
           <select
             value={statusFilter}
-            onChange={(event) => setStatusFilter(event.target.value)}
+            onChange={(event) => setStatusFilter(event.target.value as PolicyStatus | "all")}
           className="rounded-full border border-gray-200 bg-white px-3 py-2 text-xs font-medium text-gray-600 dark:border-slate-800 dark:bg-slate-900 dark:text-gray-300"
         >
           <option value="all">All statuses</option>
           <option value="draft">Draft</option>
           <option value="in_review">In review</option>
           <option value="approved">Approved</option>
-          <option value="archived">Archived</option>
+          <option value="active">Active</option>
+          <option value="retired">Retired</option>
         </select>
       </div>
 
@@ -388,7 +390,7 @@ export default function PoliciesPage() {
         <div className="rounded-lg border border-gray-200 bg-white p-6 shadow-sm dark:border-slate-800 dark:bg-slate-900">
           <div className="flex items-center justify-between text-sm text-gray-500 dark:text-gray-400">
             <div>{loading ? "Loading policies…" : `${total} policies`}</div>
-            <div>Active: {policies.filter((item) => (item.status || "draft") !== "archived").length}</div>
+            <div>Active: {policies.filter((item) => (item.status || "draft") === "active").length}</div>
           </div>
 
           <div className="mt-4 space-y-3">
@@ -475,13 +477,14 @@ export default function PoliciesPage() {
               <div className="grid gap-3 sm:grid-cols-2">
                 <select
                   value={policyForm.status}
-                  onChange={(event) => setPolicyForm({ ...policyForm, status: event.target.value })}
+                  onChange={(event) => setPolicyForm({ ...policyForm, status: event.target.value as PolicyStatus })}
                   className="rounded-md border border-gray-200 bg-white px-3 py-2 text-xs text-gray-700 dark:border-slate-800 dark:bg-slate-900 dark:text-gray-300"
                 >
                   <option value="draft">Draft</option>
                   <option value="in_review">In review</option>
                   <option value="approved">Approved</option>
-                  <option value="archived">Archived</option>
+                  <option value="active">Active</option>
+                  <option value="retired">Retired</option>
                 </select>
                 <select
                   value={policyForm.language}

@@ -48,7 +48,17 @@ function parseApiError(error: unknown): ApiError {
 
     // Axios error with response
     if (error && typeof error === 'object' && 'response' in error) {
-        const axiosError = error as any;
+        const axiosError = error as {
+            message?: string;
+            response?: {
+                data?: {
+                    detail?: string;
+                    message?: string;
+                    details?: string;
+                };
+                status?: number;
+            };
+        };
         return {
             message: axiosError.response?.data?.detail || axiosError.response?.data?.message || axiosError.message || 'An error occurred',
             statusCode: axiosError.response?.status,

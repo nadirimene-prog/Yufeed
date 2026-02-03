@@ -39,7 +39,20 @@ export default function WatchlistsPage() {
         if (!newWatchlist.name) return;
 
         try {
-            await createWatchlist(newWatchlist);
+            const recipients = newWatchlist.recipients_json
+                .map((email) => email.trim())
+                .filter(Boolean)
+                .map((email) => ({ email }));
+            const payload: WatchlistCreate = {
+                name: newWatchlist.name,
+                mode: newWatchlist.mode || undefined,
+                rss_url: newWatchlist.rss_url || undefined,
+                query_json: newWatchlist.query_json,
+                curated_celex_json: newWatchlist.curated_celex_json,
+                recipients_json: recipients.length ? { recipients } : undefined,
+                schedule: newWatchlist.schedule || undefined,
+            };
+            await createWatchlist(payload);
             await loadWatchlists();
             setIsCreating(false);
             setNewWatchlist({
@@ -160,7 +173,7 @@ export default function WatchlistsPage() {
                                 </div>
                                 <div className="flex items-center gap-2">
                                     <Mail className="h-4 w-4" />
-                                    <span>{list.recipients_json?.length || 0} Recipient(s)</span>
+                                    <span>{list.recipients_json?.recipients.length ?? 0} Recipient(s)</span>
                                 </div>
                                 <div className="flex items-center gap-2">
                                     <ShieldCheck className="h-4 w-4" />

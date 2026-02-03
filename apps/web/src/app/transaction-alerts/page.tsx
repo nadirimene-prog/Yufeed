@@ -37,10 +37,6 @@ export default function TransactionAlertsPage() {
     search: ''
   });
 
-  useEffect(() => {
-    fetchAlerts();
-  }, [filters]);
-
   const fetchAlerts = async () => {
     try {
       let url = `${API_URL}/api/alerts/?limit=50`;
@@ -61,6 +57,13 @@ export default function TransactionAlertsPage() {
       setLoading(false);
     }
   };
+
+  useEffect(() => {
+    const frameId = requestAnimationFrame(() => {
+      fetchAlerts();
+    });
+    return () => cancelAnimationFrame(frameId);
+  }, [filters]);
 
   const handleBulkTriage = async () => {
     if (selectedAlerts.length === 0) {
@@ -348,13 +351,15 @@ function StatCard({ title, value, icon, color }: {
   );
 }
 
+type AlertCardColors = Record<string, string>;
+
 function AlertCard({ alert, selected, onToggleSelect, onClick, severityColors, statusColors }: {
   alert: Alert;
   selected: boolean;
   onToggleSelect: (id: number) => void;
   onClick: () => void;
-  severityColors: any;
-  statusColors: any;
+  severityColors: AlertCardColors;
+  statusColors: AlertCardColors;
 }) {
   return (
     <motion.div

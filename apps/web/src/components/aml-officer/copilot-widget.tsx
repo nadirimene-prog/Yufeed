@@ -175,12 +175,6 @@ export function CopilotWidget() {
                                             }}
                                             className="relative"
                                         >
-                                            const {pageContext} = useCopilot();
-                                            // ... existing state ...
-
-                                            // ... handleSend ...
-
-                                            // ... return JSX ...
                                             <Input
                                                 value={input}
                                                 onChange={(e) => setInput(e.target.value)}

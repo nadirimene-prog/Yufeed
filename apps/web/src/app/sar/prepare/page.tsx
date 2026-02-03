@@ -8,27 +8,60 @@ import { getApiBaseUrl } from '@/lib/apiBaseUrl';
 
 const API_URL = getApiBaseUrl();
 
+interface CitedRegulation {
+  celex?: string;
+  title?: string;
+  relevance?: string;
+  [key: string]: unknown;
+}
+
+interface SupportingAlert {
+  alert_id?: string;
+  type?: string;
+  severity?: string;
+  created_at?: string;
+  [key: string]: unknown;
+}
+
+interface SupportingDocuments {
+  alerts: SupportingAlert[];
+  investigation_summary?: string;
+  [key: string]: unknown;
+}
+
 interface SARData {
   sar_id: string;
   filing_date: string;
   case_reference: string;
-  filing_institution: any;
-  subject_information: any;
+  filing_institution: {
+    name?: string;
+    type?: string;
+    country?: string;
+    contact?: string;
+    [key: string]: unknown;
+  };
+  subject_information: {
+    type?: string;
+    identifier?: string;
+    transaction_count?: number;
+    total_amount?: number | string;
+    [key: string]: unknown;
+  };
   suspicious_activity: {
     narrative: string;
     activity_type: string;
-    activity_dates: any;
-    total_amount: any;
+    activity_dates: Record<string, unknown> | string | null;
+    total_amount: Record<string, number | string> | number | string | null;
     transaction_count: number;
     alert_count: number;
   };
   regulatory_basis: {
-    cited_regulations: any[];
-    violations: any;
+    cited_regulations: CitedRegulation[];
+    violations: Record<string, unknown> | string | null;
     regulatory_context: string;
   };
-  supporting_documents: any;
-  case_details: any;
+  supporting_documents: SupportingDocuments;
+  case_details: Record<string, unknown>;
 }
 
 function SARPrepareContent() {
@@ -308,9 +341,14 @@ function SARPrepareContent() {
                 <div>
                   <p className="text-sm text-gray-600 dark:text-gray-400 mb-1">Total Amount</p>
                   <p className="text-2xl font-bold text-gray-900 dark:text-white">
-                    {Object.entries(sarData.suspicious_activity.total_amount).map(([currency, amount]) => (
-                      <span key={currency}>{(amount as number).toLocaleString()} {currency}</span>
-                    ))}
+                    {typeof sarData.suspicious_activity.total_amount === "object" &&
+                    sarData.suspicious_activity.total_amount !== null
+                      ? Object.entries(sarData.suspicious_activity.total_amount).map(([currency, amount]) => (
+                          <span key={currency}>
+                            {Number(amount).toLocaleString()} {currency}
+                          </span>
+                        ))
+                      : sarData.suspicious_activity.total_amount ?? "-"}
                   </p>
                 </div>
               </div>
@@ -340,7 +378,7 @@ function SARPrepareContent() {
                 <div>
                   <p className="text-sm text-gray-600 dark:text-gray-400 mb-2">Cited Regulations</p>
                   <div className="space-y-2">
-                    {sarData.regulatory_basis.cited_regulations.map((reg: any, idx: number) => (
+                    {sarData.regulatory_basis.cited_regulations.map((reg, idx: number) => (
                       <div key={idx} className="p-3 bg-white dark:bg-gray-800 rounded-lg">
                         <p className="text-xs font-mono text-gray-600 dark:text-gray-400 mb-1">
                           {reg.celex}
@@ -378,7 +416,7 @@ function SARPrepareContent() {
                   Alerts ({sarData.supporting_documents.alerts.length})
                 </p>
                 <div className="space-y-2">
-                  {sarData.supporting_documents.alerts.map((alert: any, idx: number) => (
+                  {sarData.supporting_documents.alerts.map((alert, idx: number) => (
                     <div key={idx} className="p-3 bg-gray-50 dark:bg-gray-900 rounded-lg flex items-center justify-between">
                       <div>
                         <p className="text-sm font-mono text-gray-900 dark:text-white">
@@ -389,7 +427,7 @@ function SARPrepareContent() {
                         </p>
                       </div>
                       <p className="text-xs text-gray-500 dark:text-gray-500">
-                        {new Date(alert.created_at).toLocaleDateString()}
+                        {alert.created_at ? new Date(alert.created_at).toLocaleDateString() : "-"}
                       </p>
                     </div>
                   ))}

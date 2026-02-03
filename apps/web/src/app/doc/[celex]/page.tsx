@@ -21,7 +21,7 @@ interface LegalDocument {
     risk_level?: string;
     implementation_deadline?: string;
     jurisdictional_scope?: string;
-    obligations_json?: any;
+    obligations_json?: Record<string, string | number | boolean>;
     ai_summary?: string;
     analyzed_at?: string;
 }
@@ -40,8 +40,8 @@ export default function DocPage({ params }: { params: Promise<{ celex: string }>
         try {
             const data = await getDocument(celex);
             setDocument(data);
-        } catch (err: any) {
-            setError(err.message || "Failed to load document");
+        } catch (err: unknown) {
+            setError(err instanceof Error ? err.message : "Failed to load document");
         } finally {
             setLoading(false);
         }

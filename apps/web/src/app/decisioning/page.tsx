@@ -46,11 +46,25 @@ type DecisionListItem = {
 type DecisionEvidenceBundle = {
     export_id: string;
     exported_at: string;
-    decision: Record<string, any>;
-    event?: Record<string, any> | null;
-    transaction?: Record<string, any> | null;
-    alerts: Record<string, any>[];
-    audit_logs: Record<string, any>[];
+    decision: Record<string, unknown> & {
+        evidence?: {
+            risk_score?: number | string | null;
+            risk_level?: string | null;
+            alerts?: unknown[] | null;
+            onchain?: { risk_level?: string | null } | null;
+        };
+    };
+    event?: {
+        event_type?: string | null;
+        entity_type?: string | null;
+        entity_id?: string | null;
+        source?: string | null;
+        payload?: Record<string, unknown> | null;
+        metadata?: (Record<string, unknown> & { context?: Record<string, unknown> }) | null;
+    } | null;
+    transaction?: Record<string, unknown> | null;
+    alerts: Record<string, unknown>[];
+    audit_logs: Record<string, unknown>[];
 };
 
 type DecisionListResponse = {
@@ -69,7 +83,7 @@ type EventResponse = {
 type FeatureSetResponse = {
     entity_type: string;
     entity_id: string;
-    features: Record<string, any>;
+    features: Record<string, unknown>;
 };
 
 type TransactionResponse = {
@@ -192,9 +206,9 @@ export default function DecisioningPage() {
     const [eventResult, setEventResult] = useState<EventResponse | null>(null);
     const [decisionResult, setDecisionResult] = useState<DecisionResponse | null>(null);
     const [transactionResult, setTransactionResult] = useState<TransactionResponse | null>(null);
-    const [auditLogs, setAuditLogs] = useState<any[]>([]);
-    const [eventRecord, setEventRecord] = useState<any | null>(null);
-    const [decisionRecord, setDecisionRecord] = useState<any | null>(null);
+    const [auditLogs, setAuditLogs] = useState<Record<string, unknown>[]>([]);
+    const [eventRecord, setEventRecord] = useState<Record<string, unknown> | null>(null);
+    const [decisionRecord, setDecisionRecord] = useState<Record<string, unknown> | null>(null);
     const [error, setError] = useState<string | null>(null);
     const [autoRun, setAutoRun] = useState(true);
     const [autoRunDone, setAutoRunDone] = useState(false);
@@ -272,7 +286,7 @@ export default function DecisioningPage() {
         context: parseJson(context, "Context"),
     });
 
-    const normalizeFeaturePayload = (raw: Record<string, any>) =>
+    const normalizeFeaturePayload = (raw: Record<string, unknown>) =>
         Object.fromEntries(
             Object.entries(raw).map(([name, value]) => {
                 if (value && typeof value === "object" && "value" in value) {
@@ -529,8 +543,8 @@ export default function DecisioningPage() {
     const loadReplayIntoSimulator = (autoRunReplay: boolean) => {
         if (!evidenceBundle?.event) return;
         const event = evidenceBundle.event;
-        const payloadObj = event.payload ?? {};
-        const metadataObj = event.metadata ?? {};
+        const payloadObj: Record<string, unknown> = event.payload ?? {};
+        const metadataObj: Record<string, unknown> & { context?: Record<string, unknown> } = event.metadata ?? {};
         const contextObj = metadataObj.context ?? metadataObj;
 
         setEventType(String(event.event_type || eventType));
@@ -550,7 +564,15 @@ export default function DecisioningPage() {
 
     const renderDecisionLog = () => {
         const originalDecision = evidenceBundle?.decision || {};
-        const originalEvidence = (originalDecision as any).evidence || {};
+        const originalEvidenceRaw = originalDecision["evidence"];
+        const originalEvidence =
+            typeof originalEvidenceRaw === "object" && originalEvidenceRaw !== null
+                ? (originalEvidenceRaw as Record<string, unknown>)
+                : {};
+        const formatValue = (value: unknown) => {
+            if (value === null || value === undefined || value === "") return "-";
+            return String(value);
+        };
         const canCompare =
             replayResult &&
             replaySourceDecisionId &&
@@ -559,36 +581,40 @@ export default function DecisioningPage() {
         const diffRows = [
             {
                 label: "Decision",
-                original: originalDecision?.decision,
-                replay: replayResult?.decision,
+                original: formatValue(originalDecision?.decision),
+                replay: formatValue(replayResult?.decision),
             },
             {
                 label: "Risk score",
-                original: originalEvidence?.risk_score,
-                replay: replayResult?.risk_score,
+                original: formatValue(originalEvidence?.risk_score),
+                replay: formatValue(replayResult?.risk_score),
             },
             {
                 label: "Risk level",
-                original: originalEvidence?.risk_level,
-                replay: replayResult?.risk_level,
+                original: formatValue(originalEvidence?.risk_level),
+                replay: formatValue(replayResult?.risk_level),
             },
             {
                 label: "Alerts",
-                original: Array.isArray(originalEvidence?.alerts)
-                    ? originalEvidence.alerts.join(", ")
-                    : "",
-                replay: Array.isArray(replayResult?.alerts)
-                    ? replayResult.alerts.join(", ")
-                    : "",
+                original: formatValue(
+                    Array.isArray(originalEvidence["alerts"])
+                        ? (originalEvidence["alerts"] as unknown[]).map(String).join(", ")
+                        : ""
+                ),
+                replay: formatValue(
+                    Array.isArray(replayResult?.alerts) ? replayResult.alerts.join(", ") : ""
+                ),
             },
             {
                 label: "Reason codes",
-                original: Array.isArray((originalDecision as any)?.reason_codes)
-                    ? (originalDecision as any).reason_codes.join(", ")
-                    : "",
-                replay: Array.isArray(replayResult?.reason_codes)
-                    ? replayResult.reason_codes.join(", ")
-                    : "",
+                original: formatValue(
+                    Array.isArray(originalDecision["reason_codes"])
+                        ? (originalDecision["reason_codes"] as unknown[]).map(String).join(", ")
+                        : ""
+                ),
+                replay: formatValue(
+                    Array.isArray(replayResult?.reason_codes) ? replayResult.reason_codes.join(", ") : ""
+                ),
             },
         ];
 

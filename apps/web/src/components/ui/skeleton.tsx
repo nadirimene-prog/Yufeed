@@ -330,15 +330,16 @@ function TableSkeleton({ rows = 5 }: { rows?: number }) {
 }
 
 function GraphSkeleton() {
+  const graphHeights = [0.35, 0.6, 0.45, 0.8, 0.55, 0.7, 0.4, 0.75, 0.5, 0.65, 0.58, 0.72];
   return (
     <div className="rounded-xl border border-white/[0.06] bg-white/[0.02] p-6">
       <Skeleton className="h-6 w-48 mb-6" />
       <div className="h-64 flex items-end justify-between gap-2">
-        {Array.from({ length: 12 }).map((_, i) => (
+        {graphHeights.map((height, i) => (
           <Skeleton
             key={i}
             className="flex-1 rounded-t-md"
-            style={{ height: `${20 + Math.random() * 80}%` }}
+            style={{ height: `${20 + height * 80}%` }}
           />
         ))}
       </div>

@@ -283,6 +283,8 @@ interface InputGroupProps {
   className?: string;
 }
 
+type ClassNameProps = { className?: string };
+
 function InputGroup({ children, className }: InputGroupProps) {
   return (
     <div className={cn("flex", className)}>
@@ -292,9 +294,9 @@ function InputGroup({ children, className }: InputGroupProps) {
         const isFirst = index === 0;
         const isLast = index === React.Children.count(children) - 1;
 
-        return React.cloneElement(child as React.ReactElement<any>, {
+        return React.cloneElement(child as React.ReactElement<ClassNameProps>, {
           className: cn(
-            (child as React.ReactElement<any>).props.className,
+            (child as React.ReactElement<ClassNameProps>).props.className,
             !isFirst && "rounded-l-none border-l-0",
             !isLast && "rounded-r-none"
           ),

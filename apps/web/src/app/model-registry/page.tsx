@@ -24,7 +24,7 @@ type ModelVersion = {
     artifact_uri?: string | null;
     feature_set_hash?: string | null;
     training_window?: string | null;
-    metrics?: Record<string, any> | null;
+    metrics?: Record<string, unknown> | null;
 };
 
 export default function ModelRegistryPage() {

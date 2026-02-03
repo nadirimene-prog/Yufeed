@@ -1,5 +1,6 @@
 "use client";
 
+import { use } from "react";
 import {
     ArrowLeft,
     MapPin,
@@ -17,7 +18,9 @@ import {
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
-export default function AlertDetailPage({ params }: { params: { id: string } }) {
+export default function AlertDetailPage({ params }: { params: Promise<{ id: string }> }) {
+    const { id } = use(params);
+
     return (
         <div className="space-y-8 animate-in fade-in duration-500 pb-12">
             {/* Header / Breadcrumbs */}
@@ -28,7 +31,7 @@ export default function AlertDetailPage({ params }: { params: { id: string } }) 
                     </a>
                     <div>
                         <div className="flex items-center gap-3">
-                            <h1 className="text-2xl font-bold text-gray-900 dark:text-white">Alert {params.id || 'AL-8291'}</h1>
+                            <h1 className="text-2xl font-bold text-gray-900 dark:text-white">Alert {id || "AL-8291"}</h1>
                             <span className="rounded-full bg-orange-100 px-2.5 py-0.5 text-xs font-bold text-orange-700 dark:bg-orange-900/30 dark:text-orange-400 uppercase">High Risk</span>
                         </div>
                         <p className="text-sm text-gray-500">Status: <span className="font-semibold text-blue-600">Pending Review</span> • Triggered 15m ago</p>

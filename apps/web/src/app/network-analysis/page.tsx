@@ -29,6 +29,17 @@ interface NetworkEdge {
   latest_transaction: string;
 }
 
+interface CircularFlow {
+  path: string[];
+  transaction_count: number;
+  total_amount: number;
+}
+
+interface SuspiciousCluster {
+  member_count: number;
+  cluster_risk_score: number;
+}
+
 interface NetworkAnalysis {
   user_id: string;
   network_size: number;
@@ -54,12 +65,12 @@ interface NetworkAnalysis {
     }[];
   };
   risk_indicators: {
-    circular_flows: any[];
+    circular_flows: CircularFlow[];
     shared_attributes: {
       shared_ips?: Record<string, string[]>;
       shared_devices?: Record<string, string[]>;
     };
-    suspicious_clusters: any[];
+    suspicious_clusters: SuspiciousCluster[];
   };
   network_risk_score: number;
   risk_level: string;
@@ -307,7 +318,7 @@ export default function NetworkAnalysisPage() {
                               Circular Transaction Flows ({networkData.risk_indicators.circular_flows.length})
                             </p>
                             <div className="space-y-2">
-                              {networkData.risk_indicators.circular_flows.map((flow: any, idx: number) => (
+                              {networkData.risk_indicators.circular_flows.map((flow, idx: number) => (
                                 <div key={idx} className="p-3 bg-white dark:bg-gray-800 rounded-lg">
                                   <p className="text-sm text-gray-900 dark:text-white font-mono">
                                     {flow.path.join(' → ')}
@@ -357,7 +368,7 @@ export default function NetworkAnalysisPage() {
                               Suspicious Clusters ({networkData.risk_indicators.suspicious_clusters.length})
                             </p>
                             <div className="space-y-2">
-                              {networkData.risk_indicators.suspicious_clusters.map((cluster: any, idx: number) => (
+                              {networkData.risk_indicators.suspicious_clusters.map((cluster, idx: number) => (
                                 <div key={idx} className="p-3 bg-white dark:bg-gray-800 rounded-lg">
                                   <p className="text-sm text-gray-900 dark:text-white">
                                     Cluster of {cluster.member_count} users
@@ -528,7 +539,7 @@ export default function NetworkAnalysisPage() {
                   No fraud rings detected
                 </p>
                 <p className="text-gray-600 dark:text-gray-400">
-                  Click "Scan for Fraud Rings" to run a global analysis
+                  Click &quot;Scan for Fraud Rings&quot; to run a global analysis
                 </p>
               </div>
             )}

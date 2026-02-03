@@ -51,19 +51,15 @@ export default function ComplianceReportPage() {
   const [metrics, setMetrics] = useState<ComplianceMetrics | null>(null);
   const [loading, setLoading] = useState(true);
   const [dateRange, setDateRange] = useState({
-    from: new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
-    to: new Date().toISOString().split('T')[0]
+    from: '',
+    to: ''
   });
 
-  useEffect(() => {
-    fetchMetrics();
-  }, [dateRange]);
-
-  const fetchMetrics = async () => {
+  const fetchMetrics = async (range: { from: string; to: string }) => {
     try {
       const params = new URLSearchParams({
-        date_from: dateRange.from,
-        date_to: dateRange.to
+        date_from: range.from,
+        date_to: range.to
       });
 
       const res = await fetchWithAuth(`${API_URL}/api/reporting/dashboard?${params}`);
@@ -75,6 +71,26 @@ export default function ComplianceReportPage() {
       setLoading(false);
     }
   };
+
+  useEffect(() => {
+    const frameId = requestAnimationFrame(() => {
+      const now = new Date();
+      const fromDate = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
+      setDateRange({
+        from: fromDate.toISOString().split('T')[0],
+        to: now.toISOString().split('T')[0]
+      });
+    });
+    return () => cancelAnimationFrame(frameId);
+  }, []);
+
+  useEffect(() => {
+    if (!dateRange.from || !dateRange.to) return;
+    const frameId = requestAnimationFrame(() => {
+      fetchMetrics(dateRange);
+    });
+    return () => cancelAnimationFrame(frameId);
+  }, [dateRange]);
 
   const handleExport = async () => {
     const toastId = toast.loading('Exporting report...');

@@ -11,7 +11,7 @@ export interface TimelineEvent {
     timestamp: string | Date;
     type?: TimelineEventType;
     icon?: ReactNode;
-    metadata?: Record<string, any>;
+    metadata?: Record<string, unknown>;
     actor?: string;
 }
 

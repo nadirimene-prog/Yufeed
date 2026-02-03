@@ -32,7 +32,7 @@ export interface QueryRequest {
 export interface ConversationRequest {
     query: string;
     conversation_id?: string;
-    filters?: Record<string, any>;
+    filters?: Record<string, unknown>;
 }
 
 export interface QuerySuggestions {

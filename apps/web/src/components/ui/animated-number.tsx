@@ -143,45 +143,58 @@ export function AnimatedNumber({
   const [displayValue, setDisplayValue] = useState(value);
   const [isAnimating, setIsAnimating] = useState(false);
   const prevValueRef = useRef(value);
+  const currentValueRef = useRef(value);
   const prefersReducedMotion = useReducedMotion();
 
   // Update display value when input value changes
   useEffect(() => {
     if (value !== prevValueRef.current) {
-      setIsAnimating(true);
-      prevValueRef.current = value;
+      let frameId: number | null = null;
+      const updateDisplayValue = (nextValue: number) => {
+        currentValueRef.current = nextValue;
+        setDisplayValue(nextValue);
+      };
 
-      if (prefersReducedMotion) {
-        // Instant update for reduced motion
-        setDisplayValue(value);
-        setIsAnimating(false);
-      } else {
-        // Animate the transition
-        const startTime = Date.now();
-        const startValue = displayValue;
-        const diff = value - startValue;
+      const startValue = currentValueRef.current;
+      const diff = value - startValue;
 
-        const animate = () => {
-          const elapsed = Date.now() - startTime;
-          const progress = Math.min(elapsed / duration, 1);
+      const animate = (timestamp: number, startTime: number) => {
+        const elapsed = timestamp - startTime;
+        const progress = Math.min(elapsed / duration, 1);
 
-          // Ease out quad
-          const eased = 1 - (1 - progress) * (1 - progress);
-          const current = startValue + diff * eased;
+        // Ease out quad
+        const eased = 1 - (1 - progress) * (1 - progress);
+        const current = startValue + diff * eased;
 
-          setDisplayValue(current);
+        updateDisplayValue(current);
 
-          if (progress < 1) {
-            requestAnimationFrame(animate);
-          } else {
-            setDisplayValue(value);
-            setIsAnimating(false);
-          }
-        };
+        if (progress < 1) {
+          frameId = requestAnimationFrame((nextTimestamp) => animate(nextTimestamp, startTime));
+        } else {
+          updateDisplayValue(value);
+          setIsAnimating(false);
+          prevValueRef.current = value;
+        }
+      };
 
-        requestAnimationFrame(animate);
-      }
+      frameId = requestAnimationFrame((timestamp) => {
+        setIsAnimating(true);
+        if (prefersReducedMotion) {
+          updateDisplayValue(value);
+          setIsAnimating(false);
+          prevValueRef.current = value;
+          return;
+        }
+        animate(timestamp, timestamp);
+      });
+
+      return () => {
+        if (frameId !== null) {
+          cancelAnimationFrame(frameId);
+        }
+      };
     }
+    return undefined;
   }, [value, duration, prefersReducedMotion]);
 
   // Format the display value
@@ -253,32 +266,38 @@ export function CountUp({
   const prefersReducedMotion = useReducedMotion();
 
   useEffect(() => {
-    if (prefersReducedMotion) {
-      setCount(end);
-      return;
-    }
+    let frameId: number | null = null;
 
-    const startTime = Date.now();
-    const diff = end - start;
-
-    const animate = () => {
-      const elapsed = Date.now() - startTime;
+    const run = (timestamp: number, startTime: number) => {
+      const elapsed = timestamp - startTime;
       const progress = Math.min(elapsed / duration, 1);
 
       // Ease out expo
       const eased = progress === 1 ? 1 : 1 - Math.pow(2, -10 * progress);
-      const current = start + diff * eased;
+      const current = start + (end - start) * eased;
 
       setCount(current);
 
       if (progress < 1) {
-        requestAnimationFrame(animate);
+        frameId = requestAnimationFrame((nextTimestamp) => run(nextTimestamp, startTime));
       } else {
         setCount(end);
       }
     };
 
-    requestAnimationFrame(animate);
+    frameId = requestAnimationFrame((timestamp) => {
+      if (prefersReducedMotion) {
+        setCount(end);
+        return;
+      }
+      run(timestamp, timestamp);
+    });
+
+    return () => {
+      if (frameId !== null) {
+        cancelAnimationFrame(frameId);
+      }
+    };
   }, [end, start, duration, prefersReducedMotion]);
 
   const formatted = count.toFixed(decimals);

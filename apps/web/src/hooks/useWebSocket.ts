@@ -58,7 +58,7 @@ export interface UseWebSocketReturn {
   connectionStatus: 'connecting' | 'connected' | 'disconnected' | 'error';
   notifications: WebSocketNotification[];
   lastMessage: WebSocketMessage | null;
-  sendMessage: (message: any) => void;
+  sendMessage: (message: WebSocketMessage | Record<string, unknown> | string) => void;
   clearNotifications: () => void;
   reconnect: () => void;
 }
@@ -253,9 +253,10 @@ export function useWebSocket(options: UseWebSocketOptions = {}): UseWebSocketRet
     setConnectionStatus('disconnected');
   }, []);
 
-  const sendMessage = useCallback((message: any) => {
+  const sendMessage = useCallback((message: WebSocketMessage | Record<string, unknown> | string) => {
     if (wsRef.current?.readyState === WebSocket.OPEN) {
-      wsRef.current.send(JSON.stringify(message));
+      const payload = typeof message === 'string' ? message : JSON.stringify(message);
+      wsRef.current.send(payload);
     } else {
       console.warn('[WebSocket] Cannot send message: not connected');
     }

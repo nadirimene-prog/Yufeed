@@ -12,7 +12,7 @@ type ScoreResponse = {
     risk_score: number;
     risk_level: string;
     vendor: string;
-    signals: Record<string, any>;
+    signals: Record<string, unknown>;
 };
 
 export default function OnchainRiskPage() {

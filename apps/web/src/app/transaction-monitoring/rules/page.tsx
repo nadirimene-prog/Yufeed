@@ -28,8 +28,8 @@ type Rule = {
     category?: string | null;
     severity: string;
     enabled: boolean;
-    conditions: Record<string, any>;
-    thresholds?: Record<string, any> | null;
+    conditions: Record<string, unknown>;
+    thresholds?: Record<string, unknown> | null;
     alert_count: number;
     true_positive_rate?: number | null;
 };
@@ -45,8 +45,8 @@ type RuleVersion = {
     enabled: boolean;
     created_at: string;
     notes?: string | null;
-    conditions?: Record<string, any>;
-    thresholds?: Record<string, any> | null;
+    conditions?: Record<string, unknown>;
+    thresholds?: Record<string, unknown> | null;
 };
 
 export default function RuleManagementPage() {
@@ -59,8 +59,19 @@ export default function RuleManagementPage() {
     const [severityFilter, setSeverityFilter] = useState("all");
     const [enabledFilter, setEnabledFilter] = useState("all");
     const [categoryFilter, setCategoryFilter] = useState("all");
-    const [overview, setOverview] = useState<any | null>(null);
-    const [topRules, setTopRules] = useState<any[]>([]);
+    type RulesOverview = {
+        total_rules?: number;
+        enabled_rules?: number;
+        rules_with_regulatory_linkage?: number;
+        total_alerts_generated?: number;
+    };
+    const [overview, setOverview] = useState<RulesOverview | null>(null);
+    type TopRule = {
+        rule_id: string;
+        name: string;
+        alert_count: number;
+    };
+    const [topRules, setTopRules] = useState<TopRule[]>([]);
     const [pendingVersions, setPendingVersions] = useState<RuleVersion[]>([]);
     const [activeVersion, setActiveVersion] = useState<RuleVersion | null>(null);
 
@@ -177,7 +188,7 @@ export default function RuleManagementPage() {
         try {
             const conditions = editConditions.trim() ? JSON.parse(editConditions) : undefined;
             const thresholds = editThresholds.trim() ? JSON.parse(editThresholds) : undefined;
-            const payload: Record<string, any> = {
+            const payload: Record<string, unknown> = {
                 name: editName,
                 description: editDescription || undefined,
                 severity: editSeverity,
@@ -211,7 +222,7 @@ export default function RuleManagementPage() {
         try {
             const conditions = editConditions.trim() ? JSON.parse(editConditions) : undefined;
             const thresholds = editThresholds.trim() ? JSON.parse(editThresholds) : undefined;
-            const payload: Record<string, any> = {
+            const payload: Record<string, unknown> = {
                 name: editName,
                 description: editDescription || undefined,
                 severity: editSeverity,

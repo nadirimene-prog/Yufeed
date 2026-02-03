@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { ArrowLeft, Folder, Clock, FileText, TrendingUp, ExternalLink, CheckCircle } from 'lucide-react';
 import { fetchWithAuth } from '@/lib/auth';
@@ -26,8 +26,8 @@ interface Case {
   related_alert_ids?: number[];
   related_transaction_ids?: number[];
   applicable_regulation_ids?: number[];
-  evidence?: any;
-  regulatory_violations?: any;
+  evidence?: Record<string, unknown>;
+  regulatory_violations?: Record<string, unknown>;
 }
 
 interface Alert {
@@ -50,31 +50,29 @@ interface Transaction {
 }
 
 export default function CaseDetailPage() {
-  const params = useParams();
+  const params = useParams<{ id: string }>();
   const router = useRouter();
+  const caseId = typeof params.id === 'string' ? params.id : params.id?.[0];
   const [caseData, setCaseData] = useState<Case | null>(null);
   const [alerts, setAlerts] = useState<Alert[]>([]);
   const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [loading, setLoading] = useState(true);
 
-  useEffect(() => {
-    fetchCaseDetails();
-  }, [params.id]);
-
-  const fetchCaseDetails = async () => {
+  const fetchCaseDetails = useCallback(async () => {
+    if (!caseId) return;
     try {
       // Fetch case
-      const caseRes = await fetchWithAuth(`${API_URL}/api/cases/${params.id}`);
+      const caseRes = await fetchWithAuth(`${API_URL}/api/cases/${caseId}`);
       const caseDataRes = await caseRes.json();
       setCaseData(caseDataRes);
 
       // Fetch related alerts
-      const alertsRes = await fetchWithAuth(`${API_URL}/api/cases/${params.id}/alerts`);
+      const alertsRes = await fetchWithAuth(`${API_URL}/api/cases/${caseId}/alerts`);
       const alertsData = await alertsRes.json();
       setAlerts(alertsData);
 
       // Fetch related transactions
-      const txRes = await fetchWithAuth(`${API_URL}/api/cases/${params.id}/transactions`);
+      const txRes = await fetchWithAuth(`${API_URL}/api/cases/${caseId}/transactions`);
       const txData = await txRes.json();
       setTransactions(txData);
 
@@ -83,7 +81,14 @@ export default function CaseDetailPage() {
       console.error('Error fetching case details:', error);
       setLoading(false);
     }
-  };
+  }, [caseId]);
+
+  useEffect(() => {
+    const frameId = requestAnimationFrame(() => {
+      fetchCaseDetails();
+    });
+    return () => cancelAnimationFrame(frameId);
+  }, [fetchCaseDetails]);
 
   const handleAssign = async (analyst: string) => {
     if (!caseData) return;
@@ -172,6 +177,7 @@ export default function CaseDetailPage() {
     medium: 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900/20 dark:text-yellow-400 border-yellow-200',
     low: 'bg-blue-100 text-blue-800 dark:bg-blue-900/20 dark:text-blue-400 border-blue-200',
   };
+  const evidenceEntries = caseData.evidence ? Object.keys(caseData.evidence) : [];
 
   return (
     <div className="min-h-screen bg-gray-50 dark:bg-gray-900 p-6">
@@ -389,13 +395,13 @@ export default function CaseDetailPage() {
             </div>
 
             {/* Evidence */}
-            {caseData.evidence && Object.keys(caseData.evidence).length > 0 && (
+            {evidenceEntries.length > 0 && (
               <div className="bg-white dark:bg-gray-800 rounded-lg shadow p-6">
                 <h2 className="text-xl font-semibold text-gray-900 dark:text-white mb-4">
                   Evidence
                 </h2>
                 <pre className="text-sm text-gray-900 dark:text-white bg-gray-50 dark:bg-gray-900 p-4 rounded overflow-x-auto">
-                  {JSON.stringify(caseData.evidence, null, 2)}
+                  {JSON.stringify(caseData.evidence ?? {}, null, 2)}
                 </pre>
               </div>
             )}

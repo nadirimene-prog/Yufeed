@@ -23,7 +23,10 @@ type SimulationResult = {
     transaction_id?: string | null;
     would_trigger: boolean;
     logic: string;
-    condition_results: { condition: Record<string, any>; passed: boolean }[];
+    condition_results: {
+        condition: { field: string; operator: string; value: unknown };
+        passed: boolean;
+    }[];
     evaluated_at: string;
 };
 
@@ -70,7 +73,7 @@ export default function RuleLabPage() {
         setError(null);
         setSimulationResult(null);
         try {
-            const body: Record<string, any> = {};
+            const body: Record<string, unknown> = {};
             if (transactionId.trim()) {
                 body.transaction_id = Number(transactionId);
             } else {
@@ -95,7 +98,7 @@ export default function RuleLabPage() {
         setError(null);
         setBacktestResult(null);
         try {
-            const body: Record<string, any> = {
+            const body: Record<string, unknown> = {
                 limit,
                 sample_size: sampleSize,
             };

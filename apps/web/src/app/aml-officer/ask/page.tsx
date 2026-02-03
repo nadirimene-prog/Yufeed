@@ -183,7 +183,7 @@ export default function ComplianceQAPage() {
                 How can I help you today?
               </h2>
               <p className="text-gray-600 mb-8 max-w-md mx-auto">
-                Ask me any question about EU AML/CFT regulations. I'll provide
+                Ask me any question about EU AML/CFT regulations. I&apos;ll provide
                 answers grounded in official regulatory documents.
               </p>
 

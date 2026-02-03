@@ -7,11 +7,19 @@ import { getApiBaseUrl } from "@/lib/apiBaseUrl";
 
 const API_URL = getApiBaseUrl();
 
+type TravelRulePayload = {
+    originator?: { name?: string; [key: string]: unknown };
+    beneficiary?: { name?: string; [key: string]: unknown };
+    amount?: number | string;
+    currency?: string;
+    [key: string]: unknown;
+};
+
 type TravelRuleResponse = {
     request_id: string;
     status: string;
     created_at: string;
-    payload: any;
+    payload: TravelRulePayload;
 };
 
 export default function TravelRulePage() {

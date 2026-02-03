@@ -46,6 +46,43 @@ const generateMockData = (days: number): RiskTrendData[] => {
     return data;
 };
 
+type TooltipEntry = {
+    name?: string;
+    value?: number;
+    color?: string;
+};
+
+type RiskTrendTooltipProps = {
+    active?: boolean;
+    payload?: TooltipEntry[];
+    label?: string;
+};
+
+function RiskTrendTooltip({ active, payload, label }: RiskTrendTooltipProps) {
+    if (active && payload && payload.length) {
+        return (
+            <div className="bg-white dark:bg-slate-800 border border-gray-200 dark:border-slate-700 rounded-lg shadow-lg p-3">
+                <p className="text-sm font-semibold text-gray-900 dark:text-white mb-2">{label}</p>
+                <div className="space-y-1">
+                    {payload.map((entry, index) => (
+                        <div key={index} className="flex items-center justify-between gap-4 text-xs">
+                            <div className="flex items-center gap-2">
+                                <div
+                                    className="w-3 h-3 rounded-full"
+                                    style={{ backgroundColor: entry.color }}
+                                />
+                                <span className="text-gray-600 dark:text-gray-400 capitalize">{entry.name}</span>
+                            </div>
+                            <span className="font-medium text-gray-900 dark:text-white">{entry.value}</span>
+                        </div>
+                    ))}
+                </div>
+            </div>
+        );
+    }
+    return null;
+}
+
 export function RiskTrendChart({ data, timeRange = '30d', className }: RiskTrendChartProps) {
     const chartData = useMemo(() => {
         if (data && data.length > 0) return data;
@@ -53,31 +90,6 @@ export function RiskTrendChart({ data, timeRange = '30d', className }: RiskTrend
         const days = timeRange === '7d' ? 7 : timeRange === '30d' ? 30 : 90;
         return generateMockData(days);
     }, [data, timeRange]);
-
-    const CustomTooltip = ({ active, payload, label }: any) => {
-        if (active && payload && payload.length) {
-            return (
-                <div className="bg-white dark:bg-slate-800 border border-gray-200 dark:border-slate-700 rounded-lg shadow-lg p-3">
-                    <p className="text-sm font-semibold text-gray-900 dark:text-white mb-2">{label}</p>
-                    <div className="space-y-1">
-                        {payload.map((entry: any, index: number) => (
-                            <div key={index} className="flex items-center justify-between gap-4 text-xs">
-                                <div className="flex items-center gap-2">
-                                    <div
-                                        className="w-3 h-3 rounded-full"
-                                        style={{ backgroundColor: entry.color }}
-                                    />
-                                    <span className="text-gray-600 dark:text-gray-400 capitalize">{entry.name}</span>
-                                </div>
-                                <span className="font-medium text-gray-900 dark:text-white">{entry.value}</span>
-                            </div>
-                        ))}
-                    </div>
-                </div>
-            );
-        }
-        return null;
-    };
 
     return (
         <div className={className}>
@@ -126,7 +138,7 @@ export function RiskTrendChart({ data, timeRange = '30d', className }: RiskTrend
                         tickLine={false}
                     />
 
-                    <Tooltip content={<CustomTooltip />} />
+                    <Tooltip content={<RiskTrendTooltip />} />
 
                     <Legend
                         wrapperStyle={{ fontSize: '13px' }}

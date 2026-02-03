@@ -38,6 +38,8 @@ const colorMap: Record<SparklineColor, { stroke: string; fill: string }> = {
   gray: { stroke: "#94a3b8", fill: "url(#gray-gradient)" },
 };
 
+const EMPTY_DATA: { value: number }[] = [];
+
 export function Sparkline({
   data,
   color = "aurora",
@@ -48,7 +50,7 @@ export function Sparkline({
   animate = true,
   showTrend = false,
 }: SparklineProps) {
-  if (!data || data.length === 0) return null;
+  const safeData = data ?? EMPTY_DATA;
 
   // Determine if color is a preset or custom
   const isPreset = typeof color === "string" && color in colorMap;
@@ -57,11 +59,13 @@ export function Sparkline({
 
   // Calculate trend
   const trend = useMemo(() => {
-    if (data.length < 2) return 0;
-    const first = data[0].value;
-    const last = data[data.length - 1].value;
+    if (safeData.length < 2) return 0;
+    const first = safeData[0].value;
+    const last = safeData[safeData.length - 1].value;
     return ((last - first) / first) * 100;
-  }, [data]);
+  }, [safeData]);
+
+  if (!safeData || safeData.length === 0) return null;
 
   const gradientId = `sparkline-gradient-${color}`;
 
@@ -69,7 +73,7 @@ export function Sparkline({
     <div className={cn("relative", className)} style={{ width, height }}>
       <ResponsiveContainer width="100%" height="100%">
         {filled ? (
-          <AreaChart data={data} margin={{ top: 0, right: 0, bottom: 0, left: 0 }}>
+          <AreaChart data={safeData} margin={{ top: 0, right: 0, bottom: 0, left: 0 }}>
             <defs>
               <linearGradient id={gradientId} x1="0" y1="0" x2="0" y2="1">
                 <stop offset="0%" stopColor={strokeColor} stopOpacity={0.3} />
@@ -88,7 +92,7 @@ export function Sparkline({
             />
           </AreaChart>
         ) : (
-          <LineChart data={data} margin={{ top: 0, right: 0, bottom: 0, left: 0 }}>
+          <LineChart data={safeData} margin={{ top: 0, right: 0, bottom: 0, left: 0 }}>
             <Line
               type="monotone"
               dataKey="value"
@@ -104,7 +108,7 @@ export function Sparkline({
       </ResponsiveContainer>
 
       {/* Trend indicator */}
-      {showTrend && data.length >= 2 && (
+      {showTrend && safeData.length >= 2 && (
         <div
           className={cn(
             "absolute -top-1 -right-1 px-1.5 py-0.5 rounded text-[10px] font-bold",

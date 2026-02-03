@@ -49,10 +49,10 @@ export default function QueryPage() {
                     <div className="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg p-4">
                         <h3 className="text-sm font-semibold text-blue-900 dark:text-blue-100 mb-2">💡 Tips for better results:</h3>
                         <ul className="text-sm text-blue-800 dark:text-blue-200 space-y-1">
-                            <li>• Be specific: "What are the KYC requirements for high-risk customers?" works better than "Tell me about KYC"</li>
-                            <li>• Ask about implementation: "How do I implement the 6th AML Directive?"</li>
-                            <li>• Request comparisons: "What changed between the 5th and 6th AML Directives?"</li>
-                            <li>• Inquire about deadlines: "What are the upcoming compliance deadlines for 2026?"</li>
+                            <li>• Be specific: &quot;What are the KYC requirements for high-risk customers?&quot; works better than &quot;Tell me about KYC&quot;</li>
+                            <li>• Ask about implementation: &quot;How do I implement the 6th AML Directive?&quot;</li>
+                            <li>• Request comparisons: &quot;What changed between the 5th and 6th AML Directives?&quot;</li>
+                            <li>• Inquire about deadlines: &quot;What are the upcoming compliance deadlines for 2026?&quot;</li>
                         </ul>
                     </div>
                 </div>

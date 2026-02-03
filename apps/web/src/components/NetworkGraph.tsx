@@ -63,6 +63,13 @@ export default function NetworkGraph({ nodes, edges }: NetworkGraphProps) {
   const [graphData, setGraphData] = useState<GraphData | null>(null);
   const fgRef = useRef<ForceGraphInstance | null>(null);
 
+  const getNodeColor = (riskScore?: number) => {
+    if (!riskScore) return '#3b82f6'; // blue
+    if (riskScore >= 70) return '#dc2626'; // red
+    if (riskScore >= 40) return '#ea580c'; // orange
+    return '#10b981'; // green
+  };
+
   useEffect(() => {
     if (!nodes || !edges) return;
 
@@ -82,15 +89,11 @@ export default function NetworkGraph({ nodes, edges }: NetworkGraphProps) {
       }))
     };
 
-    setGraphData(transformedData);
+    const frameId = requestAnimationFrame(() => {
+      setGraphData(transformedData);
+    });
+    return () => cancelAnimationFrame(frameId);
   }, [nodes, edges]);
-
-  const getNodeColor = (riskScore?: number) => {
-    if (!riskScore) return '#3b82f6'; // blue
-    if (riskScore >= 70) return '#dc2626'; // red
-    if (riskScore >= 40) return '#ea580c'; // orange
-    return '#10b981'; // green
-  };
 
   if (!graphData) {
     return (

@@ -23,7 +23,9 @@ export default function Header() {
     const pathname = usePathname();
     const router = useRouter();
     const [searchFocused, setSearchFocused] = useState(false);
-    const [isDark, setIsDark] = useState(true);
+    const [isDark, setIsDark] = useState(() =>
+        typeof document !== "undefined" && document.documentElement.classList.contains("dark")
+    );
     const [menuOpen, setMenuOpen] = useState(false);
     const menuRef = useRef<HTMLDivElement>(null);
 
@@ -34,14 +36,9 @@ export default function Header() {
         href: "/" + segments.slice(0, index + 1).join("/"),
     }));
 
-    // Sync with document class on mount
-    useEffect(() => {
-        setIsDark(document.documentElement.classList.contains("dark"));
-    }, []);
-
     const toggleTheme = () => {
         document.documentElement.classList.toggle("dark");
-        setIsDark(!isDark);
+        setIsDark((prev) => !prev);
     };
 
     useEffect(() => {

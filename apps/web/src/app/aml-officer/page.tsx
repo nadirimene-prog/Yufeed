@@ -227,10 +227,10 @@ export default function AMLOfficerDashboard() {
                     <div className="h-[400px]">
                         <RecentAlertsTable
                             data={proactiveAlerts}
-                            onAction={(alert, action) => {
-                                console.log(`Action ${action} on alert`, alert);
+                            onAction={(alertItem, action) => {
+                                console.log(`Action ${action} on alert`, alertItem);
                                 // Future: Implement actual API call here
-                                alert(action === "approve" ? "Alert dismissed" : "Alert escalated");
+                                window.alert(action === "approve" ? "Alert dismissed" : "Alert escalated");
                             }}
                         />
                     </div>

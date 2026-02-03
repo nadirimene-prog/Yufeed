@@ -5,6 +5,7 @@
  * ═══════════════════════════════════════════════════════════════════
  */
 
+@import "./fonts.css";
 @import "tailwindcss";
 @import "tw-animate-css";
 @import "./design-tokens-v2.css";
@@ -82,6 +83,7 @@
     text-rendering: optimizeLegibility;
     -webkit-tap-highlight-color: transparent;
   }
+
 
   body {
     @apply bg-background text-foreground;
