@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Scale, Search, List, Bell, Sparkles, Brain, Shield, FileText, Network, Zap } from "lucide-react";
+import { Scale, Search, List, Bell, Brain, FileText, Network, Zap } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 export default function Navbar() {

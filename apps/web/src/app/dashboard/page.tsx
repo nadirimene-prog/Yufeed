@@ -168,20 +168,17 @@ const formatDate = (value?: string | null) => {
   return parsed.toLocaleDateString();
 };
 
-const formatPct = (value?: number) => (value ?? 0).toFixed(1) + "%";
-
 export default function DashboardPage() {
   const [data, setData] = useState<HomeDashboard | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [authReady, setAuthReady] = useState(false);
   const [hasToken, setHasToken] = useState(false);
-  const [intakeDays, setIntakeDays] = useState(7);
-  const [intakeJurisdiction, setIntakeJurisdiction] = useState("all");
-  const [intakeSource, setIntakeSource] = useState("all");
-  const [obligationFilter, setObligationFilter] = useState("pending");
+  const [intakeDays] = useState(7);
+  const [intakeJurisdiction] = useState("all");
+  const [intakeSource] = useState("all");
+  const [obligationFilter] = useState("pending");
   const [scopeFilter, setScopeFilter] = useState("psp,eme,vasp");
-  const [actionLoading, setActionLoading] = useState<string | null>(null);
 
   useEffect(() => {
     setHasToken(!!getAuthToken());
@@ -248,60 +245,6 @@ export default function DashboardPage() {
     };
   }, [hasToken, intakeDays, intakeJurisdiction, intakeSource, obligationFilter, scopeFilter]);
 
-  const updateObligationStatus = async (id: number, status: string) => {
-    setActionLoading(`${id}:${status}`);
-    try {
-      await apiClient.patch(`/api/obligations/${id}`, { status });
-      const params = new URLSearchParams();
-      params.set("intake_days", String(intakeDays));
-      params.set("intake_limit", "8");
-      params.set("obligation_limit", "8");
-      if (intakeJurisdiction !== "all") {
-        params.set("intake_jurisdiction", intakeJurisdiction);
-      }
-      if (intakeSource !== "all") {
-        params.set("intake_source", intakeSource);
-      }
-      if (scopeFilter !== "all") {
-        params.set("scope", scopeFilter);
-      }
-      if (obligationFilter !== "all") {
-        const statusValue =
-          obligationFilter === "pending"
-            ? "draft,in_review"
-            : obligationFilter;
-        params.set("obligation_status", statusValue);
-      }
-      const response = await apiClient.get<HomeDashboard>(
-        `/api/reporting/dashboard/home?${params.toString()}`
-      );
-      setData(response.data);
-    } catch (err) {
-      handleApiError(err, { context: "Update obligation status" });
-    } finally {
-      setActionLoading(null);
-    }
-  };
-
-  const obligationActions = (status?: string) => {
-    const normalized = (status || "draft").toLowerCase();
-    if (normalized === "draft") {
-      return [
-        { label: "Send to review", status: "in_review" },
-        { label: "Reject", status: "rejected" },
-      ];
-    }
-    if (normalized === "in_review") {
-      return [
-        { label: "Approve", status: "approved" },
-        { label: "Reject", status: "rejected" },
-      ];
-    }
-    if (normalized === "rejected") {
-      return [{ label: "Reopen", status: "draft" }];
-    }
-    return [];
-  };
 
   if (authReady && !hasToken) {
     return (
@@ -378,7 +321,6 @@ export default function DashboardPage() {
   }
 
   const coverage = data?.coverage;
-  const coverageGaps = data?.coverage_gaps;
   const riskOps = data?.risk_ops;
   const decisions = data?.decisions;
   const reporting = data?.reporting;
@@ -392,8 +334,6 @@ export default function DashboardPage() {
     (policySummary?.by_status?.draft ?? 0) + (policySummary?.by_status?.in_review ?? 0);
   const criticalAlerts = riskOps?.critical_alerts ?? 0;
   const openCases = riskOps?.open_cases ?? 0;
-  const celexGaps = coverageGaps?.celex_without_rules?.length ?? 0;
-  const rulesCoveragePct = coverage?.rules_coverage_pct ?? 0;
 
   return (
     <motion.div

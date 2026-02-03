@@ -80,7 +80,7 @@ export default function ModelRegistryPage() {
 
     useEffect(() => {
         loadModels();
-    }, []);
+    }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
     useEffect(() => {
         if (selectedModel) {

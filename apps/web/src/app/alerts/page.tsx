@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { Bell, AlertTriangle, FileText, ExternalLink, Filter, Check, Clock, Search, CheckSquare, Square, X, Archive } from "lucide-react";
+import { Bell, AlertTriangle, FileText, ExternalLink, Check, Clock, Search, CheckSquare, Square, X, Archive } from "lucide-react";
 import Link from "next/link";
 import { format } from "date-fns";
 import { getAlerts } from "@/lib/api";

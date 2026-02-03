@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import { TimelineEvent, getDocumentTimeline } from "@/lib/compliance-api";
 import { format } from "date-fns";
-import { CheckCircle, Circle, ArrowDown, FileText, Scale, History, FileClock } from "lucide-react";
+import { CheckCircle, Circle, FileText, Scale, History, FileClock } from "lucide-react";
 import { cn } from "@/lib/utils";
 import Link from "next/link";
 
@@ -64,7 +64,7 @@ export function TimelineView({ celex }: TimelineViewProps) {
             </h3>
 
             <div className="relative pl-6 border-l-2 border-gray-200 dark:border-slate-800 space-y-8">
-                {events.map((event, index) => {
+                {events.map((event) => {
                     const Icon = getIcon(event.type);
                     const colorClass = getColor(event.type);
 

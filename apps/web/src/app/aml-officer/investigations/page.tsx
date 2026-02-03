@@ -17,18 +17,12 @@ import {
   CheckCircle,
   Clock,
   FileText,
-  ChevronRight,
-  Filter,
   Loader2,
   Play,
   Eye,
-  TrendingUp,
-  TrendingDown,
-  Minus,
   Flag,
   Scale,
   Shield,
-  XCircle,
 } from "lucide-react";
 // Note: amlOfficerApi is available for real API calls
 // import amlOfficerApi from "@/lib/aml-officer-api";

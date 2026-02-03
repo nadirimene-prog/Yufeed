@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { BarChart3, TrendingUp, AlertTriangle, FileText, Clock, CheckCircle, Download, Calendar } from 'lucide-react';
-import { BarChart, Bar, PieChart, Pie, Cell, LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
+import { BarChart, Bar, PieChart, Pie, Cell, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
 import { motion } from 'framer-motion';
 import toast from 'react-hot-toast';
 import { fetchWithAuth } from '@/lib/auth';

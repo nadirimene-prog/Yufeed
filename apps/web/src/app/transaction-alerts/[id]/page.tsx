@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { useParams, useRouter } from 'next/navigation';
-import { ArrowLeft, AlertTriangle, User, DollarSign, MapPin, Clock, Shield, Sparkles, FileText, ChevronRight, ExternalLink } from 'lucide-react';
+import { ArrowLeft, AlertTriangle, Sparkles, ChevronRight, ExternalLink } from 'lucide-react';
 import { fetchWithAuth } from '@/lib/auth';
 import { getApiBaseUrl } from '@/lib/apiBaseUrl';
 
@@ -65,7 +65,7 @@ export default function AlertDetailPage() {
 
   useEffect(() => {
     fetchAlertDetails();
-  }, [params.id]);
+  }, [params.id]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const fetchAlertDetails = async () => {
     try {

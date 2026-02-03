@@ -1,4 +1,4 @@
-import { Maximize2, Minimize2, ZoomIn, ZoomOut, Locate, Play, Pause } from 'lucide-react';
+import { Maximize2, ZoomIn, ZoomOut, Locate, Play, Pause } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 interface GraphControlsProps {

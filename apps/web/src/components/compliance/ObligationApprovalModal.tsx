@@ -122,7 +122,7 @@ export default function ObligationApprovalModal({
             setSelectedRiskIds([]);
             setError(null);
         }
-    }, [open, obligation?.linked_policy_id]);
+    }, [open, obligation?.linked_policy_id]); // eslint-disable-line react-hooks/exhaustive-deps
 
     const handleSubmit = async () => {
         if (!obligation) return;

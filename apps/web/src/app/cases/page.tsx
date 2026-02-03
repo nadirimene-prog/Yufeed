@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { Folder, Search, Clock, CheckCircle, AlertTriangle, FileText, TrendingUp } from 'lucide-react';
+import { Folder, Search, Clock, CheckCircle, AlertTriangle, FileText } from 'lucide-react';
 import { fetchWithAuth } from '@/lib/auth';
 import { getApiBaseUrl } from '@/lib/apiBaseUrl';
 

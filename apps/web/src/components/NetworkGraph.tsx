@@ -172,7 +172,7 @@ export default function NetworkGraph({ nodes, edges }: NetworkGraphProps) {
         d3AlphaDecay={0.02}
         d3VelocityDecay={0.3}
         cooldownTicks={100}
-        onNodeClick={(node: GraphNode) => {
+        onNodeClick={() => {
           // Node click handler removed during cleanup
         }}
       />

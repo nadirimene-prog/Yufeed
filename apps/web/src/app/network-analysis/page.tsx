@@ -2,7 +2,6 @@
 
 import { useState } from 'react';
 import { Network, Search, AlertTriangle, Users, Activity } from 'lucide-react';
-import { motion } from 'framer-motion';
 import toast from 'react-hot-toast';
 import dynamic from 'next/dynamic';
 import { fetchWithAuth } from '@/lib/auth';
@@ -13,21 +12,6 @@ const NetworkGraph = dynamic(() => import('@/components/NetworkGraph'), { ssr: f
 
 const API_URL = getApiBaseUrl();
 
-interface NetworkNode {
-  id: string;
-  type: string;
-  transaction_count: number;
-  total_amount: number;
-  risk_score?: number;
-}
-
-interface NetworkEdge {
-  from: string;
-  to: string;
-  transaction_count: number;
-  total_amount: number;
-  latest_transaction: string;
-}
 
 interface CircularFlow {
   path: string[];

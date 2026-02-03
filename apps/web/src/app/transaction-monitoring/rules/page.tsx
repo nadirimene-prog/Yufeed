@@ -181,40 +181,6 @@ export default function RuleManagementPage() {
         setError(null);
     };
 
-    const handleSave = async () => {
-        if (!editingRule) return;
-        setSaving(true);
-        setError(null);
-        try {
-            const conditions = editConditions.trim() ? JSON.parse(editConditions) : undefined;
-            const thresholds = editThresholds.trim() ? JSON.parse(editThresholds) : undefined;
-            const payload: Record<string, unknown> = {
-                name: editName,
-                description: editDescription || undefined,
-                severity: editSeverity,
-                enabled: editEnabled,
-            };
-            if (conditions !== undefined) payload.conditions = conditions;
-            if (thresholds !== undefined) payload.thresholds = thresholds;
-
-            const res = await fetchWithAuth(`${API_URL}/api/monitoring-rules/${editingRule.rule_id}`, {
-                method: "PATCH",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify(payload),
-            });
-            if (!res.ok) throw new Error(await res.text());
-            const updated = await res.json();
-            setRules((prev) =>
-                prev.map((rule) => (rule.rule_id === updated.rule_id ? updated : rule))
-            );
-            setEditingRule(null);
-        } catch (err) {
-            setError(err instanceof Error ? err.message : "Failed to save rule");
-        } finally {
-            setSaving(false);
-        }
-    };
-
     const handleSubmitForApproval = async () => {
         if (!editingRule) return;
         setSaving(true);

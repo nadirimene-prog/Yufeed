@@ -6,7 +6,7 @@ import { TrendingUp, TrendingDown, Minus } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Sparkline } from "./sparkline";
 import { AnimatedNumber } from "./animated-number";
-import { cardHover, staggerItem, transitions } from "@/lib/motion";
+import { staggerItem, transitions } from "@/lib/motion";
 
 /**
  * ═══════════════════════════════════════════════════════════════════

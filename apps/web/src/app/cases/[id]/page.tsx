@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useState } from 'react';
 import { useParams, useRouter } from 'next/navigation';
-import { ArrowLeft, Folder, Clock, FileText, TrendingUp, ExternalLink, CheckCircle } from 'lucide-react';
+import { ArrowLeft, Folder, Clock, TrendingUp, ExternalLink, CheckCircle } from 'lucide-react';
 import { fetchWithAuth } from '@/lib/auth';
 import { getApiBaseUrl } from '@/lib/apiBaseUrl';
 

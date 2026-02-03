@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { AlertCircle, Search, AlertTriangle, CheckCircle, Clock, Shield, Sparkles } from 'lucide-react';
-import { motion, AnimatePresence } from 'framer-motion';
+import { motion } from 'framer-motion';
 import toast from 'react-hot-toast';
 import { fetchWithAuth } from '@/lib/auth';
 import { getApiBaseUrl } from '@/lib/apiBaseUrl';
@@ -63,7 +63,7 @@ export default function TransactionAlertsPage() {
       fetchAlerts();
     });
     return () => cancelAnimationFrame(frameId);
-  }, [filters]);
+  }, [filters]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const handleBulkTriage = async () => {
     if (selectedAlerts.length === 0) {

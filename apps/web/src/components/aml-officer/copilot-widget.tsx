@@ -6,7 +6,6 @@ import {
     Sparkles,
     X,
     Send,
-    MessageSquare,
     Minimize2,
     Maximize2,
     Brain,

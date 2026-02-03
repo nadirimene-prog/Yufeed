@@ -437,7 +437,7 @@ export default function DecisioningPage() {
             setAutoRunDone(true);
             handleDecide();
         }
-    }, [autoRun, autoRunDone]);
+    }, [autoRun, autoRunDone]); // eslint-disable-line react-hooks/exhaustive-deps
 
     useEffect(() => {
         setDecisionPage(0);
@@ -487,6 +487,7 @@ export default function DecisioningPage() {
         if (activeTab === "log") {
             fetchDecisions();
         }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [
         activeTab,
         decisionFilter,
@@ -524,7 +525,7 @@ export default function DecisioningPage() {
                 );
                 if (!res.ok) throw new Error(await res.text());
                 setEvidenceBundle((await res.json()) as DecisionEvidenceBundle);
-            } catch (err) {
+            } catch {
                 setEvidenceBundle(null);
             } finally {
                 setEvidenceLoading(false);

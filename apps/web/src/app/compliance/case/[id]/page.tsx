@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useEffect, useState } from 'react';
-import { useParams, useRouter } from 'next/navigation';
+import { useParams } from 'next/navigation';
 import Link from 'next/link';
 import { ComplianceProfile } from '@/types/compliance';
 import { RiskBadge } from '@/components/ui/risk-badge';
@@ -11,7 +11,6 @@ import { getApiBaseUrl } from "@/lib/apiBaseUrl";
 
 export default function CaseDetailPage() {
     const params = useParams();
-    const router = useRouter();
     const [caseDetails, setCaseDetails] = useState<ComplianceProfile | null>(null);
     const [loading, setLoading] = useState(true);
     const [reviewing, setReviewing] = useState(false);

@@ -71,7 +71,7 @@ function SARPrepareContent() {
   const [loading, setLoading] = useState(true);
   const [preparing, setPreparing] = useState(false);
   const [jurisdiction, setJurisdiction] = useState('EU');
-  const [institutionInfo, setInstitutionInfo] = useState({
+  const [institutionInfo] = useState({
     name: '',
     type: 'Financial Institution',
     country: 'EU',
@@ -84,7 +84,7 @@ function SARPrepareContent() {
     if (caseId) {
       prepareSAR();
     }
-  }, [caseId]);
+  }, [caseId]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const prepareSAR = async () => {
     if (!caseId) return;

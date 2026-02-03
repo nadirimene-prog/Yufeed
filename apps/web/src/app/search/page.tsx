@@ -55,7 +55,7 @@ export default function SearchPage() {
     // Search on mount and when filters change
     useEffect(() => {
         handleSearch();
-    }, [filters.status, filters.type]);
+    }, [filters.status, filters.type]); // eslint-disable-line react-hooks/exhaustive-deps
 
     return (
         <div className="space-y-8 animate-in fade-in duration-500">

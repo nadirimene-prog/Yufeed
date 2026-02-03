@@ -8,9 +8,7 @@ import {
     AlertTriangle,
     Check,
     Clock,
-    TrendingUp,
     ArrowRight,
-    Activity,
     Shield,
     Loader2,
 } from "lucide-react";

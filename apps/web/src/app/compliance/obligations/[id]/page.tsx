@@ -221,7 +221,7 @@ export default function ObligationDetailPage() {
 
   useEffect(() => {
     fetchInternalRules();
-  }, [id]);
+  }, [id]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const createInternalRule = async () => {
     if (!id || !ruleForm.name.trim()) return;

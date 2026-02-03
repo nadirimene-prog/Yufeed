@@ -2,11 +2,7 @@
 
 import * as React from "react"
 import {
-    Calculator,
-    Calendar,
-    CreditCard,
     Settings,
-    Smile,
     User,
     LayoutDashboard,
     Brain,

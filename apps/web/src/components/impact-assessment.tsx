@@ -8,10 +8,8 @@ import {
 import {
     analyzeDocumentImpact,
     getImpactAssessment,
-    getActionItems,
     updateActionItem,
     type ImpactAssessment as ImpactAssessmentType,
-    type ActionItem as ApiActionItem
 } from "@/lib/impact-api";
 
 interface ImpactAssessmentProps {
@@ -26,7 +24,7 @@ export default function ImpactAssessmentComponent({ celex }: ImpactAssessmentPro
 
     useEffect(() => {
         loadAssessment();
-    }, [celex]);
+    }, [celex]); // eslint-disable-line react-hooks/exhaustive-deps
 
     const loadAssessment = async () => {
         try {
@@ -50,7 +48,7 @@ export default function ImpactAssessmentComponent({ celex }: ImpactAssessmentPro
         try {
             await analyzeDocumentImpact(celex, false);
             await loadAssessment();
-        } catch (err) {
+        } catch {
             alert("Analysis failed. Please try again.");
         } finally {
             setAnalyzing(false);
@@ -61,7 +59,7 @@ export default function ImpactAssessmentComponent({ celex }: ImpactAssessmentPro
         try {
             await updateActionItem(actionId, updates);
             await loadAssessment();
-        } catch (err) {
+        } catch {
             alert("Failed to update action item");
         }
     };

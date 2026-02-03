@@ -219,8 +219,6 @@ function CircularProgress({
   const offset = circumference - (percentage / 100) * circumference;
 
   const gradientId = React.useId();
-  const colors = colorConfig[color];
-
   // Get gradient colors
   const gradientColors = {
     aurora: { start: "#6d5acd", end: "#00d4ff" },

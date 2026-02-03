@@ -55,7 +55,6 @@ export function Sparkline({
   // Determine if color is a preset or custom
   const isPreset = typeof color === "string" && color in colorMap;
   const strokeColor = isPreset ? colorMap[color as SparklineColor].stroke : color;
-  const fillColor = isPreset ? colorMap[color as SparklineColor].fill : `${color}20`;
 
   // Calculate trend
   const trend = useMemo(() => {

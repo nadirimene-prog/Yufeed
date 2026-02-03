@@ -31,7 +31,7 @@ import {
 } from "@/components/ui/table";
 import { Skeleton } from "@/components/ui/skeleton";
 import { cn } from "@/lib/utils";
-import { staggerContainer, staggerItem, transitions } from "@/lib/motion";
+import { transitions } from "@/lib/motion";
 
 /**
  * ═══════════════════════════════════════════════════════════════════
@@ -82,6 +82,7 @@ export function DataTable<TData, TValue>({
   const [rowSelection, setRowSelection] = React.useState({});
   const [globalFilter, setGlobalFilter] = React.useState("");
 
+  // eslint-disable-next-line react-hooks/incompatible-library
   const table = useReactTable({
     data,
     columns,

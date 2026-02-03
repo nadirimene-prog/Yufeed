@@ -1,8 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { Plus, Trash2, Mail, Clock, ShieldCheck, FileText, Rss } from "lucide-react";
-import { cn } from "@/lib/utils";
+import { Plus, Mail, Clock, ShieldCheck, FileText, Rss } from "lucide-react";
 import { getWatchlists, createWatchlist, type Watchlist, type WatchlistCreate } from "@/lib/api";
 
 export default function WatchlistsPage() {

@@ -34,7 +34,7 @@ export default function DocPage({ params }: { params: Promise<{ celex: string }>
 
     useEffect(() => {
         loadDocument();
-    }, [celex]);
+    }, [celex]); // eslint-disable-line react-hooks/exhaustive-deps
 
     const loadDocument = async () => {
         try {

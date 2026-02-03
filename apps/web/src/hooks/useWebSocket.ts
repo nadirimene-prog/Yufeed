@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState, useCallback, useRef } from 'react';
+import { useEffect, useState, useCallback, useRef, useMemo } from 'react';
 import { getAuthToken } from '@/lib/auth';
 import toast from 'react-hot-toast';
 import { getApiBaseUrl } from "@/lib/apiBaseUrl";
@@ -70,7 +70,7 @@ const DEFAULT_OPTIONS: UseWebSocketOptions = {
 };
 
 export function useWebSocket(options: UseWebSocketOptions = {}): UseWebSocketReturn {
-  const opts = { ...DEFAULT_OPTIONS, ...options };
+  const opts = useMemo(() => ({ ...DEFAULT_OPTIONS, ...options }), [options]);
 
   const [isConnected, setIsConnected] = useState(false);
   const [connectionStatus, setConnectionStatus] = useState<'connecting' | 'connected' | 'disconnected' | 'error'>('disconnected');
@@ -80,6 +80,7 @@ export function useWebSocket(options: UseWebSocketOptions = {}): UseWebSocketRet
   const wsRef = useRef<WebSocket | null>(null);
   const reconnectTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const reconnectAttemptsRef = useRef(0);
+  const connectRef = useRef<() => void>(() => {});
   const maxReconnectAttempts = 10;
   const baseReconnectDelay = 1000; // 1 second
 
@@ -223,7 +224,7 @@ export function useWebSocket(options: UseWebSocketOptions = {}): UseWebSocketRet
           console.log(`[WebSocket] Reconnecting in ${delay}ms (attempt ${reconnectAttemptsRef.current}/${maxReconnectAttempts})`);
 
           reconnectTimeoutRef.current = setTimeout(() => {
-            connect();
+            connectRef.current();
           }, delay);
         } else if (reconnectAttemptsRef.current >= maxReconnectAttempts) {
           console.error('[WebSocket] Max reconnection attempts reached');
@@ -236,7 +237,11 @@ export function useWebSocket(options: UseWebSocketOptions = {}): UseWebSocketRet
       console.error('[WebSocket] Connection failed:', error);
       setConnectionStatus('error');
     }
-  }, [opts, getWebSocketUrl, handleMessage]);
+  }, [opts, getValidToken, getWebSocketUrl, handleMessage]);
+
+  useEffect(() => {
+    connectRef.current = connect;
+  }, [connect]);
 
   const disconnect = useCallback(() => {
     if (reconnectTimeoutRef.current) {
@@ -272,19 +277,19 @@ export function useWebSocket(options: UseWebSocketOptions = {}): UseWebSocketRet
     setTimeout(() => connect(), 100);
   }, [connect, disconnect]);
 
-  // Connect on mount
-  // eslint-disable-next-line react-hooks/exhaustive-deps -- Intentionally limited deps:
-  // We only want to reconnect when `enabled` changes, not when callbacks update.
-  // Including connect/disconnect would cause infinite reconnection loops.
   useEffect(() => {
+    let frameId: number | null = null;
     if (opts.enabled) {
-      connect();
+      frameId = requestAnimationFrame(() => connect());
     }
 
     return () => {
+      if (frameId !== null) {
+        cancelAnimationFrame(frameId);
+      }
       disconnect();
     };
-  }, [opts.enabled]);
+  }, [opts.enabled, connect, disconnect]);
 
   return {
     isConnected,

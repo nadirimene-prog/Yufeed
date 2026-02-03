@@ -5,11 +5,8 @@ import {
     AlertTriangle,
     CheckCircle,
     XCircle,
-    MoreHorizontal,
     ArrowRight,
-    Search
 } from "lucide-react";
-import { formatDistanceToNow } from "date-fns";
 
 import { Button } from "@/components/ui/button";
 import { DataTable } from "@/components/ui/data-table";

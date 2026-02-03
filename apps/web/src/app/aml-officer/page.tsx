@@ -18,8 +18,6 @@ import {
     Shield,
     Clock,
     CheckCircle,
-    XCircle,
-    ArrowRight,
     Sparkles,
     Calendar,
     Zap,
@@ -28,11 +26,10 @@ import {
 import amlOfficerApi, {
     DailyBriefing,
     ProactiveAlert,
-    AMLOfficerCapabilities,
 } from "@/lib/aml-officer-api";
 import { MetricCard } from "@/components/ui/metric-card";
 import { GlassCard, GlassCardHeader, GlassCardTitle, GlassCardContent } from "@/components/ui/glass-card";
-import { BentoGrid, BentoItem } from "@/components/ui/bento-grid";
+import { BentoGrid } from "@/components/ui/bento-grid";
 import { Button } from "@/components/ui/button";
 import { StatusIndicator } from "@/components/ui/status-indicator";
 import { staggerContainer, staggerItem } from "@/lib/motion";
@@ -42,26 +39,19 @@ import { useCopilot } from "@/components/aml-officer/copilot-context";
 export default function AMLOfficerDashboard() {
     const [briefing, setBriefing] = useState<DailyBriefing | null>(null);
     const [proactiveAlerts, setProactiveAlerts] = useState<ProactiveAlert[]>([]);
-    const [capabilities, setCapabilities] =
-        useState<AMLOfficerCapabilities | null>(null);
     const [loading, setLoading] = useState(true);
-    const [error, setError] = useState<string | null>(null);
     const [refreshing, setRefreshing] = useState(false);
 
     const fetchData = async () => {
         try {
-            setError(null);
-            const [briefingData, alertsData, capabilitiesData] = await Promise.all([
+            const [briefingData, alertsData] = await Promise.all([
                 amlOfficerApi.getDailyBriefing().catch(() => null),
                 amlOfficerApi.getProactiveAlerts().catch(() => ({ alerts: [] })),
-                amlOfficerApi.getCapabilities().catch(() => null),
             ]);
 
             if (briefingData) setBriefing(briefingData);
             setProactiveAlerts(alertsData.alerts || []);
-            if (capabilitiesData) setCapabilities(capabilitiesData);
         } catch (err) {
-            setError("Failed to load dashboard data");
             console.error(err);
         } finally {
             setLoading(false);

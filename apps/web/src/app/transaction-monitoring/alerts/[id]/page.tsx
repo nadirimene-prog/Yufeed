@@ -4,19 +4,16 @@ import { use } from "react";
 import {
     ArrowLeft,
     MapPin,
-    Clock,
     Smartphone,
     Globe,
     ShieldAlert,
     CheckCircle2,
     XCircle,
     Flag,
-    ChevronRight,
     User,
     ExternalLink,
     History
 } from "lucide-react";
-import { cn } from "@/lib/utils";
 
 export default function AlertDetailPage({ params }: { params: Promise<{ id: string }> }) {
     const { id } = use(params);

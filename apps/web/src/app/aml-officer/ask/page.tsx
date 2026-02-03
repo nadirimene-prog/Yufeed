@@ -18,10 +18,9 @@ import {
   ExternalLink,
   Loader2,
   MessageSquare,
-  User,
   RefreshCw,
 } from "lucide-react";
-import amlOfficerApi, { ComplianceAnswer, Source } from "@/lib/aml-officer-api";
+import amlOfficerApi, { Source } from "@/lib/aml-officer-api";
 
 interface Message {
   id: string;

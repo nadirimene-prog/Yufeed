@@ -1,6 +1,5 @@
 import { useEffect, useState } from 'react';
-import { HelpCircle, X, Search, Command } from 'lucide-react';
-import { cn } from '@/lib/utils';
+import { HelpCircle, X, Command } from 'lucide-react';
 
 interface KeyboardShortcut {
     key: string;

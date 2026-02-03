@@ -5,12 +5,10 @@ import { motion, AnimatePresence } from "framer-motion";
 import {
     Shield,
     Plus,
-    Filter,
     Search,
     Loader2,
     AlertTriangle,
     X,
-    ChevronRight,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { GlassCard } from "@/components/ui/glass-card";
@@ -56,7 +54,7 @@ export default function RiskMapPage() {
 
     useEffect(() => {
         loadEntries();
-    }, [selectedCategory, filterLevel, filterStatus, searchQuery]);
+    }, [selectedCategory, filterLevel, filterStatus, searchQuery]); // eslint-disable-line react-hooks/exhaustive-deps
 
     const loadData = async () => {
         setLoading(true);

@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { format } from "date-fns";
-import { FileText, AlertCircle, CheckCircle, Clock } from "lucide-react";
+import { FileText } from "lucide-react";
 import { cn } from "@/lib/utils";
 import type { LegalDocument } from "@/lib/types";
 
@@ -29,7 +29,7 @@ export default function ResultsTable({ results, isLoading }: ResultsTableProps) 
         }
     };
 
-    const getTypeIcon = (type: LegalDocument['type']) => {
+    const getTypeIcon = () => {
         // Icons could differ but using generic for now
         return <FileText className="h-4 w-4" />;
     };

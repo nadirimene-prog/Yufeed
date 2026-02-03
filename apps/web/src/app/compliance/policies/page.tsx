@@ -167,7 +167,7 @@ export default function PoliciesPage() {
 
   useEffect(() => {
     loadPolicies();
-  }, [debouncedQuery, statusFilter, policyPage]);
+  }, [debouncedQuery, statusFilter, policyPage]); // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {
     setTemplatePage(1);
@@ -175,7 +175,7 @@ export default function PoliciesPage() {
 
   useEffect(() => {
     loadTemplates();
-  }, [debouncedTemplateQuery, templateCategory, templatePage]);
+  }, [debouncedTemplateQuery, templateCategory, templatePage]); // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {
     if (selectedPolicyId) {
