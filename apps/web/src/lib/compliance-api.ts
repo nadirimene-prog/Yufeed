@@ -144,6 +144,7 @@ import type {
     PolicyCreate,
     PolicyUpdate,
     PolicySection,
+    PolicyTemplate,
     RiskCategory,
     RiskCategoryTree,
     RiskEntry,
@@ -202,6 +203,57 @@ export const getPolicyObligations = async (id: number, params?: {
     limit?: number;
 }): Promise<PaginatedResponse<Obligation>> => {
     const response = await apiClient.get<PaginatedResponse<Obligation>>(`/api/policies/${id}/obligations`, { params });
+    return response.data;
+};
+
+export const getPolicyTemplates = async (params?: {
+    category?: string;
+    q?: string;
+    skip?: number;
+    limit?: number;
+}): Promise<PaginatedResponse<PolicyTemplate>> => {
+    const response = await apiClient.get<PaginatedResponse<PolicyTemplate>>('/api/policies/templates', { params });
+    return response.data;
+};
+
+export const getPolicyTemplateSuggestions = async (obligationId: number, limit: number = 3): Promise<{
+    items: Array<{
+        template_id: string;
+        name: string;
+        category: string;
+        version?: string;
+        owner?: string;
+        regulatory_basis?: string[];
+        review_frequency_months?: number;
+        score: number;
+    }>;
+}> => {
+    const response = await apiClient.get(`/api/obligations/${obligationId}/policy-suggestions`, { params: { limit } });
+    return response.data;
+};
+
+export const createPolicyFromTemplate = async (
+    templateId: string,
+    data?: {
+        name?: string;
+        owner?: string;
+        status?: string;
+        language?: string;
+        effective_date?: string;
+        source_url?: string;
+        content?: string;
+        metadata?: Record<string, unknown>;
+    }
+): Promise<Policy> => {
+    const response = await apiClient.post<Policy>(`/api/policies/from-template/${templateId}`, data ?? {});
+    return response.data;
+};
+
+export const linkObligationToPolicy = async (
+    policyId: number,
+    obligationId: number
+): Promise<{ message: string; policy_id: string; obligation_id: string }> => {
+    const response = await apiClient.post(`/api/policies/${policyId}/link-obligation/${obligationId}`);
     return response.data;
 };
 

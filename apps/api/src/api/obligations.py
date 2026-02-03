@@ -20,6 +20,7 @@ from src.auth.dependencies import require_any_role, CurrentUser
 from src.models.compliance_workflow import (
     RegulatoryObligation,
     PolicyDocument,
+    PolicyTemplate,
     InternalRule,
     RiskEntry,
     ObligationRiskLink,
@@ -134,6 +135,38 @@ def _apply_scope_filter(query, scope: Optional[str], db: Session):
     return query.filter(or_(*conditions))
 
 
+def _template_score(template: PolicyTemplate, text: str) -> int:
+    haystack = (text or "").lower()
+    score = 0
+    name = (template.name or "").lower()
+    category = (template.category or "").lower()
+
+    if name and name in haystack:
+        score += 5
+    if category and category in haystack:
+        score += 2
+
+    category_keywords = {
+        "aml/cft": ["aml", "cft", "kyc", "kyb", "pep", "sanction", "str", "travel rule", "record keeping"],
+        "emi": ["e-money", "emoney", "payment", "sca", "psd2", "safeguarding", "fraud", "complaint", "outsourcing"],
+        "casp": ["crypto", "asset", "custody", "token", "micar", "wallet", "listing", "market abuse"],
+        "governance": ["risk", "control", "ict", "dora", "incident", "outsourcing", "security", "bcp", "continuity"],
+        "gdpr": ["gdpr", "data", "privacy", "breach", "retention", "subject rights"],
+        "hr": ["training", "staff", "remuneration", "fit and proper", "whistleblowing"],
+    }
+    for keyword in category_keywords.get(category, []):
+        if keyword in haystack:
+            score += 1
+
+    if template.regulatory_basis:
+        for basis in template.regulatory_basis:
+            token = str(basis).lower().split(" ")[0]
+            if token and token in haystack:
+                score += 1
+
+    return score
+
+
 @router.get("")
 def list_obligations(
     status: Optional[str] = Query(None, description="Comma-separated statuses"),
@@ -228,6 +261,53 @@ def get_obligation(
     ]
 
     return result
+
+
+@router.get("/{obligation_id}/policy-suggestions")
+def get_policy_template_suggestions(
+    obligation_id: int,
+    limit: int = Query(3, ge=1, le=10),
+    db: Session = Depends(get_db),
+    _: CurrentUser = Depends(require_any_role(["admin", "compliance", "aml_officer", "auditor", "user"])),
+):
+    row = db.query(RegulatoryObligation, LegalDocument).join(
+        LegalDocument, RegulatoryObligation.doc_id == LegalDocument.id
+    ).filter(RegulatoryObligation.id == obligation_id).first()
+    if not row:
+        raise HTTPException(status_code=404, detail="Obligation not found")
+
+    obligation, doc = row
+    text = " ".join(
+        [
+            obligation.obligation_text or "",
+            obligation.article_ref or "",
+            doc.title or "",
+            doc.jurisdiction or "",
+        ]
+    )
+
+    templates = db.query(PolicyTemplate).filter(PolicyTemplate.is_active == True).all()
+    scored = []
+    for template in templates:
+        score = _template_score(template, text)
+        if score > 0:
+            scored.append((score, template))
+
+    scored.sort(key=lambda item: item[0], reverse=True)
+    results = []
+    for score, template in scored[:limit]:
+        results.append({
+            "template_id": template.template_id,
+            "name": template.name,
+            "category": template.category,
+            "version": template.version,
+            "owner": template.owner,
+            "regulatory_basis": template.regulatory_basis,
+            "review_frequency_months": template.review_frequency_months,
+            "score": score,
+        })
+
+    return {"items": results}
 
 
 @router.patch("/{obligation_id}")

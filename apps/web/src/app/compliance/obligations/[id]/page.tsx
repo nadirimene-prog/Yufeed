@@ -7,6 +7,7 @@ import apiClient from "@/lib/http";
 import { handleApiError } from "@/lib/api-error-handler";
 import ObligationApprovalModal from "@/components/compliance/ObligationApprovalModal";
 import type { Obligation } from "@/types/compliance";
+import { getPolicies, getPolicySections } from "@/lib/compliance-api";
 
 interface ObligationDetail {
   id: number;
@@ -163,9 +164,9 @@ export default function ObligationDetailPage() {
     const fetchPolicies = async () => {
       setPoliciesLoading(true);
       try {
-        const response = await apiClient.get("/api/compliance/policies?skip=0&limit=200");
+        const response = await getPolicies({ skip: 0, limit: 200 });
         if (!mounted) return;
-        setPolicies(response.data.items || []);
+        setPolicies(response.items || []);
       } catch (err) {
         handleApiError(err, { context: "Policies list", customMessage: "Failed to load policies" });
       } finally {
@@ -190,9 +191,9 @@ export default function ObligationDetailPage() {
     const fetchSections = async () => {
       setSectionsLoading(true);
       try {
-        const response = await apiClient.get(`/api/compliance/policies/${ruleForm.policy_id}/sections`);
+        const response = await getPolicySections(Number(ruleForm.policy_id));
         if (!mounted) return;
-        setSections(response.data.items || []);
+        setSections(response.items || []);
       } catch (err) {
         handleApiError(err, { context: "Policy sections", customMessage: "Failed to load policy sections" });
       } finally {

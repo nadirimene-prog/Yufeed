@@ -2,8 +2,16 @@
 
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
-import apiClient from "@/lib/http";
 import { handleApiError } from "@/lib/api-error-handler";
+import {
+  createPolicy,
+  createPolicyFromTemplate,
+  createPolicySection,
+  getPolicies,
+  getPolicySections,
+  getPolicyTemplates,
+} from "@/lib/compliance-api";
+import type { PolicyTemplate } from "@/types/compliance";
 
 interface Policy {
   id: number;
@@ -36,6 +44,17 @@ const policyStatusStyle = (status?: string | null) => {
   return "bg-amber-50 text-amber-700 dark:bg-amber-900/30 dark:text-amber-300";
 };
 
+const useDebouncedValue = <T,>(value: T, delayMs: number) => {
+  const [debounced, setDebounced] = useState(value);
+
+  useEffect(() => {
+    const handle = setTimeout(() => setDebounced(value), delayMs);
+    return () => clearTimeout(handle);
+  }, [value, delayMs]);
+
+  return debounced;
+};
+
 const formatDate = (value?: string | null) => {
   if (!value) return "—";
   const parsed = new Date(value);
@@ -47,6 +66,16 @@ export default function PoliciesPage() {
   const [policies, setPolicies] = useState<Policy[]>([]);
   const [total, setTotal] = useState(0);
   const [loading, setLoading] = useState(true);
+  const [policyPage, setPolicyPage] = useState(1);
+  const policyPageSize = 20;
+  const [templates, setTemplates] = useState<PolicyTemplate[]>([]);
+  const [templatesTotal, setTemplatesTotal] = useState(0);
+  const [templatesLoading, setTemplatesLoading] = useState(true);
+  const [templateQuery, setTemplateQuery] = useState("");
+  const [templateCategory, setTemplateCategory] = useState("all");
+  const [templateActionLoading, setTemplateActionLoading] = useState<string | null>(null);
+  const [templatePage, setTemplatePage] = useState(1);
+  const templatePageSize = 9;
   const [sections, setSections] = useState<PolicySection[]>([]);
   const [sectionsLoading, setSectionsLoading] = useState(false);
   const [selectedPolicyId, setSelectedPolicyId] = useState<number | null>(null);
@@ -68,26 +97,25 @@ export default function PoliciesPage() {
   });
   const [actionLoading, setActionLoading] = useState<string | null>(null);
 
-  const queryParams = useMemo(() => {
-    const params = new URLSearchParams();
-    if (statusFilter !== "all") {
-      params.set("status", statusFilter);
-    }
-    if (query.trim()) {
-      params.set("q", query.trim());
-    }
-    params.set("skip", "0");
-    params.set("limit", "200");
-    return params.toString();
-  }, [query, statusFilter]);
+  const templateCategories = useMemo(() => {
+    return Array.from(new Set(templates.map((item) => item.category)));
+  }, [templates]);
+
+  const debouncedQuery = useDebouncedValue(query, 300);
+  const debouncedTemplateQuery = useDebouncedValue(templateQuery, 300);
 
   const loadPolicies = async () => {
     setLoading(true);
     try {
-      const response = await apiClient.get(`/api/compliance/policies?${queryParams}`);
-      const items = response.data.items || [];
+      const response = await getPolicies({
+        status: statusFilter !== "all" ? statusFilter : undefined,
+        q: debouncedQuery.trim() || undefined,
+        skip: (policyPage - 1) * policyPageSize,
+        limit: policyPageSize,
+      });
+      const items = response.items || [];
       setPolicies(items);
-      setTotal(response.data.total || 0);
+      setTotal(response.total || 0);
       if (items.length) {
         const nextSelected = items.find((item: Policy) => item.id === selectedPolicyId)?.id || items[0].id;
         setSelectedPolicyId(nextSelected);
@@ -102,11 +130,29 @@ export default function PoliciesPage() {
     }
   };
 
+  const loadTemplates = async () => {
+    setTemplatesLoading(true);
+    try {
+      const response = await getPolicyTemplates({
+        category: templateCategory !== "all" ? templateCategory : undefined,
+        q: debouncedTemplateQuery.trim() || undefined,
+        skip: (templatePage - 1) * templatePageSize,
+        limit: templatePageSize,
+      });
+      setTemplates(response.items || []);
+      setTemplatesTotal(response.total || 0);
+    } catch (err) {
+      handleApiError(err, { context: "Policy templates", customMessage: "Failed to load policy templates" });
+    } finally {
+      setTemplatesLoading(false);
+    }
+  };
+
   const loadSections = async (policyId: number) => {
     setSectionsLoading(true);
     try {
-      const response = await apiClient.get(`/api/compliance/policies/${policyId}/sections`);
-      setSections(response.data.items || []);
+      const response = await getPolicySections(policyId);
+      setSections(response.items || []);
     } catch (err) {
       handleApiError(err, { context: "Policy sections", customMessage: "Failed to load policy sections" });
     } finally {
@@ -115,8 +161,20 @@ export default function PoliciesPage() {
   };
 
   useEffect(() => {
+    setPolicyPage(1);
+  }, [debouncedQuery, statusFilter]);
+
+  useEffect(() => {
     loadPolicies();
-  }, [queryParams]);
+  }, [debouncedQuery, statusFilter, policyPage]);
+
+  useEffect(() => {
+    setTemplatePage(1);
+  }, [debouncedTemplateQuery, templateCategory]);
+
+  useEffect(() => {
+    loadTemplates();
+  }, [debouncedTemplateQuery, templateCategory, templatePage]);
 
   useEffect(() => {
     if (selectedPolicyId) {
@@ -124,7 +182,7 @@ export default function PoliciesPage() {
     }
   }, [selectedPolicyId]);
 
-  const createPolicy = async () => {
+  const handleCreatePolicy = async () => {
     if (!policyForm.name.trim()) return;
     setActionLoading("policy");
     try {
@@ -135,16 +193,31 @@ export default function PoliciesPage() {
         language: policyForm.language,
         source_url: policyForm.source_url.trim() || undefined,
       };
-      const response = await apiClient.post("/api/compliance/policies", payload);
+      const response = await createPolicy(payload);
       setPolicyForm({ name: "", owner: "", status: "draft", language: "en", source_url: "" });
       await loadPolicies();
-      if (response?.data?.id) {
-        setSelectedPolicyId(response.data.id);
+      if (response?.id) {
+        setSelectedPolicyId(response.id);
       }
     } catch (err) {
       handleApiError(err, { context: "Create policy", customMessage: "Failed to create policy" });
     } finally {
       setActionLoading(null);
+    }
+  };
+
+  const handleCreateFromTemplate = async (template: PolicyTemplate) => {
+    setTemplateActionLoading(template.template_id);
+    try {
+      const response = await createPolicyFromTemplate(template.template_id);
+      await loadPolicies();
+      if (response?.id) {
+        setSelectedPolicyId(response.id);
+      }
+    } catch (err) {
+      handleApiError(err, { context: "Create policy from template", customMessage: "Failed to create policy from template" });
+    } finally {
+      setTemplateActionLoading(null);
     }
   };
 
@@ -160,7 +233,7 @@ export default function PoliciesPage() {
         version: sectionForm.version.trim() || undefined,
         content: sectionForm.content.trim() || undefined,
       };
-      await apiClient.post(`/api/compliance/policies/${selectedPolicyId}/sections`, payload);
+      await createPolicySection(selectedPolicyId, payload);
       setSectionForm({ section_ref: "", title: "", status: "draft", version: "", content: "" });
       await loadSections(selectedPolicyId);
     } catch (err) {
@@ -190,15 +263,15 @@ export default function PoliciesPage() {
       </header>
 
       <div className="flex flex-wrap gap-3 text-xs text-gray-500">
-        <input
-          value={query}
-          onChange={(event) => setQuery(event.target.value)}
-          placeholder="Search policy ID or name..."
-          className="min-w-[220px] rounded-full border border-gray-200 bg-white px-4 py-2 text-xs text-gray-700 shadow-sm focus:border-gray-300 focus:outline-none dark:border-slate-800 dark:bg-slate-900 dark:text-gray-300"
-        />
-        <select
-          value={statusFilter}
-          onChange={(event) => setStatusFilter(event.target.value)}
+          <input
+            value={query}
+            onChange={(event) => setQuery(event.target.value)}
+            placeholder="Search policy ID or name..."
+            className="min-w-[220px] rounded-full border border-gray-200 bg-white px-4 py-2 text-xs text-gray-700 shadow-sm focus:border-gray-300 focus:outline-none dark:border-slate-800 dark:bg-slate-900 dark:text-gray-300"
+          />
+          <select
+            value={statusFilter}
+            onChange={(event) => setStatusFilter(event.target.value)}
           className="rounded-full border border-gray-200 bg-white px-3 py-2 text-xs font-medium text-gray-600 dark:border-slate-800 dark:bg-slate-900 dark:text-gray-300"
         >
           <option value="all">All statuses</option>
@@ -207,6 +280,108 @@ export default function PoliciesPage() {
           <option value="approved">Approved</option>
           <option value="archived">Archived</option>
         </select>
+      </div>
+
+      <div className="rounded-lg border border-gray-200 bg-white p-6 shadow-sm dark:border-slate-800 dark:bg-slate-900">
+        <div className="flex flex-wrap items-start justify-between gap-4">
+          <div>
+            <div className="text-sm font-semibold text-gray-900 dark:text-white">Policy templates</div>
+            <p className="mt-1 text-xs text-gray-500">
+              Seeded taxonomy templates for EMI + CASP compliance. Create a policy in one click.
+            </p>
+          </div>
+          <div className="text-xs text-gray-500">
+            {templatesLoading ? "Loading templates…" : `${templatesTotal} templates`}
+          </div>
+        </div>
+
+        <div className="mt-4 flex flex-wrap gap-3 text-xs text-gray-500">
+          <input
+            value={templateQuery}
+            onChange={(event) => setTemplateQuery(event.target.value)}
+            placeholder="Search templates..."
+            className="min-w-[220px] rounded-full border border-gray-200 bg-white px-4 py-2 text-xs text-gray-700 shadow-sm focus:border-gray-300 focus:outline-none dark:border-slate-800 dark:bg-slate-900 dark:text-gray-300"
+          />
+          <select
+            value={templateCategory}
+            onChange={(event) => setTemplateCategory(event.target.value)}
+            className="rounded-full border border-gray-200 bg-white px-3 py-2 text-xs font-medium text-gray-600 dark:border-slate-800 dark:bg-slate-900 dark:text-gray-300"
+          >
+            <option value="all">All categories</option>
+            {templateCategories.map((category) => (
+              <option key={category} value={category}>
+                {category}
+              </option>
+            ))}
+          </select>
+        </div>
+
+        <div className="mt-4 grid gap-3 md:grid-cols-2 xl:grid-cols-3">
+          {templatesLoading ? (
+            <div className="text-sm text-gray-500">Loading templates...</div>
+          ) : templates.length ? (
+            templates.map((template) => (
+              <div
+                key={template.template_id}
+                className="rounded-lg border border-gray-100 bg-gray-50/60 p-4 text-xs text-gray-600 dark:border-slate-800 dark:bg-slate-800/40"
+              >
+                <div className="flex items-start justify-between gap-3">
+                  <div className="min-w-0">
+                    <div className="text-sm font-semibold text-gray-900 dark:text-white">
+                      {template.name}
+                    </div>
+                    <div className="mt-1 text-[11px] text-gray-500">
+                      {template.template_id}
+                    </div>
+                  </div>
+                  <span className="rounded-full bg-indigo-50 px-2 py-1 text-[10px] font-semibold text-indigo-700 dark:bg-indigo-900/30 dark:text-indigo-300">
+                    {template.category}
+                  </span>
+                </div>
+                {template.regulatory_basis?.length ? (
+                  <div className="mt-2 text-[11px] text-gray-500">
+                    {template.regulatory_basis.join(" • ")}
+                  </div>
+                ) : null}
+                <button
+                  onClick={() => handleCreateFromTemplate(template)}
+                  disabled={templateActionLoading === template.template_id}
+                  className="mt-3 w-full rounded-full border border-gray-200 bg-white px-3 py-2 text-[11px] font-semibold text-gray-600 hover:border-gray-300 disabled:cursor-not-allowed disabled:opacity-60 dark:border-slate-700 dark:bg-slate-900 dark:text-gray-300"
+                >
+                  {templateActionLoading === template.template_id ? "Creating..." : "Create policy"}
+                </button>
+              </div>
+            ))
+          ) : (
+            <div className="text-sm text-gray-500">No templates found.</div>
+          )}
+        </div>
+
+        <div className="mt-4 flex items-center justify-between text-xs text-gray-500">
+          <span>
+            Page {templatePage} of {Math.max(1, Math.ceil(templatesTotal / templatePageSize))}
+          </span>
+          <div className="flex gap-2">
+            <button
+              onClick={() => setTemplatePage((prev) => Math.max(1, prev - 1))}
+              disabled={templatePage === 1}
+              className="rounded-full border border-gray-200 bg-white px-3 py-1 text-[11px] font-semibold text-gray-600 hover:border-gray-300 disabled:opacity-60 dark:border-slate-700 dark:bg-slate-900 dark:text-gray-300"
+            >
+              Prev
+            </button>
+            <button
+              onClick={() =>
+                setTemplatePage((prev) =>
+                  prev >= Math.ceil(templatesTotal / templatePageSize) ? prev : prev + 1
+                )
+              }
+              disabled={templatePage >= Math.ceil(templatesTotal / templatePageSize)}
+              className="rounded-full border border-gray-200 bg-white px-3 py-1 text-[11px] font-semibold text-gray-600 hover:border-gray-300 disabled:opacity-60 dark:border-slate-700 dark:bg-slate-900 dark:text-gray-300"
+            >
+              Next
+            </button>
+          </div>
+        </div>
       </div>
 
       <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_minmax(0,360px)]">
@@ -249,6 +424,32 @@ export default function PoliciesPage() {
             ) : (
               <div className="text-sm text-gray-500">No policies found yet.</div>
             )}
+          </div>
+
+          <div className="mt-4 flex items-center justify-between text-xs text-gray-500">
+            <span>
+              Page {policyPage} of {Math.max(1, Math.ceil(total / policyPageSize))}
+            </span>
+            <div className="flex gap-2">
+              <button
+                onClick={() => setPolicyPage((prev) => Math.max(1, prev - 1))}
+                disabled={policyPage === 1}
+                className="rounded-full border border-gray-200 bg-white px-3 py-1 text-[11px] font-semibold text-gray-600 hover:border-gray-300 disabled:opacity-60 dark:border-slate-700 dark:bg-slate-900 dark:text-gray-300"
+              >
+                Prev
+              </button>
+              <button
+                onClick={() =>
+                  setPolicyPage((prev) =>
+                    prev >= Math.ceil(total / policyPageSize) ? prev : prev + 1
+                  )
+                }
+                disabled={policyPage >= Math.ceil(total / policyPageSize)}
+                className="rounded-full border border-gray-200 bg-white px-3 py-1 text-[11px] font-semibold text-gray-600 hover:border-gray-300 disabled:opacity-60 dark:border-slate-700 dark:bg-slate-900 dark:text-gray-300"
+              >
+                Next
+              </button>
+            </div>
           </div>
         </div>
 
@@ -298,7 +499,7 @@ export default function PoliciesPage() {
                 className="w-full rounded-md border border-gray-200 bg-white px-3 py-2 text-xs text-gray-700 dark:border-slate-800 dark:bg-slate-900 dark:text-gray-300"
               />
               <button
-                onClick={createPolicy}
+                onClick={handleCreatePolicy}
                 disabled={actionLoading === "policy"}
                 className="w-full rounded-full border border-gray-200 bg-white px-4 py-2 text-xs font-semibold text-gray-600 hover:border-gray-300 disabled:cursor-not-allowed disabled:opacity-60 dark:border-slate-700 dark:bg-slate-900 dark:text-gray-300"
               >

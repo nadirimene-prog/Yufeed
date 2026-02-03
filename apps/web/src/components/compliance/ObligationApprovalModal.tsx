@@ -31,6 +31,9 @@ import {
     getPolicies,
     getRiskEntries,
     approveObligation,
+    getPolicyTemplateSuggestions,
+    createPolicyFromTemplate,
+    linkObligationToPolicy,
 } from "@/lib/compliance-api";
 
 interface ObligationApprovalModalProps {
@@ -80,6 +83,16 @@ export default function ObligationApprovalModal({
     // Data for dropdowns
     const [policies, setPolicies] = useState<Policy[]>([]);
     const [riskEntries, setRiskEntries] = useState<RiskEntry[]>([]);
+    const [suggestions, setSuggestions] = useState<Array<{
+        template_id: string;
+        name: string;
+        category: string;
+        version?: string;
+        owner?: string;
+        regulatory_basis?: string[];
+        review_frequency_months?: number;
+        score: number;
+    }>>([]);
     const [loadingData, setLoadingData] = useState(false);
 
     // Load policies and risk entries when modal opens
@@ -89,10 +102,12 @@ export default function ObligationApprovalModal({
             Promise.all([
                 getPolicies({ status: "active,approved", limit: 100 }),
                 getRiskEntries({ limit: 100 }),
+                obligation ? getPolicyTemplateSuggestions(obligation.id, 3) : Promise.resolve({ items: [] }),
             ])
-                .then(([policiesRes, risksRes]) => {
+                .then(([policiesRes, risksRes, suggestionsRes]) => {
                     setPolicies(policiesRes.items);
                     setRiskEntries(risksRes.items);
+                    setSuggestions(suggestionsRes.items || []);
                 })
                 .catch(console.error)
                 .finally(() => setLoadingData(false));
@@ -143,6 +158,27 @@ export default function ObligationApprovalModal({
                 ? prev.filter((id) => id !== riskId)
                 : [...prev, riskId]
         );
+    };
+
+    const handleCreateFromTemplate = async (template: {
+        template_id: string;
+        name: string;
+        category: string;
+    }) => {
+        if (!obligation) return;
+        setIsSubmitting(true);
+        setError(null);
+        try {
+            const policy = await createPolicyFromTemplate(template.template_id);
+            await linkObligationToPolicy(policy.id, obligation.id);
+            setPolicies((prev) => [policy, ...prev]);
+            setLinkedPolicyId(policy.id);
+        } catch (err: unknown) {
+            const errorMessage = err instanceof Error ? err.message : "Failed to create policy from template";
+            setError(errorMessage);
+        } finally {
+            setIsSubmitting(false);
+        }
     };
 
     if (!obligation) return null;
@@ -220,6 +256,45 @@ export default function ObligationApprovalModal({
                                 </option>
                             ))}
                         </select>
+                    </div>
+
+                    {/* Suggested Templates */}
+                    <div className="space-y-2">
+                        <label className="text-sm font-medium text-white/70 flex items-center gap-2">
+                            <Plus className="h-4 w-4" />
+                            Suggested templates
+                        </label>
+                        {loadingData ? (
+                            <div className="text-xs text-white/50">Loading templates...</div>
+                        ) : suggestions.length ? (
+                            <div className="space-y-2">
+                                {suggestions.map((template) => (
+                                    <div
+                                        key={template.template_id}
+                                        className="flex items-center justify-between gap-3 rounded-lg border border-white/10 bg-white/5 px-3 py-2"
+                                    >
+                                        <div className="min-w-0">
+                                            <div className="text-sm font-medium text-white">
+                                                {template.name}
+                                            </div>
+                                            <div className="text-[11px] text-white/50">
+                                                {template.category} • {template.template_id}
+                                            </div>
+                                        </div>
+                                        <Button
+                                            size="sm"
+                                            variant="outline"
+                                            onClick={() => handleCreateFromTemplate(template)}
+                                            disabled={isSubmitting}
+                                        >
+                                            Create & link
+                                        </Button>
+                                    </div>
+                                ))}
+                            </div>
+                        ) : (
+                            <div className="text-xs text-white/50">No template suggestions yet.</div>
+                        )}
                     </div>
 
                     {/* Create Internal Rule (only for approval) */}
