@@ -118,6 +118,9 @@ services:
       EMAILS_FROM_EMAIL: info@yufeed.eu
       # AI
       ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-}
+      OPENAI_API_KEY: ${OPENAI_API_KEY:-}
+      OPENAI_BASE_URL: ${OPENAI_BASE_URL:-https://api.openai.com/v1}
+      OPENAI_MODEL: ${OPENAI_MODEL:-gpt-4.1}
       # EUR-Lex Integration
       CELEX_CACHE_ENABLED: "true"
       CELEX_CACHE_TTL_HOURS: "24"
@@ -179,6 +182,9 @@ services:
       ENVIRONMENT: ${ENVIRONMENT:-development}
       # AI
       ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-}
+      OPENAI_API_KEY: ${OPENAI_API_KEY:-}
+      OPENAI_BASE_URL: ${OPENAI_BASE_URL:-https://api.openai.com/v1}
+      OPENAI_MODEL: ${OPENAI_MODEL:-gpt-4.1}
       # EUR-Lex Integration
       CELEX_CACHE_ENABLED: "true"
       CELEX_CACHE_TTL_HOURS: "24"
@@ -236,6 +242,9 @@ services:
       ENVIRONMENT: ${ENVIRONMENT:-development}
       # AI
       ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-}
+      OPENAI_API_KEY: ${OPENAI_API_KEY:-}
+      OPENAI_BASE_URL: ${OPENAI_BASE_URL:-https://api.openai.com/v1}
+      OPENAI_MODEL: ${OPENAI_MODEL:-gpt-4.1}
       # EUR-Lex Integration
       CELEX_CACHE_ENABLED: "true"
       CELEX_CACHE_TTL_HOURS: "24"

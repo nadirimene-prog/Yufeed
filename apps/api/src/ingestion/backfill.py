@@ -77,12 +77,14 @@ class ContentBackfillService:
 
         if language:
             # Prefer documents in the specified language
-            query = query.order_by(
-                (LegalDocument.primary_language == language).desc(),
-                LegalDocument.created_at.desc(),
-            )
-        else:
-            query = query.order_by(LegalDocument.created_at.desc())
+            query = query.order_by((LegalDocument.primary_language == language).desc())
+
+        # Prefer newest publications, then newest IDs as a fallback
+        order_fields = [
+            LegalDocument.publication_date.desc(),
+            LegalDocument.id.desc(),
+        ]
+        query = query.order_by(*order_fields)
 
         return query.limit(limit).all()
 
@@ -173,11 +175,20 @@ class ContentBackfillService:
 
     def _analyze_document(self, doc: LegalDocument):
         """Run AI analysis on a document."""
+        if not getattr(settings, "ANTHROPIC_API_KEY", ""):
+            logger.info(f"Skipping AI analysis for {doc.celex}: ANTHROPIC_API_KEY not set")
+            return
+
         article_breakdown = None
         if isinstance(doc.article_breakdown, dict):
             article_breakdown = doc.article_breakdown.get("articles")
         elif isinstance(doc.article_breakdown, list):
             article_breakdown = doc.article_breakdown
+        has_full_text = bool(doc.full_text and str(doc.full_text).strip())
+        has_articles = bool(article_breakdown)
+        if not has_full_text and not has_articles:
+            logger.info(f"Skipping AI analysis for {doc.celex}: no content available")
+            return
 
         analysis_results = analyze_document({
             "celex": doc.celex,

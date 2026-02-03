@@ -67,6 +67,10 @@ class Settings(BaseSettings):
     ANTHROPIC_MODEL: str = "claude-3-5-sonnet-20241022"
     ANTHROPIC_MAX_TOKENS_POLICY: int = 2000
     ANTHROPIC_MAX_TOKENS_EXTRACTION: int = 4000
+    # AI Configuration (OpenAI fallback)
+    OPENAI_API_KEY: str = ""
+    OPENAI_BASE_URL: str = "https://api.openai.com/v1"
+    OPENAI_MODEL: str = "gpt-4.1"
     AI_DAILY_COST_THRESHOLD_USD: float = 10.0
     AI_COST_CHECK_SCHEDULE: str = "0 7 * * *"
     CONTENT_BACKFILL_SCHEDULE: str = "0 2 1 * *"

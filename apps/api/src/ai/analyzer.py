@@ -3,6 +3,9 @@ AI-powered document analysis for compliance intelligence.
 Uses LLM to classify documents, assess risk, and extract obligations.
 """
 import json
+import logging
+import re
+import httpx
 from typing import Dict, List, Optional, Any
 from datetime import datetime, timezone
 
@@ -15,33 +18,106 @@ from src.models.models import ComplianceDomain, RiskLevel
 from src.config import settings
 
 # Initialize Anthropic client
-API_KEY = settings.ANTHROPIC_API_KEY
-client = anthropic.Anthropic(api_key=API_KEY) if API_KEY else None
+ANTHROPIC_API_KEY = settings.ANTHROPIC_API_KEY
+client = anthropic.Anthropic(api_key=ANTHROPIC_API_KEY) if ANTHROPIC_API_KEY else None
+ANTHROPIC_DISABLED_REASON: Optional[str] = None
+OPENAI_DISABLED_REASON: Optional[str] = None
+logger = logging.getLogger(__name__)
+
+
+def _anthropic_enabled() -> bool:
+    return client is not None and ANTHROPIC_DISABLED_REASON is None
+
+
+def _disable_anthropic(reason: str):
+    global ANTHROPIC_DISABLED_REASON
+    if ANTHROPIC_DISABLED_REASON is None:
+        ANTHROPIC_DISABLED_REASON = reason
+        logger.warning("Anthropic disabled: %s", reason)
+
+
+def _openai_enabled() -> bool:
+    return bool(settings.OPENAI_API_KEY) and OPENAI_DISABLED_REASON is None
+
+
+def _disable_openai(reason: str):
+    global OPENAI_DISABLED_REASON
+    if OPENAI_DISABLED_REASON is None:
+        OPENAI_DISABLED_REASON = reason
+        logger.warning("OpenAI disabled: %s", reason)
+
+
+def _is_anthropic_credit_error(exc: Exception) -> bool:
+    msg = str(exc).lower()
+    return "credit balance is too low" in msg or ("insufficient" in msg and "credit" in msg)
+
+
+def _is_openai_quota_error(exc: Exception) -> bool:
+    msg = str(exc).lower()
+    return (
+        "insufficient_quota" in msg
+        or "exceeded your current quota" in msg
+        or ("quota" in msg and "exceeded" in msg)
+    )
+
+
+def _openai_chat(prompt: str, max_tokens: int, temperature: float = 0.3) -> str:
+    api_key = settings.OPENAI_API_KEY
+    if not api_key:
+        raise RuntimeError("missing OPENAI_API_KEY")
+    base_url = (settings.OPENAI_BASE_URL or "https://api.openai.com/v1").rstrip("/")
+    model = settings.OPENAI_MODEL or "gpt-4.1"
+    payload = {
+        "model": model,
+        "messages": [{"role": "user", "content": prompt}],
+        "temperature": temperature,
+        "max_tokens": max_tokens,
+    }
+    headers = {"Authorization": f"Bearer {api_key}"}
+    response = httpx.post(
+        f"{base_url}/chat/completions",
+        headers=headers,
+        json=payload,
+        timeout=60.0,
+    )
+    response.raise_for_status()
+    data = response.json()
+    return data["choices"][0]["message"]["content"]
+
+
+def _classify_heuristic(title: str) -> str:
+    title_lower = (title or "").lower()
+    if any(kw in title_lower for kw in ["money laundering", "aml", "terrorist financing"]):
+        return ComplianceDomain.AML.value
+    if any(kw in title_lower for kw in ["crypto", "digital asset", "virtual currency"]):
+        return ComplianceDomain.CRYPTO.value
+    if any(kw in title_lower for kw in ["payment", "psd", "electronic money"]):
+        return ComplianceDomain.PAYMENTS.value
+    if any(kw in title_lower for kw in ["sanction", "restrictive measure"]):
+        return ComplianceDomain.SANCTIONS.value
+    if any(kw in title_lower for kw in ["know your customer", "kyc", "customer due diligence", "cdd"]):
+        return ComplianceDomain.KYC.value
+    if any(kw in title_lower for kw in ["gdpr", "data protection", "privacy"]):
+        return ComplianceDomain.GDPR.value
+    return ComplianceDomain.OTHER.value
+
+
+def _risk_heuristic(title: str) -> str:
+    title_lower = (title or "").lower()
+    if any(kw in title_lower for kw in ["aml", "money laundering", "sanction", "terrorist financing"]):
+        return RiskLevel.HIGH.value
+    if any(kw in title_lower for kw in ["payment", "crypto", "kyc", "cdd"]):
+        return RiskLevel.MEDIUM.value
+    return RiskLevel.LOW.value
 
 def classify_document(title: str, celex: str) -> Optional[str]:
     """
     Classify document into compliance domain based on title and CELEX.
     Returns: ComplianceDomain value or None
     """
-    if not client:
-        # Fallback: simple keyword matching
-        title_lower = title.lower()
-        if any(kw in title_lower for kw in ["money laundering", "aml", "terrorist financing"]):
-            return ComplianceDomain.AML.value
-        elif any(kw in title_lower for kw in ["crypto", "digital asset", "virtual currency"]):
-            return ComplianceDomain.CRYPTO.value
-        elif any(kw in title_lower for kw in ["payment", "psd", "electronic money"]):
-            return ComplianceDomain.PAYMENTS.value
-        elif any(kw in title_lower for kw in ["sanction", "restrictive measure"]):
-            return ComplianceDomain.SANCTIONS.value
-        elif any(kw in title_lower for kw in ["know your customer", "kyc", "customer due diligence", "cdd"]):
-            return ComplianceDomain.KYC.value
-        elif any(kw in title_lower for kw in ["gdpr", "data protection", "privacy"]):
-            return ComplianceDomain.GDPR.value
-        return ComplianceDomain.OTHER.value
-    
-    try:
-        prompt = f"""Classify this EU legal document into ONE compliance domain category.
+    if _anthropic_enabled():
+        try:
+            prompt = f"""Classify this EU legal document into ONE compliance domain category.
 
 Document: {celex}
 Title: {title}
@@ -59,20 +135,51 @@ Categories:
 
 Respond with ONLY the category code (e.g., "aml", "crypto", "payments")."""
 
-        message = client.messages.create(
-            model="claude-3-haiku-20240307",  # Fast and cost-effective
-            max_tokens=50,
-            messages=[{"role": "user", "content": prompt}]
-        )
-        
-        result = message.content[0].text.strip().lower()
-        # Validate result
-        valid_domains = [d.value for d in ComplianceDomain]
-        return result if result in valid_domains else ComplianceDomain.OTHER.value
-        
-    except Exception as e:
-        print(f"AI classification error: {e}")
-        return None
+            message = client.messages.create(
+                model="claude-3-haiku-20240307",  # Fast and cost-effective
+                max_tokens=50,
+                messages=[{"role": "user", "content": prompt}]
+            )
+            
+            result = message.content[0].text.strip().lower()
+            # Validate result
+            valid_domains = [d.value for d in ComplianceDomain]
+            return result if result in valid_domains else ComplianceDomain.OTHER.value
+            
+        except Exception as e:
+            if _is_anthropic_credit_error(e):
+                _disable_anthropic("insufficient_credits")
+            logger.warning("AI classification error: %s", e)
+
+    if _openai_enabled():
+        try:
+            prompt = f"""Classify this EU legal document into ONE compliance domain category.
+
+Document: {celex}
+Title: {title}
+
+Categories:
+- aml: Anti-Money Laundering
+- cft: Counter-Terrorist Financing
+- sanctions: Economic Sanctions
+- kyc: Know Your Customer
+- cdd: Customer Due Diligence
+- payments: Payment Services
+- crypto: Crypto Assets / Digital Assets
+- gdpr: Data Protection / Privacy
+- other: Other compliance areas
+
+Respond with ONLY the category code (e.g., "aml", "crypto", "payments")."""
+
+            result = _openai_chat(prompt, max_tokens=50, temperature=0.0).strip().lower()
+            valid_domains = [d.value for d in ComplianceDomain]
+            return result if result in valid_domains else ComplianceDomain.OTHER.value
+        except Exception as e:
+            if _is_openai_quota_error(e):
+                _disable_openai("insufficient_credits")
+            logger.warning("OpenAI classification error: %s", e)
+
+    return _classify_heuristic(title)
 
 
 def assess_risk_level(title: str, celex: str, compliance_domain: Optional[str] = None) -> str:
@@ -80,19 +187,9 @@ def assess_risk_level(title: str, celex: str, compliance_domain: Optional[str] =
     Assess the risk level/impact of a regulation for banks.
     Returns: RiskLevel value
     """
-    if not client:
-        # Fallback: simple heuristics
-        title_lower = title.lower()
-        # High risk keywords
-        if any(kw in title_lower for kw in ["aml", "money laundering", "sanction", "terrorist financing"]):
-            return RiskLevel.HIGH.value
-        # Medium risk
-        if any(kw in title_lower for kw in ["payment", "crypto", "kyc", "cdd"]):
-            return RiskLevel.MEDIUM.value
-        return RiskLevel.LOW.value
-    
-    try:
-        prompt = f"""Assess the compliance risk level of this EU regulation for a bank's operations.
+    if _anthropic_enabled():
+        try:
+            prompt = f"""Assess the compliance risk level of this EU regulation for a bank's operations.
 
 Document: {celex}
 Title: {title}
@@ -111,19 +208,51 @@ Risk Levels:
 
 Respond with ONLY the risk level (high, medium, or low)."""
 
-        message = client.messages.create(
-            model="claude-3-haiku-20240307",
-            max_tokens=50,
-            messages=[{"role": "user", "content": prompt}]
-        )
-        
-        result = message.content[0].text.strip().lower()
-        valid_levels = [r.value for r in RiskLevel]
-        return result if result in valid_levels else RiskLevel.UNKNOWN.value
-        
-    except Exception as e:
-        print(f"AI risk assessment error: {e}")
-        return RiskLevel.UNKNOWN.value
+            message = client.messages.create(
+                model="claude-3-haiku-20240307",
+                max_tokens=50,
+                messages=[{"role": "user", "content": prompt}]
+            )
+            
+            result = message.content[0].text.strip().lower()
+            valid_levels = [r.value for r in RiskLevel]
+            return result if result in valid_levels else RiskLevel.UNKNOWN.value
+            
+        except Exception as e:
+            if _is_anthropic_credit_error(e):
+                _disable_anthropic("insufficient_credits")
+            logger.warning("AI risk assessment error: %s", e)
+
+    if _openai_enabled():
+        try:
+            prompt = f"""Assess the compliance risk level of this EU regulation for a bank's operations.
+
+Document: {celex}
+Title: {title}
+Compliance Domain: {compliance_domain or "unknown"}
+
+Consider:
+- Direct impact on banking operations
+- Penalties for non-compliance
+- Implementation complexity
+- Regulatory scrutiny level
+
+Risk Levels:
+- high: Critical compliance requirement, severe penalties, high regulatory scrutiny
+- medium: Important but manageable, moderate impact
+- low: Minor impact, informational, or not directly applicable to banks
+
+Respond with ONLY the risk level (high, medium, or low)."""
+
+            result = _openai_chat(prompt, max_tokens=50, temperature=0.0).strip().lower()
+            valid_levels = [r.value for r in RiskLevel]
+            return result if result in valid_levels else RiskLevel.UNKNOWN.value
+        except Exception as e:
+            if _is_openai_quota_error(e):
+                _disable_openai("insufficient_credits")
+            logger.warning("OpenAI risk assessment error: %s", e)
+
+    return _risk_heuristic(title)
 
 
 def _truncate_text(text: str, max_chars: int) -> str:
@@ -170,6 +299,73 @@ def _select_article_excerpts(article_breakdown: Optional[List[Dict[str, Any]]]) 
     return [entry for _, entry in scored[:12]]
 
 
+def _split_sentences(text: str) -> List[str]:
+    if not text:
+        return []
+    return [s.strip() for s in re.split(r"(?<=[.!?])\s+", text) if s.strip()]
+
+
+def _contains_obligation(text: str) -> bool:
+    if not text:
+        return False
+    haystack = text.lower()
+    keywords = [
+        "shall",
+        "must",
+        "required to",
+        "is required to",
+        "shall not",
+        "must not",
+        "may not",
+        "prohibited",
+        "is prohibited",
+    ]
+    return any(kw in haystack for kw in keywords)
+
+
+def _heuristic_obligations(
+    article_breakdown: Optional[List[Dict[str, Any]]],
+    full_text: Optional[str],
+    max_items: int = 10,
+) -> List[Dict[str, str]]:
+    obligations: List[Dict[str, str]] = []
+
+    if article_breakdown:
+        for article in article_breakdown:
+            if not isinstance(article, dict):
+                continue
+            content = article.get("content") or article.get("text") or ""
+            if not content:
+                continue
+            article_ref = article.get("number") or article.get("article") or article.get("title")
+            for sentence in _split_sentences(content):
+                if _contains_obligation(sentence):
+                    obligations.append(
+                        {
+                            "obligation": _truncate_text(sentence, 400),
+                            "article": article_ref,
+                            "source_excerpt": _truncate_text(sentence, 400),
+                        }
+                    )
+                    if len(obligations) >= max_items:
+                        return obligations
+
+    if full_text:
+        for sentence in _split_sentences(full_text):
+            if _contains_obligation(sentence):
+                obligations.append(
+                    {
+                        "obligation": _truncate_text(sentence, 400),
+                        "article": None,
+                        "source_excerpt": _truncate_text(sentence, 400),
+                    }
+                )
+                if len(obligations) >= max_items:
+                    break
+
+    return obligations
+
+
 def extract_obligations(
     title: str,
     celex: str,
@@ -180,18 +376,17 @@ def extract_obligations(
     Extract specific obligations/requirements from the document.
     Returns: List of obligations with text and article reference
     """
-    if not client:
-        return []
-    
-    try:
-        excerpts = _select_article_excerpts(article_breakdown)
-        context = ""
-        if excerpts:
-            context = "Relevant excerpts:\\n" + "\\n\\n".join(excerpts)
-        elif full_text:
-            context = "Excerpt:\\n" + _truncate_text(full_text, 8000)
+    if not (_anthropic_enabled() or _openai_enabled()):
+        return _heuristic_obligations(article_breakdown, full_text)
 
-        prompt = f"""Extract the key compliance obligations from this EU regulation that banks or regulated entities must follow.
+    excerpts = _select_article_excerpts(article_breakdown)
+    context = ""
+    if excerpts:
+        context = "Relevant excerpts:\\n" + "\\n\\n".join(excerpts)
+    elif full_text:
+        context = "Excerpt:\\n" + _truncate_text(full_text, 8000)
+
+    prompt = f"""Extract the key compliance obligations from this EU regulation that banks or regulated entities must follow.
 
 Document: {celex}
 Title: {title}
@@ -214,23 +409,37 @@ Format as JSON array:
 Extract 3-7 obligations if available. If no obligations are present, return [].
 Respond with JSON only."""
 
-        message = client.messages.create(
-            model="claude-3-sonnet-20240229",  # Better for complex extraction
-            max_tokens=1000,
-            messages=[{"role": "user", "content": prompt}]
-        )
-        
-        result_text = message.content[0].text.strip()
-        # Try to parse JSON
+    def _parse_result(result_text: str) -> List[Dict[str, str]]:
         try:
             obligations = json.loads(result_text)
             return obligations if isinstance(obligations, list) else []
         except json.JSONDecodeError:
             return []
-        
-    except Exception as e:
-        print(f"AI obligation extraction error: {e}")
-        return []
+
+    if _anthropic_enabled():
+        try:
+            message = client.messages.create(
+                model="claude-3-sonnet-20240229",  # Better for complex extraction
+                max_tokens=1000,
+                messages=[{"role": "user", "content": prompt}]
+            )
+            result_text = message.content[0].text.strip()
+            return _parse_result(result_text)
+        except Exception as e:
+            if _is_anthropic_credit_error(e):
+                _disable_anthropic("insufficient_credits")
+            logger.warning("AI obligation extraction error: %s", e)
+
+    if _openai_enabled():
+        try:
+            result_text = _openai_chat(prompt, max_tokens=1000, temperature=0.3).strip()
+            return _parse_result(result_text)
+        except Exception as e:
+            if _is_openai_quota_error(e):
+                _disable_openai("insufficient_credits")
+            logger.warning("OpenAI obligation extraction error: %s", e)
+
+    return _heuristic_obligations(article_breakdown, full_text)
 
 
 def extract_deadline(title: str, publication_date: Optional[datetime] = None) -> Optional[datetime]:
@@ -238,15 +447,9 @@ def extract_deadline(title: str, publication_date: Optional[datetime] = None) ->
     Extract implementation deadline from document title or calculate based on publication date.
     Returns: datetime or None
     """
-    if not client:
-        # Simple heuristic: directives typically have 2-year transposition period
-        if publication_date and "directive" in title.lower():
-            from dateutil.relativedelta import relativedelta
-            return publication_date + relativedelta(years=2)
-        return None
-    
-    try:
-        prompt = f"""Extract the implementation/transposition deadline from this EU legal document title.
+    if _anthropic_enabled():
+        try:
+            prompt = f"""Extract the implementation/transposition deadline from this EU legal document title.
 
 Title: {title}
 Publication Date: {publication_date.strftime('%Y-%m-%d') if publication_date else 'unknown'}
@@ -261,25 +464,60 @@ If you can only determine a relative timeframe (e.g., "18 months"), calculate fr
 If no deadline can be determined, respond with "none".
 """
 
-        message = client.messages.create(
-            model="claude-3-haiku-20240307",
-            max_tokens=100,
-            messages=[{"role": "user", "content": prompt}]
-        )
-        
-        result = message.content[0].text.strip().lower()
-        if result == "none":
-            return None
-        
-        # Try to parse date
+            message = client.messages.create(
+                model="claude-3-haiku-20240307",
+                max_tokens=100,
+                messages=[{"role": "user", "content": prompt}]
+            )
+            
+            result = message.content[0].text.strip().lower()
+            if result == "none":
+                return None
+            
+            # Try to parse date
+            try:
+                return datetime.strptime(result, "%Y-%m-%d")
+            except ValueError:
+                return None
+            
+        except Exception as e:
+            if _is_anthropic_credit_error(e):
+                _disable_anthropic("insufficient_credits")
+            logger.warning("AI deadline extraction error: %s", e)
+
+    if _openai_enabled():
         try:
-            return datetime.strptime(result, "%Y-%m-%d")
-        except ValueError:
-            return None
-        
-    except Exception as e:
-        print(f"AI deadline extraction error: {e}")
-        return None
+            prompt = f"""Extract the implementation/transposition deadline from this EU legal document title.
+
+Title: {title}
+Publication Date: {publication_date.strftime('%Y-%m-%d') if publication_date else 'unknown'}
+
+Common patterns:
+- Directives: typically 18-24 months for transposition
+- Regulations: often immediate or 6-12 months
+- Look for phrases like "applicable from", "entry into force", "transposition deadline"
+
+If you can determine a specific deadline date, respond with ONLY the date in YYYY-MM-DD format.
+If you can only determine a relative timeframe (e.g., "18 months"), calculate from publication date.
+If no deadline can be determined, respond with "none".
+"""
+            result = _openai_chat(prompt, max_tokens=100, temperature=0.0).strip().lower()
+            if result == "none":
+                return None
+            try:
+                return datetime.strptime(result, "%Y-%m-%d")
+            except ValueError:
+                return None
+        except Exception as e:
+            if _is_openai_quota_error(e):
+                _disable_openai("insufficient_credits")
+            logger.warning("OpenAI deadline extraction error: %s", e)
+
+    # Simple heuristic: directives typically have 2-year transposition period
+    if publication_date and "directive" in title.lower():
+        from dateutil.relativedelta import relativedelta
+        return publication_date + relativedelta(years=2)
+    return None
 
 
 def generate_summary(title: str, celex: str) -> str:
@@ -287,11 +525,9 @@ def generate_summary(title: str, celex: str) -> str:
     Generate executive summary for AMLRO.
     Returns: Plain text summary
     """
-    if not client:
-        return f"Document {celex}: {title}"
-    
-    try:
-        prompt = f"""Create a concise executive summary (2-3 sentences) of this EU regulation for an AML/Compliance Officer at a bank.
+    if _anthropic_enabled():
+        try:
+            prompt = f"""Create a concise executive summary (2-3 sentences) of this EU regulation for an AML/Compliance Officer at a bank.
 
 Document: {celex}
 Title: {title}
@@ -303,17 +539,39 @@ Focus on:
 
 Keep it under 100 words."""
 
-        message = client.messages.create(
-            model="claude-3-haiku-20240307",
-            max_tokens=200,
-            messages=[{"role": "user", "content": prompt}]
-        )
-        
-        return message.content[0].text.strip()
-        
-    except Exception as e:
-        print(f"AI summary generation error: {e}")
-        return ""
+            message = client.messages.create(
+                model="claude-3-haiku-20240307",
+                max_tokens=200,
+                messages=[{"role": "user", "content": prompt}]
+            )
+            
+            return message.content[0].text.strip()
+            
+        except Exception as e:
+            if _is_anthropic_credit_error(e):
+                _disable_anthropic("insufficient_credits")
+            logger.warning("AI summary generation error: %s", e)
+
+    if _openai_enabled():
+        try:
+            prompt = f"""Create a concise executive summary (2-3 sentences) of this EU regulation for an AML/Compliance Officer at a bank.
+
+Document: {celex}
+Title: {title}
+
+Focus on:
+- What this regulation does
+- Key impact on banks
+- Main compliance requirements
+
+Keep it under 100 words."""
+            return _openai_chat(prompt, max_tokens=200, temperature=0.3).strip()
+        except Exception as e:
+            if _is_openai_quota_error(e):
+                _disable_openai("insufficient_credits")
+            logger.warning("OpenAI summary generation error: %s", e)
+
+    return f"Document {celex}: {title}"
 
 
 def analyze_document(doc_data: Dict[str, Any]) -> Dict[str, Any]:

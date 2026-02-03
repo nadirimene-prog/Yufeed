@@ -40,7 +40,12 @@ class ContentExtractor:
                 - extraction_method: How content was extracted
                 - article_breakdown: List of articles with text
         """
-        # Try HTML extraction first (fastest and most reliable)
+        # Try CELLAR XHTML extraction first (most reliable at the moment)
+        result = self._extract_from_cellar_xhtml(celex, language=language)
+        if result:
+            return result
+
+        # Try EUR-Lex HTML extraction next (legacy)
         result = self._extract_from_html(celex, language=language)
         if result:
             return result
@@ -53,6 +58,98 @@ class ContentExtractor:
             "article_breakdown": [],
             "note": "Full text available in PDF format"
         }
+
+    def _cellar_language(self, language: str) -> str:
+        if not language:
+            return "eng"
+        lang = language.strip().lower()
+        # Normalize common formats like en-US -> en
+        if "-" in lang:
+            lang = lang.split("-", 1)[0]
+        if len(lang) == 3:
+            return lang
+        # Map ISO-639-1 to ISO-639-2 (as used by CELLAR)
+        mapping = {
+            "en": "eng",
+            "fr": "fra",
+            "de": "deu",
+            "it": "ita",
+            "es": "spa",
+            "pt": "por",
+            "nl": "nld",
+            "pl": "pol",
+            "cs": "ces",
+            "da": "dan",
+            "fi": "fin",
+            "sv": "swe",
+            "el": "ell",
+            "ro": "ron",
+            "bg": "bul",
+            "hr": "hrv",
+            "hu": "hun",
+            "ga": "gle",
+            "lt": "lit",
+            "lv": "lav",
+            "mt": "mlt",
+            "sk": "slk",
+            "sl": "slv",
+            "et": "est",
+        }
+        return mapping.get(lang, "eng")
+
+    def _extract_from_cellar_xhtml(self, celex: str, language: str = "EN") -> Optional[Dict[str, Any]]:
+        """
+        Extract content from the CELLAR resource endpoint (XHTML).
+
+        Example:
+          https://publications.europa.eu/resource/celex/32013R0575?language=eng
+        """
+        try:
+            lang = self._cellar_language(language)
+            url = f"https://publications.europa.eu/resource/celex/{celex}?language={lang}"
+
+            response = self.session.get(
+                url,
+                headers={
+                    "Accept": "application/xhtml+xml",
+                    "Accept-Language": lang,
+                },
+                timeout=30,
+                allow_redirects=True,
+            )
+            if response.status_code != 200 or not response.content:
+                return None
+
+            soup = BeautifulSoup(response.content, "html.parser")
+            body = soup.find("body")
+            if not body:
+                return None
+
+            # Try to locate a main content container, otherwise fall back to body.
+            content_root = (
+                body.find("div", {"id": "TexteOnly"})
+                or body.find("div", {"id": "text"})
+                or body.find("div", {"class": "texte"})
+                or body
+            )
+
+            full_text = content_root.get_text(separator="\n", strip=True)
+            full_text = self._clean_text(full_text)
+            if not full_text:
+                return None
+
+            articles = self._extract_articles(content_root)
+
+            return {
+                "full_text": full_text,
+                "language": (language or "en").lower(),
+                "extraction_method": "cellar_xhtml",
+                "article_breakdown": articles,
+                "word_count": len(full_text.split()),
+            }
+        except Exception as e:
+            print(f"CELLAR XHTML extraction failed for {celex}: {e}")
+            return None
 
     def _extract_from_html(self, celex: str, language: str = "EN") -> Optional[Dict[str, Any]]:
         """
