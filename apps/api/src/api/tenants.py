@@ -19,6 +19,10 @@ import hashlib
 import logging
 
 from src.database import get_db
+from src.auth.dependencies import (
+    require_superuser,
+    CurrentUser,
+)
 from src.models.tenant_models import Tenant, TenantAPIKey, TenantUser, TenantAuditLog
 from src.models.transaction_models import Transaction, Alert, Case
 from src.schemas.tenant_schemas import (
@@ -42,7 +46,7 @@ router = APIRouter(prefix="/api/tenants", tags=["tenants"])
 def create_tenant(
     tenant: TenantCreate,
     db: Session = Depends(get_db),
-    current_user: str = "admin"  # TODO: Get from JWT
+    current_user: CurrentUser = Depends(require_superuser())
 ):
     """
     Create a new tenant.
@@ -77,7 +81,7 @@ def create_tenant(
     audit = TenantAuditLog(
         tenant_id=db_tenant.id,
         action_type="tenant.created",
-        actor_user_id=current_user,
+        actor_user_id=current_user.user_id,
         description=f"Tenant '{tenant.name}' created",
         details={"tenant_id": tenant.tenant_id}
     )
@@ -96,7 +100,8 @@ def list_tenants(
     limit: int = Query(100, ge=1, le=1000),
     is_active: Optional[bool] = None,
     tier: Optional[str] = None,
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
+    current_user: CurrentUser = Depends(require_superuser())
 ):
     """
     List all tenants.
@@ -121,7 +126,8 @@ def list_tenants(
 @router.get("/{tenant_id}", response_model=TenantResponse)
 def get_tenant(
     tenant_id: str,
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
+    current_user: CurrentUser = Depends(require_superuser())
 ):
     """
     Get a specific tenant by ID.
@@ -142,7 +148,7 @@ def update_tenant(
     tenant_id: str,
     update_data: TenantUpdate,
     db: Session = Depends(get_db),
-    current_user: str = "admin"
+    current_user: CurrentUser = Depends(require_superuser())
 ):
     """
     Update a tenant.
@@ -168,7 +174,7 @@ def update_tenant(
     audit = TenantAuditLog(
         tenant_id=tenant.id,
         action_type="tenant.updated",
-        actor_user_id=current_user,
+        actor_user_id=current_user.user_id,
         description=f"Tenant '{tenant.name}' updated",
         details={"changes": update_dict}
     )
@@ -186,7 +192,7 @@ def delete_tenant(
     tenant_id: str,
     hard_delete: bool = Query(False, description="Permanently delete (cannot be undone)"),
     db: Session = Depends(get_db),
-    current_user: str = "admin"
+    current_user: CurrentUser = Depends(require_superuser())
 ):
     """
     Delete a tenant (soft delete by default).
@@ -212,7 +218,7 @@ def delete_tenant(
     audit = TenantAuditLog(
         tenant_id=tenant.id,
         action_type=action,
-        actor_user_id=current_user,
+        actor_user_id=current_user.user_id,
         description=f"Tenant '{tenant.name}' deleted (hard={hard_delete})"
     )
     db.add(audit)
@@ -224,7 +230,8 @@ def delete_tenant(
 @router.get("/{tenant_id}/stats", response_model=TenantStats)
 def get_tenant_stats(
     tenant_id: str,
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
+    current_user: CurrentUser = Depends(require_superuser())
 ):
     """
     Get statistics for a tenant.
@@ -285,7 +292,7 @@ def update_tenant_config(
     tenant_id: str,
     config: TenantConfigUpdate,
     db: Session = Depends(get_db),
-    current_user: str = "admin"
+    current_user: CurrentUser = Depends(require_superuser())
 ):
     """
     Update tenant configuration (settings, rate limits, feature flags).
@@ -314,7 +321,7 @@ def update_tenant_config(
     audit = TenantAuditLog(
         tenant_id=tenant.id,
         action_type="tenant.config_updated",
-        actor_user_id=current_user,
+        actor_user_id=current_user.user_id,
         description="Tenant configuration updated",
         details=config.dict(exclude_unset=True)
     )
@@ -336,7 +343,7 @@ def create_api_key(
     tenant_id: str,
     api_key_data: APIKeyCreate,
     db: Session = Depends(get_db),
-    current_user: str = "admin"
+    current_user: CurrentUser = Depends(require_superuser())
 ):
     """
     Generate a new API key for a tenant.
@@ -370,7 +377,7 @@ def create_api_key(
         description=api_key_data.description,
         scopes=api_key_data.scopes or [],
         expires_at=api_key_data.expires_at,
-        created_by=current_user,
+        created_by=current_user.user_id,
         is_active=True,
     )
 
@@ -380,7 +387,7 @@ def create_api_key(
     audit = TenantAuditLog(
         tenant_id=tenant.id,
         action_type="api_key.created",
-        actor_user_id=current_user,
+        actor_user_id=current_user.user_id,
         description=f"API key '{api_key_data.name}' created",
         details={"key_prefix": key_prefix, "scopes": api_key_data.scopes or []}
     )
@@ -404,7 +411,8 @@ def create_api_key(
 def list_api_keys(
     tenant_id: str,
     include_revoked: bool = Query(False, description="Include revoked keys"),
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
+    current_user: CurrentUser = Depends(require_superuser())
 ):
     """
     List all API keys for a tenant.
@@ -432,7 +440,7 @@ def update_api_key(
     key_id: int,
     update_data: APIKeyUpdate,
     db: Session = Depends(get_db),
-    current_user: str = "admin"
+    current_user: CurrentUser = Depends(require_superuser())
 ):
     """
     Update an API key (name, scopes, status).
@@ -460,7 +468,7 @@ def update_api_key(
     audit = TenantAuditLog(
         tenant_id=tenant.id,
         action_type="api_key.updated",
-        actor_user_id=current_user,
+        actor_user_id=current_user.user_id,
         description=f"API key '{api_key.name}' updated",
         details={"key_prefix": api_key.key_prefix, "changes": update_dict}
     )
@@ -477,7 +485,7 @@ def revoke_api_key(
     tenant_id: str,
     key_id: int,
     db: Session = Depends(get_db),
-    current_user: str = "admin"
+    current_user: CurrentUser = Depends(require_superuser())
 ):
     """
     Revoke an API key (cannot be undone).
@@ -502,7 +510,7 @@ def revoke_api_key(
     audit = TenantAuditLog(
         tenant_id=tenant.id,
         action_type="api_key.revoked",
-        actor_user_id=current_user,
+        actor_user_id=current_user.user_id,
         description=f"API key '{api_key.name}' revoked",
         details={"key_prefix": api_key.key_prefix}
     )
@@ -518,7 +526,7 @@ def rotate_api_key(
     tenant_id: str,
     key_id: int,
     db: Session = Depends(get_db),
-    current_user: str = "admin"
+    current_user: CurrentUser = Depends(require_superuser())
 ):
     """
     Rotate an API key (revoke old, create new).
@@ -555,7 +563,7 @@ def rotate_api_key(
         description=old_key.description,
         scopes=old_key.scopes,
         expires_at=old_key.expires_at,
-        created_by=current_user,
+        created_by=current_user.user_id,
         is_active=True,
     )
 
@@ -565,7 +573,7 @@ def rotate_api_key(
     audit = TenantAuditLog(
         tenant_id=tenant.id,
         action_type="api_key.rotated",
-        actor_user_id=current_user,
+        actor_user_id=current_user.user_id,
         description=f"API key '{old_key.name}' rotated",
         details={
             "old_key_prefix": old_key.key_prefix,
@@ -595,7 +603,7 @@ def add_user_to_tenant(
     tenant_id: str,
     user_data: TenantUserCreate,
     db: Session = Depends(get_db),
-    current_user: str = "admin"
+    current_user: CurrentUser = Depends(require_superuser())
 ):
     """
     Add a user to a tenant with a specific role.
@@ -625,7 +633,7 @@ def add_user_to_tenant(
     audit = TenantAuditLog(
         tenant_id=tenant.id,
         action_type="tenant_user.added",
-        actor_user_id=current_user,
+        actor_user_id=current_user.user_id,
         description=f"User '{user_data.user_id}' added with role '{user_data.role}'",
         details={"user_id": user_data.user_id, "role": user_data.role}
     )
@@ -641,7 +649,8 @@ def add_user_to_tenant(
 def list_tenant_users(
     tenant_id: str,
     is_active: Optional[bool] = None,
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
+    current_user: CurrentUser = Depends(require_superuser())
 ):
     """
     List all users in a tenant.
@@ -664,7 +673,7 @@ def remove_user_from_tenant(
     tenant_id: str,
     user_id: str,
     db: Session = Depends(get_db),
-    current_user: str = "admin"
+    current_user: CurrentUser = Depends(require_superuser())
 ):
     """
     Remove a user from a tenant.
@@ -687,7 +696,7 @@ def remove_user_from_tenant(
     audit = TenantAuditLog(
         tenant_id=tenant.id,
         action_type="tenant_user.removed",
-        actor_user_id=current_user,
+        actor_user_id=current_user.user_id,
         description=f"User '{user_id}' removed from tenant"
     )
     db.add(audit)

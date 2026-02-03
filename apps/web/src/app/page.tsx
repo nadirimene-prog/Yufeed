@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { FileSearch, Radar, ShieldCheck, Sparkles } from "lucide-react";
-import { getAuthToken, loginWithPassword } from "@/lib/auth";
+import { AuthError, getAuthToken, loginWithPassword } from "@/lib/auth";
 import { Button } from "@/components/ui/button";
 import { GlassCard } from "@/components/ui/glass-card";
 import { Input } from "@/components/ui/input";
@@ -15,6 +15,8 @@ export default function Home() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [remember, setRemember] = useState(true);
+  const [availableTenants, setAvailableTenants] = useState<string[]>([]);
+  const [selectedTenant, setSelectedTenant] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const errorId = error ? "login-error" : undefined;
@@ -47,6 +49,11 @@ export default function Home() {
     setReady(true);
   }, [router]);
 
+  useEffect(() => {
+    setAvailableTenants([]);
+    setSelectedTenant("");
+  }, [email]);
+
   const handleSubmit = async (event: React.FormEvent) => {
     event.preventDefault();
     setLoading(true);
@@ -54,9 +61,14 @@ export default function Home() {
     try {
       await loginWithPassword(email, password, {
         storage: remember ? "local" : "session",
+        tenantId: selectedTenant || undefined,
       });
       router.replace("/dashboard");
     } catch (err) {
+      if (err instanceof AuthError && err.availableTenants?.length) {
+        setAvailableTenants(err.availableTenants);
+        setSelectedTenant((prev) => prev || err.availableTenants[0]);
+      }
       const message =
         err instanceof Error ? err.message : "Login failed. Please try again.";
       setError(message);
@@ -168,6 +180,33 @@ export default function Home() {
                   aria-describedby={[errorId, emailErrorId].filter(Boolean).join(" ") || undefined}
                 />
               </div>
+
+              {availableTenants.length > 0 ? (
+                <div className="space-y-2">
+                  <label
+                    htmlFor="tenant"
+                    className="block text-xs font-medium text-white/60"
+                  >
+                    Tenant
+                  </label>
+                  <select
+                    id="tenant"
+                    value={selectedTenant}
+                    onChange={(event) => setSelectedTenant(event.target.value)}
+                    className="h-11 w-full rounded-xl border border-white/10 bg-white/5 px-3 text-sm text-white focus:outline-none focus:ring-1 focus:ring-[#6d5acd]"
+                    required
+                  >
+                    {availableTenants.map((tenant) => (
+                      <option key={tenant} value={tenant} className="bg-[#0a0a12]">
+                        {tenant}
+                      </option>
+                    ))}
+                  </select>
+                  <p className="text-xs text-white/50">
+                    Select the workspace you want to access.
+                  </p>
+                </div>
+              ) : null}
 
               <div className="space-y-2">
                 <label

@@ -82,7 +82,7 @@ class TestAuthRegistration:
 class TestAuthLogin:
     """Test user login endpoint."""
 
-    def test_login_success(self, client: TestClient):
+    def test_login_success(self, client: TestClient, ensure_tenant_membership):
         """Test successful login."""
         # Register user first
         client.post(
@@ -93,13 +93,15 @@ class TestAuthLogin:
                 "full_name": "Login Test"
             }
         )
+        ensure_tenant_membership("logintest@example.com", role="viewer", tenant_id="default")
 
         # Login
         response = client.post(
             "/api/auth/login",
             json={
                 "email": "logintest@example.com",
-                "password": "TestPassword123!"
+                "password": "TestPassword123!",
+                "tenant_id": "default",
             }
         )
 
@@ -150,10 +152,10 @@ class TestAuthLogin:
 class TestAuthToken:
     """Test token refresh endpoint."""
 
-    def test_refresh_token_success(self, client: TestClient):
+    def test_refresh_token_success(self, client: TestClient, ensure_tenant_membership):
         """Test successful token refresh."""
         # Register and get tokens
-        register_response = client.post(
+        client.post(
             "/api/auth/register",
             json={
                 "email": "refresh@example.com",
@@ -161,8 +163,17 @@ class TestAuthToken:
                 "full_name": "Refresh Test"
             }
         )
+        ensure_tenant_membership("refresh@example.com", role="viewer", tenant_id="default")
 
-        refresh_token = register_response.json()["refresh_token"]
+        login_response = client.post(
+            "/api/auth/login",
+            json={
+                "email": "refresh@example.com",
+                "password": "TestPassword123!",
+                "tenant_id": "default",
+            }
+        )
+        refresh_token = login_response.json()["refresh_token"]
 
         # Refresh token
         response = client.post(
@@ -184,10 +195,10 @@ class TestAuthToken:
 
         assert response.status_code == 401
 
-    def test_refresh_with_access_token(self, client: TestClient):
+    def test_refresh_with_access_token(self, client: TestClient, ensure_tenant_membership):
         """Test refresh with access token (instead of refresh token) fails."""
         # Register and get tokens
-        register_response = client.post(
+        client.post(
             "/api/auth/register",
             json={
                 "email": "wrongtoken@example.com",
@@ -195,8 +206,17 @@ class TestAuthToken:
                 "full_name": "Wrong Token Test"
             }
         )
+        ensure_tenant_membership("wrongtoken@example.com", role="viewer", tenant_id="default")
 
-        access_token = register_response.json()["access_token"]
+        login_response = client.post(
+            "/api/auth/login",
+            json={
+                "email": "wrongtoken@example.com",
+                "password": "TestPassword123!",
+                "tenant_id": "default",
+            }
+        )
+        access_token = login_response.json()["access_token"]
 
         # Try to refresh with access token
         response = client.post(

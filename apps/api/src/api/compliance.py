@@ -1,7 +1,7 @@
 """
 Compliance-specific API endpoints for AMLRO features.
 """
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Request
 from sqlalchemy.orm import Session
 from typing import List, Optional
 from datetime import datetime, timedelta, timezone
@@ -11,6 +11,7 @@ def utc_now() -> datetime:
     """Return current UTC time (timezone-aware)."""
     return datetime.now(timezone.utc)
 from src.database import get_db
+from src.auth.dependencies import require_any_role
 from src import models
 from src.models.annotation import Annotation
 from src.schemas import schemas
@@ -20,8 +21,13 @@ from src.services.obligation_service import seed_obligations_for_doc
 from src.compliance.scope import infer_scope_tags
 from pydantic import BaseModel
 from src.models import compliance as comp_models
+from src.middleware import limiter, RateLimits
 
-router = APIRouter(prefix="/compliance", tags=["compliance"])
+router = APIRouter(
+    prefix="/compliance",
+    tags=["compliance"],
+    dependencies=[Depends(require_any_role(["admin"]))],
+)
 
 # Pydantic models for requests/responses
 class AnalyzeRequest(BaseModel):
@@ -54,9 +60,11 @@ class ComplianceMetrics(BaseModel):
     by_domain: dict
 
 @router.post("/documents/{celex}/analyze")
+@limiter.limit(RateLimits.AI_ANALYSIS)
 def analyze_document_endpoint(
+    request: Request,
     celex: str,
-    request: AnalyzeRequest,
+    payload: AnalyzeRequest,
     db: Session = Depends(get_db)
 ):
     """
@@ -67,7 +75,7 @@ def analyze_document_endpoint(
         raise HTTPException(status_code=404, detail="Document not found")
     
     # Check if already analyzed
-    if doc.analyzed_at and not request.force:
+    if doc.analyzed_at and not payload.force:
         return {
             "message": "Document already analyzed",
             "analyzed_at": doc.analyzed_at,
@@ -118,7 +126,8 @@ def analyze_document_endpoint(
         raise HTTPException(status_code=500, detail=f"Analysis failed: {str(e)}")
 
 @router.get("/documents/{celex}/annotations", response_model=List[AnnotationResponse])
-def get_annotations(celex: str, db: Session = Depends(get_db)):
+@limiter.limit(RateLimits.READ)
+def get_annotations(request: Request, celex: str, db: Session = Depends(get_db)):
     """
     Get all annotations for a document.
     """
@@ -130,7 +139,9 @@ def get_annotations(celex: str, db: Session = Depends(get_db)):
     return annotations
 
 @router.post("/documents/{celex}/annotations", response_model=AnnotationResponse)
+@limiter.limit(RateLimits.CREATE)
 def create_annotation(
+    request: Request,
     celex: str,
     annotation: AnnotationCreate,
     db: Session = Depends(get_db)
@@ -155,7 +166,8 @@ def create_annotation(
     return db_annotation
 
 @router.delete("/annotations/{annotation_id}")
-def delete_annotation(annotation_id: int, db: Session = Depends(get_db)):
+@limiter.limit(RateLimits.DELETE)
+def delete_annotation(request: Request, annotation_id: int, db: Session = Depends(get_db)):
     """
     Delete an annotation.
     """
@@ -168,7 +180,8 @@ def delete_annotation(annotation_id: int, db: Session = Depends(get_db)):
     return {"message": "Annotation deleted"}
 
 @router.get("/dashboard/metrics", response_model=ComplianceMetrics)
-def get_dashboard_metrics(db: Session = Depends(get_db)):
+@limiter.limit(RateLimits.READ)
+def get_dashboard_metrics(request: Request, db: Session = Depends(get_db)):
     """
     Get compliance dashboard metrics.
     """
@@ -221,7 +234,9 @@ def get_dashboard_metrics(db: Session = Depends(get_db)):
     )
 
 @router.get("/documents/high-risk")
+@limiter.limit(RateLimits.READ)
 def get_high_risk_documents(
+    request: Request,
     limit: int = 10,
     db: Session = Depends(get_db)
 ):
@@ -235,7 +250,9 @@ def get_high_risk_documents(
     return [schemas.LegalDocumentRead.from_orm(doc) for doc in docs]
 
 @router.get("/documents/deadlines")
+@limiter.limit(RateLimits.READ)
 def get_upcoming_deadlines(
+    request: Request,
     days: int = 90,
     db: Session = Depends(get_db)
 ):
@@ -254,7 +271,9 @@ def get_upcoming_deadlines(
 # --- KYC/KYB Endpoints ---
 
 @router.post("/kyc", response_model=comp_schemas.KYCProfileRead)
+@limiter.limit(RateLimits.CREATE)
 def create_kyc_profile(
+    request: Request,
     profile: comp_schemas.KYCProfileCreate,
     db: Session = Depends(get_db)
 ):
@@ -272,7 +291,9 @@ def create_kyc_profile(
     return db_profile
 
 @router.post("/kyb", response_model=comp_schemas.KYBProfileRead)
+@limiter.limit(RateLimits.CREATE)
 def create_kyb_profile(
+    request: Request,
     profile: comp_schemas.KYBProfileCreate,
     db: Session = Depends(get_db)
 ):
@@ -290,7 +311,9 @@ def create_kyb_profile(
     return db_profile
 
 @router.get("/cases", response_model=List[comp_schemas.ComplianceProfileRead])
+@limiter.limit(RateLimits.READ)
 def get_compliance_cases(
+    request: Request,
     skip: int = 0,
     limit: int = 100,
     status: Optional[str] = None,
@@ -312,7 +335,9 @@ def get_compliance_cases(
     return profiles
 
 @router.get("/cases/{id}", response_model=comp_schemas.ComplianceProfileRead)
+@limiter.limit(RateLimits.READ)
 def get_compliance_case(
+    request: Request,
     id: int,
     db: Session = Depends(get_db)
 ):
@@ -334,7 +359,9 @@ def get_compliance_case(
     return profile
 
 @router.post("/cases/{id}/review", response_model=comp_schemas.ComplianceProfileRead)
+@limiter.limit(RateLimits.UPDATE)
 def review_compliance_case(
+    request: Request,
     id: int,
     review: comp_schemas.ReviewAction,
     db: Session = Depends(get_db)

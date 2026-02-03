@@ -42,7 +42,7 @@ def _auth_headers(role: str = "admin"):
     token = JWTHandler.create_access_token(
         {"sub": "admin@example.com", "user_id": "admin-1", "role": role}
     )
-    return {"Authorization": f"Bearer {token}"}
+    return {"Authorization": f"Bearer {token}", "X-Tenant-ID": "default"}
 
 
 def test_audit_event_and_decision_flow():

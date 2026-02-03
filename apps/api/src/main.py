@@ -75,10 +75,6 @@ def _openapi_alias():
 
 register_routers(app)
 
-# Compatibility: expose compliance routes without /api prefix for legacy tests
-from src.api.compliance import router as compliance_router
-app.include_router(compliance_router)
-
 # --- CORS Configuration ---
 raw_origins = os.getenv("ALLOWED_ORIGINS", "http://localhost:3000")
 allowed_origins = [o.strip() for o in raw_origins.split(",") if o.strip()]

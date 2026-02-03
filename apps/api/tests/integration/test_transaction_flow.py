@@ -301,7 +301,7 @@ class TestDecisioningFlow:
     """Test decisioning engine integration."""
 
     def test_decisioning_event_to_decision(
-        self, client: TestClient, db_session: Session, auth_headers: dict
+        self, client: TestClient, db_session: Session, admin_headers: dict
     ):
         """
         Test decisioning flow: Event ingestion → Feature computation → Decision
@@ -309,7 +309,7 @@ class TestDecisioningFlow:
         # Step 1: Ingest decisioning event
         event_response = client.post(
             "/api/decisioning/events",
-            headers=auth_headers,
+            headers=admin_headers,
             json={
                 "event_type": "transaction",
                 "entity_type": "user",
@@ -330,7 +330,7 @@ class TestDecisioningFlow:
         # Step 2: Request decision
         decision_response = client.post(
             "/api/decisioning/decide",
-            headers=auth_headers,
+            headers=admin_headers,
             json={
                 "event_id": event_id,
                 "decision_type": "transaction_approval"
@@ -351,7 +351,7 @@ class TestDecisioningFlow:
 
         get_response = client.get(
             f"/api/decisioning/decisions/{decision_id}",
-            headers=auth_headers
+            headers=admin_headers
         )
 
         assert get_response.status_code == 200
@@ -364,7 +364,7 @@ class TestAuditLogging:
     """Test audit logging captures all mutations."""
 
     def test_audit_log_captures_alert_lifecycle(
-        self, client: TestClient, db_session: Session, auth_headers: dict
+        self, client: TestClient, db_session: Session, admin_headers: dict
     ):
         """
         Test that audit log captures complete alert lifecycle.
@@ -372,7 +372,7 @@ class TestAuditLogging:
         # Step 1: Create alert
         alert_response = client.post(
             "/api/alerts",
-            headers=auth_headers,
+            headers=admin_headers,
             json={
                 "alert_type": "test_audit",
                 "severity": "medium",
@@ -386,19 +386,19 @@ class TestAuditLogging:
         # Step 2: Update alert
         client.patch(
             f"/api/alerts/{alert_id}",
-            headers=auth_headers,
+            headers=admin_headers,
             json={"status": "in_review", "assigned_to": "analyst@example.com"}
         )
 
         # Step 3: Resolve alert
         client.patch(
             f"/api/alerts/{alert_id}",
-            headers=auth_headers,
+            headers=admin_headers,
             json={"status": "resolved", "resolution_status": "confirmed"}
         )
 
         # Step 4: Check audit log
-        audit_response = client.get("/api/audit", headers=auth_headers)
+        audit_response = client.get("/api/audit", headers=admin_headers)
 
         assert audit_response.status_code == 200
         audit_logs = audit_response.json()

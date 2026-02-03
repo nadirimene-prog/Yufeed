@@ -7,7 +7,7 @@ from src.models.impact_assessment import ActionItem, ImpactAssessment
 
 @pytest.mark.unit
 class TestImpactAPI:
-    def test_create_assessment_and_actions(self, client, db_session, monkeypatch):
+    def test_create_assessment_and_actions(self, client, db_session, monkeypatch, auth_headers):
         celex = "CELEX-IMPACT-1"
         doc = models.LegalDocument(
             celex=celex,
@@ -64,17 +64,27 @@ class TestImpactAPI:
 
         monkeypatch.setattr(impact_api.ImpactAnalyzer, "analyze_impact", fake_analyze)
 
-        resp = client.post(f"/api/impact/documents/{celex}/analyze", json={"force": False})
+        resp = client.post(
+            f"/api/impact/documents/{celex}/analyze",
+            json={"force": False},
+            headers=auth_headers,
+        )
         assert resp.status_code == 200
         assert resp.json()["overall_impact"] == "high"
 
-        resp = client.get(f"/api/impact/documents/{celex}/assessment")
+        resp = client.get(
+            f"/api/impact/documents/{celex}/assessment",
+            headers=auth_headers,
+        )
         assert resp.status_code == 200
         assessment = resp.json()
         assert assessment["overall_impact_level"] == "high"
         assert len(assessment["action_items"]) == 1
 
-        resp = client.get(f"/api/impact/documents/{celex}/actions")
+        resp = client.get(
+            f"/api/impact/documents/{celex}/actions",
+            headers=auth_headers,
+        )
         assert resp.status_code == 200
         assert len(resp.json()) == 1
 
@@ -82,20 +92,28 @@ class TestImpactAPI:
         resp = client.put(
             f"/api/impact/actions/{action.id}",
             json={"status": "completed", "progress_percentage": 100, "notes": "done"},
+            headers=auth_headers,
         )
         assert resp.status_code == 200
         assert resp.json()["status"] == "completed"
 
-        resp = client.get("/api/impact/actions/all", params={"business_area": "onboarding"})
+        resp = client.get(
+            "/api/impact/actions/all",
+            params={"business_area": "onboarding"},
+            headers=auth_headers,
+        )
         assert resp.status_code == 200
         assert len(resp.json()) >= 1
 
-        resp = client.get("/api/impact/dashboard/stats")
+        resp = client.get("/api/impact/dashboard/stats", headers=auth_headers)
         assert resp.status_code == 200
         stats = resp.json()
         assert stats["total_assessments"] >= 1
         assert stats["total_action_items"] >= 1
 
-    def test_get_impact_assessment_missing_document(self, client):
-        resp = client.get("/api/impact/documents/DOES-NOT-EXIST/assessment")
+    def test_get_impact_assessment_missing_document(self, client, auth_headers):
+        resp = client.get(
+            "/api/impact/documents/DOES-NOT-EXIST/assessment",
+            headers=auth_headers,
+        )
         assert resp.status_code == 404

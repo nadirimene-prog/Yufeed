@@ -26,13 +26,20 @@ class CurrentUser:
     Contains user information extracted from JWT token.
     """
 
-    def __init__(self, user_id: str, email: str, role: str):
+    def __init__(self, user_id: str, email: str, role: str, tenant_id: Optional[str] = None, is_superuser: bool = False):
         self.user_id = user_id
         self.email = email
         self.role = role
+        self.tenant_id = tenant_id
+        self.is_superuser = is_superuser
 
     def __repr__(self):
-        return f"CurrentUser(user_id={self.user_id}, email={self.email}, role={self.role})"
+        return (
+            "CurrentUser("
+            f"user_id={self.user_id}, email={self.email}, role={self.role}, "
+            f"tenant_id={self.tenant_id}, is_superuser={self.is_superuser}"
+            ")"
+        )
 
     def has_role(self, required_role: str) -> bool:
         """Check if user has a specific role."""
@@ -90,13 +97,24 @@ async def get_current_user(
             email: str = payload.get("sub")
             user_id: str = payload.get("user_id")
             role: str = payload.get("role", "user")
+            tenant_id: Optional[str] = payload.get("tenant_id")
+            is_superuser: bool = bool(payload.get("is_superuser", False))
 
             if email is None or user_id is None:
                 logger.warning("Token missing required fields")
                 raise credentials_exception
 
             logger.debug(f"User authenticated: {email}")
-            return CurrentUser(user_id=user_id, email=email, role=role)
+            current_user = CurrentUser(
+                user_id=user_id,
+                email=email,
+                role=role,
+                tenant_id=tenant_id,
+                is_superuser=is_superuser,
+            )
+            if request is not None:
+                request.state.user = current_user
+            return current_user
 
         # Fallback: API key auth
         api_key = request.headers.get("X-API-Key") if request else None
@@ -114,11 +132,16 @@ async def get_current_user(
                     Tenant.is_active == True,
                 ).first()
                 if tenant:
-                    return CurrentUser(
+                    current_user = CurrentUser(
                         user_id=f"api_key:{api_key_record.key_prefix}",
                         email="api_key@yufeed.local",
                         role="api_key",
+                        tenant_id=tenant.tenant_id,
+                        is_superuser=False,
                     )
+                    if request is not None:
+                        request.state.user = current_user
+                    return current_user
             raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid API key")
 
         raise credentials_exception
@@ -132,7 +155,8 @@ async def get_current_user(
 
 
 async def get_current_user_optional(
-    credentials: Optional[HTTPAuthorizationCredentials] = Depends(security)
+    credentials: Optional[HTTPAuthorizationCredentials] = Depends(security),
+    request: Request = None,
 ) -> Optional[CurrentUser]:
     """
     Dependency to optionally get the current user.
@@ -151,7 +175,7 @@ async def get_current_user_optional(
         return None
 
     try:
-        return await get_current_user(credentials=credentials)
+        return await get_current_user(credentials=credentials, request=request)
     except HTTPException:
         return None
 
@@ -175,6 +199,8 @@ def require_role(required_role: str):
     """
 
     async def role_checker(current_user: CurrentUser = Depends(get_current_user)) -> CurrentUser:
+        if current_user.is_superuser:
+            return current_user
         if not current_user.has_role(required_role):
             logger.warning(
                 f"User {current_user.email} attempted to access {required_role}-only endpoint"
@@ -209,6 +235,8 @@ def require_any_role(required_roles: list):
     """
 
     async def role_checker(current_user: CurrentUser = Depends(get_current_user)) -> CurrentUser:
+        if current_user.is_superuser:
+            return current_user
         if not current_user.has_any_role(required_roles):
             logger.warning(
                 f"User {current_user.email} attempted to access endpoint requiring roles: {required_roles}"
@@ -220,6 +248,25 @@ def require_any_role(required_roles: list):
         return current_user
 
     return role_checker
+
+
+def require_superuser():
+    """
+    Dependency factory to require platform superuser privileges.
+    """
+
+    async def superuser_checker(current_user: CurrentUser = Depends(get_current_user)) -> CurrentUser:
+        if not current_user.is_superuser:
+            logger.warning(
+                f"User {current_user.email} attempted to access superuser-only endpoint"
+            )
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="This endpoint requires superuser privileges",
+            )
+        return current_user
+
+    return superuser_checker
 
 
 class RateLimiter:

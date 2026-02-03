@@ -12,9 +12,12 @@ from fastapi.testclient import TestClient
 from redis import Redis
 from opensearchpy import OpenSearch
 
-from src.database import Base, get_db
+from src.database import Base, get_db, SessionLocal
 from src.main import app
 from src.config import settings
+from src.models.user import User
+from src.models.tenant_models import Tenant, TenantUser
+from src.auth.jwt_handler import create_token_response
 
 
 # ============================================================================
@@ -210,7 +213,55 @@ def clean_opensearch(opensearch_client):
 # ============================================================================
 
 @pytest.fixture
-def test_user_token(client: TestClient) -> str:
+def ensure_tenant_membership():
+    """
+    Ensure a default tenant and membership exist for a user.
+    Returns a helper that accepts email, role, and tenant_id.
+    """
+    def _ensure(email: str, role: str = "viewer", tenant_id: str = "default") -> Tenant:
+        normalized_email = email.lower()
+        db = SessionLocal()
+        try:
+            tenant = db.query(Tenant).filter(Tenant.tenant_id == tenant_id).first()
+            if not tenant:
+                tenant = Tenant(
+                    tenant_id=tenant_id,
+                    name=f"{tenant_id.capitalize()} Tenant",
+                    display_name=tenant_id,
+                    tier="standard",
+                    is_active=True,
+                )
+                db.add(tenant)
+                db.commit()
+                db.refresh(tenant)
+
+            user = db.query(User).filter(User.email == normalized_email).first()
+            if not user:
+                raise AssertionError(f"User not found for email {normalized_email}")
+
+            membership = db.query(TenantUser).filter(
+                TenantUser.tenant_id == tenant.id,
+                TenantUser.user_id == str(user.id),
+            ).first()
+            if not membership:
+                membership = TenantUser(
+                    tenant_id=tenant.id,
+                    user_id=str(user.id),
+                    role=role,
+                    is_active=True,
+                )
+                db.add(membership)
+                db.commit()
+
+            return tenant
+        finally:
+            db.close()
+
+    return _ensure
+
+
+@pytest.fixture
+def test_user_token(client: TestClient, ensure_tenant_membership) -> str:
     """
     Create a test user and return authentication token.
     """
@@ -224,15 +275,16 @@ def test_user_token(client: TestClient) -> str:
         }
     )
 
-    if response.status_code == 201:
-        return response.json()["access_token"]
+    # Ensure tenant membership for login
+    ensure_tenant_membership("test@example.com", role="viewer", tenant_id="default")
 
-    # If user already exists, login instead
+    # Login to get token with tenant context
     response = client.post(
         "/api/auth/login",
         json={
             "email": "test@example.com",
-            "password": "TestPassword123!"
+            "password": "TestPassword123!",
+            "tenant_id": "default",
         }
     )
 
@@ -251,7 +303,7 @@ def auth_headers(test_user_token: str) -> dict:
 
 
 @pytest.fixture
-def admin_user_token(client: TestClient) -> str:
+def admin_user_token(client: TestClient, ensure_tenant_membership) -> str:
     """
     Create an admin user and return authentication token.
     """
@@ -260,19 +312,18 @@ def admin_user_token(client: TestClient) -> str:
         json={
             "email": "admin@example.com",
             "password": "AdminPassword123!",
-            "full_name": "Admin User",
-            "role": "admin"
+            "full_name": "Admin User"
         }
     )
 
-    if response.status_code == 201:
-        return response.json()["access_token"]
+    ensure_tenant_membership("admin@example.com", role="admin", tenant_id="default")
 
     response = client.post(
         "/api/auth/login",
         json={
             "email": "admin@example.com",
-            "password": "AdminPassword123!"
+            "password": "AdminPassword123!",
+            "tenant_id": "default",
         }
     )
 
@@ -286,6 +337,33 @@ def admin_headers(admin_user_token: str) -> dict:
     """
     return {
         "Authorization": f"Bearer {admin_user_token}",
+        "X-Tenant-ID": "default",
+    }
+
+
+@pytest.fixture
+def superuser_token() -> str:
+    """
+    Return a platform superuser token without hitting auth endpoints.
+    Avoids async DB access in tests that keep sync transactions open.
+    """
+    tokens = create_token_response(
+        user_id="test-superuser",
+        email="superuser@example.com",
+        role="admin",
+        tenant_id="default",
+        is_superuser=True,
+    )
+    return tokens["access_token"]
+
+
+@pytest.fixture
+def superuser_headers(superuser_token: str) -> dict:
+    """
+    Return authorization headers with superuser JWT token.
+    """
+    return {
+        "Authorization": f"Bearer {superuser_token}",
         "X-Tenant-ID": "default",
     }
 

@@ -8,7 +8,7 @@ from src.services.risk_scoring import RiskScoringService
 
 @pytest.mark.unit
 class TestRiskProfilesAPI:
-    def test_list_get_and_stats(self, client, db_session):
+    def test_list_get_and_stats(self, client, db_session, auth_headers):
         profile_high = UserRiskProfile(
             tenant_id="default",
             user_id="user_high",
@@ -26,23 +26,27 @@ class TestRiskProfilesAPI:
         db_session.add_all([profile_high, profile_low])
         db_session.commit()
 
-        resp = client.get("/api/risk-profiles", params={"risk_level": "high"})
+        resp = client.get(
+            "/api/risk-profiles",
+            params={"risk_level": "high"},
+            headers=auth_headers,
+        )
         assert resp.status_code == 200
         data = resp.json()
         assert len(data) == 1
         assert data[0]["user_id"] == "user_high"
 
-        resp = client.get("/api/risk-profiles/user_high")
+        resp = client.get("/api/risk-profiles/user_high", headers=auth_headers)
         assert resp.status_code == 200
         assert resp.json()["user_id"] == "user_high"
 
-        resp = client.get("/api/risk-profiles/statistics/overview")
+        resp = client.get("/api/risk-profiles/statistics/overview", headers=auth_headers)
         assert resp.status_code == 200
         stats = resp.json()
         assert stats["total_profiles"] >= 2
         assert "profiles_by_risk_level" in stats
 
-    def test_activity_summary_and_high_risk_list(self, client, db_session):
+    def test_activity_summary_and_high_risk_list(self, client, db_session, auth_headers):
         profile = UserRiskProfile(
             tenant_id="default",
             user_id="user_activity",
@@ -73,17 +77,21 @@ class TestRiskProfilesAPI:
         )
         db_session.commit()
 
-        resp = client.get("/api/risk-profiles/user_activity/activity", params={"days": 30})
+        resp = client.get(
+            "/api/risk-profiles/user_activity/activity",
+            params={"days": 30},
+            headers=auth_headers,
+        )
         assert resp.status_code == 200
         summary = resp.json()
         assert summary["alert_count"] == 2
         assert summary["critical_alerts"] == 1
 
-        resp = client.get("/api/risk-profiles/high-risk/list")
+        resp = client.get("/api/risk-profiles/high-risk/list", headers=auth_headers)
         assert resp.status_code == 200
         assert any(item["user_id"] == "user_activity" for item in resp.json())
 
-    def test_recalculate_risk_profile(self, client, db_session, monkeypatch):
+    def test_recalculate_risk_profile(self, client, db_session, monkeypatch, auth_headers):
         profile = UserRiskProfile(
             tenant_id="default",
             user_id="user_recalc",
@@ -98,6 +106,6 @@ class TestRiskProfilesAPI:
 
         monkeypatch.setattr(RiskScoringService, "update_user_risk_profile", fake_update)
 
-        resp = client.post("/api/risk-profiles/user_recalc/recalculate")
+        resp = client.post("/api/risk-profiles/user_recalc/recalculate", headers=auth_headers)
         assert resp.status_code == 200
         assert resp.json()["user_id"] == "user_recalc"

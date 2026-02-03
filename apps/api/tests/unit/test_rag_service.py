@@ -84,12 +84,12 @@ async def test_rag_service_retrieve_chunks_fallback(monkeypatch, db_session):
     service = RAGService(db_session)
 
     # Stub search functions
-    import src.search as search
+    import src.ai.rag_service as rag_service
 
-    monkeypatch.setattr(search, "search_rag_chunks", lambda **kwargs: {"results": []})
+    monkeypatch.setattr(rag_service, "search_rag_chunks", lambda **kwargs: {"results": []})
     monkeypatch.setattr(
-        search,
-        "search_documents",
+        rag_service,
+        "opensearch_documents",
         lambda **kwargs: {
             "results": [
                 {

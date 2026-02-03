@@ -9,6 +9,7 @@ from src.auth.dependencies import (
     get_current_user_optional,
     require_role,
     require_any_role,
+    require_superuser,
     CurrentUser
 )
 
@@ -20,5 +21,6 @@ __all__ = [
     "get_current_user_optional",
     "require_role",
     "require_any_role",
+    "require_superuser",
     "CurrentUser",
 ]

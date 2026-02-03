@@ -38,9 +38,9 @@ def init_db():
     yield
     Base.metadata.drop_all(bind=engine)
 
-def test_create_kyc_profile(client):
+def test_create_kyc_profile(client, admin_headers):
     response = client.post(
-        "/compliance/kyc",
+        "/api/compliance/kyc",
         json={
             "type": "kyc",
             "first_name": "John",
@@ -48,6 +48,7 @@ def test_create_kyc_profile(client):
             "email": "john@example.com",
             "country": "US"
         },
+        headers=admin_headers,
     )
     assert response.status_code == 200
     data = response.json()
@@ -56,56 +57,60 @@ def test_create_kyc_profile(client):
     assert data["risk_level"] == "low"
     assert data["type"] == "kyc"
 
-def test_create_kyb_profile(client):
+def test_create_kyb_profile(client, admin_headers):
     response = client.post(
-        "/compliance/kyb",
+        "/api/compliance/kyb",
         json={
             "type": "kyb",
             "company_name": "Acme Corp",
             "registration_number": "12345678",
             "jurisdiction": "US"
         },
+        headers=admin_headers,
     )
     assert response.status_code == 200
     data = response.json()
     assert data["company_name"] == "Acme Corp"
     assert data["type"] == "kyb"
 
-def test_get_cases(client):
+def test_get_cases(client, admin_headers):
     # Create a profile first
     client.post(
-        "/compliance/kyc",
+        "/api/compliance/kyc",
         json={
             "type": "kyc",
             "first_name": "Alice",
             "last_name": "Wonder",
             "email": "alice@example.com"
         },
+        headers=admin_headers,
     )
     
-    response = client.get("/compliance/cases")
+    response = client.get("/api/compliance/cases", headers=admin_headers)
     assert response.status_code == 200
     data = response.json()
     assert len(data) >= 1
     assert data[0]["email"] == "alice@example.com"
 
-def test_review_case(client):
+def test_review_case(client, admin_headers):
     # Create
     create_res = client.post(
-        "/compliance/kyc",
+        "/api/compliance/kyc",
         json={
             "type": "kyc",
             "first_name": "Bob",
             "last_name": "Builder",
             "email": "bob@example.com"
         },
+        headers=admin_headers,
     )
     profile_id = create_res.json()["id"]
     
     # Review (Approve)
     response = client.post(
-        f"/compliance/cases/{profile_id}/review",
-        json={"action": "approve"}
+        f"/api/compliance/cases/{profile_id}/review",
+        json={"action": "approve"},
+        headers=admin_headers,
     )
     assert response.status_code == 200
     assert response.json()["status"] == "approved"

@@ -15,6 +15,7 @@ import re
 
 from src.database import get_async_db
 from src.models.user import User
+from src.models.tenant_models import TenantUser, Tenant
 from src.auth.jwt_handler import (
     JWTHandler,
     PasswordHandler,
@@ -54,6 +55,7 @@ class UserLogin(BaseModel):
     """User login request."""
     email: EmailStr
     password: str
+    tenant_id: Optional[str] = None
 
 
 class TokenResponse(BaseModel):
@@ -103,6 +105,113 @@ def get_client_ip(request: Request) -> Optional[str]:
     if forwarded:
         return forwarded.split(",")[0].strip()
     return request.client.host if request.client else None
+
+
+async def _fetch_user_tenants(db: AsyncSession, user: User) -> dict:
+    identifiers = {str(user.id)}
+    if user.email:
+        identifiers.add(user.email.lower())
+
+    stmt = (
+        select(TenantUser, Tenant)
+        .join(Tenant, Tenant.id == TenantUser.tenant_id)
+        .where(
+            TenantUser.user_id.in_(identifiers),
+            TenantUser.is_active == True,
+            Tenant.is_active == True,
+            Tenant.deleted_at.is_(None),
+        )
+    )
+    result = await db.execute(stmt)
+    rows = result.all()
+
+    tenants = {}
+    for tenant_user, tenant in rows:
+        tenants[tenant.tenant_id] = {
+            "tenant": tenant,
+            "role": tenant_user.role,
+        }
+    return tenants
+
+
+async def _resolve_tenant_context(
+    db: AsyncSession,
+    user: User,
+    requested_tenant_id: Optional[str],
+) -> tuple[Optional[str], str]:
+    tenants = await _fetch_user_tenants(db, user)
+
+    if requested_tenant_id:
+        if user.is_superuser:
+            tenant = await db.execute(
+                select(Tenant).where(
+                    Tenant.tenant_id == requested_tenant_id,
+                    Tenant.is_active == True,
+                    Tenant.deleted_at.is_(None),
+                )
+            )
+            tenant_obj = tenant.scalar_one_or_none()
+            if not tenant_obj:
+                raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Tenant not found")
+            return requested_tenant_id, "admin"
+
+        match = tenants.get(requested_tenant_id)
+        if not match:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="User is not a member of the requested tenant",
+            )
+        return requested_tenant_id, match["role"]
+
+    if len(tenants) == 1:
+        tenant_id, match = next(iter(tenants.items()))
+        return tenant_id, match["role"]
+
+    if len(tenants) > 1:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail={
+                "message": "Tenant selection required",
+                "available_tenants": sorted(tenants.keys()),
+            },
+        )
+
+    if user.is_superuser:
+        return None, "admin"
+
+    raise HTTPException(
+        status_code=status.HTTP_403_FORBIDDEN,
+        detail="No active tenant membership found for user",
+    )
+
+
+async def _ensure_tenant_access(db: AsyncSession, user: User, tenant_id: Optional[str]) -> None:
+    if not tenant_id:
+        if user.is_superuser:
+            return
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Tenant context is required for this user",
+        )
+
+    if user.is_superuser:
+        tenant = await db.execute(
+            select(Tenant).where(
+                Tenant.tenant_id == tenant_id,
+                Tenant.is_active == True,
+                Tenant.deleted_at.is_(None),
+            )
+        )
+        if not tenant.scalar_one_or_none():
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Tenant not found")
+        return
+
+    tenants = await _fetch_user_tenants(db, user)
+    if tenant_id not in tenants:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="User is not a member of the requested tenant",
+        )
 
 
 @router.post("/register", response_model=TokenResponse, status_code=status.HTTP_201_CREATED)
@@ -231,11 +340,16 @@ async def login(
 
     logger.info(f"User logged in successfully: {login_data.email}")
 
+    # Resolve tenant context (default if exactly one)
+    tenant_id, tenant_role = await _resolve_tenant_context(db, user, login_data.tenant_id)
+
     # Create tokens
     tokens = create_token_response(
         user_id=str(user.id),
         email=user.email,
-        role=user.default_role
+        role=tenant_role or user.default_role,
+        tenant_id=tenant_id,
+        is_superuser=user.is_superuser,
     )
 
     return tokens
@@ -288,6 +402,7 @@ async def refresh_token(
         # Extract user information
         email = payload.get("sub")
         user_id = payload.get("user_id")
+        tenant_id = payload.get("tenant_id")
 
         if not email or not user_id:
             raise HTTPException(
@@ -313,13 +428,25 @@ async def refresh_token(
                 detail="Account is deactivated",
             )
 
+        await _ensure_tenant_access(db, user, tenant_id)
+
+        role = user.default_role
+        if tenant_id:
+            if user.is_superuser:
+                role = "admin"
+            else:
+                tenants = await _fetch_user_tenants(db, user)
+                role = tenants.get(tenant_id, {}).get("role", role)
+
         logger.info(f"Token refreshed for user: {email}")
 
         # Create new tokens
         tokens = create_token_response(
             user_id=str(user.id),
             email=user.email,
-            role=user.default_role
+            role=role,
+            tenant_id=tenant_id,
+            is_superuser=user.is_superuser,
         )
 
         return tokens
@@ -363,7 +490,7 @@ async def get_current_user_profile(
     return UserProfile(
         user_id=str(user.id),
         email=user.email,
-        role=user.default_role,
+        role=current_user.role,
         full_name=user.full_name,
         is_verified=user.is_verified
     )

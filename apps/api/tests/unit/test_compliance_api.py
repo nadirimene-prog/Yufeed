@@ -6,7 +6,7 @@ from src.models import models
 
 @pytest.mark.unit
 class TestComplianceAPI:
-    def test_analyze_document_and_annotations(self, client, db_session, monkeypatch):
+    def test_analyze_document_and_annotations(self, client, db_session, monkeypatch, admin_headers):
         celex = "CELEX-TEST-1"
         doc = models.LegalDocument(
             celex=celex,
@@ -34,7 +34,11 @@ class TestComplianceAPI:
         )
         monkeypatch.setattr(compliance_api, "seed_obligations_for_doc", lambda *args, **kwargs: None)
 
-        resp = client.post(f"/api/compliance/documents/{celex}/analyze", json={"force": False})
+        resp = client.post(
+            f"/api/compliance/documents/{celex}/analyze",
+            json={"force": False},
+            headers=admin_headers,
+        )
         assert resp.status_code == 200
         assert resp.json()["message"] == "Analysis complete"
 
@@ -42,21 +46,22 @@ class TestComplianceAPI:
         resp = client.post(
             f"/api/compliance/documents/{celex}/annotations",
             json={"content": "Note", "article_reference": "Art 1", "user_email": "user@example.com"},
+            headers=admin_headers,
         )
         assert resp.status_code == 200
         annotation_id = resp.json()["id"]
 
         # List annotations
-        resp = client.get(f"/api/compliance/documents/{celex}/annotations")
+        resp = client.get(f"/api/compliance/documents/{celex}/annotations", headers=admin_headers)
         assert resp.status_code == 200
         assert len(resp.json()) == 1
 
         # Delete annotation
-        resp = client.delete(f"/api/compliance/annotations/{annotation_id}")
+        resp = client.delete(f"/api/compliance/annotations/{annotation_id}", headers=admin_headers)
         assert resp.status_code == 200
         assert resp.json()["message"] == "Annotation deleted"
 
-    def test_compliance_dashboard_and_filters(self, client, db_session):
+    def test_compliance_dashboard_and_filters(self, client, db_session, admin_headers):
         now = datetime.now(timezone.utc)
         doc_high = models.LegalDocument(
             celex="CELEX-HIGH",
@@ -77,16 +82,20 @@ class TestComplianceAPI:
         db_session.add_all([doc_high, doc_low])
         db_session.commit()
 
-        resp = client.get("/api/compliance/dashboard/metrics")
+        resp = client.get("/api/compliance/dashboard/metrics", headers=admin_headers)
         assert resp.status_code == 200
         metrics = resp.json()
         assert metrics["total_documents"] >= 2
         assert metrics["high_risk_count"] >= 1
 
-        resp = client.get("/api/compliance/documents/high-risk")
+        resp = client.get("/api/compliance/documents/high-risk", headers=admin_headers)
         assert resp.status_code == 200
         assert any(doc["celex"] == "CELEX-HIGH" for doc in resp.json())
 
-        resp = client.get("/api/compliance/documents/deadlines", params={"days": 30})
+        resp = client.get(
+            "/api/compliance/documents/deadlines",
+            params={"days": 30},
+            headers=admin_headers,
+        )
         assert resp.status_code == 200
         assert any(doc["celex"] == "CELEX-HIGH" for doc in resp.json())

@@ -171,7 +171,13 @@ class PasswordHandler:
         return bcrypt.checkpw(password_bytes, hashed_bytes)
 
 
-def create_token_response(user_id: str, email: str, role: str = "user") -> Dict[str, str]:
+def create_token_response(
+    user_id: str,
+    email: str,
+    role: str = "user",
+    tenant_id: Optional[str] = None,
+    is_superuser: bool = False,
+) -> Dict[str, str]:
     """
     Create a complete token response with both access and refresh tokens.
 
@@ -193,6 +199,10 @@ def create_token_response(user_id: str, email: str, role: str = "user") -> Dict[
         "user_id": user_id,
         "role": role
     }
+    if tenant_id:
+        token_data["tenant_id"] = tenant_id
+    if is_superuser:
+        token_data["is_superuser"] = True
 
     access_token = JWTHandler.create_access_token(token_data)
     refresh_token = JWTHandler.create_refresh_token(token_data)

@@ -21,8 +21,10 @@ from fastapi import Request, Response, HTTPException
 from fastapi.responses import JSONResponse
 from starlette.middleware.base import BaseHTTPMiddleware
 from starlette.types import ASGIApp
+from jose import JWTError
 
 from src.tenancy.context import set_current_tenant, clear_current_tenant
+from src.auth.jwt_handler import JWTHandler
 from src.database import SessionLocal
 from src.models.tenant_models import TenantAPIKey, Tenant
 
@@ -101,38 +103,58 @@ class TenantMiddleware(BaseHTTPMiddleware):
         Returns:
             Tenant ID or None
         """
-        # 1. Try API Key
-        api_key = request.headers.get("X-API-Key") or request.headers.get("Authorization", "").replace("Bearer ", "")
+        env = os.getenv("ENVIRONMENT", "").lower()
+        allow_legacy_tenant_headers = env in {"development", "dev", "test", "testing"}
 
+        # 1. Try API Key
+        api_key = request.headers.get("X-API-Key")
         if api_key and api_key.startswith("yk_"):
             tenant_id = await self._extract_tenant_from_api_key(api_key)
             if tenant_id:
                 return tenant_id
             raise HTTPException(status_code=401, detail="Invalid API key")
 
-        # 2. Try JWT token
-        # TODO: Extract from JWT when auth is fully implemented
-        # auth_header = request.headers.get("Authorization")
-        # if auth_header and auth_header.startswith("Bearer "):
-        #     token = auth_header[7:]
-        #     tenant_id = extract_tenant_from_jwt(token)
-        #     if tenant_id:
-        #         return tenant_id
+        # 2. Try Authorization header (JWT or API key)
+        auth_header = request.headers.get("Authorization", "")
+        token = auth_header[7:] if auth_header.startswith("Bearer ") else None
 
-        # 3. Try X-Tenant-ID header
-        tenant_id = request.headers.get("X-Tenant-ID")
-        if tenant_id:
-            return tenant_id
+        if token and token.startswith("yk_"):
+            tenant_id = await self._extract_tenant_from_api_key(token)
+            if tenant_id:
+                return tenant_id
+            raise HTTPException(status_code=401, detail="Invalid API key")
 
-        # 4. Try query parameter (for development/testing only)
-        tenant_id = request.query_params.get("tenant_id")
-        if tenant_id:
-            logger.warning("Using tenant_id from query parameter (development only)")
-            return tenant_id
+        if token:
+            try:
+                payload = JWTHandler.decode_token(token)
+                if not JWTHandler.verify_token_type(payload, "access"):
+                    raise HTTPException(status_code=401, detail="Invalid token type")
+                tenant_id = payload.get("tenant_id")
+                if tenant_id:
+                    return tenant_id
+                if allow_legacy_tenant_headers:
+                    logger.warning("JWT missing tenant_id; allowing legacy tenant header in dev/test")
+                else:
+                    logger.warning("JWT missing tenant_id; tenant context will be required by route")
+            except JWTError:
+                raise HTTPException(status_code=401, detail="Invalid token")
 
-        # 5. Default tenant for backward compatibility
-        # In production, this should be removed
-        return "default"
+        # 3. Try X-Tenant-ID header (dev/test only)
+        if allow_legacy_tenant_headers:
+            tenant_id = request.headers.get("X-Tenant-ID")
+            if tenant_id:
+                logger.warning("Using X-Tenant-ID header (development/testing only)")
+                return tenant_id
+
+        # 4. Try query parameter (dev/test only)
+        if allow_legacy_tenant_headers:
+            tenant_id = request.query_params.get("tenant_id")
+            if tenant_id:
+                logger.warning("Using tenant_id from query parameter (development/testing only)")
+                return tenant_id
+
+        # No tenant found
+        return None
 
     async def _extract_tenant_from_api_key(self, api_key: str) -> Optional[str]:
         """
@@ -247,13 +269,17 @@ class TenantMiddleware(BaseHTTPMiddleware):
             True if endpoint requires tenant
         """
         exempt_paths = [
-            "/docs",
-            "/redoc",
-            "/openapi.json",
+            "/api/docs",
+            "/api/redoc",
+            "/api/openapi.json",
             "/health",
+            "/healthz",
             "/metrics",
-            "/auth/login",
-            "/auth/register",
+            "/api/auth/login",
+            "/api/auth/register",
+            "/api/auth/token",
+            "/api/auth/refresh",
+            "/api/tenants",
         ]
 
         path = request.url.path

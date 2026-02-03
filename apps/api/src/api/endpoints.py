@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi import APIRouter, Depends, HTTPException, Query, Request
 from sqlalchemy.orm import Session
 from typing import List, Optional, Dict, Any
 from datetime import datetime
@@ -7,11 +7,18 @@ from src import models
 from src.schemas import schemas
 from src.search import search_documents
 from src.ingestion.diff_analyzer import DiffAnalyzer
+from src.auth.dependencies import get_current_user
+from src.tenancy.queries import get_tenant_filtered_query, set_tenant_on_create, require_tenant
+from src.middleware import limiter, RateLimits
 
-router = APIRouter()
+router = APIRouter(
+    dependencies=[Depends(get_current_user), Depends(require_tenant)]
+)
 
 @router.get("/search", response_model=schemas.SearchResponse)
+@limiter.limit(RateLimits.SEARCH)
 def search_api(
+    request: Request,
     q: Optional[str] = None,
     type: Optional[str] = None,
     status: Optional[str] = None,
@@ -43,7 +50,8 @@ def search_api(
     return results
 
 @router.get("/documents/{celex}", response_model=schemas.LegalDocumentRead)
-def get_document(celex: str, db: Session = Depends(get_db)):
+@limiter.limit(RateLimits.READ)
+def get_document(request: Request, celex: str, db: Session = Depends(get_db)):
     """
     Get a specific legal document by CELEX.
     """
@@ -55,26 +63,34 @@ def get_document(celex: str, db: Session = Depends(get_db)):
 # --- Monitoring Rules Management ---
 
 @router.post("/rules", response_model=schemas.MonitoringRuleRead)
-def create_rule(rule: schemas.MonitoringRuleCreate, db: Session = Depends(get_db)):
+@limiter.limit(RateLimits.CREATE)
+def create_rule(request: Request, rule: schemas.MonitoringRuleCreate, db: Session = Depends(get_db)):
     db_rule = models.MonitoringRule(**rule.model_dump())
+    set_tenant_on_create(db_rule)
     db.add(db_rule)
     db.commit()
     db.refresh(db_rule)
     return db_rule
 
 @router.get("/rules", response_model=List[schemas.MonitoringRuleRead])
-def read_rules(skip: int = 0, limit: int = 100, db: Session = Depends(get_db)):
-    return db.query(models.MonitoringRule).offset(skip).limit(limit).all()
+@limiter.limit(RateLimits.READ)
+def read_rules(request: Request, skip: int = 0, limit: int = 100, db: Session = Depends(get_db)):
+    query = get_tenant_filtered_query(models.MonitoringRule, db)
+    return query.offset(skip).limit(limit).all()
 
 @router.get("/rules/{rule_id}", response_model=schemas.MonitoringRuleRead)
-def get_rule(rule_id: str, db: Session = Depends(get_db)):
-    db_rule = db.query(models.MonitoringRule).filter(models.MonitoringRule.rule_id == rule_id).first()
+@limiter.limit(RateLimits.READ)
+def get_rule(request: Request, rule_id: str, db: Session = Depends(get_db)):
+    db_rule = get_tenant_filtered_query(models.MonitoringRule, db).filter(
+        models.MonitoringRule.rule_id == rule_id
+    ).first()
     if not db_rule:
         raise HTTPException(status_code=404, detail="Rule not found")
     return db_rule
 
 @router.get("/documents/{celex}/versions")
-def get_document_versions(celex: str, db: Session = Depends(get_db)) -> Dict[str, Any]:
+@limiter.limit(RateLimits.READ)
+def get_document_versions(request: Request, celex: str, db: Session = Depends(get_db)) -> Dict[str, Any]:
     """
     Get all versions of a document.
     """
@@ -100,7 +116,9 @@ def get_document_versions(celex: str, db: Session = Depends(get_db)) -> Dict[str
     }
 
 @router.get("/documents/{celex}/diff")
+@limiter.limit(RateLimits.READ)
 def compare_document_versions(
+    request: Request,
     celex: str,
     version1_id: Optional[int] = Query(None, description="ID of first version (older)"),
     version2_id: Optional[int] = Query(None, description="ID of second version (newer)"),

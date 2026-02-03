@@ -131,7 +131,7 @@ def api_key_tenant_b(db: Session, tenant_b: Tenant):
 class TestTenantManagement:
     """Test tenant CRUD operations."""
 
-    def test_create_tenant(self, db: Session):
+    def test_create_tenant(self, db: Session, superuser_headers):
         """Test creating a new tenant."""
         response = client.post(
             "/api/tenants",
@@ -140,7 +140,8 @@ class TestTenantManagement:
                 "name": "Test Create Tenant",
                 "tier": "standard",
                 "contact_email": "test@example.com"
-            }
+            },
+            headers=superuser_headers,
         )
         assert response.status_code == 201
         data = response.json()
@@ -149,9 +150,12 @@ class TestTenantManagement:
         assert data["is_active"] is True
 
         # Cleanup
-        client.delete(f"/api/tenants/test_create_tenant?hard_delete=true")
+        client.delete(
+            f"/api/tenants/test_create_tenant?hard_delete=true",
+            headers=superuser_headers,
+        )
 
-    def test_create_tenant_duplicate(self, tenant_a):
+    def test_create_tenant_duplicate(self, tenant_a, superuser_headers):
         """Test creating a tenant with duplicate tenant_id."""
         response = client.post(
             "/api/tenants",
@@ -159,14 +163,15 @@ class TestTenantManagement:
                 "tenant_id": "test_tenant_a",
                 "name": "Duplicate Tenant",
                 "tier": "standard"
-            }
+            },
+            headers=superuser_headers,
         )
         assert response.status_code == 400
         assert "already exists" in response.json()["detail"]
 
-    def test_list_tenants(self, tenant_a, tenant_b):
+    def test_list_tenants(self, tenant_a, tenant_b, superuser_headers):
         """Test listing all tenants."""
-        response = client.get("/api/tenants")
+        response = client.get("/api/tenants", headers=superuser_headers)
         assert response.status_code == 200
         tenants = response.json()
         assert len(tenants) >= 2
@@ -174,22 +179,26 @@ class TestTenantManagement:
         assert "test_tenant_a" in tenant_ids
         assert "test_tenant_b" in tenant_ids
 
-    def test_get_tenant(self, tenant_a):
+    def test_get_tenant(self, tenant_a, superuser_headers):
         """Test getting a specific tenant."""
-        response = client.get(f"/api/tenants/{tenant_a.tenant_id}")
+        response = client.get(
+            f"/api/tenants/{tenant_a.tenant_id}",
+            headers=superuser_headers,
+        )
         assert response.status_code == 200
         data = response.json()
         assert data["tenant_id"] == tenant_a.tenant_id
         assert data["name"] == tenant_a.name
 
-    def test_update_tenant(self, tenant_a):
+    def test_update_tenant(self, tenant_a, superuser_headers):
         """Test updating tenant information."""
         response = client.patch(
             f"/api/tenants/{tenant_a.tenant_id}",
             json={
                 "display_name": "Updated Tenant A",
                 "tier": "enterprise"
-            }
+            },
+            headers=superuser_headers,
         )
         assert response.status_code == 200
         data = response.json()

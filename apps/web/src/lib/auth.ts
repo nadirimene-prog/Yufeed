@@ -17,6 +17,18 @@ export interface AuthTokens {
   token_type?: string;
 }
 
+export class AuthError extends Error {
+  code?: string;
+  availableTenants?: string[];
+
+  constructor(message: string, options?: { code?: string; availableTenants?: string[] }) {
+    super(message);
+    this.name = "AuthError";
+    this.code = options?.code;
+    this.availableTenants = options?.availableTenants;
+  }
+}
+
 interface JwtPayload {
   exp?: number;
   iat?: number;
@@ -24,6 +36,8 @@ interface JwtPayload {
   user_id?: string;
   email?: string;
   role?: string;
+  tenant_id?: string;
+  is_superuser?: boolean;
   [key: string]: unknown;
 }
 
@@ -110,7 +124,7 @@ export function clearAuthTokens() {
 export async function loginWithPassword(
   email: string,
   password: string,
-  options?: { apiUrl?: string; storage?: "local" | "session" }
+  options?: { apiUrl?: string; storage?: "local" | "session"; tenantId?: string }
 ): Promise<AuthTokens> {
   clearAuthTokens();
   const apiUrl =
@@ -119,11 +133,41 @@ export async function loginWithPassword(
   const response = await fetch(`${apiUrl}/api/auth/login`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ email, password }),
+    body: JSON.stringify({
+      email,
+      password,
+      tenant_id: options?.tenantId,
+    }),
   });
   if (!response.ok) {
-    const message = await response.text();
-    throw new Error(message || "Login failed");
+    let message = "Login failed";
+    try {
+      const data = await response.json();
+      const detail = data?.detail;
+      if (detail && typeof detail === "object") {
+        const availableTenants = Array.isArray(detail.available_tenants)
+          ? detail.available_tenants.map(String)
+          : undefined;
+        message = detail.message || message;
+        if (availableTenants && availableTenants.length > 0) {
+          throw new AuthError(message || "Tenant selection required", {
+            code: "tenant_required",
+            availableTenants,
+          });
+        }
+      } else if (typeof detail === "string") {
+        message = detail;
+      }
+    } catch (err) {
+      if (err instanceof AuthError) {
+        throw err;
+      }
+      const text = await response.text().catch(() => "");
+      if (text) {
+        message = text;
+      }
+    }
+    throw new AuthError(message || "Login failed");
   }
   const tokens = (await response.json()) as AuthTokens;
   setAuthTokens(tokens, options?.storage ?? "local");
