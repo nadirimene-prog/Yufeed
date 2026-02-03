@@ -205,6 +205,63 @@ services:
       - default
     restart: always
 
+  beat:
+    build:
+      context: ./apps/api
+      dockerfile: Dockerfile
+    container_name: yufeed-beat
+    command: python -m celery -A src.worker.celery_app beat --loglevel=info
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    environment:
+      # Database
+      DATABASE_URL: postgresql://postgres:postgres@db:5432/yufeed
+      POSTGRES_HOST: db
+      POSTGRES_PORT: "5432"
+      POSTGRES_DB: yufeed
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      # Redis
+      REDIS_URL: redis://redis:6379/0
+      # OpenSearch
+      OPENSEARCH_URL: http://opensearch:9200
+      OPENSEARCH_SECURITY_ENABLED: "false"
+      OPENSEARCH_USER: admin
+      OPENSEARCH_PASSWORD: admin
+      # Security
+      SECRET_KEY: ${SECRET_KEY:-}
+      ENVIRONMENT: ${ENVIRONMENT:-development}
+      # AI
+      ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-}
+      # EUR-Lex Integration
+      CELEX_CACHE_ENABLED: "true"
+      CELEX_CACHE_TTL_HOURS: "24"
+      EURLEX_LANGUAGES: en,fr
+      EURLEX_SEARCH_TERMS_EN: "payment service provider;payment services;electronic money institution;electronic money;crypto-asset service provider;virtual asset service provider;crypto-assets;emd2;psd2;psd3;mica;casp"
+      EURLEX_SEARCH_TERMS_FR: "prestataire de services de paiement;services de paiement;etablissement de monnaie electronique;monnaie electronique;prestataire de services sur actifs numeriques;actifs numeriques;crypto-actifs;psan;mica"
+      # Legifrance
+      LEGIFRANCE_JORF_RSS_URL: https://legifrss.org/latest
+      LEGIFRANCE_API_BASE_URL: ${LEGIFRANCE_API_BASE_URL:-}
+      LEGIFRANCE_API_TOKEN: ${LEGIFRANCE_API_TOKEN:-}
+      # Email
+      SMTP_HOST: mailhog
+      SMTP_PORT: "1025"
+      SMTP_USER: test
+      SMTP_PASSWORD: test
+      SMTP_TLS: "false"
+      EMAILS_FROM_EMAIL: info@yufeed.eu
+      # Other
+      RSS_USER_AGENT: Yufeed/1.0
+      REGULATORY_SCOPE_FILTER: all
+    volumes:
+      - ./apps/api:/app
+    networks:
+      - default
+    restart: always
+
   web:
     build:
       context: ./apps/web

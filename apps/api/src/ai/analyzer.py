@@ -2,7 +2,6 @@
 AI-powered document analysis for compliance intelligence.
 Uses LLM to classify documents, assess risk, and extract obligations.
 """
-import os
 import json
 from typing import Dict, List, Optional, Any
 from datetime import datetime, timezone
@@ -13,9 +12,10 @@ def utc_now() -> datetime:
     return datetime.now(timezone.utc)
 import anthropic  # Using Claude for legal text analysis
 from src.models.models import ComplianceDomain, RiskLevel
+from src.config import settings
 
 # Initialize Anthropic client
-API_KEY = os.getenv("ANTHROPIC_API_KEY", "")
+API_KEY = settings.ANTHROPIC_API_KEY
 client = anthropic.Anthropic(api_key=API_KEY) if API_KEY else None
 
 def classify_document(title: str, celex: str) -> Optional[str]:

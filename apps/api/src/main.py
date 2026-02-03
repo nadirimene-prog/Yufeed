@@ -60,6 +60,17 @@ async def startup_event():
     else:
         logger.warning("REDIS_URL not configured - rate limiting uses in-memory storage")
 
+    if settings.POLICY_TEMPLATES_AUTO_SEED:
+        try:
+            from src.services.policy_templates import seed_policy_templates
+            result = seed_policy_templates()
+            logger.info(
+                "Policy templates seeded: "
+                f"{result.get('created', 0)} created, {result.get('updated', 0)} updated"
+            )
+        except Exception as exc:
+            logger.warning(f"Policy template seeding failed: {exc}")
+
     # Ensure test DB schema exists for integration tests
     if os.getenv("ENVIRONMENT", "").lower() in {"test", "testing"}:
         from src.database import Base, sync_engine

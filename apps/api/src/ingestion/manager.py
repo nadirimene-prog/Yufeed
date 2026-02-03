@@ -28,6 +28,15 @@ def utc_now() -> datetime:
     return datetime.now(timezone.utc)
 
 
+def _parse_start_date(value: Optional[str]) -> Optional[datetime.date]:
+    if not value:
+        return None
+    try:
+        return datetime.fromisoformat(value).date()
+    except ValueError:
+        return None
+
+
 def retry_with_backoff(
     func: Callable,
     max_retries: int = 3,
@@ -98,15 +107,11 @@ class IngestionManager:
         """
         logger.info("Starting weekly ingestion...")
 
-        # Calculate date range (last 7 days)
-        end_date = utc_now().date()
-        start_date = (utc_now() - timedelta(days=7)).date()
-
         # Get configured languages
         languages = self._get_languages()
 
         # Build source configurations
-        sources = self._build_source_configs(languages, start_date, end_date)
+        sources = self._build_source_configs(languages)
 
         # Process each source
         reports: List[IngestionReport] = []
@@ -157,12 +162,7 @@ class IngestionManager:
         ]
         return languages if languages else ["en"]
 
-    def _build_source_configs(
-        self,
-        languages: List[str],
-        start_date,
-        end_date,
-    ) -> List[Dict[str, Any]]:
+    def _build_source_configs(self, languages: List[str]) -> List[Dict[str, Any]]:
         """Build configuration for all ingestion sources."""
         sources = []
 
@@ -176,7 +176,7 @@ class IngestionManager:
                 "source_type": "rss",
                 "schedule": "weekly",
                 "base_url": "https://eur-lex.europa.eu/RSS/feed.html",
-                "fetch": lambda l=lang, s=start_date, e=end_date: self.rss.get_latest_oj_entries(
+                "fetch": lambda s, e, l=lang: self.rss.get_latest_oj_entries(
                     language=l,
                     start_date=s,
                     end_date=e,
@@ -193,12 +193,17 @@ class IngestionManager:
                 "source_type": "rss",
                 "schedule": "weekly",
                 "base_url": settings.LEGIFRANCE_JORF_RSS_URL,
-                "fetch": self.legifrance.fetch_latest,
+                "fetch": lambda s, e: self.legifrance.fetch_latest(),
             })
 
         return sources
 
-    def _process_source(self, source_config: Dict[str, Any]) -> IngestionReport:
+    def _process_source(
+        self,
+        source_config: Dict[str, Any],
+        start_date: Optional[datetime.date] = None,
+        end_date: Optional[datetime.date] = None,
+    ) -> IngestionReport:
         """
         Process a single ingestion source.
 
@@ -213,6 +218,17 @@ class IngestionManager:
 
         # Get or create source record
         source = self._get_or_create_source(source_config)
+
+        # Resolve incremental date range
+        resolved_end = end_date or utc_now().date()
+        if start_date:
+            resolved_start = start_date
+        elif source.last_ingested_at:
+            resolved_start = source.last_ingested_at.date()
+        else:
+            resolved_start = _parse_start_date(settings.EURLEX_OJ_START_DATE)
+            if not resolved_start:
+                resolved_start = (utc_now() - timedelta(days=30)).date()
 
         if not source.is_active:
             logger.info(f"Source {source_key} is inactive, skipping.")
@@ -247,13 +263,16 @@ class IngestionManager:
         try:
             # Fetch entries with retry logic
             entries = retry_with_backoff(
-                func=source_config["fetch"],
+                func=lambda: source_config["fetch"](resolved_start, resolved_end),
                 max_retries=3,
                 base_delay=2.0,
                 exceptions=(Exception,),
             )
 
-            logger.info(f"{source_key}: Found {len(entries)} entries.")
+            logger.info(
+                f"{source_key}: Found {len(entries)} entries "
+                f"from {resolved_start} to {resolved_end}."
+            )
 
             # Process each entry
             for entry in entries:
@@ -364,11 +383,7 @@ class IngestionManager:
         start_dt = start_date or (end_dt - timedelta(days=30))
 
         languages = self._get_languages()
-        all_sources = self._build_source_configs(
-            languages,
-            start_dt.date() if hasattr(start_dt, 'date') else start_dt,
-            end_dt.date() if hasattr(end_dt, 'date') else end_dt,
-        )
+        all_sources = self._build_source_configs(languages)
 
         # Filter to requested sources
         if source_keys:
@@ -379,7 +394,11 @@ class IngestionManager:
         reports = []
         for source_config in sources:
             try:
-                report = self._process_source(source_config)
+                report = self._process_source(
+                    source_config,
+                    start_date=start_dt.date() if hasattr(start_dt, "date") else start_dt,
+                    end_date=end_dt.date() if hasattr(end_dt, "date") else end_dt,
+                )
                 reports.append(report)
             except Exception as exc:
                 logger.error(f"Failed to process {source_config['source_key']}: {exc}")

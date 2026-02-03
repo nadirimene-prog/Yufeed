@@ -20,6 +20,30 @@ from src.ingestion.alerts import send_ingestion_failure_alert
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
+# Cron parser for 5-field expressions (min hour dom mon dow).
+def _safe_crontab(expression: str, fallback: crontab) -> crontab:
+    parts = [part for part in (expression or "").split() if part]
+    if len(parts) != 5:
+        logger.warning(f"Invalid cron '{expression}'. Using fallback schedule.")
+        return fallback
+    minute, hour, day_of_month, month_of_year, day_of_week = parts
+    try:
+        return crontab(
+            minute=minute,
+            hour=hour,
+            day_of_month=day_of_month,
+            month_of_year=month_of_year,
+            day_of_week=day_of_week,
+        )
+    except Exception as exc:
+        logger.warning(f"Failed to parse cron '{expression}': {exc}. Using fallback schedule.")
+        return fallback
+
+CONTENT_BACKFILL_SCHEDULE = _safe_crontab(
+    settings.CONTENT_BACKFILL_SCHEDULE,
+    crontab(minute=0, hour=2, day_of_month=1),
+)
+
 # Celery App
 celery_app = Celery("worker", broker=settings.REDIS_URL, backend=settings.REDIS_URL)
 
@@ -37,6 +61,10 @@ celery_app.conf.update(
         "weekly-ingestion-task": {
             "task": "src.worker.run_ingestion",
             "schedule": crontab(minute=0, hour=8, day_of_week=1),  # Monday 08:00 UTC
+        },
+        "content-backfill-task": {
+            "task": "src.worker.run_content_backfill",
+            "schedule": CONTENT_BACKFILL_SCHEDULE,
         },
         # Phase 4B: Feature Store Automation
         "refresh-active-users-features": {
@@ -116,6 +144,29 @@ def run_ingestion(self):
         # Re-raise to trigger Celery retry
         raise
 
+    finally:
+        db.close()
+
+
+@celery_app.task
+def run_content_backfill():
+    """Scheduled task to backfill document content and obligations."""
+    from src.ingestion.backfill import ContentBackfillService
+
+    logger.info("Starting scheduled content backfill task via Celery")
+    db = SessionLocal()
+    try:
+        service = ContentBackfillService(db)
+        result = service.backfill_batch(limit=50, analyze=True)
+        logger.info(
+            "Content backfill completed: "
+            f"{result.get('filled', 0)}/{result.get('processed', 0)} filled, "
+            f"{result.get('errors', 0)} errors"
+        )
+        return result
+    except Exception as exc:
+        logger.error(f"Content backfill failed: {exc}")
+        raise
     finally:
         db.close()
 
