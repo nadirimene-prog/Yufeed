@@ -71,6 +71,10 @@ class Settings(BaseSettings):
     OPENAI_API_KEY: str = ""
     OPENAI_BASE_URL: str = "https://api.openai.com/v1"
     OPENAI_MODEL: str = "gpt-4.1"
+    OPENAI_RETRIES: int = 2
+    OPENAI_BACKOFF_SECONDS: float = 2.0
+    OPENAI_DELAY_SECONDS: float = 0.0
+    OPENAI_TIMEOUT_SECONDS: float = 60.0
     AI_DAILY_COST_THRESHOLD_USD: float = 10.0
     AI_COST_CHECK_SCHEDULE: str = "0 7 * * *"
     CONTENT_BACKFILL_SCHEDULE: str = "0 2 1 * *"

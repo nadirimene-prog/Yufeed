@@ -5,6 +5,7 @@ Uses LLM to classify documents, assess risk, and extract obligations.
 import json
 import logging
 import re
+import time
 import httpx
 from typing import Dict, List, Optional, Any
 from datetime import datetime, timezone
@@ -67,6 +68,10 @@ def _openai_chat(prompt: str, max_tokens: int, temperature: float = 0.3) -> str:
         raise RuntimeError("missing OPENAI_API_KEY")
     base_url = (settings.OPENAI_BASE_URL or "https://api.openai.com/v1").rstrip("/")
     model = settings.OPENAI_MODEL or "gpt-4.1"
+    retries = max(0, int(getattr(settings, "OPENAI_RETRIES", 2)))
+    backoff = max(0.1, float(getattr(settings, "OPENAI_BACKOFF_SECONDS", 2.0)))
+    delay = max(0.0, float(getattr(settings, "OPENAI_DELAY_SECONDS", 0.0)))
+    timeout_s = max(1.0, float(getattr(settings, "OPENAI_TIMEOUT_SECONDS", 60.0)))
     payload = {
         "model": model,
         "messages": [{"role": "user", "content": prompt}],
@@ -74,15 +79,37 @@ def _openai_chat(prompt: str, max_tokens: int, temperature: float = 0.3) -> str:
         "max_tokens": max_tokens,
     }
     headers = {"Authorization": f"Bearer {api_key}"}
-    response = httpx.post(
-        f"{base_url}/chat/completions",
-        headers=headers,
-        json=payload,
-        timeout=60.0,
-    )
-    response.raise_for_status()
-    data = response.json()
-    return data["choices"][0]["message"]["content"]
+    last_exc: Optional[Exception] = None
+    for attempt in range(retries + 1):
+        if delay:
+            time.sleep(delay)
+        try:
+            response = httpx.post(
+                f"{base_url}/chat/completions",
+                headers=headers,
+                json=payload,
+                timeout=timeout_s,
+            )
+            if response.status_code == 429 and attempt < retries:
+                retry_after = response.headers.get("Retry-After")
+                try:
+                    sleep_s = float(retry_after) if retry_after else backoff * (2 ** attempt)
+                except ValueError:
+                    sleep_s = backoff * (2 ** attempt)
+                time.sleep(sleep_s)
+                continue
+            response.raise_for_status()
+            data = response.json()
+            return data["choices"][0]["message"]["content"]
+        except Exception as exc:
+            last_exc = exc
+            if attempt < retries:
+                time.sleep(backoff * (2 ** attempt))
+                continue
+            raise
+    if last_exc:
+        raise last_exc
+    raise RuntimeError("OpenAI request failed")
 
 
 def _classify_heuristic(title: str) -> str:
