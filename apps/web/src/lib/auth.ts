@@ -81,11 +81,19 @@ export function getAuthToken(): string | null {
       window.localStorage.getItem(key) ||
       window.sessionStorage.getItem(key);
     if (!value) continue;
-    if (isJwtTokenValid(value)) {
-      return value;
+    if (!isJwtTokenValid(value)) {
+      window.localStorage.removeItem(key);
+      window.sessionStorage.removeItem(key);
+      continue;
     }
-    window.localStorage.removeItem(key);
-    window.sessionStorage.removeItem(key);
+    const payload = decodeJwtPayload(value);
+    if (!payload?.tenant_id) {
+      // Tenant-scoped API requires tenant_id in the JWT. Treat tenant-less tokens as invalid.
+      window.localStorage.removeItem(key);
+      window.sessionStorage.removeItem(key);
+      continue;
+    }
+    return value;
   }
 
   return null;
