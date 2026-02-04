@@ -2,6 +2,7 @@
 
 import React, { createContext, useContext, ReactNode } from 'react';
 import { useWebSocket, UseWebSocketReturn } from '@/hooks/useWebSocket';
+import { useApiHealth } from '@/hooks/useApiHealth';
 
 /**
  * WebSocket Provider and Context
@@ -18,8 +19,10 @@ interface WebSocketProviderProps {
 }
 
 export function WebSocketProvider({ children, enabled = true }: WebSocketProviderProps) {
+  const { status } = useApiHealth();
+  const isApiHealthy = status === "ok";
   const websocket = useWebSocket({
-    enabled,
+    enabled: enabled && isApiHealthy,
     showToasts: true,
     onConnected: () => {
       console.log('[WebSocketProvider] Connected to real-time notifications');

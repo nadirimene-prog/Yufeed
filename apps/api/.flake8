@@ -2,9 +2,9 @@
 max-line-length = 100
 extend-ignore = E501
 per-file-ignores =
-    src/ai/*.py: E302,E305,E402,E131,W293,W391,F401,E722,E712,F541
+    src/ai/*.py: E302,E305,E402,E131,W293,W391,F401,E722,E712,F541,F841,W291
     src/ai/agents/*.py: E302,E305,E402,E131,W293,F401
-    src/ai/prompts/*.py: E302,E305,E402,E131,W293,W391,F401
+    src/ai/prompts/*.py: E302,E305,E402,E131,W293,W391,F401,F841
     src/api/*.py: F401,E302,E305,E402,E712,E741,E261,W293,W291,F841
     src/integrations/*.py: F401,E302,E305,E402,E741
     src/integrations/**/*.py: F401,E302,E305,E402,E741

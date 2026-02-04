@@ -80,6 +80,7 @@ export function useWebSocket(options: UseWebSocketOptions = {}): UseWebSocketRet
   const wsRef = useRef<WebSocket | null>(null);
   const reconnectTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const reconnectAttemptsRef = useRef(0);
+  const errorLoggedRef = useRef(false);
   const connectRef = useRef<() => void>(() => {});
   const maxReconnectAttempts = 10;
   const baseReconnectDelay = 1000; // 1 second
@@ -189,6 +190,7 @@ export function useWebSocket(options: UseWebSocketOptions = {}): UseWebSocketRet
       console.log('[WebSocket] Connecting to:', wsUrl.replace(/token=[^&]+/, 'token=***'));
 
       setConnectionStatus('connecting');
+      errorLoggedRef.current = false;
       const ws = new WebSocket(wsUrl);
 
       ws.onopen = () => {
@@ -202,7 +204,10 @@ export function useWebSocket(options: UseWebSocketOptions = {}): UseWebSocketRet
       ws.onmessage = handleMessage;
 
       ws.onerror = (error) => {
-        console.error('[WebSocket] Error:', error);
+        if (!errorLoggedRef.current) {
+          console.warn('[WebSocket] Error:', error);
+          errorLoggedRef.current = true;
+        }
         setConnectionStatus('error');
       };
 
@@ -213,8 +218,13 @@ export function useWebSocket(options: UseWebSocketOptions = {}): UseWebSocketRet
         wsRef.current = null;
         opts.onDisconnected?.();
 
+        const shouldRetry =
+          opts.enabled &&
+          reconnectAttemptsRef.current < maxReconnectAttempts &&
+          event.code !== 1008; // Policy violation (likely invalid/missing token)
+
         // Auto-reconnect with exponential backoff
-        if (opts.enabled && reconnectAttemptsRef.current < maxReconnectAttempts) {
+        if (shouldRetry) {
           const delay = Math.min(
             baseReconnectDelay * Math.pow(2, reconnectAttemptsRef.current),
             30000 // Max 30 seconds
@@ -229,6 +239,8 @@ export function useWebSocket(options: UseWebSocketOptions = {}): UseWebSocketRet
         } else if (reconnectAttemptsRef.current >= maxReconnectAttempts) {
           console.error('[WebSocket] Max reconnection attempts reached');
           toast.error('Lost connection to server. Please refresh the page.', { duration: 10000 });
+        } else if (event.code === 1008) {
+          toast.error('WebSocket authentication failed. Please log in again.', { duration: 8000 });
         }
       };
 

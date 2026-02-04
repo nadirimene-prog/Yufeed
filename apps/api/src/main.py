@@ -33,6 +33,7 @@ logger = logging.getLogger(__name__)
 from src.middleware import limiter, custom_rate_limit_handler, configure_redis_storage
 from src.middleware.audit_log import AuditLogMiddleware
 from src.monitoring.metrics import setup_metrics
+from src.monitoring.logging_config import setup_logging, LoggingMiddleware
 from src.config import settings
 from src.tenancy.middleware import TenantMiddleware
 from slowapi.errors import RateLimitExceeded
@@ -53,6 +54,8 @@ app.add_exception_handler(RateLimitExceeded, custom_rate_limit_handler)
 @app.on_event("startup")
 async def startup_event():
     """Configure services on startup."""
+    # Ensure logging is configured before any other startup logs
+    setup_logging()
     # Configure Redis for rate limiting (enables distributed rate limiting)
     if settings.REDIS_URL:
         configure_redis_storage(settings.REDIS_URL)
@@ -101,6 +104,9 @@ FastAPIInstrumentor().instrument_app(app)
 
 # Register tenant context middleware before audit logging
 app.add_middleware(TenantMiddleware)
+
+# Log all requests with request/correlation IDs
+app.add_middleware(LoggingMiddleware)
 
 # Register the audit‑log middleware (runs on every request)
 app.add_middleware(AuditLogMiddleware)

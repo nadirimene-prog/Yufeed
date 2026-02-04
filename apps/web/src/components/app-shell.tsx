@@ -7,6 +7,7 @@ import Sidebar from "@/components/sidebar";
 import ToastProvider from "@/components/ToastProvider";
 import { CommandMenu } from "@/components/command-menu";
 import { WebSocketProvider } from "@/components/WebSocketProvider";
+import ApiHealthBanner from "@/components/ApiHealthBanner";
 
 const CHROMELESS_ROUTES = new Set(["/", "/forgot-password", "/request-access"]);
 
@@ -33,6 +34,7 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
               : "container mx-auto py-6 px-4 md:px-8 max-w-7xl"
           )}
         >
+          {!isChromeless && <ApiHealthBanner />}
           {children}
         </main>
       </div>
