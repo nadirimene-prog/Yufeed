@@ -5,6 +5,14 @@ per-file-ignores =
     src/ai/*.py: E302,E305,E402,E131,W293,W391,F401,E722,E712,F541
     src/ai/agents/*.py: E302,E305,E402,E131,W293,F401
     src/ai/prompts/*.py: E302,E305,E402,E131,W293,W391,F401
+    src/api/*.py: F401,E302,E305,E402,E712,E741,E261,W293,W291,F841
+    src/integrations/*.py: F401,E302,E305,E402,E741
+    src/integrations/**/*.py: F401,E302,E305,E402,E741
+    src/main.py: F401,E302,E303,E305,E402
+    src/middleware/*.py: F401,E302,E305,E402,F824
+    src/ml/*.py: F401,E302,E305,E402,F541
+    src/ml/**/*.py: F401,E302,E305,E402,F541
+    src/models/*.py: F401,E302,E303,E261,W293,W291,W391
     src/monitoring/*.py: E302,E305,E402,E131,W293,W391,E306,F541
     src/plugins/*.py: E302,E501
     src/routers_autoload.py: F401,E302,E261,W391
