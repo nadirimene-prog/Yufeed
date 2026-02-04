@@ -11,7 +11,6 @@ Tenant extraction order:
 4. Query parameter (?tenant_id=xxx)
 """
 import logging
-import hashlib
 import os
 import asyncio
 from concurrent.futures import ThreadPoolExecutor
@@ -26,7 +25,7 @@ from jose import JWTError
 from src.tenancy.context import set_current_tenant, clear_current_tenant
 from src.auth.jwt_handler import JWTHandler
 from src.database import SessionLocal
-from src.models.tenant_models import TenantAPIKey, Tenant
+from src.auth.api_key import resolve_api_key
 
 # Thread pool for running sync DB operations without blocking the event loop
 _db_executor = ThreadPoolExecutor(max_workers=4, thread_name_prefix="tenant_db_")
@@ -180,7 +179,7 @@ class TenantMiddleware(BaseHTTPMiddleware):
             loop = asyncio.get_event_loop()
             return await loop.run_in_executor(
                 _db_executor,
-                partial(self._validate_api_key_sync, api_key)
+                partial(self._resolve_api_key_sync, api_key)
             )
 
         except Exception as e:
@@ -188,32 +187,16 @@ class TenantMiddleware(BaseHTTPMiddleware):
 
         return None
 
-    def _validate_api_key_sync(self, api_key: str) -> Optional[str]:
-        """Sync helper to validate API key in database."""
+    def _resolve_api_key_sync(self, api_key: str) -> Optional[str]:
+        """Sync helper to resolve API key in database."""
         db = SessionLocal()
         try:
-            # Hash the API key for lookup
-            key_hash = hashlib.sha256(api_key.encode()).hexdigest()
-
-            api_key_record = db.query(TenantAPIKey).filter(
-                TenantAPIKey.key_hash == key_hash,
-                TenantAPIKey.is_active == True,
-            ).first()
-
-            if not api_key_record:
+            resolved = resolve_api_key(db, api_key, update_usage=True)
+            if not resolved:
                 logger.warning(f"Invalid API key: {api_key[:20]}...")
                 return None
-
-            # Update last used
-            from datetime import datetime, timezone
-            api_key_record.last_used_at = datetime.now(timezone.utc)
-            api_key_record.usage_count = (api_key_record.usage_count or 0) + 1
-            db.commit()
-
-            # Get tenant_id from the key record
-            tenant = db.query(Tenant).filter(Tenant.id == api_key_record.tenant_id).first()
-            if tenant:
-                return tenant.tenant_id
+            tenant_id, _ = resolved
+            return tenant_id
 
         finally:
             db.close()

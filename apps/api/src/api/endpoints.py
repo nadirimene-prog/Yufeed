@@ -1,19 +1,53 @@
-from fastapi import APIRouter, Depends, HTTPException, Query, Request
+from fastapi import APIRouter, Depends, HTTPException, Query, Request, Response
 from sqlalchemy.orm import Session
-from typing import List, Optional, Dict, Any
+from typing import Optional, Dict, Any, List
 from datetime import datetime
 from src.database import get_db
 from src import models
 from src.schemas import schemas
+from src.schemas import transaction_schemas
 from src.search import search_documents
 from src.ingestion.diff_analyzer import DiffAnalyzer
+from src.api import monitoring_rules as monitoring_rules_api
 from src.auth.dependencies import get_current_user
-from src.tenancy.queries import get_tenant_filtered_query, set_tenant_on_create, require_tenant
+from src.tenancy.queries import require_tenant
 from src.middleware import limiter, RateLimits
 
 router = APIRouter(
     dependencies=[Depends(get_current_user), Depends(require_tenant)]
 )
+
+_DEPRECATION_WARNING = '299 - "Deprecated endpoint; use /api/monitoring-rules"'
+
+
+def _set_deprecation_headers(response: Response) -> None:
+    response.headers["Warning"] = _DEPRECATION_WARNING
+    response.headers["X-Deprecated"] = "true"
+    response.headers["X-Deprecated-Use"] = "/api/monitoring-rules"
+
+
+def _legacy_rule_from_model(rule: models.MonitoringRule) -> schemas.MonitoringRuleRead:
+    return schemas.MonitoringRuleRead(
+        id=rule.id,
+        rule_id=rule.rule_id,
+        name=rule.name,
+        description=rule.description,
+        category=rule.category,
+        severity=rule.severity,
+        priority=rule.priority,
+        enabled=rule.enabled,
+        is_template=rule.is_template,
+        conditions_json=rule.conditions,
+        aggregation_json=rule.thresholds,
+        regulatory_source_id=rule.regulatory_source_id,
+        regulation_article=rule.regulation_article,
+        regulatory_requirement=rule.regulatory_requirement,
+        alert_count=rule.alert_count,
+        true_positive_rate=rule.true_positive_rate,
+        false_positive_rate=rule.false_positive_rate,
+        created_at=rule.created_at,
+        updated_at=rule.updated_at,
+    )
 
 @router.get("/search", response_model=schemas.SearchResponse)
 @limiter.limit(RateLimits.SEARCH)
@@ -59,34 +93,6 @@ def get_document(request: Request, celex: str, db: Session = Depends(get_db)):
     if not db_doc:
         raise HTTPException(status_code=404, detail="Document not found")
     return db_doc
-
-# --- Monitoring Rules Management ---
-
-@router.post("/rules", response_model=schemas.MonitoringRuleRead)
-@limiter.limit(RateLimits.CREATE)
-def create_rule(request: Request, rule: schemas.MonitoringRuleCreate, db: Session = Depends(get_db)):
-    db_rule = models.MonitoringRule(**rule.model_dump())
-    set_tenant_on_create(db_rule)
-    db.add(db_rule)
-    db.commit()
-    db.refresh(db_rule)
-    return db_rule
-
-@router.get("/rules", response_model=List[schemas.MonitoringRuleRead])
-@limiter.limit(RateLimits.READ)
-def read_rules(request: Request, skip: int = 0, limit: int = 100, db: Session = Depends(get_db)):
-    query = get_tenant_filtered_query(models.MonitoringRule, db)
-    return query.offset(skip).limit(limit).all()
-
-@router.get("/rules/{rule_id}", response_model=schemas.MonitoringRuleRead)
-@limiter.limit(RateLimits.READ)
-def get_rule(request: Request, rule_id: str, db: Session = Depends(get_db)):
-    db_rule = get_tenant_filtered_query(models.MonitoringRule, db).filter(
-        models.MonitoringRule.rule_id == rule_id
-    ).first()
-    if not db_rule:
-        raise HTTPException(status_code=404, detail="Rule not found")
-    return db_rule
 
 @router.get("/documents/{celex}/versions")
 @limiter.limit(RateLimits.READ)
@@ -198,3 +204,71 @@ def compare_document_versions(
             },
             "diff": diff_result
         }
+
+
+# --- Legacy Monitoring Rules Management (Deprecated) ---
+
+@router.post("/rules", response_model=schemas.MonitoringRuleRead, deprecated=True)
+@limiter.limit(RateLimits.CREATE)
+def create_rule(
+    request: Request,
+    rule: schemas.MonitoringRuleCreate,
+    response: Response,
+    db: Session = Depends(get_db),
+):
+    _set_deprecation_headers(response)
+    new_rule_payload = transaction_schemas.MonitoringRuleCreate(
+        name=rule.name,
+        description=rule.description,
+        category=rule.category,
+        severity=rule.severity,
+        conditions=rule.conditions_json,
+        thresholds=rule.aggregation_json,
+        regulatory_source_id=rule.regulatory_source_id,
+        regulation_article=rule.regulation_article,
+        regulatory_requirement=rule.regulatory_requirement,
+        enabled=rule.enabled,
+    )
+    created = monitoring_rules_api.create_rule(new_rule_payload, db)
+
+    if rule.priority is not None or rule.is_template:
+        created.priority = rule.priority
+        created.is_template = rule.is_template
+        version = db.query(models.RuleVersion).filter(
+            models.RuleVersion.rule_id == created.id,
+            models.RuleVersion.version_number == created.version,
+        ).first()
+        if version:
+            version.priority = created.priority
+        db.commit()
+        db.refresh(created)
+
+    return _legacy_rule_from_model(created)
+
+
+@router.get("/rules", response_model=List[schemas.MonitoringRuleRead], deprecated=True)
+@limiter.limit(RateLimits.READ)
+def read_rules(
+    request: Request,
+    response: Response,
+    skip: int = 0,
+    limit: int = 100,
+    db: Session = Depends(get_db),
+):
+    _set_deprecation_headers(response)
+    rules = monitoring_rules_api.list_rules(skip, limit, None, None, None, db)
+    return [_legacy_rule_from_model(rule) for rule in rules]
+
+
+@router.get("/rules/{rule_id}", response_model=schemas.MonitoringRuleRead, deprecated=True)
+@limiter.limit(RateLimits.READ)
+def get_rule(
+    request: Request,
+    rule_id: str,
+    response: Response,
+    tenant_id: str = Depends(require_tenant),
+    db: Session = Depends(get_db),
+):
+    _set_deprecation_headers(response)
+    rule = monitoring_rules_api.get_rule(rule_id, db, tenant_id)
+    return _legacy_rule_from_model(rule)

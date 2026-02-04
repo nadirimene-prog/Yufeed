@@ -12,7 +12,7 @@ import logging
 
 from src.auth.jwt_handler import JWTHandler
 from src.database import get_db
-from src.models.tenant_models import TenantAPIKey, Tenant
+from src.auth.api_key import resolve_api_key
 
 logger = logging.getLogger(__name__)
 
@@ -119,29 +119,19 @@ async def get_current_user(
         # Fallback: API key auth
         api_key = request.headers.get("X-API-Key") if request else None
         if api_key and api_key.startswith("yk_"):
-            import hashlib
-
-            key_hash = hashlib.sha256(api_key.encode()).hexdigest()
-            api_key_record = db.query(TenantAPIKey).filter(
-                TenantAPIKey.key_hash == key_hash,
-                TenantAPIKey.is_active == True,
-            ).first()
-            if api_key_record:
-                tenant = db.query(Tenant).filter(
-                    Tenant.id == api_key_record.tenant_id,
-                    Tenant.is_active == True,
-                ).first()
-                if tenant:
-                    current_user = CurrentUser(
-                        user_id=f"api_key:{api_key_record.key_prefix}",
-                        email="api_key@yufeed.local",
-                        role="api_key",
-                        tenant_id=tenant.tenant_id,
-                        is_superuser=False,
-                    )
-                    if request is not None:
-                        request.state.user = current_user
-                    return current_user
+            resolved = resolve_api_key(db, api_key, update_usage=True)
+            if resolved:
+                tenant_id, key_prefix = resolved
+                current_user = CurrentUser(
+                    user_id=f"api_key:{key_prefix}",
+                    email="api_key@yufeed.local",
+                    role="api_key",
+                    tenant_id=tenant_id,
+                    is_superuser=False,
+                )
+                if request is not None:
+                    request.state.user = current_user
+                return current_user
             raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid API key")
 
         raise credentials_exception

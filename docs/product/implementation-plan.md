@@ -365,12 +365,13 @@ Build natural language rule creation and ML model monitoring
 
 **API Endpoints:**
 ```
-POST /api/rules/parse-nlp          # NLP → Rule DSL
-POST /api/rules/validate           # Conflict detection
-POST /api/rules/backtest           # Historical testing
-POST /api/rules/deploy             # Deploy with mode
-GET  /api/rules/{id}/shadow-stats  # Shadow mode results
+POST /api/monitoring-rules/parse-nlp          # NLP → Rule DSL
+POST /api/monitoring-rules/validate           # Conflict detection
+POST /api/monitoring-rules/backtest           # Historical testing
+POST /api/monitoring-rules/deploy             # Deploy with mode
+GET  /api/monitoring-rules/{id}/shadow-stats  # Shadow mode results
 ```
+Note: Legacy `/api/rules/*` is deprecated; prefer `/api/monitoring-rules/*`.
 
 **Files to Create:**
 ```
