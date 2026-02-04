@@ -3,7 +3,7 @@ services:
     build:
       context: ./apps/web
       dockerfile: Dockerfile.dev
-    command: npm run dev
+    command: npm run dev -- --webpack --hostname 0.0.0.0
     volumes:
       - ./apps/web:/app
       - /app/node_modules
@@ -12,3 +12,4 @@ services:
       - NEXT_PUBLIC_API_URL=http://localhost:8000
       - API_INTERNAL_URL=http://api:8000
       - NODE_ENV=development
+      - NEXT_DISABLE_TURBOPACK=1

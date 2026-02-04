@@ -276,12 +276,13 @@ services:
       context: ./apps/web
       dockerfile: Dockerfile
     container_name: yufeed-web
-    command: npm run dev
+    command: ./node_modules/.bin/next dev --webpack
     depends_on:
       api:
         condition: service_healthy
     environment:
       NODE_ENV: development
+      NEXT_DISABLE_TURBOPACK: "1"
       NEXT_PUBLIC_API_URL: http://localhost:8000
       API_INTERNAL_URL: http://api:8000
     ports:
