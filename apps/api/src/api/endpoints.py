@@ -2,6 +2,7 @@ from fastapi import APIRouter, Depends, HTTPException, Query, Request, Response
 from sqlalchemy.orm import Session
 from typing import Optional, Dict, Any, List
 from datetime import datetime
+import logging
 from src.database import get_db
 from src import models
 from src.schemas import schemas
@@ -17,6 +18,8 @@ router = APIRouter(
     dependencies=[Depends(get_current_user), Depends(require_tenant)]
 )
 
+logger = logging.getLogger(__name__)
+
 _DEPRECATION_WARNING = '299 - "Deprecated endpoint; use /api/monitoring-rules"'
 
 
@@ -24,6 +27,12 @@ def _set_deprecation_headers(response: Response) -> None:
     response.headers["Warning"] = _DEPRECATION_WARNING
     response.headers["X-Deprecated"] = "true"
     response.headers["X-Deprecated-Use"] = "/api/monitoring-rules"
+
+def _log_deprecation(request: Request) -> None:
+    logger.warning(
+        "Deprecated endpoint used",
+        extra={"path": request.url.path, "method": request.method},
+    )
 
 
 def _legacy_rule_from_model(rule: models.MonitoringRule) -> schemas.MonitoringRuleRead:
@@ -217,6 +226,7 @@ def create_rule(
     db: Session = Depends(get_db),
 ):
     _set_deprecation_headers(response)
+    _log_deprecation(request)
     new_rule_payload = transaction_schemas.MonitoringRuleCreate(
         name=rule.name,
         description=rule.description,
@@ -256,6 +266,7 @@ def read_rules(
     db: Session = Depends(get_db),
 ):
     _set_deprecation_headers(response)
+    _log_deprecation(request)
     rules = monitoring_rules_api.list_rules(skip, limit, None, None, None, db)
     return [_legacy_rule_from_model(rule) for rule in rules]
 
@@ -270,5 +281,6 @@ def get_rule(
     db: Session = Depends(get_db),
 ):
     _set_deprecation_headers(response)
+    _log_deprecation(request)
     rule = monitoring_rules_api.get_rule(rule_id, db, tenant_id)
     return _legacy_rule_from_model(rule)
