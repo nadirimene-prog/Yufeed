@@ -4,6 +4,7 @@ extend-ignore = E501
 per-file-ignores =
     src/ai/*.py: E302,E305,E402,E131,W293,W391,F401,E722,E712,F541
     src/ai/agents/*.py: E302,E305,E402,E131,W293,F401
+    src/ai/prompts/*.py: E302,E305,E402,E131,W293,W391,F401
     src/monitoring/*.py: E302,E305,E402,E131,W293,W391,E306,F541
     src/plugins/*.py: E302,E501
     src/routers_autoload.py: F401,E302,E261,W391
