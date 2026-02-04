@@ -89,16 +89,6 @@ def _openapi_alias():
 
 register_routers(app)
 
-# --- CORS Configuration ---
-raw_origins = os.getenv("ALLOWED_ORIGINS", "http://localhost:3000")
-allowed_origins = [o.strip() for o in raw_origins.split(",") if o.strip()]
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=allowed_origins,
-    allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
-)
 Instrumentator().instrument(app).expose(app, endpoint="/metrics", include_in_schema=False)
 FastAPIInstrumentor().instrument_app(app)
 
@@ -110,6 +100,19 @@ app.add_middleware(LoggingMiddleware)
 
 # Register the audit‑log middleware (runs on every request)
 app.add_middleware(AuditLogMiddleware)
+
+# --- CORS Configuration ---
+# IMPORTANT: CORS must be added LAST so it runs FIRST (LIFO order)
+# This ensures preflight OPTIONS requests are handled before other middleware
+raw_origins = os.getenv("ALLOWED_ORIGINS", "http://localhost:3000")
+allowed_origins = [o.strip() for o in raw_origins.split(",") if o.strip()]
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=allowed_origins,
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 
 # ----------------------------------------------------------------------
 # CORS & rate‑limiting (keep your existing configuration)

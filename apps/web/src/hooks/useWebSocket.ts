@@ -82,8 +82,10 @@ export function useWebSocket(options: UseWebSocketOptions = {}): UseWebSocketRet
   const reconnectAttemptsRef = useRef(0);
   const errorLoggedRef = useRef(false);
   const connectRef = useRef<() => void>(() => {});
+  const heartbeatRef = useRef<NodeJS.Timeout | null>(null);
   const maxReconnectAttempts = 10;
   const baseReconnectDelay = 1000; // 1 second
+  const heartbeatIntervalMs = 25000;
 
   const getValidToken = useCallback(() => {
     const token = getAuthToken();
@@ -105,6 +107,11 @@ export function useWebSocket(options: UseWebSocketOptions = {}): UseWebSocketRet
 
   const getWebSocketUrl = useCallback(() => {
     const token = getValidToken();
+    const wsOverride = process.env.NEXT_PUBLIC_WS_URL;
+    if (wsOverride) {
+      const normalized = wsOverride.replace(/\/$/, '');
+      return `${normalized}${token ? `?token=${token}` : ''}`;
+    }
     const wsProtocol = opts.apiUrl?.startsWith('https') ? 'wss' : 'ws';
     const baseUrl = opts.apiUrl?.replace(/^https?:\/\//, '') || 'localhost:8000';
     return `${wsProtocol}://${baseUrl}/ws${token ? `?token=${token}` : ''}`;
@@ -198,6 +205,14 @@ export function useWebSocket(options: UseWebSocketOptions = {}): UseWebSocketRet
         setIsConnected(true);
         setConnectionStatus('connected');
         reconnectAttemptsRef.current = 0;
+        if (heartbeatRef.current) {
+          clearInterval(heartbeatRef.current);
+        }
+        heartbeatRef.current = setInterval(() => {
+          if (wsRef.current?.readyState === WebSocket.OPEN) {
+            wsRef.current.send(JSON.stringify({ type: 'ping' }));
+          }
+        }, heartbeatIntervalMs);
         opts.onConnected?.();
       };
 
@@ -216,6 +231,10 @@ export function useWebSocket(options: UseWebSocketOptions = {}): UseWebSocketRet
         setIsConnected(false);
         setConnectionStatus('disconnected');
         wsRef.current = null;
+        if (heartbeatRef.current) {
+          clearInterval(heartbeatRef.current);
+          heartbeatRef.current = null;
+        }
         opts.onDisconnected?.();
 
         const shouldRetry =
@@ -259,6 +278,10 @@ export function useWebSocket(options: UseWebSocketOptions = {}): UseWebSocketRet
     if (reconnectTimeoutRef.current) {
       clearTimeout(reconnectTimeoutRef.current);
       reconnectTimeoutRef.current = null;
+    }
+    if (heartbeatRef.current) {
+      clearInterval(heartbeatRef.current);
+      heartbeatRef.current = null;
     }
 
     if (wsRef.current) {

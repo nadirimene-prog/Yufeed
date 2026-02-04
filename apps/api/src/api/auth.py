@@ -177,6 +177,23 @@ async def _resolve_tenant_context(
         )
 
     if user.is_superuser:
+        result = await db.execute(
+            select(Tenant.tenant_id).where(
+                Tenant.is_active == True,
+                Tenant.deleted_at.is_(None),
+            )
+        )
+        tenant_ids = sorted({row[0] for row in result.all() if row and row[0]})
+        if len(tenant_ids) == 1:
+            return tenant_ids[0], "admin"
+        if len(tenant_ids) > 1:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail={
+                    "message": "Tenant selection required",
+                    "available_tenants": tenant_ids,
+                },
+            )
         return None, "admin"
 
     raise HTTPException(

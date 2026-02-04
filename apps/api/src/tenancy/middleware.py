@@ -26,6 +26,7 @@ from src.tenancy.context import set_current_tenant, clear_current_tenant
 from src.auth.jwt_handler import JWTHandler
 from src.database import SessionLocal
 from src.auth.api_key import resolve_api_key
+from src.models.tenant_models import Tenant
 
 # Thread pool for running sync DB operations without blocking the event loop
 _db_executor = ThreadPoolExecutor(max_workers=4, thread_name_prefix="tenant_db_")
