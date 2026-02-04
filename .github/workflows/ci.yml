@@ -6,6 +6,10 @@ on:
   pull_request:
     branches: [ main, develop ]
 
+permissions:
+  contents: read
+  security-events: write
+
 jobs:
   backend-tests:
     name: Backend Tests
@@ -142,6 +146,7 @@ jobs:
         uses: docker/build-push-action@v5
         with:
           context: ./apps/api
+          file: ./apps/api/Dockerfile
           push: false
           tags: yufeed-api:test
           cache-from: type=gha
@@ -151,6 +156,7 @@ jobs:
         uses: docker/build-push-action@v5
         with:
           context: ./apps/web
+          file: ./apps/web/Dockerfile
           push: false
           tags: yufeed-web:test
           cache-from: type=gha

@@ -76,7 +76,7 @@ export default function ResultsTable({ results, isLoading }: ResultsTableProps) 
                                 </td>
                                 <td className="px-6 py-4 text-gray-600 dark:text-gray-400">
                                     <div className="flex items-center gap-2">
-                                        {getTypeIcon(doc.type)}
+                                        {getTypeIcon()}
                                         <span>{doc.type}</span>
                                     </div>
                                 </td>
