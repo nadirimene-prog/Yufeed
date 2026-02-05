@@ -119,7 +119,9 @@ async def get_current_user(
         # Fallback: API key auth
         api_key = request.headers.get("X-API-Key") if request else None
         if api_key and api_key.startswith("yk_"):
-            resolved = resolve_api_key(db, api_key, update_usage=True)
+            # Usage tracking is handled in TenantMiddleware to ensure we only
+            # count each request once.
+            resolved = resolve_api_key(db, api_key, update_usage=False)
             if resolved:
                 tenant_id, key_prefix = resolved
                 current_user = CurrentUser(
