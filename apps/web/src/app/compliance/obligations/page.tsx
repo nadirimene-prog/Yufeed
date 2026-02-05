@@ -44,7 +44,7 @@ export default function ObligationsPage() {
   const [statusFilter, setStatusFilter] = useState("pending");
   const [jurisdictionFilter, setJurisdictionFilter] = useState("all");
   const [sourceFilter, setSourceFilter] = useState("all");
-  const [scopeFilter, setScopeFilter] = useState("psp,eme,vasp");
+  const [scopeFilter, setScopeFilter] = useState("all");
   const [query, setQuery] = useState("");
   const [page, setPage] = useState(0);
   const [actionLoading, setActionLoading] = useState<string | null>(null);

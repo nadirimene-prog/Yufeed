@@ -25,9 +25,8 @@ class ContentExtractor:
 
     def __init__(self):
         self.session = requests.Session()
-        self.session.headers.update({
-            'User-Agent': 'Mozilla/5.0 (compatible; EULegalMonitor/1.0)'
-        })
+        # NOTE: publications.europa.eu can return intermittent 5xx/504 responses when a custom
+        # User-Agent is set. Rely on requests' default UA for stability.
 
     def extract_content(self, celex: str, language: str = "EN") -> Optional[Dict[str, Any]]:
         """

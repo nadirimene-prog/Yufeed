@@ -102,6 +102,13 @@ celery_app.conf.update(
     },
 )
 
+# Register tasks declared under src.tasks (used by beat_schedule entries with "tasks.*").
+# We keep this import local to avoid circular import issues until celery_app is defined.
+try:  # pragma: no cover - defensive; task modules may be optional in some deploys
+    import src.tasks  # noqa: F401
+except Exception as exc:
+    logger.warning("Failed to import src.tasks for Celery registration: %s", exc)
+
 
 @celery_app.task(
     bind=True,

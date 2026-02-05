@@ -65,6 +65,7 @@ def register_routers(app: FastAPI) -> None:
     include_with_api_prefix(r25)
     from .api.websocket import router as r26
     include_with_api_prefix(r26)
+    from .api.ingestion import router as r30
+    include_with_api_prefix(r30)
     from .monitoring.metrics import router as r27
     app.include_router(r27) # Metrics usually aren't prefixed with /api
-
