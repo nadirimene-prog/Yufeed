@@ -82,6 +82,23 @@ celery_app.conf.update(
             "schedule": crontab(minute=0, hour=3, day_of_week=1),  # Monday 3 AM
             "args": ("models/alert_triage/latest.joblib",),
         },
+        # Compliance deadline alerts - daily at 9 AM UTC
+        "check-obligation-deadlines": {
+            "task": "src.worker.check_obligation_deadlines",
+            "schedule": crontab(minute=0, hour=9),  # Daily at 09:00 UTC
+        },
+        # DLQ retry - every 4 hours
+        "retry-failed-ingestion": {
+            "task": "src.worker.retry_failed_ingestion_items",
+            "schedule": crontab(minute=0, hour="*/4"),  # Every 4 hours
+            "args": (10,),  # Process up to 10 items per run
+        },
+        # AI analysis retry - every 6 hours
+        "retry-failed-ai-analysis": {
+            "task": "src.worker.retry_failed_ai_analysis",
+            "schedule": crontab(minute=30, hour="*/6"),  # Every 6 hours at :30
+            "args": (10,),  # Process up to 10 items per run
+        },
     },
 )
 
@@ -92,6 +109,8 @@ celery_app.conf.update(
     default_retry_delay=300,  # 5 minutes
     autoretry_for=(Exception,),
     retry_backoff=True,
+    time_limit=3600,  # 1 hour hard limit
+    soft_time_limit=3000,  # 50 min soft limit (allows graceful shutdown)
 )
 def run_ingestion(self):
     """
@@ -148,7 +167,10 @@ def run_ingestion(self):
         db.close()
 
 
-@celery_app.task
+@celery_app.task(
+    time_limit=1800,  # 30 min hard limit
+    soft_time_limit=1500,  # 25 min soft limit
+)
 def run_content_backfill():
     """Scheduled task to backfill document content and obligations."""
     from src.ingestion.backfill import ContentBackfillService
@@ -171,7 +193,10 @@ def run_content_backfill():
         db.close()
 
 
-@celery_app.task
+@celery_app.task(
+    time_limit=3600,  # 1 hour hard limit
+    soft_time_limit=3000,  # 50 min soft limit
+)
 def run_manual_ingestion(source_keys: list = None, days_back: int = 30):
     """
     Manual ingestion task for ad-hoc runs.
@@ -245,3 +270,489 @@ def test_ingestion_alerts():
 
     success = send_ingestion_report(test_reports)
     return {"email_sent": success}
+
+
+@celery_app.task(
+    time_limit=600,  # 10 min hard limit per document
+    soft_time_limit=540,  # 9 min soft limit
+    autoretry_for=(Exception,),
+    max_retries=2,
+    retry_backoff=True,
+)
+def index_document_rag(doc_id: int):
+    """
+    Background task to index document chunks for RAG retrieval.
+
+    This task runs asynchronously after document ingestion to avoid
+    blocking the main ingestion pipeline with slow embedding operations.
+
+    Args:
+        doc_id: Database ID of the document to index
+
+    Returns:
+        Dict with indexing results
+
+    Example:
+        index_document_rag.delay(123)
+    """
+    from src.models import LegalDocument
+    from src.ai.rag_indexer import RAGIndexer
+
+    logger.info(f"Starting RAG indexing for document ID: {doc_id}")
+    db = SessionLocal()
+
+    try:
+        doc = db.query(LegalDocument).filter(LegalDocument.id == doc_id).first()
+        if not doc:
+            logger.warning(f"Document {doc_id} not found for RAG indexing")
+            return {"status": "not_found", "doc_id": doc_id}
+
+        if not doc.full_text:
+            logger.info(f"Document {doc_id} has no full_text, skipping RAG indexing")
+            return {"status": "skipped", "doc_id": doc_id, "reason": "no_content"}
+
+        rag_indexer = RAGIndexer(db)
+        rag_indexer.index_document(doc)
+
+        logger.info(f"RAG indexing completed for document {doc_id} ({doc.celex})")
+        return {
+            "status": "completed",
+            "doc_id": doc_id,
+            "celex": doc.celex,
+        }
+
+    except Exception as e:
+        logger.error(f"RAG indexing failed for document {doc_id}: {e}")
+        raise
+
+    finally:
+        db.close()
+
+
+@celery_app.task(
+    time_limit=1800,  # 30 min hard limit
+    soft_time_limit=1500,  # 25 min soft limit
+)
+def retry_failed_ingestion_items(limit: int = 10):
+    """
+    Retry failed ingestion items from the Dead Letter Queue.
+
+    Args:
+        limit: Maximum number of items to retry
+
+    Returns:
+        Dict with retry results
+    """
+    from src.models.compliance_workflow import FailedIngestionItem
+    from src.ingestion.processor import IngestionProcessor
+    from src.utils.time import utc_now
+
+    logger.info(f"Starting DLQ retry task, limit={limit}")
+    db = SessionLocal()
+
+    try:
+        # Find items ready for retry
+        items = db.query(FailedIngestionItem).filter(
+            FailedIngestionItem.status == "pending",
+            FailedIngestionItem.retry_count < FailedIngestionItem.max_retries,
+        ).order_by(FailedIngestionItem.created_at.asc()).limit(limit).all()
+
+        if not items:
+            logger.info("No failed items to retry")
+            return {"status": "completed", "retried": 0, "succeeded": 0, "failed": 0}
+
+        processor = IngestionProcessor(db)
+        retried = 0
+        succeeded = 0
+        failed = 0
+
+        for item in items:
+            retried += 1
+            item.retry_count += 1
+            item.last_retry_at = utc_now()
+            item.status = "retrying"
+            db.commit()
+
+            try:
+                import json
+                entry = json.loads(item.entry_json) if item.entry_json else {}
+                result = processor.process_entry(entry)
+
+                if result in ("new", "updated"):
+                    item.status = "resolved"
+                    succeeded += 1
+                    logger.info(f"Successfully retried item {item.id} ({item.celex})")
+                else:
+                    item.status = "pending" if item.retry_count < item.max_retries else "exhausted"
+                    failed += 1
+
+            except Exception as e:
+                item.error_message = str(e)
+                item.status = "pending" if item.retry_count < item.max_retries else "exhausted"
+                failed += 1
+                logger.warning(f"Retry failed for item {item.id}: {e}")
+
+            db.commit()
+
+        logger.info(f"DLQ retry completed: {retried} retried, {succeeded} succeeded, {failed} failed")
+        return {
+            "status": "completed",
+            "retried": retried,
+            "succeeded": succeeded,
+            "failed": failed,
+        }
+
+    except Exception as e:
+        logger.error(f"DLQ retry task failed: {e}")
+        raise
+
+    finally:
+        db.close()
+
+
+@celery_app.task(
+    time_limit=300,  # 5 min hard limit
+    soft_time_limit=240,  # 4 min soft limit
+)
+def check_obligation_deadlines():
+    """
+    Check for obligations with approaching deadlines and send alerts.
+
+    Checks for deadlines at 30, 14, and 7 days out, plus overdue items.
+    Sends email notifications and creates WebSocket events.
+
+    Returns:
+        Dict with alert results
+    """
+    from datetime import timedelta
+    from src.models.compliance_workflow import RegulatoryObligation
+    from src.models.models import LegalDocument
+    from src.utils.time import utc_now
+    from src.email_service import send_email
+    from src.config import settings
+
+    logger.info("Starting obligation deadline check")
+    db = SessionLocal()
+
+    try:
+        now = utc_now()
+        alerts_sent = {
+            "overdue": 0,
+            "7_days": 0,
+            "14_days": 0,
+            "30_days": 0,
+        }
+
+        # Define deadline windows
+        windows = [
+            ("overdue", now, None),  # Past due
+            ("7_days", now, now + timedelta(days=7)),
+            ("14_days", now + timedelta(days=7), now + timedelta(days=14)),
+            ("30_days", now + timedelta(days=14), now + timedelta(days=30)),
+        ]
+
+        all_alerts = []
+
+        for window_name, start, end in windows:
+            query = db.query(RegulatoryObligation).join(
+                LegalDocument, RegulatoryObligation.doc_id == LegalDocument.id
+            ).filter(
+                RegulatoryObligation.status.in_(["draft", "in_review", "approved"]),
+                RegulatoryObligation.effective_date.isnot(None),
+            )
+
+            if window_name == "overdue":
+                query = query.filter(RegulatoryObligation.effective_date < start)
+            else:
+                query = query.filter(
+                    RegulatoryObligation.effective_date >= start,
+                    RegulatoryObligation.effective_date < end,
+                )
+
+            obligations = query.all()
+
+            for obl in obligations:
+                doc = db.query(LegalDocument).filter(LegalDocument.id == obl.doc_id).first()
+                all_alerts.append({
+                    "window": window_name,
+                    "obligation_id": obl.obligation_id,
+                    "obligation_text": (obl.obligation_text or "")[:200],
+                    "article_ref": obl.article_ref,
+                    "deadline": obl.effective_date.isoformat() if obl.effective_date else None,
+                    "document_title": doc.title if doc else "Unknown",
+                    "celex": doc.celex if doc else obl.celex,
+                    "status": obl.status,
+                })
+                alerts_sent[window_name] += 1
+
+        # Send consolidated email if there are alerts
+        total_alerts = sum(alerts_sent.values())
+        if total_alerts > 0 and settings.ADMIN_EMAIL:
+            _send_deadline_alert_email(all_alerts, alerts_sent, settings.ADMIN_EMAIL)
+
+        logger.info(f"Deadline check completed: {alerts_sent}")
+        return {
+            "status": "completed",
+            "alerts": alerts_sent,
+            "total": total_alerts,
+        }
+
+    except Exception as e:
+        logger.error(f"Deadline check failed: {e}")
+        raise
+
+    finally:
+        db.close()
+
+
+def _send_deadline_alert_email(alerts: list, counts: dict, to_email: str) -> bool:
+    """Send consolidated deadline alert email."""
+    from src.email_service import send_email
+    from src.utils.time import utc_now
+
+    overdue_count = counts.get("overdue", 0)
+    urgent_count = counts.get("7_days", 0)
+
+    if overdue_count > 0:
+        subject = f"🚨 OVERDUE: {overdue_count} obligation(s) past deadline"
+        status_emoji = "🚨"
+    elif urgent_count > 0:
+        subject = f"⚠️ URGENT: {urgent_count} obligation(s) due within 7 days"
+        status_emoji = "⚠️"
+    else:
+        subject = f"📅 Compliance Deadline Report - {sum(counts.values())} upcoming"
+        status_emoji = "📅"
+
+    # Build HTML email
+    html = f"""
+    <!DOCTYPE html>
+    <html>
+    <head>
+        <style>
+            body {{ font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; }}
+            .header {{ background: {'#dc3545' if overdue_count > 0 else '#ffc107' if urgent_count > 0 else '#17a2b8'};
+                      color: white; padding: 20px; border-radius: 8px 8px 0 0; }}
+            .content {{ padding: 20px; background: #f8f9fa; }}
+            .stats {{ display: flex; gap: 20px; margin: 20px 0; flex-wrap: wrap; }}
+            .stat {{ background: white; padding: 15px; border-radius: 8px; text-align: center; min-width: 100px; }}
+            .stat-value {{ font-size: 24px; font-weight: bold; }}
+            .stat-label {{ font-size: 12px; color: #666; text-transform: uppercase; }}
+            .overdue {{ color: #dc3545; }}
+            .urgent {{ color: #ffc107; }}
+            .upcoming {{ color: #17a2b8; }}
+            .obligation {{ background: white; padding: 15px; margin: 10px 0; border-radius: 8px;
+                          border-left: 4px solid #007bff; }}
+            .obligation.overdue {{ border-left-color: #dc3545; }}
+            .obligation.urgent {{ border-left-color: #ffc107; }}
+        </style>
+    </head>
+    <body>
+        <div class="header">
+            <h1>{status_emoji} Compliance Deadline Alert</h1>
+            <p>Report generated at {utc_now().strftime('%Y-%m-%d %H:%M:%S UTC')}</p>
+        </div>
+        <div class="content">
+            <div class="stats">
+                <div class="stat">
+                    <div class="stat-value overdue">{counts.get('overdue', 0)}</div>
+                    <div class="stat-label">Overdue</div>
+                </div>
+                <div class="stat">
+                    <div class="stat-value urgent">{counts.get('7_days', 0)}</div>
+                    <div class="stat-label">Due in 7 days</div>
+                </div>
+                <div class="stat">
+                    <div class="stat-value">{counts.get('14_days', 0)}</div>
+                    <div class="stat-label">Due in 14 days</div>
+                </div>
+                <div class="stat">
+                    <div class="stat-value upcoming">{counts.get('30_days', 0)}</div>
+                    <div class="stat-label">Due in 30 days</div>
+                </div>
+            </div>
+
+            <h2>Obligation Details</h2>
+    """
+
+    # Group alerts by window
+    for window in ["overdue", "7_days", "14_days", "30_days"]:
+        window_alerts = [a for a in alerts if a["window"] == window]
+        if not window_alerts:
+            continue
+
+        window_label = {
+            "overdue": "🚨 Overdue",
+            "7_days": "⚠️ Due within 7 days",
+            "14_days": "📅 Due within 14 days",
+            "30_days": "📆 Due within 30 days",
+        }[window]
+
+        html += f"<h3>{window_label}</h3>"
+
+        for alert in window_alerts[:10]:  # Limit to 10 per category
+            css_class = "overdue" if window == "overdue" else "urgent" if window == "7_days" else ""
+            html += f"""
+            <div class="obligation {css_class}">
+                <strong>{alert['obligation_id']}</strong> - {alert['celex'] or 'N/A'}<br>
+                <small>Deadline: {alert['deadline'] or 'N/A'} | Status: {alert['status']}</small><br>
+                <p>{alert['obligation_text'][:200]}{'...' if len(alert['obligation_text']) > 200 else ''}</p>
+                <small>Document: {alert['document_title'][:100]}</small>
+            </div>
+            """
+
+        if len(window_alerts) > 10:
+            html += f"<p><em>... and {len(window_alerts) - 10} more</em></p>"
+
+    html += """
+            <hr>
+            <p style="color: #666; font-size: 12px;">
+                This is an automated compliance alert from Yufeed Sentinel.<br>
+                <a href="http://localhost:3000/obligations">View all obligations</a>
+            </p>
+        </div>
+    </body>
+    </html>
+    """
+
+    return send_email(to_email, subject, html)
+
+
+@celery_app.task(
+    time_limit=1800,  # 30 min hard limit
+    soft_time_limit=1500,  # 25 min soft limit
+)
+def retry_failed_ai_analysis(limit: int = 10):
+    """
+    Retry AI analysis for documents that failed during ingestion.
+
+    This task specifically handles items where source_key == "ai_analysis",
+    re-running the analysis and obligation seeding without re-ingesting the document.
+
+    Args:
+        limit: Maximum number of items to retry
+
+    Returns:
+        Dict with retry results
+    """
+    import json
+    from src.models.compliance_workflow import FailedIngestionItem
+    from src.models import LegalDocument
+    from src.ai.analyzer import analyze_document
+    from src.services.obligation_service import seed_obligations_for_doc
+    from src.compliance.scope import infer_scope_tags
+    from src.utils.time import utc_now
+
+    logger.info(f"Starting AI analysis retry task, limit={limit}")
+    db = SessionLocal()
+
+    try:
+        # Find failed AI analysis items
+        items = db.query(FailedIngestionItem).filter(
+            FailedIngestionItem.status == "pending",
+            FailedIngestionItem.source_key == "ai_analysis",
+            FailedIngestionItem.retry_count < FailedIngestionItem.max_retries,
+        ).order_by(FailedIngestionItem.created_at.asc()).limit(limit).all()
+
+        if not items:
+            logger.info("No failed AI analysis items to retry")
+            return {"status": "completed", "retried": 0, "succeeded": 0, "failed": 0}
+
+        retried = 0
+        succeeded = 0
+        failed = 0
+
+        for item in items:
+            retried += 1
+            item.retry_count += 1
+            item.last_retry_at = utc_now()
+            item.status = "retrying"
+            db.commit()
+
+            try:
+                # Parse the stored entry to get doc_id
+                entry_data = json.loads(item.entry_json) if item.entry_json else {}
+                doc_id = entry_data.get("doc_id")
+
+                if not doc_id:
+                    logger.warning(f"No doc_id in DLQ item {item.id}, marking exhausted")
+                    item.status = "exhausted"
+                    item.error_message = "Missing doc_id in entry_json"
+                    db.commit()
+                    failed += 1
+                    continue
+
+                # Load the document
+                doc = db.query(LegalDocument).filter(LegalDocument.id == doc_id).first()
+                if not doc:
+                    logger.warning(f"Document {doc_id} not found for DLQ item {item.id}")
+                    item.status = "exhausted"
+                    item.error_message = f"Document {doc_id} not found"
+                    db.commit()
+                    failed += 1
+                    continue
+
+                # Run AI analysis
+                article_breakdown = []
+                if doc.article_breakdown and isinstance(doc.article_breakdown, dict):
+                    article_breakdown = doc.article_breakdown.get("articles", [])
+
+                analysis_results = analyze_document({
+                    "celex": doc.celex,
+                    "title": doc.title,
+                    "publication_date": doc.publication_date,
+                    "full_text": doc.full_text,
+                    "article_breakdown": article_breakdown,
+                })
+
+                # Update document with analysis results
+                doc.compliance_domain = analysis_results.get("compliance_domain")
+                doc.risk_level = analysis_results.get("risk_level")
+                doc.obligations_json = analysis_results.get("obligations_json")
+                doc.implementation_deadline = analysis_results.get("implementation_deadline")
+                doc.ai_summary = analysis_results.get("ai_summary")
+                doc.analyzed_at = analysis_results.get("analyzed_at")
+
+                # Infer scope tags
+                scope_tags = infer_scope_tags(
+                    doc.title,
+                    doc.full_text,
+                    doc.ai_summary,
+                    doc.obligations_json,
+                )
+                if scope_tags:
+                    doc.scope_tags = scope_tags
+
+                db.commit()
+
+                # Seed obligations
+                seed_obligations_for_doc(db, doc, allow_existing=True)
+
+                # Mark as resolved
+                item.status = "resolved"
+                item.resolved_at = utc_now()
+                item.resolved_doc_id = doc.id
+                succeeded += 1
+                logger.info(f"Successfully retried AI analysis for {doc.celex} (item {item.id})")
+
+            except Exception as e:
+                item.error_message = str(e)
+                item.status = "pending" if item.retry_count < item.max_retries else "exhausted"
+                failed += 1
+                logger.warning(f"AI analysis retry failed for item {item.id}: {e}")
+
+            db.commit()
+
+        logger.info(f"AI analysis retry completed: {retried} retried, {succeeded} succeeded, {failed} failed")
+        return {
+            "status": "completed",
+            "retried": retried,
+            "succeeded": succeeded,
+            "failed": failed,
+        }
+
+    except Exception as e:
+        logger.error(f"AI analysis retry task failed: {e}")
+        raise
+
+    finally:
+        db.close()

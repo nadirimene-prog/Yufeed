@@ -1,14 +1,10 @@
 import logging
 import datetime
-from datetime import timezone
 from sqlalchemy.orm import Session
 from typing import Optional
 
-
-def utc_now() -> datetime.datetime:
-    """Return current UTC time (timezone-aware)."""
-    return datetime.datetime.now(timezone.utc)
-
+import traceback
+from src.utils.time import utc_now
 from src.models import (
     LegalDocument,
     LegalVersion,
@@ -17,6 +13,7 @@ from src.models import (
     OfficialJournalAct,
     LegalRelation,
 )
+from src.models.compliance_workflow import FailedIngestionItem
 from src.ingestion.cellar import CellarClient
 from src.ingestion.content_extractor import ContentExtractor
 from src.ingestion.oj_mapping import extract_oj_act_identifier
@@ -24,7 +21,7 @@ from src.search import index_document
 from src.ai.analyzer import analyze_document
 from src.ai.cost_tracker import log_usage_from_analysis
 from src.ai.rag_indexer import RAGIndexer
-from src.services.obligation_service import seed_obligations_for_doc
+from src.services.obligation_service import seed_obligations_for_doc, mark_related_obligations_for_review
 from src.compliance.scope import infer_scope_tags, normalize_scopes, scope_keywords
 from src.config import settings
 
@@ -185,11 +182,35 @@ class IngestionProcessor:
             try:
                 relations = self.cellar.get_related_documents(cellar_id)
                 for relation in relations:
-                    # Store in database (requires LegalRelation handling)
-                    # For now just log
-                    logger.info(f"Found relation: {celex} {relation['relation_type']} {relation['related_celex']}")
+                    related_celex = relation.get('related_celex')
+                    relation_type = relation.get('relation_type')
+                    if not related_celex or not relation_type:
+                        continue
+                    # Check if relation already exists (idempotency)
+                    existing_relation = self.db.query(LegalRelation).filter(
+                        LegalRelation.from_doc_id == new_doc.id,
+                        LegalRelation.relation_type == relation_type,
+                        LegalRelation.to_celex == related_celex,
+                    ).first()
+                    if not existing_relation:
+                        legal_relation = LegalRelation(
+                            from_doc_id=new_doc.id,
+                            relation_type=relation_type,
+                            to_celex=related_celex,
+                        )
+                        self.db.add(legal_relation)
+                        logger.info(f"Stored relation: {celex} {relation_type} {related_celex}")
+                if relations:
+                    self.db.commit()
+                    # Mark related obligations for review if this doc amends/repeals others
+                    try:
+                        marked = mark_related_obligations_for_review(self.db, new_doc)
+                        if marked:
+                            logger.info(f"Marked {marked} related obligations for review due to {celex}")
+                    except Exception as cascade_err:
+                        logger.warning(f"Failed to cascade obligation review for {celex}: {cascade_err}")
             except Exception as e:
-                logger.warning(f"Failed to fetch relations for {celex}: {e}")
+                logger.warning(f"Failed to fetch/store relations for {celex}: {e}")
 
         # Create Alert - REMOVED (Legacy AlertEvent model missing)
         # alert = AlertEvent(
@@ -199,15 +220,22 @@ class IngestionProcessor:
         # )
         # self.db.add(alert)
 
-        # Create Initial Version
-        version = LegalVersion(
-            doc_id=new_doc.id,
-            kind=VersionKind.INITIAL,
-            language=language,
-            source_url=entry.get("link")
-        )
-        self.db.add(version)
-        self.db.commit()
+        # Create Initial Version (with idempotency check)
+        source_url = entry.get("link")
+        existing_version = self.db.query(LegalVersion).filter(
+            LegalVersion.doc_id == new_doc.id,
+            LegalVersion.language == language,
+            LegalVersion.source_url == source_url,
+        ).first()
+        if not existing_version:
+            version = LegalVersion(
+                doc_id=new_doc.id,
+                kind=VersionKind.INITIAL,
+                language=language,
+                source_url=source_url
+            )
+            self.db.add(version)
+            self.db.commit()
 
         if metadata_only:
             logger.info(f"Metadata-only ingestion for {celex}; skipping content analysis.")
@@ -220,6 +248,8 @@ class IngestionProcessor:
                 seed_obligations_for_doc(self.db, new_doc)
         except Exception as exc:
             logger.warning(f"Failed to analyze or seed obligations for {celex}: {exc}")
+            # Save to DLQ for later retry
+            self._save_analysis_failure_to_dlq(new_doc, exc, entry)
 
         logger.info(f"Created new document {celex} with ID {new_doc.id}")
         return "new"
@@ -354,6 +384,8 @@ class IngestionProcessor:
                     seed_obligations_for_doc(self.db, doc, allow_existing=True)
             except Exception as exc:
                 logger.warning(f"Failed to analyze or seed obligations for {doc.celex}: {exc}")
+                # Save to DLQ for later retry
+                self._save_analysis_failure_to_dlq(doc, exc, entry)
 
         if updated:
             try:
@@ -361,6 +393,15 @@ class IngestionProcessor:
                 logger.info(f"Document {doc.celex} re-indexed in OpenSearch")
             except Exception as idx_err:
                 logger.warning(f"Failed to re-index {doc.celex} in OpenSearch: {idx_err}")
+
+            # Queue RAG re-indexing if content was refreshed
+            if should_refresh_content and doc.full_text:
+                try:
+                    from src.worker import index_document_rag
+                    index_document_rag.delay(doc.id)
+                    logger.info(f"Queued RAG re-indexing for document {doc.celex}")
+                except Exception as rag_err:
+                    logger.warning(f"Failed to queue RAG re-indexing for {doc.celex}: {rag_err}")
 
         return "updated" if updated else "unchanged"
 
@@ -452,6 +493,53 @@ class IngestionProcessor:
         self.db.refresh(doc)
         return True
 
+    def _save_analysis_failure_to_dlq(self, doc: LegalDocument, exc: Exception, entry: dict):
+        """
+        Save AI analysis failure to Dead Letter Queue for later retry.
+
+        Args:
+            doc: The document that failed analysis
+            exc: The exception that occurred
+            entry: Original entry dict for retry
+        """
+        import json as json_module
+        try:
+            # Check if already in DLQ
+            existing = self.db.query(FailedIngestionItem).filter(
+                FailedIngestionItem.celex == doc.celex,
+                FailedIngestionItem.source_key == "ai_analysis",
+                FailedIngestionItem.status.in_(["pending", "retrying"]),
+            ).first()
+
+            if existing:
+                # Update existing entry
+                existing.retry_count += 1
+                existing.error_message = str(exc)
+                existing.error_traceback = traceback.format_exc()
+                existing.last_retry_at = utc_now()
+            else:
+                # Create new DLQ entry
+                failed_item = FailedIngestionItem(
+                    celex=doc.celex,
+                    source_key="ai_analysis",
+                    error_message=str(exc),
+                    error_traceback=traceback.format_exc(),
+                    entry_json=json_module.dumps({
+                        "doc_id": doc.id,
+                        "celex": doc.celex,
+                        "action": "analyze",
+                        "original_entry": entry,
+                    }),
+                    status="pending",
+                    max_retries=3,
+                )
+                self.db.add(failed_item)
+
+            self.db.commit()
+            logger.info(f"Saved AI analysis failure to DLQ for {doc.celex}")
+        except Exception as dlq_err:
+            logger.error(f"Failed to save to DLQ for {doc.celex}: {dlq_err}")
+
     def _parse_date(self, date_obj):
         # date_obj from feedparser is struct_time usually, or None
         if not date_obj:
@@ -460,10 +548,10 @@ class IngestionProcessor:
             # Try parsing isoformat
             try:
                 return datetime.datetime.fromisoformat(date_obj)
-            except:
+            except (ValueError, TypeError):
                 return None
         # feedparser struct_time
         try:
-             return datetime.datetime(*date_obj[:6])
-        except:
+            return datetime.datetime(*date_obj[:6])
+        except (ValueError, TypeError, IndexError):
             return None

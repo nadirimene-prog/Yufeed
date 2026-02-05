@@ -8,7 +8,7 @@ This happens when:
 - Documents need content refresh
 """
 import logging
-from datetime import datetime, timezone
+from datetime import datetime
 from typing import Optional
 
 from sqlalchemy.orm import Session
@@ -23,13 +23,9 @@ from src.ai.rag_indexer import RAGIndexer
 from src.services.obligation_service import seed_obligations_for_doc
 from src.compliance.scope import infer_scope_tags
 from src.config import settings
+from src.utils.time import utc_now
 
 logger = logging.getLogger(__name__)
-
-
-def utc_now() -> datetime:
-    """Return current UTC time (timezone-aware)."""
-    return datetime.now(timezone.utc)
 
 
 class ContentBackfillService:

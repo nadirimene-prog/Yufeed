@@ -7,14 +7,12 @@ import logging
 import re
 import time
 import httpx
+from datetime import datetime
 from typing import Dict, List, Optional, Any
-from datetime import datetime, timezone
 
-
-def utc_now() -> datetime:
-    """Return current UTC time (timezone-aware)."""
-    return datetime.now(timezone.utc)
 import anthropic  # Using Claude for legal text analysis
+
+from src.utils.time import utc_now
 from src.models.models import ComplianceDomain, RiskLevel
 from src.config import settings
 

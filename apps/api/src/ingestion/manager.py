@@ -6,11 +6,13 @@ Features:
 - Incremental tracking (only processes new documents)
 - Error alerting via email
 - Retry logic for transient failures
+- Parallel processing for improved throughput
 """
 import logging
 import time
-from datetime import datetime, timedelta, timezone
-from typing import List, Dict, Any, Optional, Callable
+from concurrent.futures import ThreadPoolExecutor, as_completed
+from datetime import datetime, timedelta
+from typing import List, Dict, Any, Optional, Callable, Tuple
 from sqlalchemy.orm import Session
 
 from .rss import RSSFetcher
@@ -18,14 +20,11 @@ from .processor import IngestionProcessor
 from .legifrance import LegifranceFetcher
 from .alerts import send_ingestion_report, send_ingestion_failure_alert, IngestionReport
 from src.config import settings
+from src.ingestion.config import IngestionConfig
 from src.models import RegulatorySource, IngestionRun
+from src.utils.time import utc_now
 
 logger = logging.getLogger(__name__)
-
-
-def utc_now() -> datetime:
-    """Return current UTC time (timezone-aware)."""
-    return datetime.now(timezone.utc)
 
 
 def _parse_start_date(value: Optional[str]) -> Optional[datetime.date]:
@@ -274,27 +273,28 @@ class IngestionManager:
                 f"from {resolved_start} to {resolved_end}."
             )
 
-            # Process each entry
-            for entry in entries:
+            # Process entries (parallel or sequential based on config)
+            parallel_workers = IngestionConfig.PARALLEL_WORKERS
+            use_parallel = parallel_workers > 1 and len(entries) > 1
+
+            if use_parallel:
+                logger.info(f"Processing {len(entries)} entries with {parallel_workers} workers")
+                results = self._process_entries_parallel(entries, parallel_workers)
+            else:
+                logger.info(f"Processing {len(entries)} entries sequentially")
+                results = self._process_entries_sequential(entries)
+
+            # Aggregate results
+            for result in results:
                 seen += 1
-
-                try:
-                    result = self.processor.process_entry(entry)
-
-                    if result == "new":
-                        created += 1
-                    elif result == "updated":
-                        updated += 1
-                    elif result == "skipped":
-                        skipped += 1
-                    elif result == "unchanged":
-                        skipped += 1
-
-                except Exception as exc:
-                    error_msg = str(exc)
-                    entry_link = entry.get("link", entry.get("celex", "unknown"))
-                    logger.error(f"Error processing entry {entry_link}: {error_msg}")
-                    errors.append({"error": error_msg, "entry": entry_link})
+                if result["status"] == "new":
+                    created += 1
+                elif result["status"] == "updated":
+                    updated += 1
+                elif result["status"] in ("skipped", "unchanged"):
+                    skipped += 1
+                elif result["status"] == "error":
+                    errors.append({"error": result["error"], "entry": result["entry"]})
 
         except Exception as exc:
             logger.error(f"Fetch failed for {source_key}: {exc}")
@@ -324,6 +324,90 @@ class IngestionManager:
             items_skipped=skipped,
             errors=errors,
         )
+
+    def _process_entries_sequential(self, entries: List[dict]) -> List[dict]:
+        """Process entries one by one (original behavior)."""
+        results = []
+        for entry in entries:
+            result = self._process_single_entry(entry)
+            results.append(result)
+        return results
+
+    def _process_entries_parallel(self, entries: List[dict], max_workers: int) -> List[dict]:
+        """
+        Process entries in parallel using ThreadPoolExecutor.
+
+        Note: Each thread creates its own IngestionProcessor with a fresh DB session
+        to avoid SQLAlchemy session threading issues.
+        """
+        from src.database import SessionLocal
+
+        results = []
+
+        def process_with_new_session(entry: dict) -> dict:
+            """Process a single entry with its own database session."""
+            db = SessionLocal()
+            try:
+                processor = IngestionProcessor(db)
+                try:
+                    result = processor.process_entry(entry)
+                    return {
+                        "status": result,
+                        "entry": entry.get("link", entry.get("celex", "unknown")),
+                        "error": None,
+                    }
+                except Exception as exc:
+                    entry_link = entry.get("link", entry.get("celex", "unknown"))
+                    logger.error(f"Error processing entry {entry_link}: {exc}")
+                    return {
+                        "status": "error",
+                        "entry": entry_link,
+                        "error": str(exc),
+                    }
+            finally:
+                db.close()
+
+        with ThreadPoolExecutor(max_workers=max_workers) as executor:
+            # Submit all tasks
+            future_to_entry = {
+                executor.submit(process_with_new_session, entry): entry
+                for entry in entries
+            }
+
+            # Collect results as they complete
+            for future in as_completed(future_to_entry):
+                try:
+                    result = future.result()
+                    results.append(result)
+                except Exception as exc:
+                    entry = future_to_entry[future]
+                    entry_link = entry.get("link", entry.get("celex", "unknown"))
+                    logger.error(f"Parallel processing failed for {entry_link}: {exc}")
+                    results.append({
+                        "status": "error",
+                        "entry": entry_link,
+                        "error": str(exc),
+                    })
+
+        return results
+
+    def _process_single_entry(self, entry: dict) -> dict:
+        """Process a single entry and return result dict."""
+        try:
+            result = self.processor.process_entry(entry)
+            return {
+                "status": result,
+                "entry": entry.get("link", entry.get("celex", "unknown")),
+                "error": None,
+            }
+        except Exception as exc:
+            entry_link = entry.get("link", entry.get("celex", "unknown"))
+            logger.error(f"Error processing entry {entry_link}: {exc}")
+            return {
+                "status": "error",
+                "entry": entry_link,
+                "error": str(exc),
+            }
 
     def _get_or_create_source(self, config: Dict[str, Any]) -> RegulatorySource:
         """Get existing source or create new one."""

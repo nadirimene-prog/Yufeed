@@ -1,15 +1,13 @@
 import httpx
 import logging
+import os
 import re
 from typing import Optional, Dict, Any, List
 from datetime import datetime, date
 
-# Import new utilities
-import sys
-import os
-sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-from utils.celex_utils import normalize_celex, is_valid_celex, generate_celex_variations
-from cache.celex_cache import CelexCache
+# Import utilities using proper relative imports
+from src.utils.celex_utils import normalize_celex, is_valid_celex, generate_celex_variations
+from src.cache.celex_cache import CelexCache
 
 logger = logging.getLogger(__name__)
 

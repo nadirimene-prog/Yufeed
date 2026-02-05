@@ -1,14 +1,10 @@
-from datetime import datetime, timezone
+from datetime import datetime
 from sqlalchemy import Column, Integer, String, DateTime, Text, Boolean, ForeignKey, JSON, Date
 from sqlalchemy.orm import relationship
 from sqlalchemy.dialects.postgresql import JSONB
 
 from src.database import Base
-
-
-def utc_now() -> datetime:
-    """Return current UTC time (timezone-aware)."""
-    return datetime.now(timezone.utc)
+from src.utils.time import utc_now
 
 
 class RegulatorySource(Base):
@@ -252,3 +248,27 @@ class ObligationRiskLink(Base):
 
     obligation = relationship("RegulatoryObligation", backref="risk_links")
     risk_entry = relationship("RiskEntry", back_populates="obligation_links")
+
+
+class FailedIngestionItem(Base):
+    """
+    Dead Letter Queue for failed ingestion items.
+
+    Stores documents that failed during ingestion for later retry.
+    This enables recovery from transient failures without losing data.
+    """
+    __tablename__ = "failed_ingestion_items"
+
+    id = Column(Integer, primary_key=True)
+    celex = Column(String(64), nullable=True, index=True)
+    source_key = Column(String(255), nullable=True, index=True)
+    error_message = Column(Text, nullable=True)
+    error_traceback = Column(Text, nullable=True)
+    entry_json = Column(JSON().with_variant(JSONB(), "postgresql"), nullable=True)
+    retry_count = Column(Integer, default=0)
+    max_retries = Column(Integer, default=3)
+    status = Column(String(50), default="pending", index=True)  # pending | retrying | resolved | exhausted
+    created_at = Column(DateTime, default=utc_now, index=True)
+    last_retry_at = Column(DateTime, nullable=True)
+    resolved_at = Column(DateTime, nullable=True)
+    resolved_doc_id = Column(Integer, ForeignKey("legal_documents.id"), nullable=True)

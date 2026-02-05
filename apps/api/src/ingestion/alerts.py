@@ -3,19 +3,15 @@ Ingestion alerting service.
 Sends email notifications on ingestion success/failure with detailed reports.
 """
 import logging
-from datetime import datetime, timezone
+from datetime import datetime
 from typing import List, Optional, Dict, Any
 from dataclasses import dataclass
 
 from src.email_service import send_email
 from src.config import settings
+from src.utils.time import utc_now
 
 logger = logging.getLogger(__name__)
-
-
-def utc_now() -> datetime:
-    """Return current UTC time (timezone-aware)."""
-    return datetime.now(timezone.utc)
 
 
 @dataclass

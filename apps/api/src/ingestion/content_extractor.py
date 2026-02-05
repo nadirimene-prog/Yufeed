@@ -4,10 +4,13 @@ Document Content Extraction
 Extracts full text from PDF documents for indexing and search.
 """
 
+import logging
 import requests
 from typing import Optional, Dict, Any
 import re
 from bs4 import BeautifulSoup
+
+logger = logging.getLogger(__name__)
 
 
 class ContentExtractor:
@@ -148,7 +151,7 @@ class ContentExtractor:
                 "word_count": len(full_text.split()),
             }
         except Exception as e:
-            print(f"CELLAR XHTML extraction failed for {celex}: {e}")
+            logger.warning(f"CELLAR XHTML extraction failed for {celex}: {e}")
             return None
 
     def _extract_from_html(self, celex: str, language: str = "EN") -> Optional[Dict[str, Any]]:
@@ -197,7 +200,7 @@ class ContentExtractor:
             }
 
         except Exception as e:
-            print(f"HTML extraction failed for {celex}: {e}")
+            logger.warning(f"HTML extraction failed for {celex}: {e}")
             return None
 
     def _extract_articles(self, content_div) -> list:
