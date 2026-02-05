@@ -71,6 +71,15 @@ async def startup_event():
                 "Policy templates seeded: "
                 f"{result.get('created', 0)} created, {result.get('updated', 0)} updated"
             )
+            # Treat seeded templates as the canonical policy library: ensure one master PolicyDocument per template.
+            from src.services.policy_library import ensure_master_policies
+            master_result = ensure_master_policies()
+            logger.info(
+                "Master policies synced: "
+                f"{master_result.get('created', 0)} created, "
+                f"{master_result.get('updated', 0)} updated, "
+                f"{master_result.get('duplicates_retired', 0)} duplicates retired"
+            )
         except Exception as exc:
             logger.warning(f"Policy template seeding failed: {exc}")
 

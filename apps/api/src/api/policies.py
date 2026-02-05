@@ -23,6 +23,7 @@ from src.schemas.policy_schemas import (
 )
 from src.websocket.manager import ws_manager
 from src.websocket.events import EventType, NotificationEvent
+from src.services.policy_library import ensure_master_policy_for_template
 
 
 def utc_now() -> datetime:
@@ -154,46 +155,37 @@ async def create_policy_from_template(
     if not template:
         raise HTTPException(status_code=404, detail="Policy template not found")
 
-    metadata = dict(template.metadata_json or {})
-    metadata.update({
-        "template_id": template.template_id,
-        "category": template.category,
-        "regulatory_basis": template.regulatory_basis,
-        "review_frequency_months": template.review_frequency_months,
-    })
+    # Templates represent the canonical policy library: ensure (idempotently) the master policy exists.
+    policy, stats = ensure_master_policy_for_template(db, template)
+
+    # Apply optional metadata overrides without clobbering canonical template markers.
     if payload.metadata:
-        metadata.update(payload.metadata)
+        merged = dict(policy.metadata_json or {})
+        merged.update(payload.metadata)
+        merged["template_id"] = template.template_id
+        merged["category"] = template.category
+        merged["regulatory_basis"] = template.regulatory_basis
+        merged["review_frequency_months"] = template.review_frequency_months
+        merged["template_version"] = template.version
+        merged["is_master_policy"] = True
+        policy.metadata_json = merged or None
+        policy.updated_at = utc_now()
 
-    policy = PolicyDocument(
-        policy_id=generate_policy_id(),
-        name=payload.name or template.name,
-        version=template.version,
-        owner=payload.owner or template.owner or current_user.email,
-        status=payload.status or "draft",
-        language=payload.language or "en",
-        effective_date=payload.effective_date,
-        source_url=payload.source_url or template.source_url,
-        content=payload.content or template.content,
-        metadata_json=metadata or None,
-        created_at=utc_now(),
-        updated_at=utc_now(),
-    )
-
-    db.add(policy)
     db.commit()
     db.refresh(policy)
 
-    try:
-        await ws_manager.broadcast(NotificationEvent(
-            event_type=EventType.POLICY_CREATED,
-            title="Policy Created",
-            message=f"New policy created from template: {policy.name}",
-            data={"policy_id": policy.policy_id, "name": policy.name},
-            priority="normal",
-            link=f"/compliance/policies?id={policy.id}",
-        ))
-    except Exception:
-        pass
+    if stats.get("created"):
+        try:
+            await ws_manager.broadcast(NotificationEvent(
+                event_type=EventType.POLICY_CREATED,
+                title="Policy Created",
+                message=f"New master policy created: {policy.name}",
+                data={"policy_id": policy.policy_id, "name": policy.name},
+                priority="normal",
+                link=f"/compliance/policies?id={policy.id}",
+            ))
+        except Exception:
+            pass
 
     return policy_to_dict(policy, db)
 

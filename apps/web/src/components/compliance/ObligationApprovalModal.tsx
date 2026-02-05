@@ -32,8 +32,6 @@ import {
     getRiskEntries,
     approveObligation,
     getPolicyTemplateSuggestions,
-    createPolicyFromTemplate,
-    linkObligationToPolicy,
 } from "@/lib/compliance-api";
 
 interface ObligationApprovalModalProps {
@@ -73,7 +71,6 @@ export default function ObligationApprovalModal({
     const [selectedStatus, setSelectedStatus] = useState<ObligationStatus>("approved");
     const [note, setNote] = useState("");
     const [linkedPolicyId, setLinkedPolicyId] = useState<number | undefined>();
-    const [createInternalRule, setCreateInternalRule] = useState(false);
     const [internalRuleName, setInternalRuleName] = useState("");
     const [internalRuleDescription, setInternalRuleDescription] = useState("");
     const [selectedRiskIds, setSelectedRiskIds] = useState<number[]>([]);
@@ -84,13 +81,11 @@ export default function ObligationApprovalModal({
     const [policies, setPolicies] = useState<Policy[]>([]);
     const [riskEntries, setRiskEntries] = useState<RiskEntry[]>([]);
     const [suggestions, setSuggestions] = useState<Array<{
+        policy_document_id: number;
+        policy_id: string;
         template_id: string;
         name: string;
         category: string;
-        version?: string;
-        owner?: string;
-        regulatory_basis?: string[];
-        review_frequency_months?: number;
         score: number;
     }>>([]);
     const [loadingData, setLoadingData] = useState(false);
@@ -108,6 +103,9 @@ export default function ObligationApprovalModal({
                     setPolicies(policiesRes.items);
                     setRiskEntries(risksRes.items);
                     setSuggestions(suggestionsRes.items || []);
+                    if (!obligation?.linked_policy_id && suggestionsRes.items?.length) {
+                        setLinkedPolicyId(suggestionsRes.items[0].policy_document_id);
+                    }
                 })
                 .catch(console.error)
                 .finally(() => setLoadingData(false));
@@ -116,7 +114,6 @@ export default function ObligationApprovalModal({
             setSelectedStatus("approved");
             setNote("");
             setLinkedPolicyId(obligation?.linked_policy_id);
-            setCreateInternalRule(false);
             setInternalRuleName("");
             setInternalRuleDescription("");
             setSelectedRiskIds([]);
@@ -134,9 +131,9 @@ export default function ObligationApprovalModal({
             status: selectedStatus,
             note: note.trim() || undefined,
             linked_policy_id: linkedPolicyId,
-            create_internal_rule: createInternalRule && selectedStatus === "approved",
-            internal_rule_name: createInternalRule ? internalRuleName.trim() || undefined : undefined,
-            internal_rule_description: createInternalRule ? internalRuleDescription.trim() || undefined : undefined,
+            create_internal_rule: selectedStatus === "approved",
+            internal_rule_name: internalRuleName.trim() || undefined,
+            internal_rule_description: internalRuleDescription.trim() || undefined,
             link_risk_entry_ids: selectedRiskIds.length > 0 ? selectedRiskIds : undefined,
         };
 
@@ -160,25 +157,8 @@ export default function ObligationApprovalModal({
         );
     };
 
-    const handleCreateFromTemplate = async (template: {
-        template_id: string;
-        name: string;
-        category: string;
-    }) => {
-        if (!obligation) return;
-        setIsSubmitting(true);
-        setError(null);
-        try {
-            const policy = await createPolicyFromTemplate(template.template_id);
-            await linkObligationToPolicy(policy.id, obligation.id);
-            setPolicies((prev) => [policy, ...prev]);
-            setLinkedPolicyId(policy.id);
-        } catch (err: unknown) {
-            const errorMessage = err instanceof Error ? err.message : "Failed to create policy from template";
-            setError(errorMessage);
-        } finally {
-            setIsSubmitting(false);
-        }
+    const handleLinkSuggestedPolicy = (policyDocumentId: number) => {
+        setLinkedPolicyId(policyDocumentId);
     };
 
     if (!obligation) return null;
@@ -241,8 +221,11 @@ export default function ObligationApprovalModal({
                     <div className="space-y-2">
                         <label className="text-sm font-medium text-white/70 flex items-center gap-2">
                             <LinkIcon className="h-4 w-4" />
-                            Link to Policy (optional)
+                            Link to Policy
                         </label>
+                        <p className="text-xs text-white/50">
+                            If you don’t choose one, YuFeed will auto-link this obligation to the best matching master policy when you approve.
+                        </p>
                         <select
                             value={linkedPolicyId || ""}
                             onChange={(e) => setLinkedPolicyId(e.target.value ? parseInt(e.target.value) : undefined)}
@@ -258,79 +241,68 @@ export default function ObligationApprovalModal({
                         </select>
                     </div>
 
-                    {/* Suggested Templates */}
+                    {/* Suggested Policies */}
                     <div className="space-y-2">
                         <label className="text-sm font-medium text-white/70 flex items-center gap-2">
                             <Plus className="h-4 w-4" />
-                            Suggested templates
+                            Suggested policies
                         </label>
                         {loadingData ? (
-                            <div className="text-xs text-white/50">Loading templates...</div>
+                            <div className="text-xs text-white/50">Loading policy suggestions...</div>
                         ) : suggestions.length ? (
                             <div className="space-y-2">
-                                {suggestions.map((template) => (
+                                {suggestions.map((suggestion) => (
                                     <div
-                                        key={template.template_id}
+                                        key={suggestion.template_id}
                                         className="flex items-center justify-between gap-3 rounded-lg border border-white/10 bg-white/5 px-3 py-2"
                                     >
                                         <div className="min-w-0">
                                             <div className="text-sm font-medium text-white">
-                                                {template.name}
+                                                {suggestion.name}
                                             </div>
                                             <div className="text-[11px] text-white/50">
-                                                {template.category} • {template.template_id}
+                                                {suggestion.category} • {suggestion.policy_id}
                                             </div>
                                         </div>
                                         <Button
                                             size="sm"
                                             variant="outline"
-                                            onClick={() => handleCreateFromTemplate(template)}
+                                            onClick={() => handleLinkSuggestedPolicy(suggestion.policy_document_id)}
                                             disabled={isSubmitting}
                                         >
-                                            Create & link
+                                            Link
                                         </Button>
                                     </div>
                                 ))}
                             </div>
                         ) : (
-                            <div className="text-xs text-white/50">No template suggestions yet.</div>
+                            <div className="text-xs text-white/50">No policy suggestions yet.</div>
                         )}
                     </div>
 
-                    {/* Create Internal Rule (only for approval) */}
+                    {/* Internal Rule (auto-created on approval) */}
                     {selectedStatus === "approved" && (
                         <div className="space-y-3 p-3 rounded-lg bg-white/5 border border-white/10">
-                            <label className="flex items-center gap-2 cursor-pointer">
+                            <div className="text-sm font-medium text-white/80 flex items-center gap-2">
+                                <FileText className="h-4 w-4" />
+                                Internal Rule (auto-created on approval)
+                            </div>
+                            <div className="space-y-3">
                                 <input
-                                    type="checkbox"
-                                    checked={createInternalRule}
-                                    onChange={(e) => setCreateInternalRule(e.target.checked)}
-                                    className="rounded border-white/30 bg-white/10 text-[#6d5acd] focus:ring-[#6d5acd]/50"
+                                    type="text"
+                                    value={internalRuleName}
+                                    onChange={(e) => setInternalRuleName(e.target.value)}
+                                    placeholder="Rule name (optional)"
+                                    className="w-full px-3 py-2 rounded-lg bg-white/5 border border-white/10 text-white placeholder-white/40 focus:outline-none focus:ring-2 focus:ring-[#6d5acd]/50"
                                 />
-                                <span className="text-sm font-medium text-white/80 flex items-center gap-2">
-                                    <FileText className="h-4 w-4" />
-                                    Create Internal Rule from this Obligation
-                                </span>
-                            </label>
-
-                            {createInternalRule && (
-                                <div className="space-y-3 pl-6">
-                                    <input
-                                        type="text"
-                                        value={internalRuleName}
-                                        onChange={(e) => setInternalRuleName(e.target.value)}
-                                        placeholder="Rule name (auto-generated if empty)"
-                                        className="w-full px-3 py-2 rounded-lg bg-white/5 border border-white/10 text-white placeholder-white/40 focus:outline-none focus:ring-2 focus:ring-[#6d5acd]/50"
-                                    />
-                                    <textarea
-                                        value={internalRuleDescription}
-                                        onChange={(e) => setInternalRuleDescription(e.target.value)}
-                                        placeholder="Rule description (uses obligation text if empty)"
-                                        className="w-full px-3 py-2 rounded-lg bg-white/5 border border-white/10 text-white placeholder-white/40 focus:outline-none focus:ring-2 focus:ring-[#6d5acd]/50 resize-none"
-                                        rows={2}
-                                    />
-                                </div>
-                            )}
+                                <textarea
+                                    value={internalRuleDescription}
+                                    onChange={(e) => setInternalRuleDescription(e.target.value)}
+                                    placeholder="Rule description (optional)"
+                                    className="w-full px-3 py-2 rounded-lg bg-white/5 border border-white/10 text-white placeholder-white/40 focus:outline-none focus:ring-2 focus:ring-[#6d5acd]/50 resize-none"
+                                    rows={2}
+                                />
+                            </div>
                         </div>
                     )}
 

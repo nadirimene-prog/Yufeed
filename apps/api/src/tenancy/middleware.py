@@ -264,6 +264,7 @@ class TenantMiddleware(BaseHTTPMiddleware):
             "/api/auth/token",
             "/api/auth/refresh",
             "/api/tenants",
+            "/ws",  # WebSocket endpoint handles its own auth
         ]
 
         path = request.url.path

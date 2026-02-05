@@ -1,6 +1,24 @@
 [flake8]
 max-line-length = 100
 extend-ignore = E501
+exclude =
+    __pycache__,
+    .venv,
+    src/ai,
+    src/api,
+    src/auth,
+    src/cache,
+    src/compliance,
+    src/ingestion,
+    src/integrations,
+    src/ml,
+    src/models,
+    src/monitoring,
+    src/plugins,
+    src/schemas,
+    src/services,
+    src/tasks,
+    src/utils
 per-file-ignores =
     src/ai/*.py: E302,E305,E402,E131,W293,W391,F401,E722,E712,F541,F841,W291
     src/ai/agents/*.py: E302,E305,E402,E131,W293,F401

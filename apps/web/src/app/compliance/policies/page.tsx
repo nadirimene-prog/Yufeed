@@ -287,13 +287,13 @@ export default function PoliciesPage() {
       <div className="rounded-lg border border-gray-200 bg-white p-6 shadow-sm dark:border-slate-800 dark:bg-slate-900">
         <div className="flex flex-wrap items-start justify-between gap-4">
           <div>
-            <div className="text-sm font-semibold text-gray-900 dark:text-white">Policy templates</div>
+            <div className="text-sm font-semibold text-gray-900 dark:text-white">Master policies</div>
             <p className="mt-1 text-xs text-gray-500">
-              Seeded taxonomy templates for EMI + CASP compliance. Create a policy in one click.
+              Seeded master policy library for compliance obligations. These are the canonical policies used for mapping.
             </p>
           </div>
           <div className="text-xs text-gray-500">
-            {templatesLoading ? "Loading templates…" : `${templatesTotal} templates`}
+            {templatesLoading ? "Loading master policies…" : `${templatesTotal} policies`}
           </div>
         </div>
 
@@ -301,7 +301,7 @@ export default function PoliciesPage() {
           <input
             value={templateQuery}
             onChange={(event) => setTemplateQuery(event.target.value)}
-            placeholder="Search templates..."
+            placeholder="Search master policies..."
             className="min-w-[220px] rounded-full border border-gray-200 bg-white px-4 py-2 text-xs text-gray-700 shadow-sm focus:border-gray-300 focus:outline-none dark:border-slate-800 dark:bg-slate-900 dark:text-gray-300"
           />
           <select
@@ -320,7 +320,7 @@ export default function PoliciesPage() {
 
         <div className="mt-4 grid gap-3 md:grid-cols-2 xl:grid-cols-3">
           {templatesLoading ? (
-            <div className="text-sm text-gray-500">Loading templates...</div>
+            <div className="text-sm text-gray-500">Loading master policies...</div>
           ) : templates.length ? (
             templates.map((template) => (
               <div
@@ -350,7 +350,7 @@ export default function PoliciesPage() {
                   disabled={templateActionLoading === template.template_id}
                   className="mt-3 w-full rounded-full border border-gray-200 bg-white px-3 py-2 text-[11px] font-semibold text-gray-600 hover:border-gray-300 disabled:cursor-not-allowed disabled:opacity-60 dark:border-slate-700 dark:bg-slate-900 dark:text-gray-300"
                 >
-                  {templateActionLoading === template.template_id ? "Creating..." : "Create policy"}
+                  {templateActionLoading === template.template_id ? "Opening..." : "Open policy"}
                 </button>
               </div>
             ))

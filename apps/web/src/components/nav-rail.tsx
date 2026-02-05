@@ -1,7 +1,7 @@
 "use client";
 
-import Link from "next/link";
 import { ChevronLeft, ChevronRight, Scale, Activity } from "lucide-react";
+import { useRouter } from "next/navigation";
 import { cn } from "@/lib/utils";
 import { Tooltip } from "@/components/ui/tooltip";
 import type { NavArea } from "@/components/nav-data";
@@ -23,17 +23,20 @@ export default function NavRail({
     onToggleCollapse,
     showStatusOnly = false,
 }: NavRailProps) {
+    const router = useRouter();
+
     return (
         <div className="relative flex h-full w-[72px] flex-col items-center border-r border-white/[0.06]">
             <div className="flex h-16 items-center justify-center border-b border-white/[0.06] w-full">
                 <Tooltip content="YuFeed" side="right">
-                    <Link
-                        href="/"
+                    <button
+                        type="button"
+                        onClick={() => router.push("/dashboard")}
                         className="flex h-10 w-10 items-center justify-center rounded-xl bg-gradient-to-br from-[#6d5acd] to-[#00d4ff] shadow-lg"
                         aria-label="YuFeed Home"
                     >
                         <Scale className="h-5 w-5 text-white" />
-                    </Link>
+                    </button>
                 </Tooltip>
             </div>
 
@@ -46,10 +49,12 @@ export default function NavRail({
                     const isActive = area.id === activeAreaId;
                     const Icon = area.icon;
                     const button = (
-                        <Link
-                            key={area.id}
-                            href={area.defaultHref}
-                            onClick={() => onSelectArea(area.id)}
+                        <button
+                            type="button"
+                            onClick={() => {
+                                onSelectArea(area.id);
+                                router.push(area.defaultHref);
+                            }}
                             aria-current={isActive ? "page" : undefined}
                             aria-label={area.label}
                             className={cn(
@@ -60,7 +65,7 @@ export default function NavRail({
                             )}
                         >
                             <Icon className={cn("h-5 w-5", isActive && "text-[#00d4ff]")} />
-                        </Link>
+                        </button>
                     );
 
                     return (

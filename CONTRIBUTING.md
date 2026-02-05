@@ -167,10 +167,22 @@ SMTP_FROM=noreply@yufeed.eu
 ENABLE_HSTS=false  # Set to true in production
 ```
 
-Frontend `.env.local`:
+Frontend `.env.local` (Next.js):
 ```bash
+# Browser API base URL
 NEXT_PUBLIC_API_URL=http://localhost:8000
+
+# Next.js server-side rewrite target for /api/*
+# - Docker mode: http://api:8000 (Docker network service name)
+# - Host/mixed mode: http://localhost:8000
+API_INTERNAL_URL=http://localhost:8000
 ```
+
+### Docker vs Host vs Mixed Mode
+
+- **Docker mode (recommended):** run `web` + `api` in Docker. Keep `NEXT_PUBLIC_API_URL=http://localhost:8000` and `API_INTERNAL_URL=http://api:8000`.
+- **Host mode:** run `apps/web` and `apps/api` on your machine. Set both to `http://localhost:8000`.
+- **Mixed mode:** run `apps/web` on your machine and `api` in Docker. Set both to `http://localhost:8000`.
 
 ---
 

@@ -182,35 +182,35 @@ export default function Header() {
                 <div className="flex items-center gap-2">
                     {/* AI Assistant Quick Access */}
                     <Tooltip content="AI Officer" side="bottom">
-                        <Link href="/aml-officer">
-                            <motion.button
-                                className={cn(
-                                    "relative flex items-center justify-center h-9 w-9 rounded-lg",
-                                    "bg-gradient-to-br from-[#6d5acd]/20 to-[#00d4ff]/10",
-                                    "border border-[#6d5acd]/30",
-                                    "text-[#00d4ff] hover:text-white",
-                                    "transition-colors"
-                                )}
-                                aria-label="Open AI Officer"
-                                whileHover={{ scale: 1.05 }}
-                                whileTap={{ scale: 0.95 }}
-                            >
-                                <Sparkles className="h-4 w-4" />
-                                {/* Pulsing indicator */}
-                                <motion.span
-                                    className="absolute -top-0.5 -right-0.5 h-2 w-2 rounded-full bg-[#06d6a0]"
-                                    animate={{
-                                        scale: [1, 1.3, 1],
-                                        opacity: [1, 0.5, 1],
-                                    }}
-                                    transition={{
-                                        duration: 2,
-                                        repeat: Infinity,
-                                        ease: "easeInOut",
-                                    }}
-                                />
-                            </motion.button>
-                        </Link>
+                        <motion.button
+                            type="button"
+                            onClick={() => router.push("/aml-officer")}
+                            className={cn(
+                                "relative flex items-center justify-center h-9 w-9 rounded-lg",
+                                "bg-gradient-to-br from-[#6d5acd]/20 to-[#00d4ff]/10",
+                                "border border-[#6d5acd]/30",
+                                "text-[#00d4ff] hover:text-white",
+                                "transition-colors"
+                            )}
+                            aria-label="Open AI Officer"
+                            whileHover={{ scale: 1.05 }}
+                            whileTap={{ scale: 0.95 }}
+                        >
+                            <Sparkles className="h-4 w-4" />
+                            {/* Pulsing indicator */}
+                            <motion.span
+                                className="absolute -top-0.5 -right-0.5 h-2 w-2 rounded-full bg-[#06d6a0]"
+                                animate={{
+                                    scale: [1, 1.3, 1],
+                                    opacity: [1, 0.5, 1],
+                                }}
+                                transition={{
+                                    duration: 2,
+                                    repeat: Infinity,
+                                    ease: "easeInOut",
+                                }}
+                            />
+                        </motion.button>
                     </Tooltip>
 
                     {/* Notifications */}

@@ -1,6 +1,6 @@
 "use client";
 
-import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { Activity } from "lucide-react";
 import { cn } from "@/lib/utils";
 import type { NavArea } from "@/components/nav-data";
@@ -12,6 +12,8 @@ interface NavContextPanelProps {
 }
 
 export default function NavContextPanel({ area, pathname }: NavContextPanelProps) {
+    const router = useRouter();
+
     return (
         <div className="flex h-full w-[232px] flex-col px-4 py-4">
             <div className="mb-4">
@@ -30,9 +32,10 @@ export default function NavContextPanel({ area, pathname }: NavContextPanelProps
                     const isActive = isRouteMatch(pathname, item.href);
                     const isWorkArea = area.id === "work";
                     return (
-                        <Link
+                        <button
                             key={item.href}
-                            href={item.href}
+                            type="button"
+                            onClick={() => router.push(item.href)}
                             aria-current={isActive ? "page" : undefined}
                             className={cn(
                                 "group flex flex-col gap-1 rounded-lg px-3 py-2 text-sm transition-all",
@@ -57,7 +60,7 @@ export default function NavContextPanel({ area, pathname }: NavContextPanelProps
                                     {item.description}
                                 </span>
                             )}
-                        </Link>
+                        </button>
                     );
                 })}
             </nav>

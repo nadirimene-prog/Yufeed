@@ -42,6 +42,10 @@ htmlcov/
 *.bak
 all_downs.txt
 all_revs.txt
+celerybeat-schedule
+celerybeat-schedule.*
+apps/api/celerybeat-schedule
+apps/api/celerybeat-schedule.*
 
 # IDEs
 .vscode/

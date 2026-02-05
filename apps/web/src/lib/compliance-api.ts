@@ -218,13 +218,11 @@ export const getPolicyTemplates = async (params?: {
 
 export const getPolicyTemplateSuggestions = async (obligationId: number, limit: number = 3): Promise<{
     items: Array<{
+        policy_document_id: number;
+        policy_id: string;
         template_id: string;
         name: string;
         category: string;
-        version?: string;
-        owner?: string;
-        regulatory_basis?: string[];
-        review_frequency_months?: number;
         score: number;
     }>;
 }> => {

@@ -22,6 +22,7 @@ from src.models.compliance_workflow import (
     PolicyDocument,
     PolicyTemplate,
     InternalRule,
+    PolicySection,
     RiskEntry,
     ObligationRiskLink,
 )
@@ -30,6 +31,7 @@ from src.schemas.obligation_schemas import ObligationUpdate, ObligationApproval
 from src.compliance.scope import normalize_scopes, scope_keywords
 from src.websocket.manager import ws_manager
 from src.websocket.events import EventType, NotificationEvent
+from src.services.policy_library import ensure_master_policy_for_template
 
 router = APIRouter(prefix="/api/obligations", tags=["obligations"])
 
@@ -167,6 +169,92 @@ def _template_score(template: PolicyTemplate, text: str) -> int:
     return score
 
 
+DEFAULT_OBLIGATION_SECTION_REF = "OBL"
+DEFAULT_OBLIGATION_SECTION_TITLE = "Mapped obligations"
+
+
+def _pick_best_template(templates: List[PolicyTemplate], text: str) -> tuple[Optional[PolicyTemplate], int]:
+    if not templates:
+        return None, 0
+
+    best_template: Optional[PolicyTemplate] = None
+    best_score = -1
+    for template in templates:
+        score = _template_score(template, text)
+        if score > best_score:
+            best_score = score
+            best_template = template
+
+    # If nothing matched, fall back to the broad master policy if available.
+    if best_score <= 0:
+        fallback = next((t for t in templates if t.template_id == "aml-cft-policy-master"), None)
+        if fallback is not None:
+            best_template = fallback
+            best_score = 0
+
+    return best_template, best_score
+
+
+def _get_or_create_obligation_section(db: Session, policy_doc_id: int) -> PolicySection:
+    section = db.query(PolicySection).filter(
+        PolicySection.policy_id == policy_doc_id,
+        PolicySection.section_ref == DEFAULT_OBLIGATION_SECTION_REF,
+    ).first()
+    if section:
+        return section
+
+    section = PolicySection(
+        policy_id=policy_doc_id,
+        section_ref=DEFAULT_OBLIGATION_SECTION_REF,
+        title=DEFAULT_OBLIGATION_SECTION_TITLE,
+        status="draft",
+        created_at=utc_now(),
+        updated_at=utc_now(),
+    )
+    db.add(section)
+    db.flush()
+    return section
+
+
+def _ensure_internal_rule_for_obligation(
+    db: Session,
+    obligation: RegulatoryObligation,
+    *,
+    policy_section_id: Optional[int],
+    current_user_email: str,
+    name: str,
+    description: Optional[str],
+) -> tuple[InternalRule, bool]:
+    existing = db.query(InternalRule).filter(
+        InternalRule.obligation_id == obligation.id
+    ).order_by(InternalRule.id.asc()).first()
+    if existing:
+        changed = False
+        if existing.policy_section_id is None and policy_section_id is not None:
+            existing.policy_section_id = policy_section_id
+            changed = True
+        if not (existing.control_owner or "").strip() and (current_user_email or "").strip():
+            existing.control_owner = current_user_email
+            changed = True
+        if changed:
+            existing.updated_at = utc_now()
+        return existing, False
+
+    rule = InternalRule(
+        internal_rule_id=f"IR-{uuid.uuid4().hex[:8].upper()}",
+        obligation_id=obligation.id,
+        policy_section_id=policy_section_id,
+        name=name,
+        description=description,
+        control_owner=current_user_email,
+        status="draft",
+        created_at=utc_now(),
+        updated_at=utc_now(),
+    )
+    db.add(rule)
+    return rule, True
+
+
 @router.get("")
 def list_obligations(
     status: Optional[str] = Query(None, description="Comma-separated statuses"),
@@ -287,6 +375,12 @@ def get_policy_template_suggestions(
     )
 
     templates = db.query(PolicyTemplate).filter(PolicyTemplate.is_active == True).all()
+    template_ids = [t.template_id for t in templates]
+    master_policies = {}
+    if template_ids:
+        for policy in db.query(PolicyDocument).filter(PolicyDocument.policy_id.in_(template_ids)).all():
+            master_policies[policy.policy_id] = policy
+
     scored = []
     for template in templates:
         score = _template_score(template, text)
@@ -296,14 +390,25 @@ def get_policy_template_suggestions(
     scored.sort(key=lambda item: item[0], reverse=True)
     results = []
     for score, template in scored[:limit]:
+        policy = master_policies.get(template.template_id)
+        if not policy:
+            # Fallback to legacy/partial states where policy_id wasn't template_id yet.
+            policy = next(
+                (
+                    p
+                    for p in db.query(PolicyDocument).all()
+                    if (p.metadata_json or {}).get("template_id") == template.template_id
+                ),
+                None,
+            )
+        if not policy:
+            continue
         results.append({
+            "policy_document_id": policy.id,
+            "policy_id": policy.policy_id,
             "template_id": template.template_id,
-            "name": template.name,
+            "name": policy.name or template.name,
             "category": template.category,
-            "version": template.version,
-            "owner": template.owner,
-            "regulatory_basis": template.regulatory_basis,
-            "review_frequency_months": template.review_frequency_months,
             "score": score,
         })
 
@@ -327,7 +432,7 @@ async def update_obligation(
         raise HTTPException(status_code=400, detail="Unsupported status")
 
     transition_map = {
-        "draft": {"in_review", "rejected", "deprecated"},
+        "draft": {"in_review", "approved", "rejected", "deprecated"},
         "in_review": {"approved", "rejected", "draft"},
         "approved": {"deprecated"},
         "rejected": {"draft", "in_review"},
@@ -350,6 +455,44 @@ async def update_obligation(
     if new_status == "in_review":
         obligation.reviewed_by = current_user.email
     if new_status == "approved":
+        # Ensure an approved obligation is mapped into a policy and has an internal rule.
+        doc = db.query(LegalDocument).filter(LegalDocument.id == obligation.doc_id).first()
+        if not doc:
+            raise HTTPException(status_code=404, detail="Linked document not found")
+
+        if not obligation.linked_policy_id:
+            templates = db.query(PolicyTemplate).filter(PolicyTemplate.is_active == True).all()
+            if not templates:
+                raise HTTPException(status_code=409, detail="No policy templates/master policies available")
+
+            text = " ".join(
+                [
+                    obligation.obligation_text or "",
+                    obligation.article_ref or "",
+                    doc.title or "",
+                    doc.jurisdiction or "",
+                ]
+            )
+            best_template, best_score = _pick_best_template(templates, text)
+            if not best_template:
+                raise HTTPException(status_code=409, detail="No policy templates/master policies available")
+
+            policy, _ = ensure_master_policy_for_template(db, best_template)
+            obligation.linked_policy_id = policy.id
+
+            auto_note = f"[{utc_now().isoformat()}] {current_user.email}: Auto-linked to policy {policy.policy_id} (score={best_score})"
+            obligation.review_notes = f"{(obligation.review_notes or '').rstrip()}\n{auto_note}".strip()
+
+        policy_section = _get_or_create_obligation_section(db, obligation.linked_policy_id)
+        _ensure_internal_rule_for_obligation(
+            db,
+            obligation,
+            policy_section_id=policy_section.id if policy_section else None,
+            current_user_email=current_user.email,
+            name=f"Implement {obligation.obligation_id}",
+            description=(obligation.obligation_text or "")[:1000] or None,
+        )
+
         obligation.approved_by = current_user.email
         obligation.approved_at = utc_now()
     if new_status == "rejected":
@@ -397,13 +540,17 @@ async def approve_obligation(
     if not obligation:
         raise HTTPException(status_code=404, detail="Obligation not found")
 
+    doc = db.query(LegalDocument).filter(LegalDocument.id == obligation.doc_id).first()
+    if not doc:
+        raise HTTPException(status_code=404, detail="Linked document not found")
+
     new_status = payload.status.lower().strip()
     allowed_statuses = {"draft", "in_review", "approved", "rejected", "deprecated"}
     if new_status not in allowed_statuses:
         raise HTTPException(status_code=400, detail="Unsupported status")
 
     transition_map = {
-        "draft": {"in_review", "rejected", "deprecated"},
+        "draft": {"in_review", "approved", "rejected", "deprecated"},
         "in_review": {"approved", "rejected", "draft"},
         "approved": {"deprecated"},
         "rejected": {"draft", "in_review"},
@@ -414,13 +561,12 @@ async def approve_obligation(
         raise HTTPException(status_code=400, detail=f"Invalid status transition from {current_status} to {new_status}")
 
     # Validate linked policy if provided
+    linked_policy: Optional[PolicyDocument] = None
     if payload.linked_policy_id:
-        policy = db.query(PolicyDocument).filter(
-            PolicyDocument.id == payload.linked_policy_id
-        ).first()
-        if not policy:
+        linked_policy = db.query(PolicyDocument).filter(PolicyDocument.id == payload.linked_policy_id).first()
+        if not linked_policy:
             raise HTTPException(status_code=404, detail="Linked policy not found")
-        obligation.linked_policy_id = payload.linked_policy_id
+        obligation.linked_policy_id = linked_policy.id
 
     # Update status
     obligation.status = new_status
@@ -436,26 +582,57 @@ async def approve_obligation(
     if new_status == "in_review":
         obligation.reviewed_by = current_user.email
     if new_status == "approved":
+        # Ensure approved obligations are always linked to a policy (auto-assign from master policies if missing).
+        if not obligation.linked_policy_id:
+            templates = db.query(PolicyTemplate).filter(PolicyTemplate.is_active == True).all()
+            if not templates:
+                raise HTTPException(status_code=409, detail="No policy templates/master policies available")
+
+            text = " ".join(
+                [
+                    obligation.obligation_text or "",
+                    obligation.article_ref or "",
+                    doc.title or "",
+                    doc.jurisdiction or "",
+                ]
+            )
+            best_template, best_score = _pick_best_template(templates, text)
+            if not best_template:
+                raise HTTPException(status_code=409, detail="No policy templates/master policies available")
+
+            master_policy, _ = ensure_master_policy_for_template(db, best_template)
+            obligation.linked_policy_id = master_policy.id
+            linked_policy = master_policy
+
+            auto_note = f"[{utc_now().isoformat()}] {current_user.email}: Auto-linked to policy {master_policy.policy_id} (score={best_score})"
+            obligation.review_notes = f"{(obligation.review_notes or '').rstrip()}\n{auto_note}".strip()
+
         obligation.approved_by = current_user.email
         obligation.approved_at = utc_now()
     if new_status == "rejected":
         obligation.reviewed_by = current_user.email
 
-    # Create internal rule if requested
+    # Always create (or reuse) an internal rule on approval and attach it to the linked policy.
     internal_rule = None
-    if payload.create_internal_rule and new_status == "approved":
-        rule_name = payload.internal_rule_name or f"Rule for {obligation.obligation_id}"
-        internal_rule = InternalRule(
-            internal_rule_id=f"IR-{uuid.uuid4().hex[:8].upper()}",
-            obligation_id=obligation.id,
+    internal_rule_created = False
+    if new_status == "approved":
+        if not obligation.linked_policy_id:
+            raise HTTPException(status_code=409, detail="Approved obligation must be linked to a policy")
+
+        policy_section = _get_or_create_obligation_section(db, obligation.linked_policy_id)
+        rule_name = payload.internal_rule_name or f"Implement {obligation.obligation_id}"
+        description = payload.internal_rule_description or (
+            f"{(obligation.article_ref or '').strip()}\n\n{(obligation.obligation_text or '').strip()}"
+        ).strip()
+        description = (description[:2000] if description else None)
+        internal_rule, internal_rule_created = _ensure_internal_rule_for_obligation(
+            db,
+            obligation,
+            policy_section_id=policy_section.id if policy_section else None,
+            current_user_email=current_user.email,
             name=rule_name,
-            description=payload.internal_rule_description or obligation.obligation_text[:500],
-            control_owner=current_user.email,
-            status="draft",
-            created_at=utc_now(),
-            updated_at=utc_now(),
+            description=description,
         )
-        db.add(internal_rule)
 
     # Link to risk entries if provided
     if payload.link_risk_entry_ids:
@@ -487,10 +664,6 @@ async def approve_obligation(
     if internal_rule:
         db.refresh(internal_rule)
 
-    doc = db.query(LegalDocument).filter(LegalDocument.id == obligation.doc_id).first()
-    if not doc:
-        raise HTTPException(status_code=404, detail="Linked document not found")
-
     # Send WebSocket notifications
     try:
         event_type = EventType.OBLIGATION_APPROVED if new_status == "approved" else (
@@ -510,7 +683,7 @@ async def approve_obligation(
             link=f"/compliance/obligations/{obligation.id}",
         ))
 
-        if internal_rule:
+        if internal_rule and internal_rule_created:
             await ws_manager.broadcast(NotificationEvent(
                 event_type=EventType.INTERNAL_RULE_CREATED,
                 title="Internal Rule Created",
@@ -526,7 +699,7 @@ async def approve_obligation(
         pass
 
     result = _obligation_to_dict(obligation, doc, db)
-    if internal_rule:
+    if internal_rule and internal_rule_created:
         result["created_internal_rule"] = {
             "id": internal_rule.id,
             "internal_rule_id": internal_rule.internal_rule_id,
