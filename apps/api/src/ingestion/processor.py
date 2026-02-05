@@ -415,8 +415,8 @@ class IngestionProcessor:
         elif isinstance(doc.article_breakdown, list):
             article_breakdown = doc.article_breakdown
 
-        if not getattr(settings, "ANTHROPIC_API_KEY", ""):
-            logger.info(f"Skipping AI analysis for {doc.celex}: ANTHROPIC_API_KEY not set")
+        if not (getattr(settings, "ANTHROPIC_API_KEY", "") or getattr(settings, "OPENAI_API_KEY", "")):
+            logger.info(f"Skipping AI analysis for {doc.celex}: no AI API key configured")
             return False
         has_full_text = bool(doc.full_text and str(doc.full_text).strip())
         has_articles = bool(article_breakdown)

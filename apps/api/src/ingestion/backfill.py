@@ -175,8 +175,8 @@ class ContentBackfillService:
 
     def _analyze_document(self, doc: LegalDocument):
         """Run AI analysis on a document."""
-        if not getattr(settings, "ANTHROPIC_API_KEY", ""):
-            logger.info(f"Skipping AI analysis for {doc.celex}: ANTHROPIC_API_KEY not set")
+        if not (getattr(settings, "ANTHROPIC_API_KEY", "") or getattr(settings, "OPENAI_API_KEY", "")):
+            logger.info(f"Skipping AI analysis for {doc.celex}: no AI API key configured")
             return
 
         article_breakdown = None
