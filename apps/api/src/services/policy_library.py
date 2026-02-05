@@ -54,11 +54,15 @@ def ensure_master_policy_for_template(
 
     policies = list(existing_policies or [])
 
-    # Fallback: discover matching policies by metadata_json["template_id"].
+    # Fallback: discover matching policies by either:
+    # - policy_id == template_id (preferred, stable), or
+    # - metadata_json["template_id"] == template_id (legacy state)
     # We keep this Python-side for cross-DB compatibility.
     if existing_policies is None:
         candidates = db.query(PolicyDocument).all()
         for policy in candidates:
+            if policy.policy_id == template_id and policy not in policies:
+                policies.append(policy)
             meta_template_id = (policy.metadata_json or {}).get("template_id")
             if meta_template_id == template_id and policy not in policies:
                 policies.append(policy)
@@ -206,4 +210,3 @@ def ensure_master_policies(db: Optional[Session] = None) -> Dict[str, int]:
     finally:
         if owns_session:
             db.close()
-

@@ -114,7 +114,8 @@ export function useWebSocket(options: UseWebSocketOptions = {}): UseWebSocketRet
     }
     const wsProtocol = opts.apiUrl?.startsWith('https') ? 'wss' : 'ws';
     const baseUrl = opts.apiUrl?.replace(/^https?:\/\//, '') || 'localhost:8000';
-    return `${wsProtocol}://${baseUrl}/ws${token ? `?token=${token}` : ''}`;
+    // Backend websocket router is mounted under /api via routers_autoload include_with_api_prefix().
+    return `${wsProtocol}://${baseUrl}/api/ws${token ? `?token=${token}` : ''}`;
   }, [opts.apiUrl, getValidToken]);
 
   const showNotificationToast = useCallback((notification: WebSocketNotification) => {

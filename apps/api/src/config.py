@@ -64,7 +64,7 @@ class Settings(BaseSettings):
 
     # AI Configuration (Anthropic Claude)
     ANTHROPIC_API_KEY: str = ""
-    ANTHROPIC_MODEL: str = "claude-3-5-sonnet-20241022"
+    ANTHROPIC_MODEL: str = "claude-sonnet-4-20250514"
     ANTHROPIC_MAX_TOKENS_POLICY: int = 2000
     ANTHROPIC_MAX_TOKENS_EXTRACTION: int = 4000
     # AI Configuration (OpenAI fallback)

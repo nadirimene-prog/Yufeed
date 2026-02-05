@@ -6,6 +6,7 @@ import json
 import logging
 import re
 import time
+import threading
 import httpx
 from datetime import datetime
 from typing import Dict, List, Optional, Any
@@ -22,6 +23,33 @@ client = anthropic.Anthropic(api_key=ANTHROPIC_API_KEY) if ANTHROPIC_API_KEY els
 ANTHROPIC_DISABLED_REASON: Optional[str] = None
 OPENAI_DISABLED_REASON: Optional[str] = None
 logger = logging.getLogger(__name__)
+
+_analysis_ctx = threading.local()
+
+
+def _reset_llm_usage() -> None:
+    """Reset per-thread LLM usage markers for the current analysis run."""
+    _analysis_ctx.llm_providers = set()
+
+
+def _mark_llm_usage(provider: str) -> None:
+    """Mark that a real LLM response was successfully returned in this thread."""
+    providers = getattr(_analysis_ctx, "llm_providers", None)
+    if providers is None:
+        providers = set()
+        _analysis_ctx.llm_providers = providers
+    providers.add(provider)
+
+
+def _llm_providers_used() -> List[str]:
+    providers = getattr(_analysis_ctx, "llm_providers", None)
+    if not providers:
+        return []
+    return sorted(providers)
+
+
+def _llm_was_used() -> bool:
+    return bool(getattr(_analysis_ctx, "llm_providers", None))
 
 
 def _anthropic_enabled() -> bool:
@@ -49,6 +77,10 @@ def _disable_openai(reason: str):
 def _is_anthropic_credit_error(exc: Exception) -> bool:
     msg = str(exc).lower()
     return "credit balance is too low" in msg or ("insufficient" in msg and "credit" in msg)
+
+def _is_anthropic_model_not_found(exc: Exception) -> bool:
+    msg = str(exc).lower()
+    return "not_found_error" in msg and "model" in msg
 
 
 def _is_openai_quota_error(exc: Exception) -> bool:
@@ -98,7 +130,9 @@ def _openai_chat(prompt: str, max_tokens: int, temperature: float = 0.3) -> str:
                 continue
             response.raise_for_status()
             data = response.json()
-            return data["choices"][0]["message"]["content"]
+            content = data["choices"][0]["message"]["content"]
+            _mark_llm_usage("openai")
+            return content
         except Exception as exc:
             last_exc = exc
             if attempt < retries:
@@ -165,6 +199,7 @@ Respond with ONLY the category code (e.g., "aml", "crypto", "payments")."""
                 max_tokens=50,
                 messages=[{"role": "user", "content": prompt}]
             )
+            _mark_llm_usage("anthropic")
             
             result = message.content[0].text.strip().lower()
             # Validate result
@@ -238,6 +273,7 @@ Respond with ONLY the risk level (high, medium, or low)."""
                 max_tokens=50,
                 messages=[{"role": "user", "content": prompt}]
             )
+            _mark_llm_usage("anthropic")
             
             result = message.content[0].text.strip().lower()
             valid_levels = [r.value for r in RiskLevel]
@@ -442,18 +478,37 @@ Respond with JSON only."""
             return []
 
     if _anthropic_enabled():
+        # Use the configured model when valid, but fall back to a known-good Sonnet model if misconfigured.
+        model = (settings.ANTHROPIC_MODEL or "").strip() or "claude-sonnet-4-20250514"
         try:
             message = client.messages.create(
-                model="claude-3-sonnet-20240229",  # Better for complex extraction
+                model=model,
                 max_tokens=1000,
-                messages=[{"role": "user", "content": prompt}]
+                messages=[{"role": "user", "content": prompt}],
             )
+            _mark_llm_usage("anthropic")
             result_text = message.content[0].text.strip()
             return _parse_result(result_text)
         except Exception as e:
             if _is_anthropic_credit_error(e):
                 _disable_anthropic("insufficient_credits")
-            logger.warning("AI obligation extraction error: %s", e)
+                logger.warning("AI obligation extraction error: %s", e)
+            elif _is_anthropic_model_not_found(e) and model != "claude-sonnet-4-20250514":
+                try:
+                    message = client.messages.create(
+                        model="claude-sonnet-4-20250514",
+                        max_tokens=1000,
+                        messages=[{"role": "user", "content": prompt}],
+                    )
+                    _mark_llm_usage("anthropic")
+                    result_text = message.content[0].text.strip()
+                    return _parse_result(result_text)
+                except Exception as e2:
+                    if _is_anthropic_credit_error(e2):
+                        _disable_anthropic("insufficient_credits")
+                    logger.warning("AI obligation extraction error: %s", e2)
+            else:
+                logger.warning("AI obligation extraction error: %s", e)
 
     if _openai_enabled():
         try:
@@ -494,6 +549,7 @@ If no deadline can be determined, respond with "none".
                 max_tokens=100,
                 messages=[{"role": "user", "content": prompt}]
             )
+            _mark_llm_usage("anthropic")
             
             result = message.content[0].text.strip().lower()
             if result == "none":
@@ -569,6 +625,7 @@ Keep it under 100 words."""
                 max_tokens=200,
                 messages=[{"role": "user", "content": prompt}]
             )
+            _mark_llm_usage("anthropic")
             
             return message.content[0].text.strip()
             
@@ -614,8 +671,10 @@ def analyze_document(doc_data: Dict[str, Any]) -> Dict[str, Any]:
     pub_date = doc_data.get("publication_date")
     full_text = doc_data.get("full_text")
     article_breakdown = doc_data.get("article_breakdown")
-    
-    # Run all analyses
+
+    _reset_llm_usage()
+
+    # Run all analyses (may fall back to heuristics if AI providers are unavailable).
     compliance_domain = classify_document(title, celex)
     risk_level = assess_risk_level(title, celex, compliance_domain)
     obligations = extract_obligations(
@@ -626,12 +685,20 @@ def analyze_document(doc_data: Dict[str, Any]) -> Dict[str, Any]:
     )
     deadline = extract_deadline(title, pub_date)
     summary = generate_summary(title, celex)
-    
+
+    providers = _llm_providers_used()
+    analysis_provider = (
+        "anthropic" if "anthropic" in providers else "openai" if "openai" in providers else "heuristic"
+    )
+
     return {
         "compliance_domain": compliance_domain,
         "risk_level": risk_level,
         "obligations_json": obligations,
         "implementation_deadline": deadline,
         "ai_summary": summary,
-        "analyzed_at": utc_now()
+        # Only set analyzed_at when an LLM actually responded. This keeps documents analyzable later.
+        "analyzed_at": utc_now() if _llm_was_used() else None,
+        "analysis_provider": analysis_provider,
+        "llm_providers": providers,
     }

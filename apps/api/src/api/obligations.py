@@ -384,10 +384,17 @@ def get_policy_template_suggestions(
     scored = []
     for template in templates:
         score = _template_score(template, text)
-        if score > 0:
-            scored.append((score, template))
+        scored.append((score, template))
 
     scored.sort(key=lambda item: item[0], reverse=True)
+
+    # If we have no positive matches, still return a reasonable fallback (mirrors approval auto-linking).
+    if scored and scored[0][0] <= 0:
+        best_template, best_score = _pick_best_template(templates, text)
+        scored = [(best_score, best_template)] if best_template else []
+    else:
+        scored = [(score, template) for score, template in scored if score > 0]
+
     results = []
     for score, template in scored[:limit]:
         policy = master_policies.get(template.template_id)
