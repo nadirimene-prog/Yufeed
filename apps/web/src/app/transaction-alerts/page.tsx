@@ -1,35 +1,19 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { AlertCircle, Search, AlertTriangle, CheckCircle, Clock, Shield, Sparkles } from 'lucide-react';
 import { motion } from 'framer-motion';
 import toast from 'react-hot-toast';
 import { fetchWithAuth } from '@/lib/auth';
 import { getApiBaseUrl } from '@/lib/apiBaseUrl';
+import { useMonitoringAlerts } from "@/hooks/queries/useMonitoringData";
+import type { MonitoringAlert } from "@/types/monitoring";
 
 const API_URL = getApiBaseUrl();
 
-interface Alert {
-  id: number;
-  alert_id: string;
-  alert_type: string;
-  severity: string;
-  user_id: string;
-  status: string;
-  priority: number;
-  description: string;
-  risk_score: number;
-  created_at: string;
-  assigned_to?: string;
-  ai_recommendation?: string;
-  ai_confidence?: number;
-}
-
 export default function TransactionAlertsPage() {
   const router = useRouter();
-  const [alerts, setAlerts] = useState<Alert[]>([]);
-  const [loading, setLoading] = useState(true);
   const [selectedAlerts, setSelectedAlerts] = useState<number[]>([]);
   const [filters, setFilters] = useState({
     status: 'all',
@@ -37,33 +21,14 @@ export default function TransactionAlertsPage() {
     search: ''
   });
 
-  const fetchAlerts = async () => {
-    try {
-      let url = `${API_URL}/api/alerts/?limit=50`;
+  const alertsQuery = useMonitoringAlerts({
+    limit: 50,
+    ...(filters.status !== "all" ? { status: filters.status } : {}),
+    ...(filters.severity !== "all" ? { severity: filters.severity } : {}),
+  });
 
-      if (filters.status !== 'all') {
-        url += `&status=${filters.status}`;
-      }
-      if (filters.severity !== 'all') {
-        url += `&severity=${filters.severity}`;
-      }
-
-      const res = await fetchWithAuth(url);
-      const data = await res.json();
-      setAlerts(data);
-      setLoading(false);
-    } catch (error) {
-      console.error('Error fetching alerts:', error);
-      setLoading(false);
-    }
-  };
-
-  useEffect(() => {
-    const frameId = requestAnimationFrame(() => {
-      fetchAlerts();
-    });
-    return () => cancelAnimationFrame(frameId);
-  }, [filters]); // eslint-disable-line react-hooks/exhaustive-deps
+  const alerts = alertsQuery.data ?? [];
+  const loading = alertsQuery.isLoading;
 
   const handleBulkTriage = async () => {
     if (selectedAlerts.length === 0) {
@@ -80,7 +45,7 @@ export default function TransactionAlertsPage() {
       });
 
       if (res.ok) {
-        fetchAlerts();
+        await alertsQuery.refetch();
         setSelectedAlerts([]);
         toast.success(`Successfully triaged ${selectedAlerts.length} alerts`, { id: toastId });
       } else {
@@ -105,9 +70,9 @@ export default function TransactionAlertsPage() {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ assigned_to: analyst })
-        });
+      });
       }
-      fetchAlerts();
+      await alertsQuery.refetch();
       setSelectedAlerts([]);
       toast.success(`Assigned ${selectedAlerts.length} alerts to ${analyst}`, { id: toastId });
     } catch (error) {
@@ -354,7 +319,7 @@ function StatCard({ title, value, icon, color }: {
 type AlertCardColors = Record<string, string>;
 
 function AlertCard({ alert, selected, onToggleSelect, onClick, severityColors, statusColors }: {
-  alert: Alert;
+  alert: MonitoringAlert;
   selected: boolean;
   onToggleSelect: (id: number) => void;
   onClick: () => void;

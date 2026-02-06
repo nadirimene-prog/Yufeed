@@ -156,6 +156,12 @@ import type {
     Obligation,
     ObligationApprovalData,
 } from "@/types/compliance";
+import type {
+    InternalRule,
+    InternalRuleCreatePayload,
+    InternalRuleMapping,
+    InternalRuleMappingCreatePayload,
+} from "@/types/compliance-workflow";
 
 export interface PaginatedResponse<T> {
     total: number;
@@ -412,7 +418,29 @@ export const getObligationRisks = async (id: number): Promise<{ items: Obligatio
     return response.data;
 };
 
-export const getObligationInternalRules = async (id: number): Promise<{ items: unknown[] }> => {
-    const response = await apiClient.get<{ items: unknown[] }>(`/api/obligations/${id}/internal-rules`);
+export const getObligationInternalRules = async (id: number): Promise<{ items: InternalRule[] }> => {
+    const response = await apiClient.get<{ items: InternalRule[] }>(`/api/compliance/obligations/${id}/internal-rules`);
+    return response.data;
+};
+
+export const createComplianceInternalRule = async (
+    obligationId: number,
+    payload: InternalRuleCreatePayload
+): Promise<InternalRule> => {
+    const response = await apiClient.post<InternalRule>(
+        `/api/compliance/obligations/${obligationId}/internal-rules`,
+        payload
+    );
+    return response.data;
+};
+
+export const createComplianceInternalRuleMapping = async (
+    internalRuleId: number,
+    payload: InternalRuleMappingCreatePayload
+): Promise<InternalRuleMapping> => {
+    const response = await apiClient.post<InternalRuleMapping>(
+        `/api/compliance/internal-rules/${internalRuleId}/mappings`,
+        payload
+    );
     return response.data;
 };

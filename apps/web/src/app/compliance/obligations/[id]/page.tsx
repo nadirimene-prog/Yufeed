@@ -1,33 +1,50 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { useParams, useRouter } from "next/navigation";
-import apiClient from "@/lib/http";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { handleApiError } from "@/lib/api-error-handler";
 import ObligationApprovalModal from "@/components/compliance/ObligationApprovalModal";
-import type { Obligation, Policy, PolicySection } from "@/types/compliance";
+import type { Obligation } from "@/types/compliance";
 import { getPolicies, getPolicySections } from "@/lib/compliance-api";
+import { complianceKeys } from "@/lib/queryKeys";
+import { useObligation, useUpdateObligationStatus } from "@/hooks/queries/useComplianceData";
+import {
+  useCreateComplianceInternalRule,
+  useCreateComplianceInternalRuleMapping,
+  useObligationInternalRules,
+} from "@/hooks/queries/useComplianceWorkflowData";
 import ObligationHeader from "@/app/compliance/obligations/[id]/components/ObligationHeader";
 import ObligationSummary from "@/app/compliance/obligations/[id]/components/ObligationSummary";
 import ObligationReview from "@/app/compliance/obligations/[id]/components/ObligationReview";
 import InternalRulesManager from "@/app/compliance/obligations/[id]/components/InternalRulesManager";
 import LinkedPolicyCard from "@/app/compliance/obligations/[id]/components/LinkedPolicyCard";
 import LinkedRisksList from "@/app/compliance/obligations/[id]/components/LinkedRisksList";
-import type { InternalRule } from "@/app/compliance/obligations/[id]/components/types";
+import type { InternalRuleMappingCreatePayload } from "@/types/compliance-workflow";
+
+const POLICIES_PARAMS = { skip: 0, limit: 200 } as const;
+const DISABLED_POLICY_SECTIONS_KEY = ["compliance", "policies", "sections", "disabled"] as const;
 
 export default function ObligationDetailPage() {
   const params = useParams();
   const router = useRouter();
-  const id = Array.isArray(params?.id) ? params.id[0] : params?.id;
-  const [data, setData] = useState<Obligation | null>(null);
-  const [loading, setLoading] = useState(true);
+  const idParam = Array.isArray(params?.id) ? params.id[0] : params?.id;
+  const obligationId =
+    typeof idParam === "string" && /^\\d+$/.test(idParam) ? Number(idParam) : null;
+
+  const queryClient = useQueryClient();
+  const obligationQuery = useObligation(obligationId);
+  const obligation = obligationQuery.data ?? null;
+
+  const internalRulesQuery = useObligationInternalRules(obligationId);
+  const internalRules = internalRulesQuery.data?.items ?? [];
+  const rulesLoading = internalRulesQuery.isLoading;
+
+  const updateObligationStatusMutation = useUpdateObligationStatus();
+  const createInternalRuleMutation = useCreateComplianceInternalRule(obligationId);
+  const createMappingMutation = useCreateComplianceInternalRuleMapping(obligationId);
+
   const [actionLoading, setActionLoading] = useState<string | null>(null);
-  const [policies, setPolicies] = useState<Policy[]>([]);
-  const [policiesLoading, setPoliciesLoading] = useState(true);
-  const [sections, setSections] = useState<PolicySection[]>([]);
-  const [sectionsLoading, setSectionsLoading] = useState(false);
-  const [internalRules, setInternalRules] = useState<InternalRule[]>([]);
-  const [rulesLoading, setRulesLoading] = useState(true);
   const [reviewNote, setReviewNote] = useState("");
   const [ruleForm, setRuleForm] = useState({
     name: "",
@@ -41,106 +58,44 @@ export default function ObligationDetailPage() {
   const [rulesActionLoading, setRulesActionLoading] = useState<string | null>(null);
   const [showApprovalModal, setShowApprovalModal] = useState(false);
 
-  useEffect(() => {
-    let mounted = true;
-    const fetchDetail = async () => {
-      if (!id) return;
-      setLoading(true);
-      try {
-        const response = await apiClient.get(`/api/obligations/${id}`);
-        if (mounted) {
-          setData(response.data);
-        }
-      } catch (err) {
-        handleApiError(err, { context: "Obligation detail", customMessage: "Failed to load obligation" });
-      } finally {
-        if (mounted) setLoading(false);
+  const policiesQuery = useQuery({
+    queryKey: complianceKeys.policiesList(POLICIES_PARAMS),
+    queryFn: () => getPolicies(POLICIES_PARAMS),
+  });
+
+  const policies = policiesQuery.data?.items ?? [];
+  const policiesLoading = policiesQuery.isLoading;
+
+  const selectedPolicyId = ruleForm.policy_id ? Number(ruleForm.policy_id) : null;
+  const policySectionsQuery = useQuery({
+    queryKey:
+      typeof selectedPolicyId === "number"
+        ? complianceKeys.policySections(selectedPolicyId)
+        : DISABLED_POLICY_SECTIONS_KEY,
+    queryFn: () => {
+      if (typeof selectedPolicyId !== "number") {
+        throw new Error("Policy id is required");
       }
-    };
-    fetchDetail();
-    return () => {
-      mounted = false;
-    };
-  }, [id]);
+      return getPolicySections(selectedPolicyId);
+    },
+    enabled: typeof selectedPolicyId === "number",
+  });
 
-  useEffect(() => {
-    let mounted = true;
-    const fetchPolicies = async () => {
-      setPoliciesLoading(true);
-      try {
-        const response = await getPolicies({ skip: 0, limit: 200 });
-        if (!mounted) return;
-        setPolicies(response.items || []);
-      } catch (err) {
-        handleApiError(err, { context: "Policies list", customMessage: "Failed to load policies" });
-      } finally {
-        if (mounted) {
-          setPoliciesLoading(false);
-        }
-      }
-    };
-    fetchPolicies();
-    return () => {
-      mounted = false;
-    };
-  }, []);
-
-  useEffect(() => {
-    if (!ruleForm.policy_id) {
-      setSections([]);
-      setSectionsLoading(false);
-      return;
-    }
-    let mounted = true;
-    const fetchSections = async () => {
-      setSectionsLoading(true);
-      try {
-        const response = await getPolicySections(Number(ruleForm.policy_id));
-        if (!mounted) return;
-        setSections(response.items || []);
-      } catch (err) {
-        handleApiError(err, { context: "Policy sections", customMessage: "Failed to load policy sections" });
-      } finally {
-        if (mounted) setSectionsLoading(false);
-      }
-    };
-    fetchSections();
-    return () => {
-      mounted = false;
-    };
-  }, [ruleForm.policy_id]);
-
-  const fetchInternalRules = async () => {
-    if (!id) return;
-    setRulesLoading(true);
-    try {
-      const response = await apiClient.get(`/api/compliance/obligations/${id}/internal-rules`);
-      setInternalRules(response.data.items || []);
-    } catch (err) {
-      handleApiError(err, { context: "Internal rules", customMessage: "Failed to load internal rules" });
-    } finally {
-      setRulesLoading(false);
-    }
-  };
-
-  useEffect(() => {
-    fetchInternalRules();
-  }, [id]); // eslint-disable-line react-hooks/exhaustive-deps
+  const sections = typeof selectedPolicyId === "number" ? policySectionsQuery.data?.items ?? [] : [];
+  const sectionsLoading =
+    typeof selectedPolicyId === "number" ? policySectionsQuery.isLoading : false;
 
   const createInternalRule = async () => {
-    if (!id || !ruleForm.name.trim()) return;
+    if (typeof obligationId !== "number" || !ruleForm.name.trim()) return;
     setRulesActionLoading("create");
     try {
-      const payload: Record<string, unknown> = {
+      await createInternalRuleMutation.mutateAsync({
         name: ruleForm.name.trim(),
         description: ruleForm.description.trim() || undefined,
         control_owner: ruleForm.control_owner.trim() || undefined,
         status: ruleForm.status,
-      };
-      if (ruleForm.policy_section_id) {
-        payload.policy_section_id = Number(ruleForm.policy_section_id);
-      }
-      await apiClient.post(`/api/compliance/obligations/${id}/internal-rules`, payload);
+        policy_section_id: ruleForm.policy_section_id ? Number(ruleForm.policy_section_id) : undefined,
+      });
       setRuleForm({
         name: "",
         description: "",
@@ -149,7 +104,6 @@ export default function ObligationDetailPage() {
         policy_id: ruleForm.policy_id,
         policy_section_id: "",
       });
-      await fetchInternalRules();
     } catch (err) {
       handleApiError(err, { context: "Create internal rule", customMessage: "Failed to create internal rule" });
     } finally {
@@ -163,7 +117,7 @@ export default function ObligationDetailPage() {
     setRulesActionLoading(`map-${ruleId}`);
     try {
       const trimmed = mapping.target.trim();
-      const payload: Record<string, unknown> = {
+      const payload: InternalRuleMappingCreatePayload = {
         mapping_type: mapping.mappingType || "transaction_monitoring",
       };
       if (/^\\d+$/.test(trimmed)) {
@@ -171,9 +125,8 @@ export default function ObligationDetailPage() {
       } else {
         payload.monitoring_rule_rule_id = trimmed;
       }
-      await apiClient.post(`/api/compliance/internal-rules/${ruleId}/mappings`, payload);
+      await createMappingMutation.mutateAsync({ internalRuleId: ruleId, payload });
       setMappingForm((prev) => ({ ...prev, [ruleId]: { ...prev[ruleId], target: "" } }));
-      await fetchInternalRules();
     } catch (err) {
       handleApiError(err, { context: "Create mapping", customMessage: "Failed to add monitoring rule mapping" });
     } finally {
@@ -182,15 +135,14 @@ export default function ObligationDetailPage() {
   };
 
   const updateStatus = async (status: string) => {
-    if (!id) return;
+    if (typeof obligationId !== "number") return;
     setActionLoading(status);
     try {
-      const payload: Record<string, unknown> = { status };
-      if (reviewNote.trim()) {
-        payload.note = reviewNote.trim();
-      }
-      const response = await apiClient.patch(`/api/obligations/${id}`, payload);
-      setData(response.data);
+      await updateObligationStatusMutation.mutateAsync({
+        id: obligationId,
+        status,
+        note: reviewNote.trim() ? reviewNote.trim() : undefined,
+      });
       setReviewNote("");
     } catch (err) {
       handleApiError(err, { context: "Update obligation status" });
@@ -220,58 +172,55 @@ export default function ObligationDetailPage() {
   };
 
   const handleApprovalSuccess = (updatedObligation: Obligation) => {
-    setData((prev) => {
-      if (!prev) return updatedObligation;
-      return {
-        ...prev,
-        status: updatedObligation.status,
-        review_notes: updatedObligation.review_notes ?? prev.review_notes,
-        reviewed_by: updatedObligation.reviewed_by ?? prev.reviewed_by,
-        approved_by: updatedObligation.approved_by ?? prev.approved_by,
-        approved_at: updatedObligation.approved_at ?? prev.approved_at,
-        linked_policy_id: updatedObligation.linked_policy_id,
-        linked_policy: updatedObligation.linked_policy,
-        linked_risks: updatedObligation.linked_risks,
-        linked_risks_count: updatedObligation.linked_risks_count,
-        internal_rules_count: updatedObligation.internal_rules_count,
-      };
+    queryClient.setQueryData(complianceKeys.obligationDetail(updatedObligation.id), updatedObligation);
+    queryClient.invalidateQueries({ queryKey: complianceKeys.obligations() });
+    queryClient.invalidateQueries({
+      queryKey: complianceKeys.obligationInternalRules(updatedObligation.id),
     });
-    fetchInternalRules(); // Refresh internal rules in case one was created
   };
 
-  const canUseEnhancedApproval = ["draft", "in_review"].includes((data?.status || "").toLowerCase());
+  const canUseEnhancedApproval = ["draft", "in_review"].includes((obligation?.status || "").toLowerCase());
 
-  if (loading) {
+  if (obligationId === null) {
+    return <div className="text-sm text-gray-500">Invalid obligation id.</div>;
+  }
+
+  if (obligationQuery.isLoading) {
     return <div className="text-sm text-gray-500">Loading obligation…</div>;
   }
 
-  if (!data) {
+  if (obligationQuery.isError) {
+    console.error("Failed to load obligation detail", obligationQuery.error);
+    return <div className="text-sm text-gray-500">Failed to load obligation.</div>;
+  }
+
+  if (!obligation) {
     return <div className="text-sm text-gray-500">Obligation not found.</div>;
   }
 
-  const actions = actionsFor(data.status);
+  const actions = actionsFor(obligation.status);
 
   return (
     <div className="space-y-6">
       <ObligationHeader
-        obligationId={data.obligation_id}
-        title={data.document.title}
-        celex={data.document.celex || null}
-        jurisdiction={data.document.jurisdiction || null}
-        sourceSystem={data.document.source_system || null}
-        status={data.status}
+        obligationId={obligation.obligation_id}
+        title={obligation.document.title}
+        celex={obligation.document.celex || null}
+        jurisdiction={obligation.document.jurisdiction || null}
+        sourceSystem={obligation.document.source_system || null}
+        status={obligation.status}
       />
 
       <ObligationSummary
-        obligationText={data.obligation_text}
-        articleRef={data.article_ref || null}
-        applicability={data.applicability || null}
-        effectiveDate={data.effective_date || null}
-        updatedAt={data.updated_at || null}
+        obligationText={obligation.obligation_text}
+        articleRef={obligation.article_ref || null}
+        applicability={obligation.applicability || null}
+        effectiveDate={obligation.effective_date || null}
+        updatedAt={obligation.updated_at || null}
       />
 
       <ObligationReview
-        reviewNotes={data.review_notes || null}
+        reviewNotes={obligation.review_notes || null}
         reviewNote={reviewNote}
         onReviewNoteChange={setReviewNote}
         canUseEnhancedApproval={canUseEnhancedApproval}
@@ -280,14 +229,14 @@ export default function ObligationDetailPage() {
         actionLoading={actionLoading}
         onUpdateStatus={updateStatus}
         onViewSourceDoc={() => {
-          if (data.document.celex) {
-            router.push(`/doc/${data.document.celex}`);
+          if (obligation.document.celex) {
+            router.push(`/doc/${obligation.document.celex}`);
           }
         }}
-        createdBy={data.created_by || null}
-        reviewedBy={data.reviewed_by || null}
-        approvedBy={data.approved_by || null}
-        approvedAt={data.approved_at || null}
+        createdBy={obligation.created_by || null}
+        reviewedBy={obligation.reviewed_by || null}
+        approvedBy={obligation.approved_by || null}
+        approvedAt={obligation.approved_at || null}
       />
 
       <InternalRulesManager
@@ -306,17 +255,17 @@ export default function ObligationDetailPage() {
         onCreateInternalRule={createInternalRule}
       />
 
-      {data.linked_policy ? <LinkedPolicyCard policy={data.linked_policy} /> : null}
+      {obligation.linked_policy ? <LinkedPolicyCard policy={obligation.linked_policy} /> : null}
 
-      {data.linked_risks && data.linked_risks.length > 0 ? (
-        <LinkedRisksList linkedRisks={data.linked_risks} />
+      {obligation.linked_risks && obligation.linked_risks.length > 0 ? (
+        <LinkedRisksList linkedRisks={obligation.linked_risks} />
       ) : null}
 
       {/* Enhanced Approval Modal */}
       <ObligationApprovalModal
         open={showApprovalModal}
         onOpenChange={setShowApprovalModal}
-        obligation={data}
+        obligation={obligation}
         onSuccess={handleApprovalSuccess}
       />
     </div>

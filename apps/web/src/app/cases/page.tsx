@@ -1,72 +1,27 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { Folder, Search, Clock, CheckCircle, AlertTriangle, FileText } from 'lucide-react';
-import { fetchWithAuth } from '@/lib/auth';
-import { getApiBaseUrl } from '@/lib/apiBaseUrl';
-
-const API_URL = getApiBaseUrl();
-
-interface Case {
-  id: number;
-  case_id: string;
-  case_type: string;
-  status: string;
-  severity: string;
-  subject_type?: string;
-  subject_id?: string;
-  description?: string;
-  summary?: string;
-  opened_at: string;
-  closed_at?: string;
-  assigned_to?: string;
-  escalated_to?: string;
-  outcome?: string;
-  related_alert_ids?: number[];
-  related_transaction_ids?: number[];
-}
+import { useMonitoringCases } from "@/hooks/queries/useMonitoringData";
+import type { MonitoringCase } from "@/types/monitoring";
 
 export default function CasesPage() {
   const router = useRouter();
-  const [cases, setCases] = useState<Case[]>([]);
-  const [loading, setLoading] = useState(true);
   const [filters, setFilters] = useState({
     status: 'all',
     severity: 'all',
     search: ''
   });
 
-  useEffect(() => {
-    let mounted = true;
-    const fetchCases = async () => {
-      try {
-        let url = `${API_URL}/api/cases/?limit=50`;
+  const casesQuery = useMonitoringCases({
+    limit: 50,
+    ...(filters.status !== "all" ? { status: filters.status } : {}),
+    ...(filters.severity !== "all" ? { severity: filters.severity } : {}),
+  });
 
-        if (filters.status !== 'all') {
-          url += `&status=${filters.status}`;
-        }
-        if (filters.severity !== 'all') {
-          url += `&severity=${filters.severity}`;
-        }
-
-        const res = await fetchWithAuth(url);
-        const data = await res.json();
-        if (!mounted) return;
-        setCases(data);
-        setLoading(false);
-      } catch (error) {
-        if (!mounted) return;
-        console.error('Error fetching cases:', error);
-        setLoading(false);
-      }
-    };
-
-    fetchCases();
-    return () => {
-      mounted = false;
-    };
-  }, [filters]);
+  const cases = casesQuery.data ?? [];
+  const loading = casesQuery.isLoading;
 
   const filteredCases = cases.filter(caseItem => {
     if (filters.search) {
@@ -254,7 +209,7 @@ type StatusColors = Record<string, string>;
 type SeverityColors = Record<string, string>;
 
 function CaseCard({ caseItem, onClick, statusColors, severityColors }: {
-  caseItem: Case;
+  caseItem: MonitoringCase;
   onClick: () => void;
   statusColors: StatusColors;
   severityColors: SeverityColors;
