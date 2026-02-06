@@ -143,6 +143,52 @@ app.add_middleware(CORSMiddleware, **cors_kwargs)
 # (your limiter block stays unchanged)
 
 # ----------------------------------------------------------------------
+# API Root & Versioning
+# ----------------------------------------------------------------------
+@app.get("/", tags=["root"])
+def api_root():
+    """
+    API root endpoint showing available versions and documentation.
+
+    Versioning Strategy:
+    - /api/*     - Current stable version (backward compatible)
+    - /api/v1/*  - Version 1 (explicit, identical to /api/*)
+    - /api/v2/*  - Version 2 (future, for breaking changes)
+
+    All existing endpoints are available at both /api/* and /api/v1/*
+    """
+    return {
+        "message": "YuFeed API",
+        "version": "1.0.0",
+        "api_versions": {
+            "current": {
+                "path": "/api",
+                "description": "Current stable API (backward compatible)",
+                "deprecated": False
+            },
+            "v1": {
+                "path": "/api/v1",
+                "description": "Version 1 API (explicit, identical to /api)",
+                "deprecated": False
+            },
+            "v2": {
+                "path": "/api/v2",
+                "description": "Version 2 API (reserved for future breaking changes)",
+                "status": "not_yet_available"
+            }
+        },
+        "documentation": {
+            "swagger": "/api/docs",
+            "redoc": "/api/redoc",
+            "openapi_json": "/api/openapi.json"
+        },
+        "monitoring": {
+            "health": "/healthz",
+            "metrics": "/metrics"
+        }
+    }
+
+# ----------------------------------------------------------------------
 # Light‑weight health‑check (used by Docker/K8s probes)
 # ----------------------------------------------------------------------
 @app.get("/healthz", tags=["monitoring"])

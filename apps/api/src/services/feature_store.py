@@ -51,6 +51,11 @@ class FeatureStore:
         db,  # async Session from get_async_db()
         tenant_id: Optional[str] = None,
     ) -> Dict[str, Any]:
+        import time
+        from src.monitoring.metrics import feature_extraction_duration_seconds, feature_cache_hits_total, feature_cache_misses_total
+
+        start_time = time.time()
+
         resolved_tenant_id = (
             tenant_id
             or (payload.get("tenant_id") if isinstance(payload, dict) else None)
@@ -60,7 +65,12 @@ class FeatureStore:
         cache_key = f"feat:{resolved_tenant_id}:{user_id}:{event_type}"
         cached = await redis.get(cache_key)
         if cached:
+            feature_cache_hits_total.inc()
+            duration = time.time() - start_time
+            feature_extraction_duration_seconds.labels(feature_type="user").observe(duration)
             return json.loads(cached)
+
+        feature_cache_misses_total.inc()
 
         # Default result shape (safe for downstream consumers).
         result: Dict[str, Any] = {
@@ -182,6 +192,11 @@ class FeatureStore:
                         result["account_age_days"] = 0
 
         await redis.set(cache_key, json.dumps(result), ex=CACHE_TTL)
+
+        # Record feature extraction duration
+        duration = time.time() - start_time
+        feature_extraction_duration_seconds.labels(feature_type="user").observe(duration)
+
         return result
 
 

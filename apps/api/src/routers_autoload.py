@@ -1,12 +1,30 @@
 # AUTO-GENERATED: routers autoload
+# Updated: 2026-02-06 - Added API versioning support
 from typing import List
 from fastapi import APIRouter, FastAPI
 
 def register_routers(app: FastAPI) -> None:
+    """
+    Register all API routers with versioning support.
+
+    Versioning Strategy:
+    - /api/*         -> Current version (backward compatibility)
+    - /api/v1/*      -> Version 1 (explicit alias)
+    - /api/v2/*      -> Version 2 (future, for breaking changes)
+
+    All routers are registered twice: once at /api/* and once at /api/v1/*
+    This allows gradual migration to versioned endpoints without breaking existing clients.
+    """
     def include_with_api_prefix(router: APIRouter):
+        """Include router at both unversioned and v1 paths."""
         if not router.prefix.startswith("/api"):
-            app.include_router(router, prefix="/api")
+            # Register at /api/* (current, backward compatible)
+            app.include_router(router, prefix="/api", tags=router.tags or [])
+
+            # Also register at /api/v1/* (explicit version)
+            app.include_router(router, prefix="/api/v1", tags=(router.tags or []) + ["v1"])
         else:
+            # Router already has /api prefix, register as-is
             app.include_router(router)
 
     from .api.ai_agents import router as r1
