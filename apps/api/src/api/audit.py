@@ -9,6 +9,7 @@ from datetime import datetime
 
 from src.database import get_db
 from src.audit.models import AuditLog, EventRecord, DecisionRecord
+from src.audit.recorders import record_event, record_decision
 from src.schemas.audit_schemas import (
     AuditLogResponse,
     EventCreate,
@@ -19,6 +20,7 @@ from src.schemas.audit_schemas import (
     DecisionListResponse,
 )
 from src.auth.dependencies import require_any_role, CurrentUser
+from src.tenancy.context import get_current_tenant
 from sqlalchemy import func
 
 router = APIRouter(prefix="/api/audit", tags=["audit"])
@@ -33,7 +35,7 @@ def list_audit_logs_compat(
     entity_id: Optional[str] = None,
     action: Optional[str] = None,
     db: Session = Depends(get_db),
-    _: CurrentUser = Depends(require_any_role(["admin", "compliance", "auditor", "user"]))
+    current_user: CurrentUser = Depends(require_any_role(["admin", "compliance", "auditor", "user"]))
 ):
     """
     Backwards-compatible audit log listing endpoint.
@@ -48,7 +50,7 @@ def list_audit_logs_compat(
         entity_id=entity_id,
         action=action,
         db=db,
-        _=_
+        current_user=current_user
     )
 
 
@@ -61,9 +63,13 @@ def list_audit_logs(
     entity_id: Optional[str] = None,
     action: Optional[str] = None,
     db: Session = Depends(get_db),
-    _: CurrentUser = Depends(require_any_role(["admin", "compliance", "auditor", "user"]))
+    current_user: CurrentUser = Depends(require_any_role(["admin", "compliance", "auditor", "user"]))
 ):
-    query = db.query(AuditLog)
+    tenant_id = current_user.tenant_id or get_current_tenant()
+    if not tenant_id:
+        raise HTTPException(status_code=403, detail="Tenant context is required")
+
+    query = db.query(AuditLog).filter(AuditLog.tenant_id == tenant_id)
 
     if actor_id:
         query = query.filter(AuditLog.actor_id == actor_id)
@@ -82,9 +88,16 @@ def list_audit_logs(
 def get_audit_log(
     audit_id: str,
     db: Session = Depends(get_db),
-    _: CurrentUser = Depends(require_any_role(["admin", "compliance", "auditor", "user"]))
+    current_user: CurrentUser = Depends(require_any_role(["admin", "compliance", "auditor", "user"]))
 ):
-    log = db.query(AuditLog).filter(AuditLog.audit_id == audit_id).first()
+    tenant_id = current_user.tenant_id or get_current_tenant()
+    if not tenant_id:
+        raise HTTPException(status_code=403, detail="Tenant context is required")
+
+    log = db.query(AuditLog).filter(
+        AuditLog.audit_id == audit_id,
+        AuditLog.tenant_id == tenant_id,
+    ).first()
     if not log:
         raise HTTPException(status_code=404, detail="Audit log not found")
     return log
@@ -94,19 +107,23 @@ def get_audit_log(
 def create_event(
     event: EventCreate,
     db: Session = Depends(get_db),
-    _: CurrentUser = Depends(require_any_role(["admin", "compliance", "auditor", "user"]))
+    current_user: CurrentUser = Depends(require_any_role(["admin", "compliance", "auditor", "user"]))
 ):
-    event_id = event.event_id or uuid.uuid4().hex
-    record = EventRecord(
-        event_id=event_id,
+    tenant_id = current_user.tenant_id or get_current_tenant()
+    if not tenant_id:
+        raise HTTPException(status_code=403, detail="Tenant context is required")
+
+    record = record_event(
+        db=db,
         event_type=event.event_type,
+        tenant_id=tenant_id,
         entity_type=event.entity_type,
         entity_id=event.entity_id,
         source=event.source,
         payload=event.payload,
-        metadata_json=event.metadata,
+        metadata=event.metadata,
+        event_id=event.event_id or uuid.uuid4().hex,
     )
-    db.add(record)
     db.commit()
     db.refresh(record)
     return record
@@ -116,9 +133,16 @@ def create_event(
 def get_event(
     event_id: str,
     db: Session = Depends(get_db),
-    _: CurrentUser = Depends(require_any_role(["admin", "compliance", "auditor", "user"]))
+    current_user: CurrentUser = Depends(require_any_role(["admin", "compliance", "auditor", "user"]))
 ):
-    record = db.query(EventRecord).filter(EventRecord.event_id == event_id).first()
+    tenant_id = current_user.tenant_id or get_current_tenant()
+    if not tenant_id:
+        raise HTTPException(status_code=403, detail="Tenant context is required")
+
+    record = db.query(EventRecord).filter(
+        EventRecord.event_id == event_id,
+        EventRecord.tenant_id == tenant_id,
+    ).first()
     if not record:
         raise HTTPException(status_code=404, detail="Event not found")
     return record
@@ -128,20 +152,24 @@ def get_event(
 def create_decision(
     decision: DecisionCreate,
     db: Session = Depends(get_db),
-    _: CurrentUser = Depends(require_any_role(["admin", "compliance", "auditor", "user"]))
+    current_user: CurrentUser = Depends(require_any_role(["admin", "compliance", "auditor", "user"]))
 ):
-    decision_id = decision.decision_id or uuid.uuid4().hex
-    record = DecisionRecord(
-        decision_id=decision_id,
-        event_id=decision.event_id,
+    tenant_id = current_user.tenant_id or get_current_tenant()
+    if not tenant_id:
+        raise HTTPException(status_code=403, detail="Tenant context is required")
+
+    record = record_decision(
+        db=db,
         decision=decision.decision,
+        tenant_id=tenant_id,
+        event_id=decision.event_id,
         reason_codes=decision.reason_codes,
         rule_version=decision.rule_version,
         model_version=decision.model_version,
         evidence=decision.evidence,
-        metadata_json=decision.metadata,
+        metadata=decision.metadata,
+        decision_id=decision.decision_id or uuid.uuid4().hex,
     )
-    db.add(record)
     db.commit()
     db.refresh(record)
     return record
@@ -151,10 +179,15 @@ def create_decision(
 def get_decision(
     decision_id: str,
     db: Session = Depends(get_db),
-    _: CurrentUser = Depends(require_any_role(["admin", "compliance", "auditor", "user"]))
+    current_user: CurrentUser = Depends(require_any_role(["admin", "compliance", "auditor", "user"]))
 ):
+    tenant_id = current_user.tenant_id or get_current_tenant()
+    if not tenant_id:
+        raise HTTPException(status_code=403, detail="Tenant context is required")
+
     record = db.query(DecisionRecord).filter(
-        DecisionRecord.decision_id == decision_id
+        DecisionRecord.decision_id == decision_id,
+        DecisionRecord.tenant_id == tenant_id,
     ).first()
     if not record:
         raise HTTPException(status_code=404, detail="Decision not found")
@@ -174,11 +207,15 @@ def list_decisions(
     created_from: Optional[datetime] = None,
     created_to: Optional[datetime] = None,
     db: Session = Depends(get_db),
-    _: CurrentUser = Depends(require_any_role(["admin", "compliance", "auditor", "user"]))
+    current_user: CurrentUser = Depends(require_any_role(["admin", "compliance", "auditor", "user"]))
 ):
+    tenant_id = current_user.tenant_id or get_current_tenant()
+    if not tenant_id:
+        raise HTTPException(status_code=403, detail="Tenant context is required")
+
     query = db.query(DecisionRecord, EventRecord).outerjoin(
         EventRecord, DecisionRecord.event_id == EventRecord.event_id
-    )
+    ).filter(DecisionRecord.tenant_id == tenant_id)
 
     if decision:
         query = query.filter(DecisionRecord.decision == decision)

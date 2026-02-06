@@ -121,30 +121,35 @@ def test_reporting_endpoints_cover_dashboard_and_exports(db_session, monkeypatch
     # Events & decisions for evidence exports
     event_case = EventRecord(
         event_id="evt_case",
+        tenant_id="default",
         event_type="case.updated",
         entity_type="case",
         entity_id=case.case_id,
     )
     event_alert = EventRecord(
         event_id="evt_alert",
+        tenant_id="default",
         event_type="alert.created",
         entity_type="alert",
         entity_id=alert.alert_id,
     )
     event_txn = EventRecord(
         event_id="evt_txn",
+        tenant_id="default",
         event_type="rule.triggered",
         entity_type="transaction",
         entity_id=txn.transaction_id,
     )
     decision = DecisionRecord(
         decision_id="dec_001",
+        tenant_id="default",
         event_id=event_txn.event_id,
         decision="alert",
     )
 
     audit = AuditLog(
         audit_id="audit_001",
+        tenant_id="default",
         actor_id="user_1",
         actor_email="user@example.com",
         actor_role="admin",

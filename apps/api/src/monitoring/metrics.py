@@ -11,7 +11,14 @@ websocket_connections_active = Gauge(
 router = APIRouter()
 websocket_messages_sent_total = Counter(
     "websocket_messages_sent_total",
-    "Total number of websocket messages sent"
+    "Total number of websocket messages sent",
+    ["event_type"],
+)
+
+rule_coercion_failures_total = Counter(
+    "rule_coercion_failures_total",
+    "Total number of rule numeric coercion failures",
+    ["rule_id", "field"],
 )
 
 instrumentor = Instrumentator(
@@ -39,4 +46,3 @@ def record_cache_miss(key: str):
 def setup_metrics(app):
     """Attach Prometheus instrumentation to the FastAPI app."""
     Instrumentator().instrument(app).expose(app, endpoint="/metrics", include_in_schema=False)
-

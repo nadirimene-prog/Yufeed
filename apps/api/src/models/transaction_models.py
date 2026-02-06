@@ -4,7 +4,7 @@ Phase 1: Foundation for transaction monitoring, alerts, and case management.
 """
 from sqlalchemy import (
     Column, Integer, String, Text, DateTime, Numeric, Boolean,
-    ForeignKey, ARRAY, JSON
+    ForeignKey, ARRAY, JSON, UniqueConstraint, Index
 )
 from sqlalchemy.dialects.postgresql import INET, JSONB
 from sqlalchemy.orm import relationship
@@ -21,10 +21,15 @@ def utc_now() -> datetime:
 class Transaction(Base):
     """Transaction data model with risk scoring and geographic information."""
     __tablename__ = "transactions"
+    __table_args__ = (
+        UniqueConstraint("tenant_id", "transaction_id", name="uq_transactions_tenant_transaction_id"),
+        Index("ix_transactions_tenant_user_timestamp", "tenant_id", "user_id", "timestamp"),
+        Index("ix_transactions_tenant_timestamp", "tenant_id", "timestamp"),
+    )
 
     id = Column(Integer, primary_key=True)
     tenant_id = Column(String(255), nullable=False, index=True)  # Multi-tenancy support
-    transaction_id = Column(String(255), unique=True, nullable=False, index=True)
+    transaction_id = Column(String(255), nullable=False, index=True)
     user_id = Column(String(255), nullable=False, index=True)
     amount = Column(Numeric(15, 2), nullable=False)
     currency = Column(String(3), nullable=False)
@@ -260,10 +265,13 @@ class RuleHit(Base):
 class UserRiskProfile(Base):
     """User risk profile model with behavioral patterns and KYC status."""
     __tablename__ = "user_risk_profiles"
+    __table_args__ = (
+        UniqueConstraint("tenant_id", "user_id", name="uq_user_risk_profiles_tenant_user_id"),
+    )
 
     id = Column(Integer, primary_key=True)
     tenant_id = Column(String(255), nullable=False, index=True)  # Multi-tenancy support
-    user_id = Column(String(255), unique=True, nullable=False, index=True)
+    user_id = Column(String(255), nullable=False, index=True)
 
     # Computed risk
     overall_risk_score = Column(Numeric(5, 2))
@@ -307,6 +315,17 @@ class UserRiskProfile(Base):
 class FeatureValue(Base):
     """Feature store model for ML features and risk scoring."""
     __tablename__ = "feature_values"
+    __table_args__ = (
+        UniqueConstraint(
+            "tenant_id",
+            "entity_type",
+            "entity_id",
+            "feature_name",
+            "version",
+            name="uq_feature_values_tenant_entity_feature_version",
+        ),
+        Index("ix_feature_values_tenant_entity", "tenant_id", "entity_type", "entity_id"),
+    )
 
     id = Column(Integer, primary_key=True)
     tenant_id = Column(String(255), nullable=False, index=True)  # Multi-tenancy support
@@ -323,3 +342,27 @@ class FeatureValue(Base):
     version = Column(Integer, default=1)
 
     created_at = Column(DateTime, default=utc_now)
+
+
+class FailedTransactionProcessingItem(Base):
+    """Dead Letter Queue items for transaction processing failures."""
+    __tablename__ = "failed_transaction_processing_items"
+
+    id = Column(Integer, primary_key=True)
+    tenant_id = Column(String(255), nullable=False, index=True)
+
+    # Link to the transaction we attempted to process.
+    transaction_db_id = Column(Integer, nullable=False, index=True)
+    transaction_id = Column(String(255), index=True)
+
+    error_message = Column(Text)
+    error_traceback = Column(Text)
+    payload_json = Column(JSON().with_variant(JSONB(), "postgresql"))
+
+    retry_count = Column(Integer, default=0)
+    max_retries = Column(Integer, default=3)
+    status = Column(String(50), default="pending", index=True)  # pending|resolved|exhausted
+
+    created_at = Column(DateTime, default=utc_now, index=True)
+    last_retry_at = Column(DateTime)
+    resolved_at = Column(DateTime)

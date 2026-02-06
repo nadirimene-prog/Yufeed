@@ -12,6 +12,7 @@ def utc_now() -> datetime:
 from starlette.middleware.base import BaseHTTPMiddleware
 from src.database import AsyncSessionLocal
 from src.models.audit import AuditLog
+import os
 
 class AuditLogMiddleware(BaseHTTPMiddleware):
     async def dispatch(self, request: Request, call_next):
@@ -37,6 +38,18 @@ class AuditLogMiddleware(BaseHTTPMiddleware):
         try:
             async with AsyncSessionLocal() as session:
                 async with session.begin():
+                    # Tenant attribution:
+                    # - Prefer authenticated user claim (request.state.user)
+                    # - Fall back to payload tenant_id (e.g. /api/auth/login)
+                    tenant_id = None
+                    if hasattr(request.state, "user") and request.state.user:
+                        tenant_id = getattr(request.state.user, "tenant_id", None)
+                    if not tenant_id and isinstance(payload, dict):
+                        tenant_id = payload.get("tenant_id")
+                    if not tenant_id and os.getenv("ENVIRONMENT", "").lower() in {"test", "testing", "development", "dev"}:
+                        tenant_id = request.headers.get("X-Tenant-ID")
+                    tenant_id = tenant_id or "default"
+
                     entity_type = request.headers.get("X-Entity-Type")
                     entity_id = request.headers.get("X-Entity-Id")
 
@@ -51,6 +64,7 @@ class AuditLogMiddleware(BaseHTTPMiddleware):
 
                     audit = AuditLog(
                         audit_id=request_id,
+                        tenant_id=tenant_id,
                         actor_id=getattr(request.state, "user", None).user_id
                         if hasattr(request.state, "user") else None,
                         actor_email=getattr(request.state, "user", None).email

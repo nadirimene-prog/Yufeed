@@ -262,6 +262,7 @@ def list_obligations(
     source_system: Optional[str] = Query(None),
     scope: Optional[str] = Query(None, description="Comma-separated scope tags: psp,eme,vasp"),
     q: Optional[str] = Query(None, description="Search text"),
+    include_status_counts: bool = Query(False, description="Include counts of obligations by status"),
     skip: int = Query(0, ge=0),
     limit: int = Query(50, ge=1, le=200),
     db: Session = Depends(get_db),
@@ -293,12 +294,28 @@ def list_obligations(
         )
 
     total = query.count()
+    status_counts = None
+    if include_status_counts:
+        counts = (
+            query.with_entities(
+                RegulatoryObligation.status,
+                sa.func.count(RegulatoryObligation.id),
+            )
+            .group_by(RegulatoryObligation.status)
+            .all()
+        )
+        status_counts = {status: count for status, count in counts}
+
     rows = query.order_by(RegulatoryObligation.updated_at.desc()).offset(skip).limit(limit).all()
 
-    return {
+    response = {
         "total": total,
         "items": [_obligation_to_dict(obligation, doc, db) for obligation, doc in rows],
     }
+    if status_counts is not None:
+        response["status_counts"] = status_counts
+
+    return response
 
 
 @router.get("/{obligation_id}")
@@ -517,7 +534,7 @@ async def update_obligation(
         event_type = EventType.OBLIGATION_APPROVED if new_status == "approved" else (
             EventType.OBLIGATION_REJECTED if new_status == "rejected" else EventType.OBLIGATION_UPDATED
         )
-        await ws_manager.broadcast(NotificationEvent(
+        await ws_manager.send_notification(NotificationEvent(
             event_type=event_type,
             title=f"Obligation {new_status.title()}",
             message=f"Obligation {obligation.obligation_id} has been {new_status}",
@@ -676,7 +693,7 @@ async def approve_obligation(
         event_type = EventType.OBLIGATION_APPROVED if new_status == "approved" else (
             EventType.OBLIGATION_REJECTED if new_status == "rejected" else EventType.OBLIGATION_UPDATED
         )
-        await ws_manager.broadcast(NotificationEvent(
+        await ws_manager.send_notification(NotificationEvent(
             event_type=event_type,
             title=f"Obligation {new_status.title()}",
             message=f"Obligation {obligation.obligation_id} has been {new_status}",
@@ -691,7 +708,7 @@ async def approve_obligation(
         ))
 
         if internal_rule and internal_rule_created:
-            await ws_manager.broadcast(NotificationEvent(
+            await ws_manager.send_notification(NotificationEvent(
                 event_type=EventType.INTERNAL_RULE_CREATED,
                 title="Internal Rule Created",
                 message=f"Internal rule created: {internal_rule.name}",

@@ -18,6 +18,26 @@ from src.tenancy.context import set_current_tenant, clear_current_tenant
 def test_monitoring_rules_crud_and_simulation(db_session):
     set_current_tenant("default")
     try:
+        # Invalid rule rejected at creation time
+        invalid_rule_payload = MonitoringRuleCreate(
+            name="Invalid Rule",
+            description="Has an unknown field",
+            category="amount_threshold",
+            severity="high",
+            conditions={
+                "conditions": [
+                    {"field": "does_not_exist", "operator": ">", "value": 1000},
+                ],
+                "logic": "AND",
+            },
+            thresholds=None,
+            enabled=True,
+        )
+        with pytest.raises(HTTPException) as exc:
+            rules_api.create_rule(invalid_rule_payload, db_session)
+        assert exc.value.status_code == 400
+        assert "errors" in (exc.value.detail or {})
+
         rule_payload = MonitoringRuleCreate(
             name="High Amount",
             description="Detect high amount",

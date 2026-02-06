@@ -89,11 +89,13 @@ def ingest_transaction(
     db.commit()
     db.refresh(db_transaction)
 
-    # Trigger background processing
+    # Trigger async processing via Celery (never pass request-scoped DB sessions to background tasks)
+    from src.tasks.transaction_processing import process_transaction_task, process_transaction_sync
+
     if os.getenv("ENVIRONMENT", "").lower() in {"test", "testing"}:
-        process_transaction(db_transaction.id, db)
+        process_transaction_sync(db, db_transaction.id, db_transaction.tenant_id)
     else:
-        background_tasks.add_task(process_transaction, db_transaction.id, db)
+        process_transaction_task.delay(db_transaction.id, db_transaction.tenant_id)
 
     return db_transaction
 
@@ -179,11 +181,12 @@ def ingest_transactions_batch(
     db.commit()
 
     # Trigger background processing for each transaction
+    from src.tasks.transaction_processing import process_transaction_task, process_transaction_sync
     for db_transaction in db_transactions:
         if os.getenv("ENVIRONMENT", "").lower() in {"test", "testing"}:
-            process_transaction(db_transaction.id, db)
+            process_transaction_sync(db, db_transaction.id, db_transaction.tenant_id)
         else:
-            background_tasks.add_task(process_transaction, db_transaction.id, db)
+            process_transaction_task.delay(db_transaction.id, db_transaction.tenant_id)
 
     # Phase 4C: Refresh to get all fields (tenant-filtered)
     created_ids = [t.id for t in db_transactions]
@@ -481,57 +484,6 @@ def get_transaction_statistics(
         transactions_by_type=transactions_by_type,
         average_transaction_amount=total_result.avg_amount or 0
     )
-
-
-# ============================================================================
-# BACKGROUND PROCESSING
-# ============================================================================
-
-def process_transaction(transaction_id: int, db: Session):
-    """
-    Background task to process a transaction:
-    1. Calculate risk score
-    2. Evaluate monitoring rules
-    3. Update user risk profile
-    4. Generate alerts if needed
-    """
-    from src.services.rules_engine import RulesEngine
-    from src.services.risk_scoring import RiskScoringService
-
-    transaction = db.query(Transaction).filter(
-        Transaction.id == transaction_id
-    ).first()
-
-    if not transaction:
-        return
-
-    try:
-        # 1. Calculate risk score
-        risk_service = RiskScoringService(db)
-        risk_score = risk_service.score_transaction(transaction_id)
-
-        transaction.risk_score = risk_score
-        transaction.risk_level = risk_service.get_risk_level(risk_score)
-        db.commit()
-
-        # 2. Evaluate monitoring rules
-        rules_engine = RulesEngine(db)
-        alerts = rules_engine.evaluate_transaction(transaction_id)
-
-        # 3. Evaluate velocity rules for the user
-        velocity_alerts = rules_engine.evaluate_velocity_rules(transaction.user_id)
-
-        # 4. Update user risk profile
-        risk_service.update_user_risk_profile(transaction.user_id, tenant_id=transaction.tenant_id)
-
-        logger.info(
-            f"Processed transaction {transaction.transaction_id}: "
-            f"risk_score={risk_score}, alerts={len(alerts) + len(velocity_alerts)}"
-        )
-
-    except Exception as e:
-        logger.error(f"Error processing transaction {transaction_id}: {e}")
-        db.rollback()
 
 
 def calculate_basic_risk_score(transaction: Transaction) -> float:

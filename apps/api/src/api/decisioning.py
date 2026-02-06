@@ -22,6 +22,7 @@ from src.models.transaction_models import Alert
 from src.tenancy.queries import set_tenant_on_create
 from src.plugins.registry import get_plugin, register_plugin
 from src.plugins.onchain import get_default_onchain_plugin
+from src.tenancy.context import get_current_tenant
 
 router = APIRouter(prefix="/api/decisioning", tags=["decisioning"])
 
@@ -72,8 +73,12 @@ class DecisionResponse(BaseModel):
 def ingest_event(
     request: EventIngestRequest,
     db: Session = Depends(get_db),
-    _: CurrentUser = Depends(require_any_role(["admin", "compliance", "analyst", "aml_officer", "user"])),
+    current_user: CurrentUser = Depends(require_any_role(["admin", "compliance", "analyst", "aml_officer", "user"])),
 ):
+    tenant_id = current_user.tenant_id or get_current_tenant()
+    if not tenant_id:
+        raise HTTPException(status_code=403, detail="Tenant context is required")
+
     normalized = normalize_event(
         request.event_type,
         request.payload,
@@ -84,6 +89,7 @@ def ingest_event(
 
     event_record = record_event(
         db,
+        tenant_id=tenant_id,
         event_type=normalized.event_type,
         entity_type=normalized.entity_type,
         entity_id=normalized.entity_id,
@@ -109,12 +115,17 @@ def ingest_event(
 def decide(
     request: DecisionRequest,
     db: Session = Depends(get_db),
-    _: CurrentUser = Depends(require_any_role(["admin", "compliance", "analyst", "aml_officer", "user"])),
+    current_user: CurrentUser = Depends(require_any_role(["admin", "compliance", "analyst", "aml_officer", "user"])),
 ):
+    tenant_id = current_user.tenant_id or get_current_tenant()
+    if not tenant_id:
+        raise HTTPException(status_code=403, detail="Tenant context is required")
+
     event_record: EventRecord | None = None
     if request.event_id:
         event_record = db.query(EventRecord).filter(
-            EventRecord.event_id == request.event_id
+            EventRecord.event_id == request.event_id,
+            EventRecord.tenant_id == tenant_id,
         ).first()
         if not event_record:
             raise HTTPException(status_code=404, detail="Event not found")
@@ -130,6 +141,7 @@ def decide(
     if event_record is None:
         event_record = record_event(
             db,
+            tenant_id=tenant_id,
             event_type=normalized.event_type,
             entity_type=normalized.entity_type,
             entity_id=normalized.entity_id,
@@ -148,7 +160,8 @@ def decide(
     transaction: Optional[Transaction] = None
     if request.transaction_id is not None:
         transaction = db.query(Transaction).filter(
-            Transaction.id == request.transaction_id
+            Transaction.id == request.transaction_id,
+            Transaction.tenant_id == tenant_id,
         ).first()
         if not transaction:
             raise HTTPException(status_code=404, detail="Transaction not found")
@@ -192,7 +205,7 @@ def decide(
                         description="On-chain risk score exceeded threshold",
                         evidence=onchain_result,
                     )
-                    set_tenant_on_create(alert)
+                    set_tenant_on_create(alert, tenant_id=tenant_id)
                     db.add(alert)
                     db.commit()
                     alerts.append(alert_id)
@@ -214,6 +227,7 @@ def decide(
     decision_record = record_decision(
         db,
         decision=decision,
+        tenant_id=tenant_id,
         event_id=event_record.event_id,
         reason_codes=reason_codes,
         evidence=evidence,
@@ -240,10 +254,15 @@ def decide(
 def get_decision(
     decision_id: str,
     db: Session = Depends(get_db),
-    _: CurrentUser = Depends(require_any_role(["admin", "compliance", "analyst", "aml_officer", "user"])),
+    current_user: CurrentUser = Depends(require_any_role(["admin", "compliance", "analyst", "aml_officer", "user"])),
 ):
+    tenant_id = current_user.tenant_id or get_current_tenant()
+    if not tenant_id:
+        raise HTTPException(status_code=403, detail="Tenant context is required")
+
     record = db.query(DecisionRecord).filter(
-        DecisionRecord.decision_id == decision_id
+        DecisionRecord.decision_id == decision_id,
+        DecisionRecord.tenant_id == tenant_id,
     ).first()
     if not record:
         raise HTTPException(status_code=404, detail="Decision not found")

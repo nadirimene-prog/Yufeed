@@ -11,6 +11,7 @@ from datetime import datetime, timedelta, timezone
 from decimal import Decimal
 import uuid
 import logging
+import math
 
 
 def utc_now() -> datetime:
@@ -22,6 +23,8 @@ from src.models.transaction_models import (
 )
 from src.models.models import LegalDocument
 from src.audit.recorders import record_event, record_decision
+from src.tenancy.context import get_current_tenant
+from src.monitoring.metrics import rule_coercion_failures_total
 
 logger = logging.getLogger(__name__)
 
@@ -57,18 +60,25 @@ class RulesEngine:
 
         Returns list of alerts generated.
         """
-        transaction = self.db.query(Transaction).filter(
-            Transaction.id == transaction_id
-        ).first()
+        transaction = (
+            self.db.query(Transaction)
+            .filter(Transaction.id == transaction_id)
+            .first()
+        )
 
         if not transaction:
             logger.error(f"Transaction {transaction_id} not found")
             return []
 
         # Get all enabled rules
-        rules = self.db.query(MonitoringRule).filter(
-            MonitoringRule.enabled == True
-        ).all()
+        rules = (
+            self.db.query(MonitoringRule)
+            .filter(
+                MonitoringRule.enabled == True,
+                MonitoringRule.tenant_id == transaction.tenant_id,
+            )
+            .all()
+        )
 
         alerts = []
 
@@ -97,7 +107,7 @@ class RulesEngine:
 
             results = []
             for condition in conditions:
-                result = self._evaluate_condition(transaction, condition)
+                result = self._evaluate_condition(transaction, condition, rule=rule)
                 results.append(result)
 
             # Apply logic
@@ -113,7 +123,54 @@ class RulesEngine:
             logger.error(f"Error evaluating rule {rule.rule_id}: {e}")
             return False
 
-    def _evaluate_condition(self, transaction: Transaction, condition: Dict[str, Any]) -> bool:
+    def _safe_float(self, raw_value: Any) -> Optional[float]:
+        """
+        Safely coerce a value to a finite float.
+
+        Returns None for invalid/unsupported values (None, dict/list, NaN/Inf, non-numeric strings).
+        """
+        if raw_value is None:
+            return None
+        try:
+            num = float(raw_value)
+        except (TypeError, ValueError):
+            return None
+        if not math.isfinite(num):
+            return None
+        return num
+
+    def _record_coercion_failure(
+        self,
+        rule: Optional[MonitoringRule],
+        field: Optional[str],
+        operator: Optional[str],
+        tx_value: Any,
+        value: Any,
+    ) -> None:
+        rule_id = getattr(rule, "rule_id", None) or "unknown"
+        field_name = field or "unknown"
+        try:
+            rule_coercion_failures_total.labels(rule_id=rule_id, field=field_name).inc()
+        except Exception:
+            pass
+        logger.warning(
+            "Rule numeric coercion failed",
+            extra={
+                "rule_id": rule_id,
+                "field": field_name,
+                "operator": operator,
+                "tx_value": tx_value,
+                "value": value,
+            },
+        )
+
+    def _evaluate_condition(
+        self,
+        transaction: Transaction,
+        condition: Dict[str, Any],
+        *,
+        rule: Optional[MonitoringRule] = None,
+    ) -> bool:
         """
         Evaluate a single condition.
         """
@@ -149,16 +206,36 @@ class RulesEngine:
             return tx_value != value
 
         elif operator == "greater_than":
-            return float(tx_value) > float(value)
+            tx_num = self._safe_float(tx_value)
+            val_num = self._safe_float(value)
+            if tx_num is None or val_num is None:
+                self._record_coercion_failure(rule, field, operator, tx_value, value)
+                return False
+            return tx_num > val_num
 
         elif operator == "less_than":
-            return float(tx_value) < float(value)
+            tx_num = self._safe_float(tx_value)
+            val_num = self._safe_float(value)
+            if tx_num is None or val_num is None:
+                self._record_coercion_failure(rule, field, operator, tx_value, value)
+                return False
+            return tx_num < val_num
 
         elif operator == "greater_than_or_equal":
-            return float(tx_value) >= float(value)
+            tx_num = self._safe_float(tx_value)
+            val_num = self._safe_float(value)
+            if tx_num is None or val_num is None:
+                self._record_coercion_failure(rule, field, operator, tx_value, value)
+                return False
+            return tx_num >= val_num
 
         elif operator == "less_than_or_equal":
-            return float(tx_value) <= float(value)
+            tx_num = self._safe_float(tx_value)
+            val_num = self._safe_float(value)
+            if tx_num is None or val_num is None:
+                self._record_coercion_failure(rule, field, operator, tx_value, value)
+                return False
+            return tx_num <= val_num
 
         elif operator == "in":
             return tx_value in value
@@ -202,7 +279,7 @@ class RulesEngine:
         for condition in conditions:
             results.append({
                 "condition": condition,
-                "passed": self._evaluate_condition(transaction, condition)
+                "passed": self._evaluate_condition(transaction, condition, rule=rule)
             })
 
         if not conditions:
@@ -359,7 +436,7 @@ Article Reference: {rule.regulation_article or 'General compliance'}
         }
         return severity_map.get(severity, 3)
 
-    def evaluate_velocity_rules(self, user_id: str) -> List[Alert]:
+    def evaluate_velocity_rules(self, user_id: str, tenant_id: Optional[str] = None) -> List[Alert]:
         """
         Evaluate velocity-based rules for a user.
 
@@ -368,12 +445,18 @@ Article Reference: {rule.regulation_article or 'General compliance'}
         - Total amount in time window
         - Unusual patterns compared to user's baseline
         """
+        tenant_id = tenant_id or get_current_tenant()
+        if not tenant_id:
+            logger.error("No tenant context available for velocity rule evaluation")
+            return []
+
         # Get user's recent transactions
         start_time = utc_now() - timedelta(hours=24)
 
         transactions = self.db.query(Transaction).filter(
+            Transaction.tenant_id == tenant_id,
             Transaction.user_id == user_id,
-            Transaction.timestamp >= start_time
+            Transaction.timestamp >= start_time,
         ).order_by(Transaction.timestamp.desc()).all()
 
         if not transactions:
@@ -381,8 +464,9 @@ Article Reference: {rule.regulation_article or 'General compliance'}
 
         # Get velocity rules
         velocity_rules = self.db.query(MonitoringRule).filter(
+            MonitoringRule.tenant_id == tenant_id,
             MonitoringRule.enabled == True,
-            MonitoringRule.category == 'velocity'
+            MonitoringRule.category == 'velocity',
         ).all()
 
         alerts = []
@@ -433,7 +517,8 @@ Article Reference: {rule.regulation_article or 'General compliance'}
         # Average amount deviation
         if "average_deviation_percent" in thresholds:
             user_profile = self.db.query(UserRiskProfile).filter(
-                UserRiskProfile.user_id == user_id
+                UserRiskProfile.tenant_id == transactions[0].tenant_id,
+                UserRiskProfile.user_id == user_id,
             ).first()
 
             if user_profile and user_profile.average_transaction_amount:

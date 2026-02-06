@@ -68,12 +68,12 @@ celery_app.conf.update(
         },
         # Phase 4B: Feature Store Automation
         "refresh-active-users-features": {
-            "task": "tasks.refresh_active_users_features",
+            "task": "tasks.refresh_active_users_features_all_tenants",
             "schedule": crontab(minute=0, hour="*/6"),  # Every 6 hours
             "args": (30, 100, 1),
         },
         "monitor-feature-staleness": {
-            "task": "tasks.monitor_feature_staleness",
+            "task": "tasks.monitor_feature_staleness_all_tenants",
             "schedule": crontab(minute=0, hour="*/12"),  # Every 12 hours
             "args": (24,),
         },

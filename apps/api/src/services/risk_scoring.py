@@ -200,9 +200,11 @@ class RiskScoringService:
 
         # Get recent transactions (last 24 hours)
         start_time = utc_now() - timedelta(hours=24)
+        tenant_id = transaction.tenant_id or get_current_tenant()
 
         recent_txs = self.db.query(Transaction).filter(
             and_(
+                Transaction.tenant_id == tenant_id,
                 Transaction.user_id == transaction.user_id,
                 Transaction.timestamp >= start_time,
                 Transaction.id != transaction.id  # Exclude current
@@ -265,6 +267,7 @@ class RiskScoringService:
 
         transactions = self.db.query(Transaction).filter(
             and_(
+                Transaction.tenant_id == tenant_id,
                 Transaction.user_id == user_id,
                 Transaction.timestamp >= start_date
             )
@@ -296,7 +299,10 @@ class RiskScoringService:
             func.count(Alert.id).label('total'),
             func.sum(case((Alert.severity == 'critical', 1), else_=0)).label('critical'),
             func.sum(case((Alert.status == 'resolved', 1), else_=0)).label('resolved')
-        ).filter(Alert.user_id == user_id).first()
+        ).filter(
+            Alert.tenant_id == tenant_id,
+            Alert.user_id == user_id,
+        ).first()
 
         profile.total_alerts = alert_stats.total or 0
         profile.critical_alerts = alert_stats.critical or 0

@@ -4,9 +4,8 @@ Phase 4B: Task 6.1 & 6.2 - WebSocket Server Setup & Event Notification System
 """
 import logging
 import asyncio
-import json
-from typing import Dict, Set, List, Optional
-from fastapi import WebSocket, WebSocketDisconnect
+from typing import Dict, Set, List, Optional, Tuple
+from fastapi import WebSocket
 from datetime import datetime, timezone
 
 
@@ -33,11 +32,11 @@ class ConnectionManager:
     """
 
     def __init__(self):
-        # Map of user_id -> Set of WebSocket connections
-        self.active_connections: Dict[str, Set[WebSocket]] = {}
+        # Map of (tenant_id, user_id) -> Set of WebSocket connections
+        self.active_connections: Dict[Tuple[str, str], Set[WebSocket]] = {}
 
-        # Map of WebSocket -> user_id for reverse lookup
-        self.connection_users: Dict[WebSocket, str] = {}
+        # Map of WebSocket -> (tenant_id, user_id) for reverse lookup
+        self.connection_users: Dict[WebSocket, Tuple[str, str]] = {}
 
         # Connection metadata
         self.connection_metadata: Dict[WebSocket, Dict] = {}
@@ -45,6 +44,7 @@ class ConnectionManager:
     async def connect(
         self,
         websocket: WebSocket,
+        tenant_id: str,
         user_id: str,
         metadata: Optional[Dict] = None
     ):
@@ -53,20 +53,27 @@ class ConnectionManager:
 
         Args:
             websocket: WebSocket connection
+            tenant_id: Tenant identifier for this connection
             user_id: User ID for this connection
             metadata: Optional connection metadata
         """
         await websocket.accept()
 
         # Register connection
-        if user_id not in self.active_connections:
-            self.active_connections[user_id] = set()
+        if not tenant_id or not user_id:
+            await websocket.close(code=1008)
+            return
 
-        self.active_connections[user_id].add(websocket)
-        self.connection_users[websocket] = user_id
+        key = (tenant_id, user_id)
+        if key not in self.active_connections:
+            self.active_connections[key] = set()
+
+        self.active_connections[key].add(websocket)
+        self.connection_users[websocket] = key
 
         # Store metadata
         self.connection_metadata[websocket] = {
+            "tenant_id": tenant_id,
             "user_id": user_id,
             "connected_at": utc_now(),
             "metadata": metadata or {}
@@ -75,7 +82,12 @@ class ConnectionManager:
         # Update metrics
         websocket_connections_active.set(self.get_total_connections())
 
-        logger.info(f"WebSocket connected: user={user_id}, total={self.get_total_connections()}")
+        logger.info(
+            "WebSocket connected: tenant=%s user=%s total=%s",
+            tenant_id,
+            user_id,
+            self.get_total_connections(),
+        )
 
         # Send welcome message
         await self.send_personal_message(
@@ -83,6 +95,7 @@ class ConnectionManager:
             {
                 "type": "connection.established",
                 "message": "Connected to YuFeed real-time notifications",
+                "tenant_id": tenant_id,
                 "user_id": user_id,
                 "timestamp": utc_now().isoformat()
             }
@@ -95,14 +108,14 @@ class ConnectionManager:
         Args:
             websocket: WebSocket connection to remove
         """
-        user_id = self.connection_users.get(websocket)
+        key = self.connection_users.get(websocket)
 
-        if user_id and user_id in self.active_connections:
-            self.active_connections[user_id].discard(websocket)
+        if key and key in self.active_connections:
+            self.active_connections[key].discard(websocket)
 
-            # Remove user entry if no more connections
-            if not self.active_connections[user_id]:
-                del self.active_connections[user_id]
+            # Remove entry if no more connections
+            if not self.active_connections[key]:
+                del self.active_connections[key]
 
         # Cleanup
         self.connection_users.pop(websocket, None)
@@ -111,7 +124,13 @@ class ConnectionManager:
         # Update metrics
         websocket_connections_active.set(self.get_total_connections())
 
-        logger.info(f"WebSocket disconnected: user={user_id}, total={self.get_total_connections()}")
+        tenant_id, user_id = key if key else (None, None)
+        logger.info(
+            "WebSocket disconnected: tenant=%s user=%s total=%s",
+            tenant_id,
+            user_id,
+            self.get_total_connections(),
+        )
 
     async def send_personal_message(self, websocket: WebSocket, message: dict):
         """
@@ -127,19 +146,21 @@ class ConnectionManager:
             logger.warning(f"Failed to send message to websocket: {e}")
             self.disconnect(websocket)
 
-    async def send_to_user(self, user_id: str, message: dict):
+    async def send_to_tenant_user(self, tenant_id: str, user_id: str, message: dict):
         """
-        Send message to all connections for a specific user.
+        Send message to all connections for a specific tenant user.
 
         Args:
+            tenant_id: Tenant identifier
             user_id: Target user ID
             message: Message to send
         """
-        if user_id not in self.active_connections:
-            logger.debug(f"No active connections for user {user_id}")
+        key = (tenant_id, user_id)
+        if key not in self.active_connections:
+            logger.debug("No active connections for tenant=%s user=%s", tenant_id, user_id)
             return
 
-        connections = self.active_connections[user_id].copy()
+        connections = self.active_connections[key].copy()
         disconnected = []
 
         for websocket in connections:
@@ -149,26 +170,26 @@ class ConnectionManager:
                     event_type=message.get("event_type", "unknown")
                 ).inc()
             except Exception as e:
-                logger.warning(f"Failed to send to user {user_id}: {e}")
+                logger.warning("Failed to send to tenant=%s user=%s: %s", tenant_id, user_id, e)
                 disconnected.append(websocket)
 
         # Cleanup disconnected
         for ws in disconnected:
             self.disconnect(ws)
 
-    async def broadcast(self, message: dict, exclude_user: Optional[str] = None):
+    async def broadcast_to_tenant(self, tenant_id: str, message: dict) -> None:
         """
-        Broadcast message to all connected users.
+        Broadcast message to all connected users in a tenant.
 
         Args:
+            tenant_id: Tenant identifier
             message: Message to broadcast
-            exclude_user: Optional user ID to exclude from broadcast
         """
         total_sent = 0
         disconnected = []
 
-        for user_id, connections in self.active_connections.items():
-            if exclude_user and user_id == exclude_user:
+        for (tid, user_id), connections in self.active_connections.items():
+            if tid != tenant_id:
                 continue
 
             for websocket in connections.copy():
@@ -179,18 +200,50 @@ class ConnectionManager:
                         event_type=message.get("event_type", "broadcast")
                     ).inc()
                 except Exception as e:
-                    logger.warning(f"Failed to broadcast to {user_id}: {e}")
+                    logger.warning("Failed to broadcast to tenant=%s user=%s: %s", tid, user_id, e)
                     disconnected.append(websocket)
 
         # Cleanup disconnected
         for ws in disconnected:
             self.disconnect(ws)
 
-        logger.debug(f"Broadcast sent to {total_sent} connections")
+        logger.debug("Tenant broadcast sent: tenant=%s total=%s", tenant_id, total_sent)
+
+    async def broadcast_global(self, message: dict) -> None:
+        """Broadcast a message to all connected users (all tenants)."""
+        total_sent = 0
+        disconnected = []
+
+        for (tenant_id, user_id), connections in self.active_connections.items():
+            for websocket in connections.copy():
+                try:
+                    await websocket.send_json(message)
+                    total_sent += 1
+                    websocket_messages_sent_total.labels(
+                        event_type=message.get("event_type", "broadcast")
+                    ).inc()
+                except Exception as e:
+                    logger.warning("Failed to global broadcast to tenant=%s user=%s: %s", tenant_id, user_id, e)
+                    disconnected.append(websocket)
+
+        for ws in disconnected:
+            self.disconnect(ws)
+
+        logger.debug("Global broadcast sent to %s connections", total_sent)
+
+    async def broadcast(self, message: dict) -> None:
+        """
+        Backwards-compatible alias for global broadcasts.
+
+        Prefer `broadcast_to_tenant` for tenant-scoped events and `broadcast_global` for
+        intentional cross-tenant (global) messages.
+        """
+        await self.broadcast_global(message)
 
     async def send_notification(
         self,
         notification: NotificationEvent,
+        tenant_id: Optional[str] = None,
         target_user: Optional[str] = None
     ):
         """
@@ -211,10 +264,13 @@ class ConnectionManager:
             "link": notification.link
         }
 
-        if target_user:
-            await self.send_to_user(target_user, message)
+        target = target_user or notification.user_id
+        if tenant_id and target:
+            await self.send_to_tenant_user(tenant_id, target, message)
+        elif tenant_id:
+            await self.broadcast_to_tenant(tenant_id, message)
         else:
-            await self.broadcast(message)
+            await self.broadcast_global(message)
 
     async def send_system_alert(
         self,
@@ -239,7 +295,7 @@ class ConnectionManager:
             "timestamp": utc_now().isoformat()
         }
 
-        await self.broadcast(alert)
+        await self.broadcast_global(alert)
 
     async def ping_all(self):
         """
@@ -267,13 +323,13 @@ class ConnectionManager:
         """Get total number of active connections."""
         return sum(len(conns) for conns in self.active_connections.values())
 
-    def get_user_connections(self, user_id: str) -> int:
-        """Get number of connections for a specific user."""
-        return len(self.active_connections.get(user_id, set()))
+    def get_user_connections(self, tenant_id: str, user_id: str) -> int:
+        """Get number of connections for a specific tenant user."""
+        return len(self.active_connections.get((tenant_id, user_id), set()))
 
     def get_all_users(self) -> List[str]:
-        """Get list of all connected user IDs."""
-        return list(self.active_connections.keys())
+        """Get list of all connected user IDs (may include duplicates across tenants)."""
+        return [user_id for (_, user_id) in self.active_connections.keys()]
 
     def get_connection_stats(self) -> Dict:
         """Get connection statistics."""
@@ -281,9 +337,9 @@ class ConnectionManager:
             "total_connections": self.get_total_connections(),
             "total_users": len(self.active_connections),
             "users": {
-                user_id: len(connections)
-                for user_id, connections in self.active_connections.items()
-            }
+                f"{tenant_id}:{user_id}": len(connections)
+                for (tenant_id, user_id), connections in self.active_connections.items()
+            },
         }
 
 

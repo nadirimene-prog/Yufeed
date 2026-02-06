@@ -74,6 +74,21 @@ async def test_obligation_workflow_endpoints(db_session, monkeypatch):
 
     current_user = CurrentUser("user-1", "user@example.com", "admin")
 
+    listing_with_counts = obligations_api.list_obligations(
+        status=None,
+        jurisdiction="EU",
+        source_system="eur-lex",
+        scope="psp",
+        q="Payment",
+        include_status_counts=True,
+        skip=0,
+        limit=10,
+        db=db_session,
+        _=None,
+    )
+    assert "status_counts" in listing_with_counts
+    assert listing_with_counts["status_counts"].get("draft", 0) >= 1
+
     listing = obligations_api.list_obligations(
         status="draft",
         jurisdiction="EU",

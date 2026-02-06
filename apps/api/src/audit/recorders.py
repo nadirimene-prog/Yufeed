@@ -6,12 +6,14 @@ from typing import Any, Dict, Optional, List
 from sqlalchemy.orm import Session
 
 from src.audit.models import EventRecord, DecisionRecord
+from src.tenancy.context import get_current_tenant
 from src.utils.event_bus import publish_event_safe
 
 
 def record_event(
     db: Session,
     event_type: str,
+    tenant_id: Optional[str] = None,
     entity_type: Optional[str] = None,
     entity_id: Optional[str] = None,
     source: Optional[str] = None,
@@ -19,8 +21,13 @@ def record_event(
     metadata: Optional[Dict[str, Any]] = None,
     event_id: Optional[str] = None,
 ) -> EventRecord:
+    tenant_id = tenant_id or get_current_tenant()
+    if not tenant_id:
+        raise ValueError("tenant_id is required to record events")
+
     record = EventRecord(
         event_id=event_id or uuid.uuid4().hex,
+        tenant_id=tenant_id,
         event_type=event_type,
         entity_type=entity_type,
         entity_id=entity_id,
@@ -32,6 +39,7 @@ def record_event(
 
     bus_payload = {
         "event_id": record.event_id,
+        "tenant_id": tenant_id,
         "event_type": event_type,
         "entity_type": entity_type,
         "entity_id": entity_id,
@@ -56,6 +64,7 @@ def record_event(
 def record_decision(
     db: Session,
     decision: str,
+    tenant_id: Optional[str] = None,
     event_id: Optional[str] = None,
     reason_codes: Optional[List[str]] = None,
     rule_version: Optional[str] = None,
@@ -64,8 +73,13 @@ def record_decision(
     metadata: Optional[Dict[str, Any]] = None,
     decision_id: Optional[str] = None,
 ) -> DecisionRecord:
+    tenant_id = tenant_id or get_current_tenant()
+    if not tenant_id:
+        raise ValueError("tenant_id is required to record decisions")
+
     record = DecisionRecord(
         decision_id=decision_id or uuid.uuid4().hex,
+        tenant_id=tenant_id,
         event_id=event_id,
         decision=decision,
         reason_codes=reason_codes,
@@ -80,6 +94,7 @@ def record_decision(
         "decisions.made",
         {
             "decision_id": record.decision_id,
+            "tenant_id": tenant_id,
             "event_id": event_id,
             "decision": decision,
             "reason_codes": reason_codes,

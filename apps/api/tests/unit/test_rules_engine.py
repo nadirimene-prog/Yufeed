@@ -6,6 +6,7 @@ from decimal import Decimal
 from datetime import datetime, timedelta
 
 from src.services.rules_engine import RulesEngine
+from src.tenancy.context import TenantContext
 from tests.factories import TransactionFactory, MonitoringRuleFactory
 
 
@@ -36,7 +37,8 @@ class TestRulesEngineEvaluation:
 
         # Evaluate rule
         engine = RulesEngine(db_session)
-        result = engine.evaluate_transaction(transaction.id)
+        with TenantContext("default"):
+            result = engine.evaluate_transaction(transaction.id)
 
         assert len(result) > 0
         assert any(rule.rule_id in (alert.matched_rules_data or {}) for alert in result)
@@ -65,7 +67,8 @@ class TestRulesEngineEvaluation:
         db_session.commit()
 
         engine = RulesEngine(db_session)
-        result = engine.evaluate_transaction(transaction1.id)
+        with TenantContext("default"):
+            result = engine.evaluate_transaction(transaction1.id)
         assert len(result) > 0
 
         # Transaction matching only one condition
@@ -76,7 +79,8 @@ class TestRulesEngineEvaluation:
         )
         db_session.commit()
 
-        result = engine.evaluate_transaction(transaction2.id)
+        with TenantContext("default"):
+            result = engine.evaluate_transaction(transaction2.id)
         assert not any(rule.rule_id in (alert.matched_rules_data or {}) for alert in result)
 
     def test_compound_or_condition(self, db_session):
@@ -103,7 +107,8 @@ class TestRulesEngineEvaluation:
         db_session.commit()
 
         engine = RulesEngine(db_session)
-        result = engine.evaluate_transaction(transaction1.id)
+        with TenantContext("default"):
+            result = engine.evaluate_transaction(transaction1.id)
         assert any(rule.rule_id in (alert.matched_rules_data or {}) for alert in result)
 
         # Transaction matching second condition
@@ -114,7 +119,8 @@ class TestRulesEngineEvaluation:
         )
         db_session.commit()
 
-        result = engine.evaluate_transaction(transaction2.id)
+        with TenantContext("default"):
+            result = engine.evaluate_transaction(transaction2.id)
         assert any(rule.rule_id in (alert.matched_rules_data or {}) for alert in result)
 
     def test_country_risk_condition(self, db_session):
@@ -139,7 +145,8 @@ class TestRulesEngineEvaluation:
         db_session.commit()
 
         engine = RulesEngine(db_session)
-        result = engine.evaluate_transaction(transaction.id)
+        with TenantContext("default"):
+            result = engine.evaluate_transaction(transaction.id)
         assert any(rule.rule_id in (alert.matched_rules_data or {}) for alert in result)
 
     def test_disabled_rule_not_evaluated(self, db_session):
@@ -166,10 +173,57 @@ class TestRulesEngineEvaluation:
 
         # Evaluate
         engine = RulesEngine(db_session)
-        result = engine.evaluate_transaction(transaction.id)
+        with TenantContext("default"):
+            result = engine.evaluate_transaction(transaction.id)
 
         # Disabled rule should not trigger
         assert not any(rule.rule_id in (alert.matched_rules_data or {}) for alert in result)
+
+    @pytest.mark.parametrize(
+        "bad_value",
+        [None, "abc", {}, [], "nan", "inf", "-inf"],
+    )
+    def test_numeric_coercion_failures_return_false(self, db_session, bad_value):
+        """Numeric coercion failures should not raise and should return False."""
+        rule = MonitoringRuleFactory(
+            conditions={
+                "logic": "AND",
+                "conditions": [{"field": "amount", "operator": ">", "value": bad_value}],
+            },
+            sqlalchemy_session=db_session,
+        )
+        transaction = TransactionFactory(
+            amount=Decimal("10.00"),
+            sqlalchemy_session=db_session,
+        )
+
+        engine = RulesEngine(db_session)
+        assert engine._evaluate_rule(transaction, rule) is False
+
+    @pytest.mark.parametrize(
+        "tx_value,value,operator,expected",
+        [
+            ("123.45", 100, ">", True),
+            ("123.45", "100", ">", True),
+            ("99.0", 100, ">", False),
+            (Decimal("150.00"), "100", ">", True),
+            (Decimal("50.00"), "100", "<", True),
+        ],
+    )
+    def test_numeric_coercion_accepts_numeric_strings(self, db_session, tx_value, value, operator, expected):
+        rule = MonitoringRuleFactory(
+            conditions={
+                "logic": "AND",
+                "conditions": [{"field": "amount", "operator": operator, "value": value}],
+            },
+            sqlalchemy_session=db_session,
+        )
+
+        class TxLike:
+            amount = tx_value
+
+        engine = RulesEngine(db_session)
+        assert engine._evaluate_condition(TxLike(), rule.conditions["conditions"][0], rule=rule) is expected
 
 
 @pytest.mark.unit

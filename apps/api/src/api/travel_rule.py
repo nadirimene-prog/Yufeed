@@ -16,6 +16,7 @@ from src.database import get_db
 from sqlalchemy.orm import Session
 from src.models.travel_rule import TravelRuleRequestRecord
 from src.audit.models import AuditLog
+from src.tenancy.context import get_current_tenant
 
 router = APIRouter(prefix="/api/travel-rule", tags=["travel-rule"])
 
@@ -48,8 +49,12 @@ class TravelRuleResponse(BaseModel):
 def create_travel_rule_request(
     request: TravelRuleRequest,
     db: Session = Depends(get_db),
-    _: CurrentUser = Depends(require_any_role(["admin", "compliance", "aml_officer", "user"]))
+    current_user: CurrentUser = Depends(require_any_role(["admin", "compliance", "aml_officer", "user"]))
 ):
+    tenant_id = current_user.tenant_id or get_current_tenant()
+    if not tenant_id:
+        raise HTTPException(status_code=403, detail="Tenant context is required")
+
     request_id = f"TR-{uuid.uuid4().hex[:10].upper()}"
     response = TravelRuleResponse(
         request_id=request_id,
@@ -74,6 +79,7 @@ def create_travel_rule_request(
 
     record_event(
         db,
+        tenant_id=tenant_id,
         event_type="travel_rule_request",
         entity_type="transaction",
         entity_id=request.transaction_id,
@@ -83,9 +89,10 @@ def create_travel_rule_request(
 
     audit_entry = AuditLog(
         audit_id=uuid.uuid4().hex,
-        actor_id=_.user_id,
-        actor_email=_.email,
-        actor_role=_.role,
+        tenant_id=tenant_id,
+        actor_id=current_user.user_id,
+        actor_email=current_user.email,
+        actor_role=current_user.role,
         actor_type="user",
         action="create",
         method="POST",
@@ -105,7 +112,7 @@ def create_travel_rule_request(
 def list_travel_rule_requests(
     status: Optional[str] = None,
     db: Session = Depends(get_db),
-    _: CurrentUser = Depends(require_any_role(["admin", "compliance", "aml_officer", "auditor", "user"]))
+    current_user: CurrentUser = Depends(require_any_role(["admin", "compliance", "aml_officer", "auditor", "user"]))
 ):
     query = db.query(TravelRuleRequestRecord)
     if status:
@@ -136,7 +143,7 @@ def list_travel_rule_requests(
 def get_travel_rule_request(
     request_id: str,
     db: Session = Depends(get_db),
-    _: CurrentUser = Depends(require_any_role(["admin", "compliance", "aml_officer", "auditor"]))
+    current_user: CurrentUser = Depends(require_any_role(["admin", "compliance", "aml_officer", "auditor"]))
 ):
     row = db.query(TravelRuleRequestRecord).filter(
         TravelRuleRequestRecord.request_id == request_id
@@ -163,8 +170,12 @@ def get_travel_rule_request(
 def submit_travel_rule_request(
     request_id: str,
     db: Session = Depends(get_db),
-    _: CurrentUser = Depends(require_any_role(["admin", "compliance", "aml_officer", "user"]))
+    current_user: CurrentUser = Depends(require_any_role(["admin", "compliance", "aml_officer", "user"]))
 ):
+    tenant_id = current_user.tenant_id or get_current_tenant()
+    if not tenant_id:
+        raise HTTPException(status_code=403, detail="Tenant context is required")
+
     row = db.query(TravelRuleRequestRecord).filter(
         TravelRuleRequestRecord.request_id == request_id
     ).first()
@@ -177,9 +188,10 @@ def submit_travel_rule_request(
 
     audit_entry = AuditLog(
         audit_id=uuid.uuid4().hex,
-        actor_id=_.user_id,
-        actor_email=_.email,
-        actor_role=_.role,
+        tenant_id=tenant_id,
+        actor_id=current_user.user_id,
+        actor_email=current_user.email,
+        actor_role=current_user.role,
         actor_type="user",
         action="submit",
         method="POST",

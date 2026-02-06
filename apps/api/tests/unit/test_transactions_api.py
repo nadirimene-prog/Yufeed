@@ -12,7 +12,9 @@ from src.tenancy.context import set_current_tenant, clear_current_tenant
 def test_transactions_endpoints(db_session, monkeypatch):
     set_current_tenant("default")
     try:
-        monkeypatch.setattr(tx_api, "process_transaction", lambda *args, **kwargs: None)
+        from src.tasks import transaction_processing as tx_tasks
+
+        monkeypatch.setattr(tx_tasks, "process_transaction_sync", lambda *args, **kwargs: None)
 
         payload = TransactionCreate(
             transaction_id="txn_test_1",

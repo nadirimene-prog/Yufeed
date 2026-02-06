@@ -6,7 +6,7 @@ from src.auth.dependencies import CurrentUser
 
 @pytest.mark.unit
 def test_travel_rule_requests(db_session):
-    user = CurrentUser("user-1", "user@example.com", "admin")
+    user = CurrentUser("user-1", "user@example.com", "admin", tenant_id="default")
 
     request = travel_api.TravelRuleRequest(
         transaction_id="txn_travel_1",
@@ -20,7 +20,7 @@ def test_travel_rule_requests(db_session):
     created = travel_api.create_travel_rule_request(request, db_session, user)
     assert created.request_id.startswith("TR-")
 
-    listed = travel_api.list_travel_rule_requests(status=None, db=db_session, _=user)
+    listed = travel_api.list_travel_rule_requests(status=None, db=db_session, current_user=user)
     assert listed
 
     fetched = travel_api.get_travel_rule_request(created.request_id, db_session, user)

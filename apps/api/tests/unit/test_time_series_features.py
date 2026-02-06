@@ -29,7 +29,12 @@ def test_time_series_features_with_data(db_session):
     db_session.commit()
 
     extractor = TimeSeriesFeatureExtractor(db_session)
-    features = extractor.extract_features(user_id, current_time=now, lookback_days=30)
+    features = extractor.extract_features(
+        tenant_id="default",
+        user_id=user_id,
+        current_time=now,
+        lookback_days=30,
+    )
 
     assert "velocity_24h_count" in features
     assert "amount_ema_7d" in features
@@ -40,6 +45,11 @@ def test_time_series_features_with_data(db_session):
 @pytest.mark.unit
 def test_time_series_features_no_data(db_session):
     extractor = TimeSeriesFeatureExtractor(db_session)
-    features = extractor.extract_features("missing_user", current_time=datetime.utcnow(), lookback_days=30)
+    features = extractor.extract_features(
+        tenant_id="default",
+        user_id="missing_user",
+        current_time=datetime.utcnow(),
+        lookback_days=30,
+    )
     assert features["velocity_1h_count"] == 0
     assert features["amount_ema_ratio"] == 1.0

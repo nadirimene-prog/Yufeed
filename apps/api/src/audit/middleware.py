@@ -80,11 +80,18 @@ def _extract_actor(request: Request) -> Dict[str, Optional[str]]:
                     "actor_email": payload.get("sub"),
                     "actor_role": payload.get("role", "user"),
                     "actor_type": "user",
+                    "tenant_id": payload.get("tenant_id"),
                 }
         except Exception:
             logger.debug("Failed to decode JWT for audit logging", exc_info=True)
 
-    return {"actor_id": None, "actor_email": None, "actor_role": None, "actor_type": "anonymous"}
+    return {
+        "actor_id": None,
+        "actor_email": None,
+        "actor_role": None,
+        "actor_type": "anonymous",
+        "tenant_id": None,
+    }
 
 
 def _extract_entity(path: str) -> Dict[str, Optional[str]]:
@@ -126,6 +133,7 @@ async def audit_log_middleware(request: Request, call_next) -> Response:
 
     audit_entry = AuditLog(
         audit_id=uuid.uuid4().hex,
+        tenant_id=actor.get("tenant_id") or "default",
         actor_id=actor.get("actor_id"),
         actor_email=actor.get("actor_email"),
         actor_role=actor.get("actor_role"),

@@ -21,9 +21,12 @@ from opentelemetry.instrumentation.fastapi import FastAPIInstrumentor
 # OpenTelemetry configuration (Console exporter – replace with OTLP in prod)
 # --------------------------------------------------------------
 trace.set_tracer_provider(TracerProvider())
-trace.get_tracer_provider().add_span_processor(
-    BatchSpanProcessor(ConsoleSpanExporter())
-)
+# Avoid BatchSpanProcessor in tests: it spawns a worker thread that can try to
+# write to closed stdout/stderr after pytest exits.
+if os.getenv("ENVIRONMENT", "development").lower() not in {"test", "testing"}:
+    trace.get_tracer_provider().add_span_processor(
+        BatchSpanProcessor(ConsoleSpanExporter())
+    )
 
 logger = logging.getLogger(__name__)
 

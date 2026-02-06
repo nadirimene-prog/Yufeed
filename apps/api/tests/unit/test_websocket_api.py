@@ -34,14 +34,19 @@ async def test_websocket_rejects_missing_token(monkeypatch):
 @pytest.mark.unit
 @pytest.mark.asyncio
 async def test_websocket_ping_pong(monkeypatch):
-    payload = {"user_id": "user-1", "sub": "user@example.com", "role": "admin"}
+    payload = {
+        "user_id": "user-1",
+        "sub": "user@example.com",
+        "role": "admin",
+        "tenant_id": "default",
+    }
 
     monkeypatch.setattr(ws_api.JWTHandler, "decode_token", lambda token: payload)
     monkeypatch.setattr(ws_api.JWTHandler, "verify_token_type", lambda payload, _: True)
 
     connected = {"connected": False, "disconnected": False}
 
-    async def fake_connect(websocket, user_id, metadata):
+    async def fake_connect(websocket, tenant_id, user_id, metadata):
         connected["connected"] = True
 
     def fake_disconnect(websocket):

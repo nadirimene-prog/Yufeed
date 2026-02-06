@@ -45,8 +45,9 @@ async def websocket_endpoint(
         user_id = payload.get("user_id")
         email = payload.get("sub")
         role = payload.get("role", "user")
+        tenant_id = payload.get("tenant_id")
 
-        if not user_id or not email:
+        if not user_id or not email or not tenant_id:
             await websocket.close(code=1008)
             return
     except JWTError:
@@ -59,6 +60,7 @@ async def websocket_endpoint(
 
     await ws_manager.connect(
         websocket,
+        tenant_id=tenant_id,
         user_id=user_id,
         metadata={
             "email": email,

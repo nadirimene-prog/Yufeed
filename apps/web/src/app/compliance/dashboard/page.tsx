@@ -41,7 +41,7 @@ export default function ComplianceDashboardPage() {
             setLoading(true);
             try {
                 const [obligationsRes, policiesRes, riskMapRes] = await Promise.all([
-                    getObligations({ limit: 10 }),
+                    getObligations({ limit: 10, include_status_counts: true }),
                     getPolicies({ limit: 10 }),
                     getRiskMap(),
                 ]);
@@ -50,20 +50,13 @@ export default function ComplianceDashboardPage() {
                 setPolicies(policiesRes.items);
                 setRiskMap(riskMapRes);
 
-                // Calculate obligation counts by status
-                const [draftRes, reviewRes, approvedRes, rejectedRes] = await Promise.all([
-                    getObligations({ status: "draft", limit: 1 }),
-                    getObligations({ status: "in_review", limit: 1 }),
-                    getObligations({ status: "approved", limit: 1 }),
-                    getObligations({ status: "rejected", limit: 1 }),
-                ]);
-
+                const statusCounts = obligationsRes.status_counts || {};
                 setObligationCounts({
-                    draft: draftRes.total,
-                    in_review: reviewRes.total,
-                    approved: approvedRes.total,
-                    rejected: rejectedRes.total,
-                    total: draftRes.total + reviewRes.total + approvedRes.total + rejectedRes.total,
+                    draft: statusCounts.draft || 0,
+                    in_review: statusCounts.in_review || 0,
+                    approved: statusCounts.approved || 0,
+                    rejected: statusCounts.rejected || 0,
+                    total: obligationsRes.total,
                 });
             } catch (err) {
                 console.error("Failed to load dashboard data:", err);

@@ -33,6 +33,7 @@ from src.schemas.transaction_schemas import (
     RuleBacktestSample,
 )
 from src.services.rules_engine import RuleBuilder
+from src.services.rule_validator import RuleValidator
 
 router = APIRouter(prefix="/api/monitoring-rules", tags=["monitoring-rules"])
 
@@ -40,6 +41,25 @@ router = APIRouter(prefix="/api/monitoring-rules", tags=["monitoring-rules"])
 # ============================================================================
 # RULE MANAGEMENT
 # ============================================================================
+
+@router.post("/validate")
+def validate_rule(
+    payload: dict,
+    _: CurrentUser = Depends(require_any_role(["admin", "compliance", "aml_officer", "auditor", "user"])),
+):
+    """
+    Validate a rule DSL payload without persisting it.
+
+    Body:
+        { "conditions": { ... } }
+    """
+    conditions = payload.get("conditions") if isinstance(payload, dict) else None
+    issues = RuleValidator.validate(conditions)
+    return {
+        "valid": not issues,
+        "errors": [{"path": i.path, "message": i.message} for i in issues],
+    }
+
 
 @router.post("/", response_model=MonitoringRuleResponse, status_code=201)
 def create_rule(
@@ -54,11 +74,11 @@ def create_rule(
     # Generate rule ID
     rule_id = f"RULE-{uuid.uuid4().hex[:8].upper()}"
 
-    # Validate conditions
-    if not rule.conditions or 'conditions' not in rule.conditions:
+    issues = RuleValidator.validate(rule.conditions)
+    if issues:
         raise HTTPException(
             status_code=400,
-            detail="Rule must have valid conditions object with 'conditions' array"
+            detail={"errors": [{"path": i.path, "message": i.message} for i in issues]},
         )
 
     # Create rule
@@ -375,6 +395,14 @@ def create_rule_version(
     # Phase 4C: Ensure tenant match
     ensure_tenant_match(rule, tenant_id)
 
+    effective_conditions = request.conditions if request.conditions is not None else rule.conditions
+    issues = RuleValidator.validate(effective_conditions)
+    if issues:
+        raise HTTPException(
+            status_code=400,
+            detail={"errors": [{"path": i.path, "message": i.message} for i in issues]},
+        )
+
     next_version = rule.version + 1
     version = RuleVersion(
         tenant_id=rule.tenant_id,
@@ -398,6 +426,7 @@ def create_rule_version(
 
     audit_entry = AuditLog(
         audit_id=uuid.uuid4().hex,
+        tenant_id=tenant_id,
         actor_id=_.user_id,
         actor_email=_.email,
         actor_role=_.role,
@@ -461,6 +490,7 @@ def approve_rule_version(
 
     audit_entry = AuditLog(
         audit_id=uuid.uuid4().hex,
+        tenant_id=tenant_id,
         actor_id=_.user_id,
         actor_email=_.email,
         actor_role=_.role,
@@ -505,6 +535,7 @@ def reject_rule_version(
 
     audit_entry = AuditLog(
         audit_id=uuid.uuid4().hex,
+        tenant_id=_.tenant_id or "default",
         actor_id=_.user_id,
         actor_email=_.email,
         actor_role=_.role,

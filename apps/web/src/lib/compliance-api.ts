@@ -374,16 +374,21 @@ export const getRiskHeatmap = async (): Promise<RiskHeatMapData> => {
 
 // ========== Enhanced Obligations API ==========
 
+export interface ObligationsListResponse extends PaginatedResponse<Obligation> {
+    status_counts?: Record<string, number>;
+}
+
 export const getObligations = async (params?: {
     status?: string;
     jurisdiction?: string;
     source_system?: string;
     scope?: string;
     q?: string;
+    include_status_counts?: boolean;
     skip?: number;
     limit?: number;
-}): Promise<PaginatedResponse<Obligation>> => {
-    const response = await apiClient.get<PaginatedResponse<Obligation>>('/api/obligations', { params });
+}): Promise<ObligationsListResponse> => {
+    const response = await apiClient.get<ObligationsListResponse>('/api/obligations', { params });
     return response.data;
 };
 

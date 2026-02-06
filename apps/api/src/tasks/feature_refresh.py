@@ -10,7 +10,7 @@ Celery tasks for periodic feature updates:
 """
 import logging
 from datetime import datetime, timedelta, timezone
-from typing import List, Dict, Any
+from typing import Dict, Any
 
 
 def utc_now() -> datetime:
@@ -19,23 +19,25 @@ def utc_now() -> datetime:
 
 from celery import Task
 from sqlalchemy import func, and_
-from sqlalchemy.orm import Session
 
 from src.worker import celery_app
 from src.database import SessionLocal
-from src.models.transaction_models import Transaction, UserRiskProfile, FeatureValue
+from src.models.transaction_models import Transaction, FeatureValue
+from src.models.tenant_models import Tenant
 from src.services.feature_store import FeatureStoreService
 from src.services.time_series_features import TimeSeriesFeatureExtractor
+from src.tenancy.context import TenantContext
 
 logger = logging.getLogger(__name__)
 
 
 @celery_app.task(bind=True, name="tasks.refresh_user_features")
-def refresh_user_features(self: Task, user_id: str, version: int = 1) -> Dict[str, Any]:
+def refresh_user_features(self: Task, tenant_id: str, user_id: str, version: int = 1) -> Dict[str, Any]:
     """
     Refresh features for a specific user.
 
     Args:
+        tenant_id: Tenant identifier
         user_id: User identifier
         version: Feature version number
 
@@ -44,42 +46,45 @@ def refresh_user_features(self: Task, user_id: str, version: int = 1) -> Dict[st
     """
     db = SessionLocal()
     try:
-        logger.info(f"Refreshing features for user {user_id} (version {version})")
+        logger.info(f"Refreshing features for tenant={tenant_id} user={user_id} (version {version})")
 
-        # Extract time-series features
-        ts_extractor = TimeSeriesFeatureExtractor(db)
-        current_time = utc_now()
+        with TenantContext(tenant_id):
+            # Extract time-series features
+            ts_extractor = TimeSeriesFeatureExtractor(db)
+            current_time = utc_now()
 
-        features = ts_extractor.extract_features(
-            user_id=user_id,
-            current_time=current_time,
-            lookback_days=90
-        )
+            features = ts_extractor.extract_features(
+                tenant_id=tenant_id,
+                user_id=user_id,
+                current_time=current_time,
+                lookback_days=90,
+            )
 
-        # Store in feature store
-        feature_store = FeatureStoreService(db)
+            # Store in feature store
+            feature_store = FeatureStoreService(db)
 
-        feature_dict = {
-            name: {
-                "value": value,
-                "feature_type": "time_series",
-                "calculated_at": current_time,
-                "version": version
+            feature_dict = {
+                name: {
+                    "value": value,
+                    "feature_type": "time_series",
+                    "calculated_at": current_time,
+                    "version": version,
+                }
+                for name, value in features.items()
             }
-            for name, value in features.items()
-        }
 
-        feature_store.upsert_features(
-            entity_type="user",
-            entity_id=user_id,
-            features=feature_dict
-        )
+            feature_store.upsert_features(
+                entity_type="user",
+                entity_id=user_id,
+                features=feature_dict,
+            )
 
         db.commit()
 
         logger.info(f"Refreshed {len(features)} features for user {user_id}")
 
         return {
+            "tenant_id": tenant_id,
             "user_id": user_id,
             "feature_count": len(features),
             "version": version,
@@ -88,9 +93,13 @@ def refresh_user_features(self: Task, user_id: str, version: int = 1) -> Dict[st
         }
 
     except Exception as e:
-        logger.error(f"Failed to refresh features for user {user_id}: {e}", exc_info=True)
+        logger.error(
+            f"Failed to refresh features for tenant={tenant_id} user={user_id}: {e}",
+            exc_info=True,
+        )
         db.rollback()
         return {
+            "tenant_id": tenant_id,
             "user_id": user_id,
             "status": "error",
             "error": str(e)
@@ -102,6 +111,7 @@ def refresh_user_features(self: Task, user_id: str, version: int = 1) -> Dict[st
 @celery_app.task(bind=True, name="tasks.refresh_active_users_features")
 def refresh_active_users_features(
     self: Task,
+    tenant_id: str,
     days: int = 30,
     batch_size: int = 100,
     version: int = 1
@@ -110,6 +120,7 @@ def refresh_active_users_features(
     Refresh features for all users active in the last N days.
 
     Args:
+        tenant_id: Tenant identifier
         days: Lookback window for active users
         batch_size: Number of users to process per batch
         version: Feature version number
@@ -119,14 +130,22 @@ def refresh_active_users_features(
     """
     db = SessionLocal()
     try:
-        logger.info(f"Refreshing features for users active in last {days} days")
+        logger.info(f"Refreshing features for tenant={tenant_id} users active in last {days} days")
 
         # Find active users
         start_date = utc_now() - timedelta(days=days)
 
-        active_users = db.query(Transaction.user_id).filter(
-            Transaction.timestamp >= start_date
-        ).group_by(Transaction.user_id).all()
+        active_users = (
+            db.query(Transaction.user_id)
+            .filter(
+                and_(
+                    Transaction.tenant_id == tenant_id,
+                    Transaction.timestamp >= start_date,
+                )
+            )
+            .group_by(Transaction.user_id)
+            .all()
+        )
 
         user_ids = [user[0] for user in active_users]
 
@@ -142,13 +161,14 @@ def refresh_active_users_features(
             for user_id in batch:
                 try:
                     # Queue individual refresh task
-                    refresh_user_features.delay(user_id, version=version)
+                    refresh_user_features.delay(tenant_id, user_id, version=version)
                     total_success += 1
                 except Exception as e:
                     logger.error(f"Failed to queue refresh for user {user_id}: {e}")
                     total_errors += 1
 
         return {
+            "tenant_id": tenant_id,
             "total_users": len(user_ids),
             "queued": total_success,
             "errors": total_errors,
@@ -159,8 +179,9 @@ def refresh_active_users_features(
         }
 
     except Exception as e:
-        logger.error(f"Failed to refresh active users features: {e}", exc_info=True)
+        logger.error(f"Failed to refresh active users features for tenant={tenant_id}: {e}", exc_info=True)
         return {
+            "tenant_id": tenant_id,
             "status": "error",
             "error": str(e)
         }
@@ -171,12 +192,14 @@ def refresh_active_users_features(
 @celery_app.task(bind=True, name="tasks.monitor_feature_staleness")
 def monitor_feature_staleness(
     self: Task,
+    tenant_id: str,
     staleness_threshold_hours: int = 24
 ) -> Dict[str, Any]:
     """
     Monitor feature staleness and identify users needing refresh.
 
     Args:
+        tenant_id: Tenant identifier
         staleness_threshold_hours: Hours before features are considered stale
 
     Returns:
@@ -184,7 +207,7 @@ def monitor_feature_staleness(
     """
     db = SessionLocal()
     try:
-        logger.info("Monitoring feature staleness")
+        logger.info(f"Monitoring feature staleness for tenant={tenant_id}")
 
         staleness_threshold = utc_now() - timedelta(hours=staleness_threshold_hours)
 
@@ -194,6 +217,7 @@ def monitor_feature_staleness(
             func.max(FeatureValue.calculated_at).label('last_updated')
         ).filter(
             and_(
+                FeatureValue.tenant_id == tenant_id,
                 FeatureValue.entity_type == 'user',
                 FeatureValue.calculated_at < staleness_threshold
             )
@@ -208,6 +232,7 @@ def monitor_feature_staleness(
         for user_id in stale_user_ids:
             recent_txns = db.query(func.count(Transaction.id)).filter(
                 and_(
+                    Transaction.tenant_id == tenant_id,
                     Transaction.user_id == user_id,
                     Transaction.timestamp >= staleness_threshold
                 )
@@ -220,9 +245,10 @@ def monitor_feature_staleness(
 
         # Queue refresh for active stale users
         for user_id in active_stale_users:
-            refresh_user_features.delay(user_id)
+            refresh_user_features.delay(tenant_id, user_id)
 
         return {
+            "tenant_id": tenant_id,
             "total_stale": len(stale_user_ids),
             "active_stale": len(active_stale_users),
             "queued_for_refresh": len(active_stale_users),
@@ -232,10 +258,81 @@ def monitor_feature_staleness(
         }
 
     except Exception as e:
-        logger.error(f"Failed to monitor feature staleness: {e}", exc_info=True)
+        logger.error(f"Failed to monitor feature staleness for tenant={tenant_id}: {e}", exc_info=True)
         return {
+            "tenant_id": tenant_id,
             "status": "error",
             "error": str(e)
+        }
+    finally:
+        db.close()
+
+
+@celery_app.task(bind=True, name="tasks.refresh_active_users_features_all_tenants")
+def refresh_active_users_features_all_tenants(
+    self: Task,
+    days: int = 30,
+    batch_size: int = 100,
+    version: int = 1,
+) -> Dict[str, Any]:
+    """Wrapper task: enqueue per-tenant active user refresh for all active tenants."""
+    db = SessionLocal()
+    try:
+        tenants = db.query(Tenant.tenant_id).filter(Tenant.is_active == True).all()
+        tenant_ids = [row[0] for row in tenants]
+
+        queued = 0
+        errors = 0
+        for tid in tenant_ids:
+            try:
+                refresh_active_users_features.delay(tid, days=days, batch_size=batch_size, version=version)
+                queued += 1
+            except Exception as exc:
+                logger.error(f"Failed to enqueue refresh_active_users_features for tenant={tid}: {exc}")
+                errors += 1
+
+        return {
+            "total_tenants": len(tenant_ids),
+            "queued": queued,
+            "errors": errors,
+            "days": days,
+            "batch_size": batch_size,
+            "version": version,
+            "started_at": utc_now().isoformat(),
+            "status": "completed",
+        }
+    finally:
+        db.close()
+
+
+@celery_app.task(bind=True, name="tasks.monitor_feature_staleness_all_tenants")
+def monitor_feature_staleness_all_tenants(
+    self: Task,
+    staleness_threshold_hours: int = 24,
+) -> Dict[str, Any]:
+    """Wrapper task: enqueue per-tenant staleness monitoring for all active tenants."""
+    db = SessionLocal()
+    try:
+        tenants = db.query(Tenant.tenant_id).filter(Tenant.is_active == True).all()
+        tenant_ids = [row[0] for row in tenants]
+
+        queued = 0
+        errors = 0
+        for tid in tenant_ids:
+            try:
+                monitor_feature_staleness.delay(tid, staleness_threshold_hours=staleness_threshold_hours)
+                queued += 1
+            except Exception as exc:
+                logger.error(f"Failed to enqueue monitor_feature_staleness for tenant={tid}: {exc}")
+                errors += 1
+
+        return {
+            "total_tenants": len(tenant_ids),
+            "queued": queued,
+            "errors": errors,
+            "staleness_threshold_hours": staleness_threshold_hours,
+            "started_at": utc_now().isoformat(),
+            "status": "completed",
         }
     finally:
         db.close()

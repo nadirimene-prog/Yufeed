@@ -15,6 +15,7 @@ from typing import Dict, List, Optional, Any
 from datetime import datetime, timedelta
 from decimal import Decimal
 from collections import defaultdict
+from datetime import timezone
 
 import numpy as np
 from sqlalchemy.orm import Session
@@ -42,6 +43,7 @@ class TimeSeriesFeatureExtractor:
 
     def extract_features(
         self,
+        tenant_id: str,
         user_id: str,
         current_time: datetime,
         lookback_days: int = 90
@@ -50,6 +52,7 @@ class TimeSeriesFeatureExtractor:
         Extract all time-series features for a user.
 
         Args:
+            tenant_id: Tenant identifier
             user_id: User identifier
             current_time: Reference time for feature calculation
             lookback_days: Historical window in days
@@ -57,11 +60,16 @@ class TimeSeriesFeatureExtractor:
         Returns:
             Dictionary of feature names to values
         """
+        # DB timestamps are stored as naive datetimes; normalize inputs to naive UTC for comparisons.
+        if current_time.tzinfo is not None:
+            current_time = current_time.astimezone(timezone.utc).replace(tzinfo=None)
+
         start_time = current_time - timedelta(days=lookback_days)
 
         # Get user transactions
         transactions = self.db.query(Transaction).filter(
             and_(
+                Transaction.tenant_id == tenant_id,
                 Transaction.user_id == user_id,
                 Transaction.timestamp >= start_time,
                 Transaction.timestamp < current_time

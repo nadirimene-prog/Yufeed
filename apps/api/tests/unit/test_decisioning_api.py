@@ -3,6 +3,7 @@ from types import SimpleNamespace
 from datetime import datetime, timezone
 
 from src.api import decisioning as decisioning_api
+from src.auth.dependencies import CurrentUser
 from src.models.transaction_models import Transaction
 
 
@@ -46,6 +47,8 @@ def test_decisioning_ingest_and_decide(db_session, monkeypatch):
     db_session.add(txn)
     db_session.commit()
 
+    current_user = CurrentUser("user-1", "user@example.com", "admin", tenant_id="default")
+
     ingest = decisioning_api.ingest_event(
         decisioning_api.EventIngestRequest(
             event_type="txn_fiat",
@@ -55,7 +58,7 @@ def test_decisioning_ingest_and_decide(db_session, monkeypatch):
             source="tests",
         ),
         db_session,
-        None,
+        current_user,
     )
     assert ingest.event_id
 
@@ -70,10 +73,10 @@ def test_decisioning_ingest_and_decide(db_session, monkeypatch):
             source="tests",
         ),
         db_session,
-        None,
+        current_user,
     )
     assert decision.decision in {"approve", "review"}
     assert decision.alerts
 
-    fetched = decisioning_api.get_decision(decision.decision_id, db_session, None)
+    fetched = decisioning_api.get_decision(decision.decision_id, db_session, current_user)
     assert fetched.decision_id == decision.decision_id

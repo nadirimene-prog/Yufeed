@@ -379,7 +379,7 @@ async def create_risk_entry(
 
     # Send WebSocket notification
     try:
-        await ws_manager.broadcast(NotificationEvent(
+        await ws_manager.send_notification(NotificationEvent(
             event_type=EventType.RISK_ENTRY_CREATED,
             title="Risk Entry Created",
             message=f"New risk entry created: {entry.name}",

@@ -176,7 +176,7 @@ async def create_policy_from_template(
 
     if stats.get("created"):
         try:
-            await ws_manager.broadcast(NotificationEvent(
+            await ws_manager.send_notification(NotificationEvent(
                 event_type=EventType.POLICY_CREATED,
                 title="Policy Created",
                 message=f"New master policy created: {policy.name}",
@@ -254,7 +254,7 @@ async def create_policy(
 
     # Send WebSocket notification
     try:
-        await ws_manager.broadcast(NotificationEvent(
+        await ws_manager.send_notification(NotificationEvent(
             event_type=EventType.POLICY_CREATED,
             title="Policy Created",
             message=f"New policy created: {policy.name}",
@@ -360,7 +360,7 @@ async def approve_policy(
 
     # Send notification
     try:
-        await ws_manager.broadcast(NotificationEvent(
+        await ws_manager.send_notification(NotificationEvent(
             event_type=EventType.POLICY_APPROVED,
             title="Policy Approved",
             message=f"Policy approved: {policy.name}",
@@ -432,7 +432,7 @@ async def link_obligation_to_policy(
     db.refresh(obligation)
 
     try:
-        await ws_manager.broadcast(NotificationEvent(
+        await ws_manager.send_notification(NotificationEvent(
             event_type=EventType.OBLIGATION_UPDATED,
             title="Obligation Linked",
             message=f"Linked obligation {obligation.obligation_id} to policy {policy.name}",

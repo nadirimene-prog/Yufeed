@@ -19,6 +19,7 @@ class AuditLog(Base):
 
     id = Column(Integer, primary_key=True)
     audit_id = Column(String(64), unique=True, nullable=False, index=True)
+    tenant_id = Column(String(255), nullable=False, index=True)
 
     actor_id = Column(String(255), index=True)
     actor_email = Column(String(255), index=True)
@@ -47,6 +48,7 @@ class EventRecord(Base):
 
     id = Column(Integer, primary_key=True)
     event_id = Column(String(64), unique=True, nullable=False, index=True)
+    tenant_id = Column(String(255), nullable=False, index=True)
     event_type = Column(String(100), nullable=False, index=True)
     entity_type = Column(String(100), index=True)
     entity_id = Column(String(255), index=True)
@@ -62,6 +64,7 @@ class DecisionRecord(Base):
 
     id = Column(Integer, primary_key=True)
     decision_id = Column(String(64), unique=True, nullable=False, index=True)
+    tenant_id = Column(String(255), nullable=False, index=True)
     event_id = Column(String(64), ForeignKey("event_records.event_id"), index=True)
     decision = Column(String(20), nullable=False, index=True)  # allow|block|step_up|alert
     reason_codes = Column(JSON().with_variant(JSONB(), "postgresql"))
