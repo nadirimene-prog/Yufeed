@@ -10,6 +10,7 @@ import {
   updateObligationStatus,
 } from "@/lib/compliance-api";
 import { complianceKeys } from "@/lib/queryKeys";
+import type { ObligationsListResponse } from "@/lib/compliance-api";
 
 const DASHBOARD_OBLIGATIONS_PARAMS = { limit: 10, include_status_counts: true } as const;
 const DASHBOARD_POLICIES_PARAMS = { limit: 10 } as const;
@@ -65,6 +66,29 @@ export function useObligation(id: number | null) {
     },
     enabled: typeof id === "number",
   });
+}
+
+export function useObligationsList(params: {
+  status?: string;
+  jurisdiction?: string;
+  source_system?: string;
+  scope?: string;
+  q?: string;
+  include_status_counts?: boolean;
+  skip?: number;
+  limit?: number;
+}): { data: ObligationsListResponse | undefined; isLoading: boolean; isError: boolean; error: Error | null } {
+  const query = useQuery({
+    queryKey: complianceKeys.obligationsList(params),
+    queryFn: () => getObligations(params),
+  });
+
+  return {
+    data: query.data,
+    isLoading: query.isLoading,
+    isError: query.isError,
+    error: (query.error as Error | null) ?? null,
+  };
 }
 
 export function useApproveObligation() {

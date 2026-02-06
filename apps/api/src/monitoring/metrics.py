@@ -15,6 +15,18 @@ websocket_messages_sent_total = Counter(
     ["event_type"],
 )
 
+cache_hits_total = Counter(
+    "cache_hits_total",
+    "Total number of cache hits",
+    ["cache_type"],
+)
+
+cache_misses_total = Counter(
+    "cache_misses_total",
+    "Total number of cache misses",
+    ["cache_type"],
+)
+
 rule_coercion_failures_total = Counter(
     "rule_coercion_failures_total",
     "Total number of rule numeric coercion failures",
@@ -36,12 +48,19 @@ def _setup_metrics():
 # Cache metrics (used by cache_manager.py)
 # ----------------------------------------------------------------------
 def record_cache_hit(key: str):
-    """Record a cache hit (stub – replace with real Prometheus counter)."""
-    pass
+    """Record a cache hit for the given cache_type."""
+    try:
+        cache_hits_total.labels(cache_type=key).inc()
+    except Exception:
+        # Metrics must never break the request path.
+        return
 
 def record_cache_miss(key: str):
-    """Record a cache miss (stub – replace with real Prometheus counter)."""
-    pass
+    """Record a cache miss for the given cache_type."""
+    try:
+        cache_misses_total.labels(cache_type=key).inc()
+    except Exception:
+        return
 
 def setup_metrics(app):
     """Attach Prometheus instrumentation to the FastAPI app."""

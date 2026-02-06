@@ -1,26 +1,10 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 import Link from "next/link";
-import apiClient from "@/lib/http";
 import { handleApiError } from "@/lib/api-error-handler";
-
-interface ObligationItem {
-  id: number;
-  obligation_id: string;
-  status: string;
-  article_ref?: string | null;
-  obligation_text: string;
-  updated_at?: string | null;
-  document: {
-    id: number;
-    celex: string;
-    title: string;
-    jurisdiction?: string | null;
-    source_system?: string | null;
-    publication_date?: string | null;
-  };
-}
+import { useObligationsList, useUpdateObligationStatus } from "@/hooks/queries/useComplianceData";
+import type { Obligation } from "@/types/compliance";
 
 const obligationStatusStyle = (status?: string) => {
   const value = (status || "draft").toLowerCase();
@@ -38,9 +22,6 @@ const formatDate = (value?: string | null) => {
 };
 
 export default function ObligationsPage() {
-  const [items, setItems] = useState<ObligationItem[]>([]);
-  const [total, setTotal] = useState(0);
-  const [loading, setLoading] = useState(true);
   const [statusFilter, setStatusFilter] = useState("pending");
   const [jurisdictionFilter, setJurisdictionFilter] = useState("all");
   const [sourceFilter, setSourceFilter] = useState("all");
@@ -51,58 +32,30 @@ export default function ObligationsPage() {
 
   const pageSize = 20;
 
-  const queryParams = useMemo(() => {
-    const params = new URLSearchParams();
-    if (statusFilter !== "all") {
-      params.set("status", statusFilter === "pending" ? "draft,in_review" : statusFilter);
-    }
-    if (jurisdictionFilter !== "all") {
-      params.set("jurisdiction", jurisdictionFilter);
-    }
-    if (sourceFilter !== "all") {
-      params.set("source_system", sourceFilter);
-    }
-    if (scopeFilter !== "all") {
-      params.set("scope", scopeFilter);
-    }
-    if (query.trim()) {
-      params.set("q", query.trim());
-    }
-    params.set("skip", String(page * pageSize));
-    params.set("limit", String(pageSize));
-    return params.toString();
+  const listParams = useMemo(() => {
+    const status = statusFilter === "pending" ? "draft,in_review" : statusFilter;
+    return {
+      ...(statusFilter !== "all" ? { status } : {}),
+      ...(jurisdictionFilter !== "all" ? { jurisdiction: jurisdictionFilter } : {}),
+      ...(sourceFilter !== "all" ? { source_system: sourceFilter } : {}),
+      ...(scopeFilter !== "all" ? { scope: scopeFilter } : {}),
+      ...(query.trim() ? { q: query.trim() } : {}),
+      skip: page * pageSize,
+      limit: pageSize,
+    };
   }, [statusFilter, jurisdictionFilter, sourceFilter, scopeFilter, query, page]);
 
-  useEffect(() => {
-    let mounted = true;
-    const fetchItems = async () => {
-      setLoading(true);
-      try {
-        const response = await apiClient.get(`/api/obligations?${queryParams}`);
-        if (!mounted) return;
-        setItems(response.data.items || []);
-        setTotal(response.data.total || 0);
-      } catch (err) {
-        handleApiError(err, { context: "Obligations list", customMessage: "Failed to load obligations" });
-      } finally {
-        if (mounted) {
-          setLoading(false);
-        }
-      }
-    };
-    fetchItems();
-    return () => {
-      mounted = false;
-    };
-  }, [queryParams]);
+  const obligationsQuery = useObligationsList(listParams);
+  const updateStatusMutation = useUpdateObligationStatus();
+
+  const items: Obligation[] = obligationsQuery.data?.items ?? [];
+  const total = obligationsQuery.data?.total ?? 0;
+  const loading = obligationsQuery.isLoading;
 
   const updateStatus = async (id: number, status: string) => {
     setActionLoading(`${id}:${status}`);
     try {
-      await apiClient.patch(`/api/obligations/${id}`, { status });
-      const response = await apiClient.get(`/api/obligations?${queryParams}`);
-      setItems(response.data.items || []);
-      setTotal(response.data.total || 0);
+      await updateStatusMutation.mutateAsync({ id, status });
     } catch (err) {
       handleApiError(err, { context: "Update obligation status" });
     } finally {
@@ -148,6 +101,12 @@ export default function ObligationsPage() {
           Back to dashboard
         </Link>
       </header>
+
+      {obligationsQuery.isError && (
+        <div className="rounded-lg border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-800 dark:border-rose-900/40 dark:bg-rose-900/20 dark:text-rose-200">
+          Failed to load obligations.
+        </div>
+      )}
 
       <div className="flex flex-wrap gap-3 text-xs text-gray-500">
         <input
