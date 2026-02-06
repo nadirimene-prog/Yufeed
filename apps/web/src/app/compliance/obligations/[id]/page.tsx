@@ -2,120 +2,24 @@
 
 import { useEffect, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
-import Link from "next/link";
 import apiClient from "@/lib/http";
 import { handleApiError } from "@/lib/api-error-handler";
 import ObligationApprovalModal from "@/components/compliance/ObligationApprovalModal";
-import type { Obligation } from "@/types/compliance";
+import type { Obligation, Policy, PolicySection } from "@/types/compliance";
 import { getPolicies, getPolicySections } from "@/lib/compliance-api";
-
-interface ObligationDetail {
-  id: number;
-  obligation_id: string;
-  status: string;
-  article_ref?: string | null;
-  obligation_text: string;
-  applicability?: string | null;
-  effective_date?: string | null;
-  created_by?: string | null;
-  reviewed_by?: string | null;
-  approved_by?: string | null;
-  approved_at?: string | null;
-  review_notes?: string | null;
-  updated_at?: string | null;
-  scope_tags?: string[];
-  linked_policy_id?: number | null;
-  linked_policy?: {
-    id: number;
-    policy_id: string;
-    name: string;
-    status: string;
-  } | null;
-  linked_risks?: Array<{
-    link_id: number;
-    link_type: string;
-    risk_id: string;
-    name: string;
-    inherent_risk_level: string;
-    residual_risk_level: string;
-  }>;
-  linked_risks_count?: number;
-  internal_rules_count?: number;
-  document: {
-    id: number;
-    celex: string;
-    title: string;
-    jurisdiction?: string | null;
-    source_system?: string | null;
-    publication_date?: string | null;
-    scope_tags?: string[];
-  };
-}
-
-interface Policy {
-  id: number;
-  policy_id: string;
-  name: string;
-  status?: string | null;
-  language?: string | null;
-}
-
-interface PolicySection {
-  id: number;
-  policy_id: number;
-  section_ref?: string | null;
-  title?: string | null;
-  status?: string | null;
-  version?: string | null;
-}
-
-interface InternalRuleMapping {
-  id: number;
-  internal_rule_id: number;
-  monitoring_rule_id?: number | null;
-  mapping_type?: string | null;
-  monitoring_rule?: {
-    id: number;
-    rule_id: string;
-    name: string;
-    severity?: string | null;
-    enabled?: boolean | null;
-  } | null;
-}
-
-interface InternalRule {
-  id: number;
-  internal_rule_id: string;
-  obligation_id: number;
-  policy_section_id?: number | null;
-  name: string;
-  description?: string | null;
-  control_owner?: string | null;
-  status?: string | null;
-  policy_section?: PolicySection | null;
-  mappings?: InternalRuleMapping[];
-}
-
-const obligationStatusStyle = (status?: string) => {
-  const value = (status || "draft").toLowerCase();
-  if (value === "approved") return "bg-emerald-50 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-300";
-  if (value === "in_review") return "bg-blue-50 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300";
-  if (value === "rejected") return "bg-rose-50 text-rose-700 dark:bg-rose-900/30 dark:text-rose-300";
-  return "bg-amber-50 text-amber-700 dark:bg-amber-900/30 dark:text-amber-300";
-};
-
-const formatDate = (value?: string | null) => {
-  if (!value) return "—";
-  const parsed = new Date(value);
-  if (Number.isNaN(parsed.getTime())) return "—";
-  return parsed.toLocaleString();
-};
+import ObligationHeader from "@/app/compliance/obligations/[id]/components/ObligationHeader";
+import ObligationSummary from "@/app/compliance/obligations/[id]/components/ObligationSummary";
+import ObligationReview from "@/app/compliance/obligations/[id]/components/ObligationReview";
+import InternalRulesManager from "@/app/compliance/obligations/[id]/components/InternalRulesManager";
+import LinkedPolicyCard from "@/app/compliance/obligations/[id]/components/LinkedPolicyCard";
+import LinkedRisksList from "@/app/compliance/obligations/[id]/components/LinkedRisksList";
+import type { InternalRule } from "@/app/compliance/obligations/[id]/components/types";
 
 export default function ObligationDetailPage() {
   const params = useParams();
   const router = useRouter();
   const id = Array.isArray(params?.id) ? params.id[0] : params?.id;
-  const [data, setData] = useState<ObligationDetail | null>(null);
+  const [data, setData] = useState<Obligation | null>(null);
   const [loading, setLoading] = useState(true);
   const [actionLoading, setActionLoading] = useState<string | null>(null);
   const [policies, setPolicies] = useState<Policy[]>([]);
@@ -316,19 +220,21 @@ export default function ObligationDetailPage() {
   };
 
   const handleApprovalSuccess = (updatedObligation: Obligation) => {
-    // Convert the Obligation type to our local ObligationDetail type
-    setData({
-      ...data!,
-      status: updatedObligation.status,
-      review_notes: updatedObligation.review_notes || data?.review_notes,
-      reviewed_by: updatedObligation.reviewed_by || data?.reviewed_by,
-      approved_by: updatedObligation.approved_by || data?.approved_by,
-      approved_at: updatedObligation.approved_at || data?.approved_at,
-      linked_policy_id: updatedObligation.linked_policy_id,
-      linked_policy: updatedObligation.linked_policy,
-      linked_risks: updatedObligation.linked_risks,
-      linked_risks_count: updatedObligation.linked_risks_count,
-      internal_rules_count: updatedObligation.internal_rules_count,
+    setData((prev) => {
+      if (!prev) return updatedObligation;
+      return {
+        ...prev,
+        status: updatedObligation.status,
+        review_notes: updatedObligation.review_notes ?? prev.review_notes,
+        reviewed_by: updatedObligation.reviewed_by ?? prev.reviewed_by,
+        approved_by: updatedObligation.approved_by ?? prev.approved_by,
+        approved_at: updatedObligation.approved_at ?? prev.approved_at,
+        linked_policy_id: updatedObligation.linked_policy_id,
+        linked_policy: updatedObligation.linked_policy,
+        linked_risks: updatedObligation.linked_risks,
+        linked_risks_count: updatedObligation.linked_risks_count,
+        internal_rules_count: updatedObligation.internal_rules_count,
+      };
     });
     fetchInternalRules(); // Refresh internal rules in case one was created
   };
@@ -343,365 +249,76 @@ export default function ObligationDetailPage() {
     return <div className="text-sm text-gray-500">Obligation not found.</div>;
   }
 
+  const actions = actionsFor(data.status);
+
   return (
     <div className="space-y-6">
-      <div className="flex flex-col gap-2 lg:flex-row lg:items-center lg:justify-between">
-        <div>
-          <div className="text-xs text-gray-500">Obligation {data.obligation_id}</div>
-          <h1 className="text-2xl font-semibold text-gray-900 dark:text-white">{data.document.title}</h1>
-          <div className="mt-2 flex flex-wrap gap-2 text-xs text-gray-500">
-            <span>{data.document.celex}</span>
-            <span>•</span>
-            <span>{data.document.jurisdiction || "EU"}</span>
-            <span>•</span>
-            <span>{data.document.source_system || "source"}</span>
-          </div>
-        </div>
-        <div className="flex items-center gap-2">
-          <span className={"rounded-full px-3 py-1 text-xs font-semibold " + obligationStatusStyle(data.status)}>
-            {data.status.replace("_", " ")}
-          </span>
-          <Link
-            href="/compliance/obligations"
-            className="rounded-full border border-gray-200 bg-white px-4 py-2 text-xs font-medium text-gray-600 hover:border-gray-300 dark:border-slate-700 dark:bg-slate-900 dark:text-gray-300"
-          >
-            Back
-          </Link>
-        </div>
-      </div>
+      <ObligationHeader
+        obligationId={data.obligation_id}
+        title={data.document.title}
+        celex={data.document.celex || null}
+        jurisdiction={data.document.jurisdiction || null}
+        sourceSystem={data.document.source_system || null}
+        status={data.status}
+      />
 
-      <div className="rounded-lg border border-gray-200 bg-white p-6 shadow-sm dark:border-slate-800 dark:bg-slate-900">
-        <div className="text-sm font-semibold text-gray-900 dark:text-white">Obligation summary</div>
-        <div className="mt-3 text-sm text-gray-600 dark:text-gray-300 whitespace-pre-wrap">
-          {data.obligation_text}
-        </div>
+      <ObligationSummary
+        obligationText={data.obligation_text}
+        articleRef={data.article_ref || null}
+        applicability={data.applicability || null}
+        effectiveDate={data.effective_date || null}
+        updatedAt={data.updated_at || null}
+      />
 
-        <div className="mt-4 grid gap-3 text-xs text-gray-500 sm:grid-cols-2">
-          <div>
-            <div className="uppercase text-[11px] text-gray-400">Article reference</div>
-            <div className="mt-1 text-sm text-gray-700 dark:text-gray-300">{data.article_ref || "—"}</div>
-          </div>
-          <div>
-            <div className="uppercase text-[11px] text-gray-400">Applicability</div>
-            <div className="mt-1 text-sm text-gray-700 dark:text-gray-300">{data.applicability || "—"}</div>
-          </div>
-          <div>
-            <div className="uppercase text-[11px] text-gray-400">Effective date</div>
-            <div className="mt-1 text-sm text-gray-700 dark:text-gray-300">{formatDate(data.effective_date)}</div>
-          </div>
-          <div>
-            <div className="uppercase text-[11px] text-gray-400">Updated</div>
-            <div className="mt-1 text-sm text-gray-700 dark:text-gray-300">{formatDate(data.updated_at)}</div>
-          </div>
-        </div>
-      </div>
+      <ObligationReview
+        reviewNotes={data.review_notes || null}
+        reviewNote={reviewNote}
+        onReviewNoteChange={setReviewNote}
+        canUseEnhancedApproval={canUseEnhancedApproval}
+        onEnhancedApproval={() => setShowApprovalModal(true)}
+        actions={actions}
+        actionLoading={actionLoading}
+        onUpdateStatus={updateStatus}
+        onViewSourceDoc={() => {
+          if (data.document.celex) {
+            router.push(`/doc/${data.document.celex}`);
+          }
+        }}
+        createdBy={data.created_by || null}
+        reviewedBy={data.reviewed_by || null}
+        approvedBy={data.approved_by || null}
+        approvedAt={data.approved_at || null}
+      />
 
-      <div className="rounded-lg border border-gray-200 bg-white p-6 shadow-sm dark:border-slate-800 dark:bg-slate-900">
-        <div className="text-sm font-semibold text-gray-900 dark:text-white">Head of compliance validation</div>
-        <p className="mt-1 text-xs text-gray-500">
-          Mark the obligation as reviewed/approved or send back for changes.
-        </p>
+      <InternalRulesManager
+        internalRules={internalRules}
+        rulesLoading={rulesLoading}
+        rulesActionLoading={rulesActionLoading}
+        mappingForm={mappingForm}
+        setMappingForm={setMappingForm}
+        onAddMapping={addMapping}
+        ruleForm={ruleForm}
+        setRuleForm={setRuleForm}
+        policies={policies}
+        policiesLoading={policiesLoading}
+        sections={sections}
+        sectionsLoading={sectionsLoading}
+        onCreateInternalRule={createInternalRule}
+      />
 
-        <div className="mt-4">
-          <div className="text-xs font-semibold text-gray-600 dark:text-gray-300">Review notes</div>
-          {data.review_notes ? (
-            <div className="mt-2 rounded-md border border-gray-200 bg-gray-50 px-3 py-2 text-xs text-gray-600 whitespace-pre-wrap dark:border-slate-800 dark:bg-slate-800/40 dark:text-gray-300">
-              {data.review_notes}
-            </div>
-          ) : (
-            <div className="mt-2 text-xs text-gray-500">No notes yet.</div>
-          )}
-          <textarea
-            value={reviewNote}
-            onChange={(event) => setReviewNote(event.target.value)}
-            placeholder="Add a review note (optional)"
-            rows={3}
-            className="mt-3 w-full rounded-md border border-gray-200 bg-white px-3 py-2 text-xs text-gray-700 dark:border-slate-800 dark:bg-slate-900 dark:text-gray-300"
-          />
-        </div>
+      {data.linked_policy ? <LinkedPolicyCard policy={data.linked_policy} /> : null}
 
-        <div className="mt-4 flex flex-wrap gap-2">
-          {canUseEnhancedApproval && (
-            <button
-              onClick={() => setShowApprovalModal(true)}
-              className="rounded-full bg-indigo-600 px-4 py-2 text-xs font-semibold text-white hover:bg-indigo-700 dark:bg-indigo-500 dark:hover:bg-indigo-600"
-            >
-              Enhanced Review & Approve
-            </button>
-          )}
-          {actionsFor(data.status).map((action) => (
-            <button
-              key={action.status}
-              onClick={() => updateStatus(action.status)}
-              disabled={actionLoading === action.status}
-              className="rounded-full border border-gray-200 bg-white px-4 py-2 text-xs font-semibold text-gray-600 hover:border-gray-300 disabled:cursor-not-allowed disabled:opacity-60 dark:border-slate-700 dark:bg-slate-900 dark:text-gray-300"
-            >
-              {action.label}
-            </button>
-          ))}
-          <button
-            onClick={() => router.push(`/doc/${data.document.celex}`)}
-            className="rounded-full border border-gray-200 bg-white px-4 py-2 text-xs font-semibold text-gray-600 hover:border-gray-300 dark:border-slate-700 dark:bg-slate-900 dark:text-gray-300"
-          >
-            View source document
-          </button>
-        </div>
-
-        <div className="mt-4 grid gap-2 text-xs text-gray-500">
-          <div>Created by: {data.created_by || "—"}</div>
-          <div>Reviewed by: {data.reviewed_by || "—"}</div>
-          <div>Approved by: {data.approved_by || "—"}</div>
-          <div>Approved at: {formatDate(data.approved_at)}</div>
-        </div>
-      </div>
-
-      <div className="rounded-lg border border-gray-200 bg-white p-6 shadow-sm dark:border-slate-800 dark:bg-slate-900">
-        <div className="text-sm font-semibold text-gray-900 dark:text-white">Internal rules & mappings</div>
-        <p className="mt-1 text-xs text-gray-500">
-          Define the internal controls required by this obligation and map them to monitoring rules.
-        </p>
-
-        <div className="mt-6 grid gap-6 lg:grid-cols-[minmax(0,1fr)_minmax(0,320px)]">
-          <div className="space-y-3">
-            {rulesLoading ? (
-              <div className="text-sm text-gray-500">Loading internal rules...</div>
-            ) : internalRules.length ? (
-              internalRules.map((rule) => (
-                <div
-                  key={rule.id}
-                  className="rounded-lg border border-gray-100 bg-gray-50/60 p-4 dark:border-slate-800 dark:bg-slate-800/40"
-                >
-                  <div className="flex items-start justify-between gap-3">
-                    <div className="min-w-0">
-                      <div className="text-sm font-semibold text-gray-900 dark:text-white">
-                        {rule.name}
-                      </div>
-                      <div className="mt-1 text-xs text-gray-500">
-                        {rule.internal_rule_id} • {rule.control_owner || "Owner TBD"}
-                      </div>
-                    </div>
-                    <span className={"rounded-full px-2 py-1 text-[10px] font-semibold " + obligationStatusStyle(rule.status ?? undefined)}>
-                      {(rule.status || "draft").replace("_", " ")}
-                    </span>
-                  </div>
-                  {rule.description && (
-                    <div className="mt-2 text-xs text-gray-600 dark:text-gray-300">{rule.description}</div>
-                  )}
-                  {rule.policy_section && (
-                    <div className="mt-2 text-[11px] text-gray-500">
-                      Policy section: {rule.policy_section.section_ref || "—"}{" "}
-                      {rule.policy_section.title ? `• ${rule.policy_section.title}` : ""}
-                    </div>
-                  )}
-
-                  <div className="mt-4 border-t border-gray-100 pt-3 dark:border-slate-800">
-                    <div className="text-[11px] font-semibold text-gray-500">Mapped monitoring rules</div>
-                    <div className="mt-2 space-y-2">
-                      {rule.mappings && rule.mappings.length ? (
-                        rule.mappings.map((mapping) => (
-                          <div key={mapping.id} className="rounded-md border border-gray-100 bg-white px-3 py-2 text-xs dark:border-slate-800 dark:bg-slate-900">
-                            <div className="flex items-center justify-between">
-                              <div className="text-xs font-semibold text-gray-800 dark:text-gray-200">
-                                {mapping.monitoring_rule?.name || "Monitoring rule"}
-                              </div>
-                              <div className="text-[10px] text-gray-500">
-                                {mapping.monitoring_rule?.rule_id || mapping.monitoring_rule_id || "—"}
-                              </div>
-                            </div>
-                            <div className="mt-1 text-[11px] text-gray-500">
-                              {mapping.mapping_type || "transaction_monitoring"} •{" "}
-                              {mapping.monitoring_rule?.severity || "severity ?"}
-                            </div>
-                          </div>
-                        ))
-                      ) : (
-                        <div className="text-xs text-gray-500">No monitoring rules linked yet.</div>
-                      )}
-                    </div>
-
-                    <div className="mt-3 flex flex-col gap-2 text-xs text-gray-600">
-                      <input
-                        value={mappingForm[rule.id]?.target || ""}
-                        onChange={(event) =>
-                          setMappingForm((prev) => ({
-                            ...prev,
-                            [rule.id]: { ...(prev[rule.id] || { mappingType: "transaction_monitoring" }), target: event.target.value },
-                          }))
-                        }
-                        placeholder="Monitoring rule ID or rule_id"
-                        className="w-full rounded-md border border-gray-200 bg-white px-3 py-2 text-xs text-gray-700 dark:border-slate-800 dark:bg-slate-900 dark:text-gray-300"
-                      />
-                      <div className="flex gap-2">
-                        <select
-                          value={mappingForm[rule.id]?.mappingType || "transaction_monitoring"}
-                          onChange={(event) =>
-                            setMappingForm((prev) => ({
-                              ...prev,
-                              [rule.id]: { ...(prev[rule.id] || { target: "" }), mappingType: event.target.value },
-                            }))
-                          }
-                          className="flex-1 rounded-md border border-gray-200 bg-white px-3 py-2 text-xs text-gray-700 dark:border-slate-800 dark:bg-slate-900 dark:text-gray-300"
-                        >
-                          <option value="transaction_monitoring">Transaction monitoring</option>
-                          <option value="sanctions">Sanctions</option>
-                          <option value="fraud">Fraud</option>
-                        </select>
-                        <button
-                          onClick={() => addMapping(rule.id)}
-                          disabled={rulesActionLoading === `map-${rule.id}`}
-                          className="rounded-md border border-gray-200 bg-white px-3 py-2 text-xs font-semibold text-gray-600 hover:border-gray-300 disabled:cursor-not-allowed disabled:opacity-60 dark:border-slate-700 dark:bg-slate-900 dark:text-gray-300"
-                        >
-                          {rulesActionLoading === `map-${rule.id}` ? "Saving..." : "Add mapping"}
-                        </button>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              ))
-            ) : (
-              <div className="text-sm text-gray-500">No internal rules linked yet.</div>
-            )}
-          </div>
-
-          <div className="rounded-lg border border-gray-100 bg-gray-50/60 p-4 text-xs text-gray-600 dark:border-slate-800 dark:bg-slate-800/40">
-            <div className="text-xs font-semibold text-gray-700 dark:text-gray-200">Create internal rule</div>
-            <div className="mt-3 space-y-2">
-              <input
-                value={ruleForm.name}
-                onChange={(event) => setRuleForm({ ...ruleForm, name: event.target.value })}
-                placeholder="Rule name"
-                className="w-full rounded-md border border-gray-200 bg-white px-3 py-2 text-xs text-gray-700 dark:border-slate-800 dark:bg-slate-900 dark:text-gray-300"
-              />
-              <input
-                value={ruleForm.control_owner}
-                onChange={(event) => setRuleForm({ ...ruleForm, control_owner: event.target.value })}
-                placeholder="Control owner"
-                className="w-full rounded-md border border-gray-200 bg-white px-3 py-2 text-xs text-gray-700 dark:border-slate-800 dark:bg-slate-900 dark:text-gray-300"
-              />
-              <textarea
-                value={ruleForm.description}
-                onChange={(event) => setRuleForm({ ...ruleForm, description: event.target.value })}
-                placeholder="Rule description"
-                rows={3}
-                className="w-full rounded-md border border-gray-200 bg-white px-3 py-2 text-xs text-gray-700 dark:border-slate-800 dark:bg-slate-900 dark:text-gray-300"
-              />
-              <select
-                value={ruleForm.status}
-                onChange={(event) => setRuleForm({ ...ruleForm, status: event.target.value })}
-                className="w-full rounded-md border border-gray-200 bg-white px-3 py-2 text-xs text-gray-700 dark:border-slate-800 dark:bg-slate-900 dark:text-gray-300"
-              >
-                <option value="draft">Draft</option>
-                <option value="in_review">In review</option>
-                <option value="approved">Approved</option>
-              </select>
-              <select
-                value={ruleForm.policy_id}
-                onChange={(event) => setRuleForm({ ...ruleForm, policy_id: event.target.value, policy_section_id: "" })}
-                className="w-full rounded-md border border-gray-200 bg-white px-3 py-2 text-xs text-gray-700 dark:border-slate-800 dark:bg-slate-900 dark:text-gray-300"
-              >
-                <option value="">Policy (optional)</option>
-                {policiesLoading ? (
-                  <option>Loading policies...</option>
-                ) : (
-                  policies.map((policy) => (
-                    <option key={policy.id} value={policy.id}>
-                      {policy.policy_id} • {policy.name}
-                    </option>
-                  ))
-                )}
-              </select>
-              <select
-                value={ruleForm.policy_section_id}
-                onChange={(event) => setRuleForm({ ...ruleForm, policy_section_id: event.target.value })}
-                disabled={!ruleForm.policy_id}
-                className="w-full rounded-md border border-gray-200 bg-white px-3 py-2 text-xs text-gray-700 disabled:opacity-60 dark:border-slate-800 dark:bg-slate-900 dark:text-gray-300"
-              >
-                <option value="">Policy section (optional)</option>
-                {sectionsLoading ? (
-                  <option>Loading sections...</option>
-                ) : (
-                  sections.map((section) => (
-                    <option key={section.id} value={section.id}>
-                      {section.section_ref || "Section"} {section.title ? `• ${section.title}` : ""}
-                    </option>
-                  ))
-                )}
-              </select>
-              <button
-                onClick={createInternalRule}
-                disabled={rulesActionLoading === "create"}
-                className="w-full rounded-full border border-gray-200 bg-white px-4 py-2 text-xs font-semibold text-gray-600 hover:border-gray-300 disabled:cursor-not-allowed disabled:opacity-60 dark:border-slate-700 dark:bg-slate-900 dark:text-gray-300"
-              >
-                {rulesActionLoading === "create" ? "Saving..." : "Add internal rule"}
-              </button>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      {/* Linked Policy Section */}
-      {data.linked_policy && (
-        <div className="rounded-lg border border-gray-200 bg-white p-6 shadow-sm dark:border-slate-800 dark:bg-slate-900">
-          <div className="text-sm font-semibold text-gray-900 dark:text-white">Linked Policy</div>
-          <Link
-            href={`/compliance/policies?id=${data.linked_policy.id}`}
-            className="mt-3 flex items-center gap-3 rounded-lg border border-gray-100 bg-gray-50/60 p-3 hover:bg-gray-100 dark:border-slate-800 dark:bg-slate-800/40 dark:hover:bg-slate-800"
-          >
-            <div className="flex-1">
-              <div className="text-sm font-medium text-gray-900 dark:text-white">{data.linked_policy.name}</div>
-              <div className="text-xs text-gray-500">{data.linked_policy.policy_id}</div>
-            </div>
-            <span className={"rounded-full px-2 py-1 text-[10px] font-semibold " + obligationStatusStyle(data.linked_policy.status)}>
-              {data.linked_policy.status}
-            </span>
-          </Link>
-        </div>
-      )}
-
-      {/* Linked Risks Section */}
-      {data.linked_risks && data.linked_risks.length > 0 && (
-        <div className="rounded-lg border border-gray-200 bg-white p-6 shadow-sm dark:border-slate-800 dark:bg-slate-900">
-          <div className="text-sm font-semibold text-gray-900 dark:text-white">
-            Linked Risks ({data.linked_risks.length})
-          </div>
-          <div className="mt-3 space-y-2">
-            {data.linked_risks.map((risk) => (
-              <div
-                key={risk.link_id}
-                className="flex items-center gap-3 rounded-lg border border-gray-100 bg-gray-50/60 p-3 dark:border-slate-800 dark:bg-slate-800/40"
-              >
-                <div className="flex-1 min-w-0">
-                  <div className="text-sm font-medium text-gray-900 dark:text-white truncate">{risk.name}</div>
-                  <div className="text-xs text-gray-500">{risk.risk_id}</div>
-                </div>
-                <div className="flex items-center gap-2">
-                  <span className={`rounded-full px-2 py-1 text-[10px] font-semibold ${
-                    risk.inherent_risk_level === 'critical' ? 'bg-rose-100 text-rose-700 dark:bg-rose-900/30 dark:text-rose-300' :
-                    risk.inherent_risk_level === 'high' ? 'bg-orange-100 text-orange-700 dark:bg-orange-900/30 dark:text-orange-300' :
-                    risk.inherent_risk_level === 'medium' ? 'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-300' :
-                    'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-300'
-                  }`}>
-                    {risk.inherent_risk_level}
-                  </span>
-                  <span className="rounded-full bg-gray-100 px-2 py-1 text-[10px] text-gray-600 dark:bg-slate-800 dark:text-gray-400">
-                    {risk.link_type}
-                  </span>
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
-      )}
+      {data.linked_risks && data.linked_risks.length > 0 ? (
+        <LinkedRisksList linkedRisks={data.linked_risks} />
+      ) : null}
 
       {/* Enhanced Approval Modal */}
-      {data && (
-        <ObligationApprovalModal
-          open={showApprovalModal}
-          onOpenChange={setShowApprovalModal}
-          obligation={data as unknown as Obligation}
-          onSuccess={handleApprovalSuccess}
-        />
-      )}
+      <ObligationApprovalModal
+        open={showApprovalModal}
+        onOpenChange={setShowApprovalModal}
+        obligation={data}
+        onSuccess={handleApprovalSuccess}
+      />
     </div>
   );
 }

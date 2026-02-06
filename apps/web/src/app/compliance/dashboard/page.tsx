@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
+import React from "react";
 import { motion } from "framer-motion";
 import {
     Scale,
@@ -15,66 +15,44 @@ import {
 import { cn } from "@/lib/utils";
 import { GlassCard } from "@/components/ui/glass-card";
 import { MetricCard } from "@/components/ui/metric-card";
-import {
-    getObligations,
-    getPolicies,
-    getRiskMap,
-} from "@/lib/compliance-api";
-import type { Obligation, Policy, RiskMapSummary } from "@/types/compliance";
+import { useComplianceDashboard } from "@/hooks/queries/useComplianceData";
 import Link from "next/link";
 
 export default function ComplianceDashboardPage() {
-    const [loading, setLoading] = useState(true);
-    const [obligations, setObligations] = useState<Obligation[]>([]);
-    const [policies, setPolicies] = useState<Policy[]>([]);
-    const [riskMap, setRiskMap] = useState<RiskMapSummary | null>(null);
-    const [obligationCounts, setObligationCounts] = useState({
-        draft: 0,
-        in_review: 0,
-        approved: 0,
-        rejected: 0,
-        total: 0,
-    });
+    const { data, isLoading, isError, errors } = useComplianceDashboard();
 
-    useEffect(() => {
-        const loadData = async () => {
-            setLoading(true);
-            try {
-                const [obligationsRes, policiesRes, riskMapRes] = await Promise.all([
-                    getObligations({ limit: 10, include_status_counts: true }),
-                    getPolicies({ limit: 10 }),
-                    getRiskMap(),
-                ]);
-
-                setObligations(obligationsRes.items);
-                setPolicies(policiesRes.items);
-                setRiskMap(riskMapRes);
-
-                const statusCounts = obligationsRes.status_counts || {};
-                setObligationCounts({
-                    draft: statusCounts.draft || 0,
-                    in_review: statusCounts.in_review || 0,
-                    approved: statusCounts.approved || 0,
-                    rejected: statusCounts.rejected || 0,
-                    total: obligationsRes.total,
-                });
-            } catch (err) {
-                console.error("Failed to load dashboard data:", err);
-            } finally {
-                setLoading(false);
-            }
-        };
-
-        loadData();
-    }, []);
-
-    if (loading) {
+    if (isLoading) {
         return (
             <div className="flex items-center justify-center min-h-[60vh]">
                 <Loader2 className="h-8 w-8 animate-spin text-[#6d5acd]" />
             </div>
         );
     }
+
+    if (isError) {
+        console.error("Failed to load compliance dashboard data", { errors });
+        return (
+            <div className="flex items-center justify-center min-h-[60vh]">
+                <p className="text-white/70">Failed to load dashboard data.</p>
+            </div>
+        );
+    }
+
+    const obligationsRes = data.obligations;
+    const policiesRes = data.policies;
+    const riskMap = data.riskMap ?? null;
+
+    const obligations = obligationsRes?.items ?? [];
+    const policies = policiesRes?.items ?? [];
+
+    const statusCounts: Record<string, number> = obligationsRes?.status_counts ?? {};
+    const obligationCounts = {
+        draft: statusCounts.draft ?? 0,
+        in_review: statusCounts.in_review ?? 0,
+        approved: statusCounts.approved ?? 0,
+        rejected: statusCounts.rejected ?? 0,
+        total: obligationsRes?.total ?? 0,
+    };
 
     const activePolicies = policies.filter((p) => p.status === "active" || p.status === "approved").length;
     const highRisks = riskMap?.high_priority_risks?.length || 0;
