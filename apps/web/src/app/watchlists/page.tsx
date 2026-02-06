@@ -1,12 +1,13 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { Plus, Mail, Clock, ShieldCheck, FileText, Rss } from "lucide-react";
-import { getWatchlists, createWatchlist, type Watchlist, type WatchlistCreate } from "@/lib/api";
+import { createWatchlist, type Watchlist, type WatchlistCreate } from "@/lib/api";
+import { useWatchlists } from "@/hooks/queries/useWatchlistData";
+import { LoadingBoundary } from "@/components/shared/LoadingBoundary";
 
 export default function WatchlistsPage() {
-    const [watchlists, setWatchlists] = useState<Watchlist[]>([]);
-    const [loading, setLoading] = useState(true);
+    const { data: watchlists = [], isLoading, error, refetch } = useWatchlists();
     const [isCreating, setIsCreating] = useState(false);
     const [newWatchlist, setNewWatchlist] = useState({
         name: "",
@@ -17,21 +18,6 @@ export default function WatchlistsPage() {
         recipients_json: [""],
         schedule: "daily"
     });
-
-    useEffect(() => {
-        loadWatchlists();
-    }, []);
-
-    const loadWatchlists = async () => {
-        try {
-            const data = await getWatchlists();
-            setWatchlists(data);
-        } catch (error) {
-            console.error("Failed to load watchlists:", error);
-        } finally {
-            setLoading(false);
-        }
-    };
 
     const handleCreate = async () => {
         // Validate
@@ -52,7 +38,7 @@ export default function WatchlistsPage() {
                 schedule: newWatchlist.schedule || undefined,
             };
             await createWatchlist(payload);
-            await loadWatchlists();
+            await refetch();
             setIsCreating(false);
             setNewWatchlist({
                 name: "",
@@ -69,15 +55,14 @@ export default function WatchlistsPage() {
         }
     };
 
-    if (loading) {
-        return (
-            <div className="flex items-center justify-center min-h-screen">
-                <div className="text-lg">Loading watchlists...</div>
-            </div>
-        );
-    }
-
     return (
+        <LoadingBoundary
+            loading={isLoading}
+            error={error}
+            isEmpty={!watchlists || watchlists.length === 0}
+            emptyMessage="No watchlists yet"
+            emptyDescription="Create your first watchlist to start monitoring"
+        >
         <div className="space-y-8 animate-in fade-in duration-500">
             <div className="flex items-center justify-between">
                 <div>
@@ -190,5 +175,6 @@ export default function WatchlistsPage() {
                 </div>
             )}
         </div>
+        </LoadingBoundary>
     );
 }

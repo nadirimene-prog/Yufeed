@@ -1,14 +1,12 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 import { BarChart3, TrendingUp, AlertTriangle, FileText, Clock, CheckCircle, Download, Calendar } from 'lucide-react';
 import { BarChart, Bar, PieChart, Pie, Cell, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
 import { motion } from 'framer-motion';
 import toast from 'react-hot-toast';
-import { fetchWithAuth } from '@/lib/auth';
-import { getApiBaseUrl } from '@/lib/apiBaseUrl';
-
-const API_URL = getApiBaseUrl();
+import { useComplianceReport } from '@/hooks/queries/useSpecializedData';
+import { LoadingBoundary } from '@/components/shared/LoadingBoundary';
 
 interface ComplianceMetrics {
   alert_metrics: {
@@ -48,8 +46,7 @@ interface ComplianceMetrics {
 }
 
 export default function ComplianceReportPage() {
-  const [metrics, setMetrics] = useState<ComplianceMetrics | null>(null);
-  const [loading, setLoading] = useState(true);
+  const { data: metrics, isLoading, error } = useComplianceReport();
   const [dateRange, setDateRange] = useState({
     from: '',
     to: ''
@@ -142,6 +139,12 @@ export default function ComplianceReportPage() {
   }
 
   return (
+    <LoadingBoundary
+      loading={isLoading}
+      error={error}
+      isEmpty={!metrics}
+      loadingMessage="Loading compliance report..."
+    >
     <div className="min-h-screen bg-gray-50 dark:bg-gray-900 p-6">
       <div className="max-w-7xl mx-auto">
         {/* Header */}
@@ -530,5 +533,6 @@ function MetricCard({ title, value, icon, color }: {
         </motion.div>
       </div>
     </motion.div>
+    </LoadingBoundary>
   );
 }

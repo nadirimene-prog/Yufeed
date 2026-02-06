@@ -4,6 +4,8 @@ import { useEffect, useState } from "react";
 import { Plus, LineChart, UploadCloud, Rocket } from "lucide-react";
 import { fetchWithAuth } from "@/lib/auth";
 import { getApiBaseUrl } from "@/lib/apiBaseUrl";
+import { useModelRegistry } from "@/hooks/queries/useSpecializedData";
+import { LoadingBoundary } from "@/components/shared/LoadingBoundary";
 
 const API_URL = getApiBaseUrl();
 
@@ -28,10 +30,9 @@ type ModelVersion = {
 };
 
 export default function ModelRegistryPage() {
-    const [models, setModels] = useState<Model[]>([]);
+    const { data: models = [], isLoading, error: queryError, refetch } = useModelRegistry();
     const [selectedModel, setSelectedModel] = useState<Model | null>(null);
     const [versions, setVersions] = useState<ModelVersion[]>([]);
-    const [loading, setLoading] = useState(false);
     const [error, setError] = useState<string | null>(null);
 
     const [modelId, setModelId] = useState("risk-model");
@@ -50,23 +51,6 @@ export default function ModelRegistryPage() {
     const [driftStatus, setDriftStatus] = useState("ok");
     const [driftMetrics, setDriftMetrics] = useState("{\"psi\":0.12}");
 
-    const loadModels = async () => {
-        setLoading(true);
-        setError(null);
-        try {
-            const res = await fetchWithAuth(`${API_URL}/api/models`);
-            if (!res.ok) throw new Error(await res.text());
-            const data = await res.json();
-            setModels(data);
-            if (data.length && !selectedModel) {
-                setSelectedModel(data[0]);
-            }
-        } catch (err) {
-            setError(err instanceof Error ? err.message : "Failed to load models");
-        } finally {
-            setLoading(false);
-        }
-    };
 
     const loadVersions = async (model: Model) => {
         try {
@@ -79,8 +63,10 @@ export default function ModelRegistryPage() {
     };
 
     useEffect(() => {
-        loadModels();
-    }, []); // eslint-disable-line react-hooks/exhaustive-deps
+        if (models.length && !selectedModel) {
+            setSelectedModel(models[0]);
+        }
+    }, [models, selectedModel]);
 
     useEffect(() => {
         if (selectedModel) {
@@ -103,7 +89,7 @@ export default function ModelRegistryPage() {
                 }),
             });
             if (!res.ok) throw new Error(await res.text());
-            await loadModels();
+            await refetch();
         } catch (err) {
             setError(err instanceof Error ? err.message : "Failed to create model");
         }
@@ -171,6 +157,13 @@ export default function ModelRegistryPage() {
     };
 
     return (
+        <LoadingBoundary
+            loading={isLoading}
+            error={queryError || error}
+            isEmpty={!models || models.length === 0}
+            emptyMessage="No models registered"
+            emptyDescription="Register your first model to start tracking versions"
+        >
         <div className="min-h-screen p-6 bg-gray-50 dark:bg-gray-900">
             <div className="max-w-6xl mx-auto space-y-6">
                 <div>
@@ -273,5 +266,6 @@ export default function ModelRegistryPage() {
                 )}
             </div>
         </div>
+        </LoadingBoundary>
     );
 }

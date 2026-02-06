@@ -1,9 +1,9 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import Link from "next/link";
-import apiClient from "@/lib/http";
-import { handleApiError } from "@/lib/api-error-handler";
+import { useAMLScope } from "@/hooks/queries/useSpecializedData";
+import { LoadingBoundary } from "@/components/shared/LoadingBoundary";
 
 interface AMLScopeItem {
   jurisdiction: string;
@@ -55,48 +55,23 @@ const formatDate = (value?: string | null) => {
 };
 
 export default function AmlScopePage() {
-  const [data, setData] = useState<AMLScopeResponse | null>(null);
-  const [loading, setLoading] = useState(true);
+  const { data, isLoading, error } = useAMLScope();
   const [jurisdiction, setJurisdiction] = useState("all");
   const [scopeFilter, setScopeFilter] = useState("all");
-
-  useEffect(() => {
-    let mounted = true;
-    const fetchScope = async () => {
-      setLoading(true);
-      try {
-        const params = new URLSearchParams();
-        if (jurisdiction !== "all") {
-          params.set("jurisdiction", jurisdiction);
-        }
-        if (scopeFilter !== "all") {
-          params.set("scope", scopeFilter);
-        }
-        params.set("limit", "12");
-        const response = await apiClient.get(`/api/reporting/aml-scope?${params.toString()}`);
-        if (!mounted) return;
-        setData(response.data);
-      } catch (err) {
-        handleApiError(err, { context: "AML scope", customMessage: "Failed to load AML scope" });
-      } finally {
-        if (mounted) setLoading(false);
-      }
-    };
-
-    fetchScope();
-    return () => {
-      mounted = false;
-    };
-  }, [jurisdiction, scopeFilter]);
 
   const total = data?.total_obligations ?? 0;
   const covered = data?.coverage.covered ?? 0;
   const coveragePct = data?.coverage.coverage_pct ?? 0;
   const policyPct = data?.coverage.policy_mapping_pct ?? 0;
   const gaps = total - covered;
-  const isEmpty = !loading && total === 0;
 
   return (
+    <LoadingBoundary
+      loading={isLoading}
+      error={error}
+      isEmpty={!data || total === 0}
+      emptyMessage="No AML scope data available"
+    >
     <div className="p-8 max-w-6xl mx-auto space-y-6">
       <header className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
         <div>
@@ -253,5 +228,6 @@ export default function AmlScopePage() {
         </>
       )}
     </div>
+    </LoadingBoundary>
   );
 }

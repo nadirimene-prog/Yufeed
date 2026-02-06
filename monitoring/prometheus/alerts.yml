@@ -1,8 +1,245 @@
+# YuFeed Prometheus Alert Rules
+# Aligned with SLOs defined in monitoring/slos.yml
+# Last updated: 2026-02-06
+
 groups:
+  # =============================================================================
+  # SLO-Based Alerts (Linked to Error Budgets)
+  # =============================================================================
+  - name: slo_availability
+    interval: 1m
+    rules:
+      # API Availability SLO: 99.9%
+      - alert: APIAvailabilitySLOBreach
+        expr: |
+          (
+            sum(rate(api_request_duration_seconds_count{status!~"5.."}[5m]))
+            /
+            sum(rate(api_request_duration_seconds_count[5m]))
+          ) < 0.999
+        for: 5m
+        labels:
+          severity: critical
+          slo: availability
+          component: api
+        annotations:
+          summary: "API Availability SLO Breach (target: 99.9%)"
+          description: "API availability is {{ $value | humanizePercentage }}, below 99.9% SLO target"
+          runbook: "https://docs.yufeed.com/runbooks/incident-response"
+          error_budget: "Consuming error budget faster than sustainable"
+
+      # Fast burn rate: budget consumed in 50 hours (14.4x multiplier)
+      - alert: APIAvailabilityFastBurn
+        expr: |
+          (
+            sum(rate(api_request_duration_seconds_count{status=~"5.."}[1h]))
+            /
+            sum(rate(api_request_duration_seconds_count[1h]))
+          ) > (0.001 * 14.4)
+        for: 5m
+        labels:
+          severity: critical
+          slo: availability
+          burn_rate: fast
+        annotations:
+          summary: "API Availability Error Budget Fast Burn"
+          description: "Error budget consuming 14.4x faster than sustainable rate"
+          action: "Immediate investigation required - budget will exhaust in 50 hours"
+
+      # Slow burn rate: budget consumed in 5 days (6x multiplier)
+      - alert: APIAvailabilitySlowBurn
+        expr: |
+          (
+            sum(rate(api_request_duration_seconds_count{status=~"5.."}[6h]))
+            /
+            sum(rate(api_request_duration_seconds_count[6h]))
+          ) > (0.001 * 6)
+        for: 30m
+        labels:
+          severity: warning
+          slo: availability
+          burn_rate: slow
+        annotations:
+          summary: "API Availability Error Budget Slow Burn"
+          description: "Error budget consuming 6x faster than sustainable rate"
+          action: "Monitor and plan improvements - budget will exhaust in 5 days"
+
+  - name: slo_latency
+    interval: 1m
+    rules:
+      # API Latency SLO: p95 < 500ms
+      - alert: APILatencySLOBreach
+        expr: |
+          histogram_quantile(0.95,
+            rate(api_request_duration_seconds_bucket[5m])
+          ) > 0.5
+        for: 10m
+        labels:
+          severity: warning
+          slo: latency
+          component: api
+        annotations:
+          summary: "API Latency SLO Breach (target: p95 < 500ms)"
+          description: "API p95 latency is {{ $value }}s, exceeding 500ms SLO target"
+          runbook: "https://docs.yufeed.com/runbooks/performance"
+
+      # Critical latency degradation
+      - alert: APILatencyCritical
+        expr: |
+          histogram_quantile(0.95,
+            rate(api_request_duration_seconds_bucket[5m])
+          ) > 1.0
+        for: 5m
+        labels:
+          severity: critical
+          slo: latency
+        annotations:
+          summary: "API Latency Critical (p95 > 1s)"
+          description: "API p95 latency is {{ $value }}s - critical performance degradation"
+          action: "Immediate investigation required"
+
+  - name: slo_transaction_processing
+    interval: 1m
+    rules:
+      # Transaction Processing Success Rate SLO: 99%
+      - alert: TransactionProcessingSLOBreach
+        expr: |
+          (
+            sum(rate(transactions_processed_total{status="success"}[1h]))
+            /
+            sum(rate(transactions_processed_total[1h]))
+          ) < 0.99
+        for: 5m
+        labels:
+          severity: critical
+          slo: transaction_success
+          component: transaction_processing
+        annotations:
+          summary: "Transaction Processing SLO Breach (target: 99%)"
+          description: "Transaction success rate is {{ $value | humanizePercentage }}, below 99% SLO"
+          action: |
+            1. Check DLQ size: query dlq_size metric
+            2. Review recent error logs
+            3. Follow incident response runbook
+
+      # Fast burn: 10x multiplier
+      - alert: TransactionProcessingFailureSpike
+        expr: |
+          (
+            rate(transactions_processed_total{status!="success"}[5m])
+            /
+            rate(transactions_processed_total[5m])
+          ) > 0.10
+        for: 5m
+        labels:
+          severity: critical
+          slo: transaction_success
+          burn_rate: fast
+        annotations:
+          summary: "Transaction Processing Failure Spike"
+          description: "Transaction error rate {{ $value | humanizePercentage }} (10x normal)"
+
+  - name: slo_feature_cache
+    interval: 1m
+    rules:
+      # Feature Cache Hit Rate SLO: 95%
+      - alert: FeatureCacheHitRateSLOBreach
+        expr: |
+          (
+            sum(rate(cache_hits_total{cache_type="features"}[15m]))
+            /
+            (
+              sum(rate(cache_hits_total{cache_type="features"}[15m]))
+              +
+              sum(rate(cache_misses_total{cache_type="features"}[15m]))
+            )
+          ) < 0.95
+        for: 15m
+        labels:
+          severity: warning
+          slo: cache_hit_rate
+          component: feature_store
+        annotations:
+          summary: "Feature Cache Hit Rate SLO Breach (target: 95%)"
+          description: "Feature cache hit rate is {{ $value | humanizePercentage }}, below 95% SLO"
+          action: |
+            1. Check Redis connectivity and memory
+            2. Review cache TTL configuration
+            3. Consider cache warming for active users
+
+  - name: slo_feature_extraction
+    interval: 1m
+    rules:
+      # Feature Extraction Latency SLO: p95 < 50ms
+      - alert: FeatureExtractionLatencySLOBreach
+        expr: |
+          histogram_quantile(0.95,
+            rate(feature_extraction_duration_seconds_bucket[5m])
+          ) > 0.05
+        for: 10m
+        labels:
+          severity: warning
+          slo: feature_latency
+          component: feature_store
+        annotations:
+          summary: "Feature Extraction Latency SLO Breach (target: p95 < 50ms)"
+          description: "Feature extraction p95 is {{ $value }}s, exceeding 50ms SLO"
+          runbook: "https://docs.yufeed.com/runbooks/performance"
+
+      # Critical feature extraction latency
+      - alert: FeatureExtractionLatencyCritical
+        expr: |
+          histogram_quantile(0.95,
+            rate(feature_extraction_duration_seconds_bucket[5m])
+          ) > 0.1
+        for: 5m
+        labels:
+          severity: critical
+          slo: feature_latency
+        annotations:
+          summary: "Feature Extraction Latency Critical (p95 > 100ms)"
+          description: "Feature extraction p95 is {{ $value }}s - critical performance degradation"
+
+  - name: slo_dlq
+    interval: 1m
+    rules:
+      # DLQ Size SLO: < 50 items
+      - alert: DLQSizeWarning
+        expr: dlq_size > 50
+        for: 5m
+        labels:
+          severity: warning
+          slo: dlq_size
+          component: background_tasks
+        annotations:
+          summary: "DLQ Size Above Normal (target: < 50)"
+          description: "Tenant {{ $labels.tenant_id }} has {{ $value }} items in DLQ"
+          action: |
+            1. Query DLQ items: GET /api/admin/dlq
+            2. Identify common error patterns
+            3. Fix root cause before replaying
+
+      - alert: DLQSizeCritical
+        expr: dlq_size > 100
+        for: 5m
+        labels:
+          severity: critical
+          slo: dlq_size
+        annotations:
+          summary: "DLQ Size Critical (> 100 items)"
+          description: "Tenant {{ $labels.tenant_id }} has {{ $value }} items in DLQ - immediate investigation required"
+          action: |
+            1. Check if recent deployment introduced errors
+            2. Consider rollback if widespread failures
+            3. Follow incident response runbook
+
+  # =============================================================================
+  # Component Health Alerts (Non-SLO)
+  # =============================================================================
   - name: yufeed_api_alerts
     interval: 30s
     rules:
-      # High error rate
+      # High error rate (general - not SLO-specific)
       - alert: HighErrorRate
         expr: |
           sum(rate(http_requests_errors_total[5m])) by (endpoint)

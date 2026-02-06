@@ -1,9 +1,11 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { Send, CheckCircle2 } from "lucide-react";
 import { fetchWithAuth } from "@/lib/auth";
 import { getApiBaseUrl } from "@/lib/apiBaseUrl";
+import { useTravelRuleTransfers } from "@/hooks/queries/useSpecializedData";
+import { LoadingBoundary } from "@/components/shared/LoadingBoundary";
 
 const API_URL = getApiBaseUrl();
 
@@ -43,25 +45,7 @@ export default function TravelRulePage() {
     const [submitLoading, setSubmitLoading] = useState(false);
     const [error, setError] = useState<string | null>(null);
     const [result, setResult] = useState<TravelRuleResponse | null>(null);
-    const [inbox, setInbox] = useState<TravelRuleResponse[]>([]);
-    const [inboxLoading, setInboxLoading] = useState(false);
-
-    const fetchInbox = async () => {
-        setInboxLoading(true);
-        try {
-            const res = await fetchWithAuth(`${API_URL}/api/travel-rule/requests`);
-            if (!res.ok) throw new Error(await res.text());
-            setInbox(await res.json());
-        } catch {
-            setInbox([]);
-        } finally {
-            setInboxLoading(false);
-        }
-    };
-
-    useEffect(() => {
-        fetchInbox();
-    }, []);
+    const { data: inbox = [], isLoading: inboxLoading, error: inboxError } = useTravelRuleTransfers();
 
     const handleCreate = async () => {
         setLoading(true);

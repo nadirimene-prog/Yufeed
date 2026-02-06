@@ -27,6 +27,8 @@ import amlOfficerApi, {
     DailyBriefing,
     ProactiveAlert,
 } from "@/lib/aml-officer-api";
+import { useAMLOfficerBriefing } from "@/hooks/queries/useAMLOfficerData";
+import { LoadingBoundary } from "@/components/shared/LoadingBoundary";
 import { MetricCard } from "@/components/ui/metric-card";
 import { GlassCard, GlassCardHeader, GlassCardTitle, GlassCardContent } from "@/components/ui/glass-card";
 import { BentoGrid } from "@/components/ui/bento-grid";
@@ -37,24 +39,17 @@ import { RecentAlertsTable } from "./recent-alerts-table";
 import { useCopilot } from "@/components/aml-officer/copilot-context";
 
 export default function AMLOfficerDashboard() {
-    const [briefing, setBriefing] = useState<DailyBriefing | null>(null);
+    const { data: briefing, isLoading, error, refetch } = useAMLOfficerBriefing();
     const [proactiveAlerts, setProactiveAlerts] = useState<ProactiveAlert[]>([]);
-    const [loading, setLoading] = useState(true);
     const [refreshing, setRefreshing] = useState(false);
 
-    const fetchData = async () => {
+    const fetchProactiveAlerts = async () => {
         try {
-            const [briefingData, alertsData] = await Promise.all([
-                amlOfficerApi.getDailyBriefing().catch(() => null),
-                amlOfficerApi.getProactiveAlerts().catch(() => ({ alerts: [] })),
-            ]);
-
-            if (briefingData) setBriefing(briefingData);
+            const alertsData = await amlOfficerApi.getProactiveAlerts().catch(() => ({ alerts: [] }));
             setProactiveAlerts(alertsData.alerts || []);
         } catch (err) {
             console.error(err);
         } finally {
-            setLoading(false);
             setRefreshing(false);
         }
     };
@@ -63,21 +58,25 @@ export default function AMLOfficerDashboard() {
 
     useEffect(() => {
         setPageContext("Daily Briefing Dashboard: Review critical alerts and priority actions.");
-        fetchData();
+        fetchProactiveAlerts();
         return () => setPageContext(""); // Cleanup
     }, [setPageContext]);
 
     const handleRefresh = () => {
         setRefreshing(true);
-        fetchData();
+        refetch();
+        fetchProactiveAlerts();
     };
 
-    if (loading) {
-        return (
+    return (
+        <LoadingBoundary
+            loading={isLoading}
+            error={error}
+            isEmpty={!briefing}
+            loadingMessage="Loading AI AML Officer..."
+        >
             <div className="min-h-screen flex items-center justify-center">
                 <div className="text-center">
-                    <Brain className="w-16 h-16 text-[var(--color-aurora-500)] mx-auto animate-pulse" />
-                    <p className="mt-4 text-white/50">Loading AI AML Officer...</p>
                 </div>
             </div>
         );
@@ -366,5 +365,6 @@ export default function AMLOfficerDashboard() {
                 </div>
             </motion.div>
         </motion.div>
+        </LoadingBoundary>
     );
 }

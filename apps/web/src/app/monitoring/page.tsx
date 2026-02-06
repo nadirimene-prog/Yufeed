@@ -1,11 +1,8 @@
 'use client';
 
-import { useEffect, useState } from 'react';
 import { AlertCircle, Clock, AlertTriangle, TrendingUp, Activity, Shield, CheckCircle, XCircle } from 'lucide-react';
-import { fetchWithAuth } from '@/lib/auth';
-import { getApiBaseUrl } from '@/lib/apiBaseUrl';
-
-const API_URL = getApiBaseUrl();
+import { useMonitoringDashboard } from '@/hooks/queries/useMonitoringDashboard';
+import { LoadingBoundary } from '@/components/shared/LoadingBoundary';
 
 interface RealtimeMetrics {
   timestamp: string;
@@ -44,59 +41,19 @@ interface Transaction {
 }
 
 export default function MonitoringDashboard() {
-  const [metrics, setMetrics] = useState<RealtimeMetrics | null>(null);
-  const [alerts, setAlerts] = useState<Alert[]>([]);
-  const [recentTransactions, setRecentTransactions] = useState<Transaction[]>([]);
-  const [loading, setLoading] = useState(true);
+  const { data, isLoading, isError, errors } = useMonitoringDashboard();
 
-  const fetchData = async () => {
-    try {
-      // Fetch realtime metrics
-      const metricsRes = await fetchWithAuth(`${API_URL}/api/monitoring/metrics/realtime`);
-      const metricsData = await metricsRes.json();
-      setMetrics(metricsData);
-
-      // Fetch pending alerts
-      const alertsRes = await fetchWithAuth(`${API_URL}/api/alerts/pending?limit=10`);
-      const alertsData = await alertsRes.json();
-      setAlerts(alertsData);
-
-      // Fetch recent transactions
-      const txRes = await fetchWithAuth(`${API_URL}/api/transactions/?limit=10`);
-      const txData = await txRes.json();
-      setRecentTransactions(txData);
-
-      setLoading(false);
-    } catch (error) {
-      console.error('Error fetching dashboard data:', error);
-      setLoading(false);
-    }
-  };
-
-  useEffect(() => {
-    let interval: ReturnType<typeof setInterval> | null = null;
-    const frameId = requestAnimationFrame(() => {
-      fetchData();
-      interval = setInterval(fetchData, 30000); // Refresh every 30 seconds
-    });
-    return () => {
-      cancelAnimationFrame(frameId);
-      if (interval) clearInterval(interval);
-    };
-  }, []);
-
-  if (loading) {
-    return (
-      <div className="flex items-center justify-center min-h-screen">
-        <div className="text-center">
-          <Activity className="h-12 w-12 animate-spin mx-auto mb-4 text-blue-600" />
-          <p className="text-lg text-gray-700 dark:text-gray-300">Loading monitoring dashboard...</p>
-        </div>
-      </div>
-    );
-  }
+  const metrics = data.metrics as RealtimeMetrics | null;
+  const alerts = (data.alerts || []) as Alert[];
+  const recentTransactions = (data.cases || []) as Transaction[];
 
   return (
+    <LoadingBoundary
+      loading={isLoading}
+      error={isError ? errors[0] : null}
+      isEmpty={!metrics}
+      loadingMessage="Loading monitoring dashboard..."
+    >
     <div className="min-h-screen bg-gray-50 dark:bg-gray-900 p-6">
       <div className="max-w-7xl mx-auto">
         {/* Header */}
@@ -206,6 +163,7 @@ export default function MonitoringDashboard() {
         </div>
       </div>
     </div>
+    </LoadingBoundary>
   );
 }
 

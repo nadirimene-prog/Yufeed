@@ -17,6 +17,8 @@ import {
 import { cn } from "@/lib/utils";
 import { fetchWithAuth } from "@/lib/auth";
 import { getApiBaseUrl } from "@/lib/apiBaseUrl";
+import { useRules } from "@/hooks/queries/useRulesData";
+import { LoadingBoundary } from "@/components/shared/LoadingBoundary";
 
 const API_URL = getApiBaseUrl();
 
@@ -50,10 +52,8 @@ type RuleVersion = {
 };
 
 export default function RuleManagementPage() {
-    const [rules, setRules] = useState<Rule[]>([]);
-    const [loading, setLoading] = useState(true);
+    const { data: rules = [], isLoading, error: queryError } = useRules({ limit: 200 });
     const [saving, setSaving] = useState(false);
-    const [error, setError] = useState<string | null>(null);
     const [editingRule, setEditingRule] = useState<Rule | null>(null);
     const [searchTerm, setSearchTerm] = useState("");
     const [severityFilter, setSeverityFilter] = useState("all");
@@ -83,20 +83,6 @@ export default function RuleManagementPage() {
     const [editThresholds, setEditThresholds] = useState("{}");
     const [editNotes, setEditNotes] = useState("");
 
-    const fetchRules = async () => {
-        setLoading(true);
-        setError(null);
-        try {
-            const res = await fetchWithAuth(`${API_URL}/api/monitoring-rules?limit=200`);
-            if (!res.ok) throw new Error(await res.text());
-            const data = await res.json();
-            setRules(Array.isArray(data) ? data : []);
-        } catch (err) {
-            setError(err instanceof Error ? err.message : "Failed to load rules");
-        } finally {
-            setLoading(false);
-        }
-    };
 
     const fetchOverview = async () => {
         try {
@@ -131,7 +117,6 @@ export default function RuleManagementPage() {
     };
 
     useEffect(() => {
-        fetchRules();
         fetchOverview();
         fetchTopRules();
         fetchPendingVersions();
@@ -272,6 +257,13 @@ export default function RuleManagementPage() {
     }, [sortedRules, searchTerm, severityFilter, enabledFilter, categoryFilter]);
 
     return (
+        <LoadingBoundary
+            loading={isLoading}
+            error={queryError}
+            isEmpty={!rules || rules.length === 0}
+            emptyMessage="No monitoring rules configured"
+            emptyDescription="Create your first rule to start monitoring transactions"
+        >
         <div className="space-y-8 animate-in fade-in duration-500">
             <div className="flex items-center justify-between">
                 <div>
@@ -738,5 +730,6 @@ export default function RuleManagementPage() {
                 </div>
             )}
         </div>
+        </LoadingBoundary>
     );
 }

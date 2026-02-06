@@ -1,13 +1,13 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { Bell, AlertTriangle, FileText, ExternalLink, Check, Clock, Search, CheckSquare, Square, X, Archive } from "lucide-react";
 import Link from "next/link";
 import { format } from "date-fns";
-import { getAlerts } from "@/lib/api";
+import { useAlerts } from "@/hooks/queries/useAlertData";
 import { StatusIndicator } from "@/components/ui/status-indicator";
 import { EmptyState } from "@/components/ui/empty-state";
-import { TableSkeleton } from "@/components/ui/skeleton";
+import { LoadingBoundary } from "@/components/shared/LoadingBoundary";
 import { cn } from "@/lib/utils";
 
 interface Alert {
@@ -25,27 +25,11 @@ interface Alert {
 type AlertFilter = 'all' | 'new_doc' | 'updated_doc' | 'new_version';
 
 export default function AlertsPage() {
-    const [alerts, setAlerts] = useState<Alert[]>([]);
-    const [loading, setLoading] = useState(true);
+    const { data: alerts = [], isLoading, error } = useAlerts();
     const [filter, setFilter] = useState<AlertFilter>('all');
     const [searchQuery, setSearchQuery] = useState('');
     const [selectedAlerts, setSelectedAlerts] = useState<Set<number>>(new Set());
     const [processingBulk, setProcessingBulk] = useState(false);
-
-    useEffect(() => {
-        loadAlerts();
-    }, []);
-
-    const loadAlerts = async () => {
-        try {
-            const data = await getAlerts();
-            setAlerts(data);
-        } catch (error) {
-            console.error("Failed to load alerts:", error);
-        } finally {
-            setLoading(false);
-        }
-    };
 
     const getAlertConfig = (eventType: string) => {
         const configs = {
@@ -134,20 +118,15 @@ export default function AlertsPage() {
         }
     };
 
-    if (loading) {
-        return (
-            <div className="space-y-8 animate-fade-in">
-                <div>
-                    <div className="h-10 w-48 bg-gray-200 dark:bg-slate-700 rounded animate-pulse mb-2" />
-                    <div className="h-6 w-96 bg-gray-100 dark:bg-slate-800 rounded animate-pulse" />
-                </div>
-                <TableSkeleton rows={5} />
-            </div>
-        );
-    }
-
     return (
-        <div className="space-y-8 animate-slide-up">
+        <LoadingBoundary
+            loading={isLoading}
+            error={error}
+            isEmpty={!alerts || alerts.length === 0}
+            emptyMessage="No alerts yet"
+            emptyDescription="New alerts will appear here when documents are updated"
+        >
+            <div className="space-y-8 animate-slide-up">
             {/* Header */}
             <div className="flex items-center justify-between">
                 <div>
@@ -367,6 +346,7 @@ export default function AlertsPage() {
                     })
                 )}
             </div>
-        </div>
+            </div>
+        </LoadingBoundary>
     );
 }

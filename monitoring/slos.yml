@@ -1,0 +1,325 @@
+# YuFeed Service Level Objectives (SLOs)
+# Last updated: 2026-02-06
+#
+# SLOs define reliability targets and error budgets for the YuFeed platform.
+# These targets drive alerting thresholds and operational priorities.
+
+version: "1.0"
+
+# =============================================================================
+# API Availability SLO
+# =============================================================================
+slos:
+  - name: api_availability
+    objective: 99.9%
+    description: "API requests returning non-5xx status codes"
+    measurement:
+      metric: |
+        sum(rate(api_request_duration_seconds_count{status!~"5.."}[5m]))
+        /
+        sum(rate(api_request_duration_seconds_count[5m]))
+      window: 30d
+      evaluation_interval: 5m
+
+    error_budget:
+      # 0.1% of 30 days = 43.2 minutes per month
+      total_minutes_per_month: 43.2
+      burn_rate_alerts:
+        - name: FastBurn
+          severity: critical
+          # 14.4x burn rate = budget consumed in 50 hours
+          multiplier: 14.4
+          window: 1h
+          description: "Consuming error budget 14.4x faster than sustainable"
+
+        - name: SlowBurn
+          severity: warning
+          # 6x burn rate = budget consumed in 5 days
+          multiplier: 6
+          window: 6h
+          description: "Consuming error budget 6x faster than sustainable"
+
+    actionable_alerts:
+      - condition: "availability < 99.9%"
+        duration: 5m
+        severity: critical
+        action: "Follow incident response runbook: docs/runbooks/incident-response.md"
+
+  # =============================================================================
+  # API Latency SLO
+  # =============================================================================
+  - name: api_latency_p95
+    objective: 500ms
+    percentile: 95
+    description: "95% of API requests complete within 500ms"
+    measurement:
+      metric: |
+        histogram_quantile(0.95,
+          rate(api_request_duration_seconds_bucket[5m])
+        )
+      window: 5m
+      evaluation_interval: 1m
+
+    error_budget:
+      # 5% of requests can exceed 500ms
+      percentage: 5.0
+      burn_rate_alerts:
+        - name: LatencyDegraded
+          severity: warning
+          multiplier: 2
+          window: 15m
+          description: "Latency degradation detected"
+
+    actionable_alerts:
+      - condition: "p95_latency > 500ms"
+        duration: 10m
+        severity: warning
+        action: "Investigate performance: docs/runbooks/performance.md"
+
+      - condition: "p95_latency > 1000ms"
+        duration: 5m
+        severity: critical
+        action: "Critical latency - immediate investigation required"
+
+  # =============================================================================
+  # Transaction Processing Success Rate SLO
+  # =============================================================================
+  - name: transaction_processing_success
+    objective: 99.0%
+    description: "99% of transactions successfully processed"
+    measurement:
+      metric: |
+        sum(rate(transactions_processed_total{status="success"}[1h]))
+        /
+        sum(rate(transactions_processed_total[1h]))
+      window: 1h
+      evaluation_interval: 5m
+
+    error_budget:
+      # 1% error rate = 7.2 minutes per hour
+      total_minutes_per_hour: 7.2
+      burn_rate_alerts:
+        - name: ProcessingFailureSpike
+          severity: critical
+          multiplier: 10
+          window: 5m
+          description: "Transaction processing failures spiking"
+
+    actionable_alerts:
+      - condition: "success_rate < 99%"
+        duration: 5m
+        severity: critical
+        action: |
+          1. Check DLQ size: query dlq_size metric
+          2. Review recent logs for error patterns
+          3. Follow incident response runbook
+
+  # =============================================================================
+  # Feature Store Cache Hit Rate SLO
+  # =============================================================================
+  - name: feature_cache_hit_rate
+    objective: 95.0%
+    description: "95% of feature requests served from cache"
+    measurement:
+      metric: |
+        sum(rate(cache_hits_total{cache_type="features"}[15m]))
+        /
+        (
+          sum(rate(cache_hits_total{cache_type="features"}[15m]))
+          +
+          sum(rate(cache_misses_total{cache_type="features"}[15m]))
+        )
+      window: 15m
+      evaluation_interval: 5m
+
+    error_budget:
+      # 5% cache miss rate is acceptable
+      percentage: 5.0
+      burn_rate_alerts:
+        - name: CacheMissRateHigh
+          severity: warning
+          multiplier: 2
+          window: 30m
+          description: "Feature cache hit rate degraded"
+
+    actionable_alerts:
+      - condition: "hit_rate < 95%"
+        duration: 15m
+        severity: warning
+        action: |
+          1. Check Redis connectivity and memory
+          2. Review cache TTL configuration (default 60s)
+          3. Consider cache warming for active users
+
+  # =============================================================================
+  # Feature Extraction Latency SLO
+  # =============================================================================
+  - name: feature_extraction_latency_p95
+    objective: 50ms
+    percentile: 95
+    description: "95% of feature extractions complete within 50ms"
+    measurement:
+      metric: |
+        histogram_quantile(0.95,
+          rate(feature_extraction_duration_seconds_bucket[5m])
+        )
+      window: 5m
+      evaluation_interval: 1m
+
+    error_budget:
+      # 5% can exceed 50ms
+      percentage: 5.0
+      burn_rate_alerts:
+        - name: FeatureExtractionSlow
+          severity: warning
+          multiplier: 2
+          window: 10m
+          description: "Feature extraction latency degraded"
+
+    actionable_alerts:
+      - condition: "p95_latency > 50ms"
+        duration: 10m
+        severity: warning
+        action: |
+          1. Check database query performance with EXPLAIN
+          2. Verify indexes exist: idx_transactions_tenant_user_timestamp
+          3. Review query patterns for N+1 issues
+
+      - condition: "p95_latency > 100ms"
+        duration: 5m
+        severity: critical
+        action: "Critical performance degradation - investigate immediately"
+
+  # =============================================================================
+  # Dead Letter Queue Size SLO
+  # =============================================================================
+  - name: dlq_size
+    objective: 50
+    description: "DLQ should contain fewer than 50 items under normal operations"
+    measurement:
+      metric: dlq_size
+      window: 5m
+      evaluation_interval: 1m
+
+    actionable_alerts:
+      - condition: "dlq_size > 50"
+        duration: 5m
+        severity: warning
+        action: |
+          1. Query DLQ items: GET /api/admin/dlq
+          2. Identify common error patterns
+          3. Fix root cause before replaying
+
+      - condition: "dlq_size > 100"
+        duration: 5m
+        severity: critical
+        action: |
+          1. Immediate investigation required
+          2. Check if new deployment introduced errors
+          3. Consider rollback if widespread failures
+
+  # =============================================================================
+  # WebSocket Connection Stability SLO
+  # =============================================================================
+  - name: websocket_connection_stability
+    objective: 99.5%
+    description: "WebSocket connections remain stable (no disconnects)"
+    measurement:
+      metric: |
+        1 - (
+          rate(websocket_disconnections_total[5m])
+          /
+          websocket_connections_active
+        )
+      window: 5m
+      evaluation_interval: 1m
+
+    error_budget:
+      percentage: 0.5
+      burn_rate_alerts:
+        - name: WebSocketInstability
+          severity: warning
+          multiplier: 3
+          window: 10m
+          description: "WebSocket connections unstable"
+
+    actionable_alerts:
+      - condition: "disconnect_rate > 0.5%"
+        duration: 5m
+        severity: warning
+        action: |
+          1. Check WebSocket server health
+          2. Review network connectivity issues
+          3. Check client-side reconnection logic
+
+# =============================================================================
+# Error Budget Policies
+# =============================================================================
+error_budget_policies:
+  - name: freeze_non_critical_deploys
+    trigger:
+      remaining_error_budget_percentage: 10
+    actions:
+      - "Freeze non-critical feature deployments"
+      - "Focus engineering on reliability improvements"
+      - "Review recent changes for reliability impact"
+
+  - name: all_hands_reliability
+    trigger:
+      remaining_error_budget_percentage: 0
+    actions:
+      - "Halt all feature development"
+      - "All-hands focus on reliability"
+      - "Daily executive updates on progress"
+      - "Post-mortem required before resuming features"
+
+# =============================================================================
+# SLO Review Schedule
+# =============================================================================
+review_schedule:
+  quarterly:
+    - "Review SLO targets based on business requirements"
+    - "Adjust objectives if consistently over/under target"
+    - "Update error budget policies based on learnings"
+
+  after_incidents:
+    - "Review if SLOs detected the issue appropriately"
+    - "Adjust SLO thresholds if needed"
+    - "Update runbooks with new insights"
+
+# =============================================================================
+# Reporting & Dashboards
+# =============================================================================
+dashboards:
+  - name: "SLO Overview"
+    url: "https://grafana.yufeed.com/d/slo-overview"
+    panels:
+      - "Current SLO compliance (past 30 days)"
+      - "Error budget remaining"
+      - "Error budget burn rate"
+      - "Incidents affecting SLOs"
+
+  - name: "Error Budget Burn Rate"
+    url: "https://grafana.yufeed.com/d/error-budget"
+    panels:
+      - "Fast burn alerts (1h window)"
+      - "Slow burn alerts (6h window)"
+      - "Projected budget exhaustion date"
+
+# =============================================================================
+# Stakeholder Communication
+# =============================================================================
+communication:
+  weekly:
+    - audience: "Engineering leadership"
+      content: "SLO compliance report, error budget status"
+
+  monthly:
+    - audience: "Executive team"
+      content: "SLO trends, reliability initiatives, budget utilization"
+
+  on_breach:
+    - audience: "All engineering"
+      content: "SLO breach notification with impact and actions"
+    - audience: "Customer success"
+      content: "Customer-facing impact summary (if applicable)"
