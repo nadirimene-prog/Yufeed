@@ -24,6 +24,7 @@ from src.ai.rag_indexer import RAGIndexer
 from src.services.obligation_service import seed_obligations_for_doc, mark_related_obligations_for_review
 from src.compliance.scope import infer_scope_tags, normalize_scopes, scope_keywords
 from src.config import settings
+from src.ingestion.title import derive_title_from_text, is_placeholder_title
 
 logger = logging.getLogger(__name__)
 
@@ -147,6 +148,10 @@ class IngestionProcessor:
                         new_doc.content_extraction_method = content_result.get("extraction_method")
                         new_doc.content_extracted_at = utc_now()
                         new_doc.word_count = content_result.get("word_count")
+                        if is_placeholder_title(new_doc.title):
+                            detected = derive_title_from_text(new_doc.full_text)
+                            if detected and not is_placeholder_title(detected):
+                                new_doc.title = detected
 
                     doc_text = LegalDocumentText(
                         doc_id=new_doc.id,
@@ -266,20 +271,21 @@ class IngestionProcessor:
 
         updated = False
         doc_changed = False
-        if doc.title != entry.get("title") and entry.get("title"):
-             logger.info(f"Document {doc.celex} title updated.")
-             doc.title = entry.get("title")
-             doc.last_modified = utc_now()
-             
-             # alert = AlertEvent(
-             #    doc_id=doc.id,
-             #    event_type=AlertEventType.UPDATED_DOC,
-             #    detected_at=datetime.datetime.utcnow()
-             # )
-             # self.db.add(alert)
-             self.db.commit()
-             updated = True
-             doc_changed = True
+        incoming_title = entry.get("title")
+        if incoming_title and not is_placeholder_title(incoming_title) and doc.title != incoming_title:
+            logger.info(f"Document {doc.celex} title updated.")
+            doc.title = incoming_title
+            doc.last_modified = utc_now()
+
+            # alert = AlertEvent(
+            #    doc_id=doc.id,
+            #    event_type=AlertEventType.UPDATED_DOC,
+            #    detected_at=datetime.datetime.utcnow()
+            # )
+            # self.db.add(alert)
+            self.db.commit()
+            updated = True
+            doc_changed = True
 
         language = (entry.get("language") or doc.primary_language or "en").lower()
         if not doc.primary_language:
@@ -351,6 +357,10 @@ class IngestionProcessor:
                         doc.content_extraction_method = content_result.get("extraction_method")
                         doc.content_extracted_at = utc_now()
                         doc.word_count = content_result.get("word_count")
+                        if is_placeholder_title(doc.title):
+                            detected = derive_title_from_text(doc.full_text)
+                            if detected and not is_placeholder_title(detected):
+                                doc.title = detected
 
                     if existing_text:
                         existing_text.full_text = content_result.get("full_text")

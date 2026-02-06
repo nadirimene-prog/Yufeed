@@ -427,6 +427,31 @@ def _heuristic_obligations(
     return obligations
 
 
+def _select_full_text_obligation_snippets(full_text: Optional[str], max_items: int = 25) -> str:
+    """
+    Select short snippets from anywhere in the full text that look like obligations.
+
+    This avoids the common failure mode where the first N characters contain only
+    preamble/recitals, causing the LLM to (correctly) return [].
+    """
+    if not full_text:
+        return ""
+
+    snippets: List[str] = []
+    for sentence in _split_sentences(full_text):
+        if _contains_obligation(sentence):
+            snippets.append(_truncate_text(sentence, 420))
+            if len(snippets) >= max_items:
+                break
+
+    # If we couldn't find obligation-like sentences, fall back to an initial excerpt.
+    if not snippets:
+        return _truncate_text(full_text, 8000)
+
+    joined = "\n".join(f"- {snippet}" for snippet in snippets)
+    return _truncate_text(joined, 9000)
+
+
 def extract_obligations(
     title: str,
     celex: str,
@@ -445,7 +470,7 @@ def extract_obligations(
     if excerpts:
         context = "Relevant excerpts:\\n" + "\\n\\n".join(excerpts)
     elif full_text:
-        context = "Excerpt:\\n" + _truncate_text(full_text, 8000)
+        context = "Relevant excerpts:\\n" + _select_full_text_obligation_snippets(full_text)
 
     prompt = f"""Extract the key compliance obligations from this EU regulation that banks or regulated entities must follow.
 
@@ -468,14 +493,42 @@ Format as JSON array:
 ]
 
 Extract 3-7 obligations if available. If no obligations are present, return [].
-Respond with JSON only."""
+    Respond with JSON only."""
 
     def _parse_result(result_text: str) -> List[Dict[str, str]]:
-        try:
-            obligations = json.loads(result_text)
-            return obligations if isinstance(obligations, list) else []
-        except json.JSONDecodeError:
+        if not result_text:
             return []
+
+        # Claude (and some OpenAI models) often wrap JSON in Markdown fences.
+        cleaned = result_text.strip()
+        if cleaned.startswith("```"):
+            # Remove leading ```json (or ```), and trailing ```.
+            cleaned = re.sub(r"^```[a-zA-Z0-9_-]*\\s*", "", cleaned)
+            cleaned = re.sub(r"\\s*```\\s*$", "", cleaned)
+            cleaned = cleaned.strip()
+
+        candidates = [cleaned]
+        # Fallback: extract the first JSON-looking array substring.
+        start = cleaned.find("[")
+        end = cleaned.rfind("]")
+        if start != -1 and end != -1 and end > start:
+            candidates.append(cleaned[start : end + 1])
+
+        for candidate in candidates:
+            try:
+                parsed = json.loads(candidate)
+            except json.JSONDecodeError:
+                continue
+
+            if isinstance(parsed, list):
+                return parsed
+            if isinstance(parsed, dict):
+                for key in ("obligations", "items", "data"):
+                    value = parsed.get(key)
+                    if isinstance(value, list):
+                        return value
+
+        return []
 
     if _anthropic_enabled():
         # Use the configured model when valid, but fall back to a known-good Sonnet model if misconfigured.

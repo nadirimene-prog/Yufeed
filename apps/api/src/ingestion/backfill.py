@@ -16,6 +16,7 @@ from sqlalchemy import or_
 
 from src.models import LegalDocument, LegalDocumentText
 from src.ingestion.content_extractor import ContentExtractor
+from src.ingestion.title import derive_title_from_text, is_placeholder_title
 from src.search import index_document
 from src.ai.analyzer import analyze_document
 from src.ai.cost_tracker import log_usage_from_analysis
@@ -120,6 +121,10 @@ class ContentBackfillService:
                 doc.content_extraction_method = content_result.get("extraction_method")
                 doc.content_extracted_at = utc_now()
                 doc.word_count = content_result.get("word_count")
+                if is_placeholder_title(doc.title):
+                    detected = derive_title_from_text(doc.full_text)
+                    if detected and not is_placeholder_title(detected):
+                        doc.title = detected
 
             # Create/update language-specific text record
             existing_text = self.db.query(LegalDocumentText).filter(

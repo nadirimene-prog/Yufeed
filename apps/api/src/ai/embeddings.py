@@ -16,6 +16,12 @@ class EmbeddingProvider:
     def __init__(self):
         self.provider = os.getenv("RAG_EMBEDDING_PROVIDER", settings.RAG_EMBEDDING_PROVIDER)
         self.model_name = os.getenv("RAG_EMBEDDING_MODEL", settings.RAG_EMBEDDING_MODEL)
+        allow_download = os.getenv("RAG_ALLOW_EMBEDDING_DOWNLOAD", "").strip().lower() in {
+            "1",
+            "true",
+            "yes",
+            "y",
+        }
         self._model = None
         self._dim: Optional[int] = None
         self._available = False
@@ -33,7 +39,18 @@ class EmbeddingProvider:
 
         try:
             from sentence_transformers import SentenceTransformer  # type: ignore
-            self._model = SentenceTransformer(self.model_name)
+            # Default to local-only to avoid blocking ingestion/backfill on a large HF download.
+            # Set RAG_ALLOW_EMBEDDING_DOWNLOAD=true to opt into downloading the model in the container.
+            try:
+                self._model = SentenceTransformer(
+                    self.model_name,
+                    local_files_only=not allow_download,
+                )
+            except TypeError:
+                # Older sentence-transformers may not support local_files_only; keep it non-blocking by default.
+                if not allow_download:
+                    raise
+                self._model = SentenceTransformer(self.model_name)
             self._dim = self._model.get_sentence_embedding_dimension()
             self._available = True
             logger.info("Loaded embedding model %s (dim=%s)", self.model_name, self._dim)
@@ -64,4 +81,3 @@ class EmbeddingProvider:
         if not embeddings:
             return None
         return embeddings[0]
-

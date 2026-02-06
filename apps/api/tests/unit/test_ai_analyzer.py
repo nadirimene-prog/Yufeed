@@ -60,3 +60,41 @@ def test_analyzer_full_analysis_fallback(monkeypatch):
     assert result["compliance_domain"] == ComplianceDomain.AML.value
     assert result["risk_level"] in {RiskLevel.HIGH.value, RiskLevel.MEDIUM.value, RiskLevel.LOW.value}
     assert "analyzed_at" in result
+
+
+@pytest.mark.unit
+def test_extract_obligations_parses_markdown_fences(monkeypatch):
+    class DummyChunk:
+        def __init__(self, text: str):
+            self.text = text
+
+    class DummyMessage:
+        def __init__(self, text: str):
+            self.content = [DummyChunk(text)]
+
+    class DummyMessages:
+        def create(self, *args, **kwargs):
+            return DummyMessage(
+                "```json\n"
+                "[\n"
+                "  {\"obligation\": \"Banks shall maintain records\", \"article\": \"Article 1\", \"deadline\": null, \"applicability\": \"banks\", \"source_excerpt\": \"Banks shall...\"}\n"
+                "]\n"
+                "```"
+            )
+
+    class DummyClient:
+        def __init__(self):
+            self.messages = DummyMessages()
+
+    monkeypatch.setattr(ai_analyzer, "client", DummyClient())
+    monkeypatch.setattr(ai_analyzer, "ANTHROPIC_DISABLED_REASON", None)
+
+    out = ai_analyzer.extract_obligations(
+        "Test Regulation",
+        "CELEX-TEST",
+        full_text="Article 1 Banks shall maintain records.",
+        article_breakdown=None,
+    )
+    assert isinstance(out, list)
+    assert out
+    assert out[0]["obligation"] == "Banks shall maintain records"

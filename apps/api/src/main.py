@@ -115,13 +115,23 @@ app.add_middleware(AuditLogMiddleware)
 # This ensures preflight OPTIONS requests are handled before other middleware
 raw_origins = os.getenv("ALLOWED_ORIGINS", "http://localhost:3000")
 allowed_origins = [o.strip() for o in raw_origins.split(",") if o.strip()]
-app.add_middleware(
-    CORSMiddleware,
+environment = os.getenv("ENVIRONMENT", "development").lower()
+cors_kwargs = dict(
     allow_origins=allowed_origins,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+# Dev ergonomics: Next dev sometimes shifts ports (3000 -> 3002, etc). If you're
+# running locally, allow localhost/127.0.0.1 on any port + common LAN IPs.
+if environment in {"development", "dev", "test", "testing"}:
+    cors_kwargs["allow_origin_regex"] = os.getenv(
+        "ALLOWED_ORIGIN_REGEX",
+        r"^https?://(localhost|127\.0\.0\.1|192\.168\.\d{1,3}\.\d{1,3})(:\d+)?$",
+    )
+
+app.add_middleware(CORSMiddleware, **cors_kwargs)
 
 # ----------------------------------------------------------------------
 # CORS & rate‑limiting (keep your existing configuration)
