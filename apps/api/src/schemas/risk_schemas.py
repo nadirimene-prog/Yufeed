@@ -1,4 +1,5 @@
 """Risk management schemas for API request/response validation."""
+
 from datetime import datetime
 from typing import Optional, List, Dict, Any
 
@@ -15,6 +16,7 @@ LINK_TYPES = ["mitigates", "addresses", "monitors"]
 
 class RiskCategoryCreate(BaseModel):
     """Schema for creating a risk category."""
+
     name: str = Field(..., min_length=1, max_length=255)
     description: Optional[str] = None
     parent_id: Optional[int] = None
@@ -24,6 +26,7 @@ class RiskCategoryCreate(BaseModel):
 
 class RiskCategoryUpdate(BaseModel):
     """Schema for updating a risk category."""
+
     name: Optional[str] = Field(None, min_length=1, max_length=255)
     description: Optional[str] = None
     parent_id: Optional[int] = None
@@ -33,6 +36,7 @@ class RiskCategoryUpdate(BaseModel):
 
 class RiskCategoryResponse(BaseModel):
     """Response schema for a risk category."""
+
     id: int
     category_id: str
     name: str
@@ -51,6 +55,7 @@ class RiskCategoryResponse(BaseModel):
 
 class RiskCategoryTreeResponse(BaseModel):
     """Response schema for a risk category with children."""
+
     id: int
     category_id: str
     name: str
@@ -63,14 +68,21 @@ class RiskCategoryTreeResponse(BaseModel):
 
 class RiskEntryCreate(BaseModel):
     """Schema for creating a risk entry."""
+
     category_id: int
     name: str = Field(..., min_length=1, max_length=255)
     description: Optional[str] = None
     inherent_risk_level: str = Field(default="medium", pattern="^(low|medium|high|critical)$")
     residual_risk_level: str = Field(default="medium", pattern="^(low|medium|high|critical)$")
-    likelihood: Optional[str] = Field(None, pattern="^(rare|unlikely|possible|likely|almost_certain)$")
-    impact: Optional[str] = Field(None, pattern="^(insignificant|minor|moderate|major|catastrophic)$")
-    mitigation_status: str = Field(default="not_started", pattern="^(not_started|in_progress|implemented|monitored)$")
+    likelihood: Optional[str] = Field(
+        None, pattern="^(rare|unlikely|possible|likely|almost_certain)$"
+    )
+    impact: Optional[str] = Field(
+        None, pattern="^(insignificant|minor|moderate|major|catastrophic)$"
+    )
+    mitigation_status: str = Field(
+        default="not_started", pattern="^(not_started|in_progress|implemented|monitored)$"
+    )
     control_owner: Optional[str] = None
     review_date: Optional[datetime] = None
     metadata: Optional[Dict[str, Any]] = None
@@ -78,14 +90,21 @@ class RiskEntryCreate(BaseModel):
 
 class RiskEntryUpdate(BaseModel):
     """Schema for updating a risk entry."""
+
     category_id: Optional[int] = None
     name: Optional[str] = Field(None, min_length=1, max_length=255)
     description: Optional[str] = None
     inherent_risk_level: Optional[str] = Field(None, pattern="^(low|medium|high|critical)$")
     residual_risk_level: Optional[str] = Field(None, pattern="^(low|medium|high|critical)$")
-    likelihood: Optional[str] = Field(None, pattern="^(rare|unlikely|possible|likely|almost_certain)$")
-    impact: Optional[str] = Field(None, pattern="^(insignificant|minor|moderate|major|catastrophic)$")
-    mitigation_status: Optional[str] = Field(None, pattern="^(not_started|in_progress|implemented|monitored)$")
+    likelihood: Optional[str] = Field(
+        None, pattern="^(rare|unlikely|possible|likely|almost_certain)$"
+    )
+    impact: Optional[str] = Field(
+        None, pattern="^(insignificant|minor|moderate|major|catastrophic)$"
+    )
+    mitigation_status: Optional[str] = Field(
+        None, pattern="^(not_started|in_progress|implemented|monitored)$"
+    )
     control_owner: Optional[str] = None
     review_date: Optional[datetime] = None
     metadata: Optional[Dict[str, Any]] = None
@@ -93,6 +112,7 @@ class RiskEntryUpdate(BaseModel):
 
 class RiskEntryResponse(BaseModel):
     """Response schema for a risk entry."""
+
     id: int
     risk_id: str
     category_id: int
@@ -117,12 +137,14 @@ class RiskEntryResponse(BaseModel):
 
 class RiskEntryListResponse(BaseModel):
     """Response schema for paginated risk entry list."""
+
     total: int
     items: List[RiskEntryResponse]
 
 
 class ObligationRiskLinkCreate(BaseModel):
     """Schema for linking an obligation to a risk entry."""
+
     obligation_id: int
     link_type: str = Field(default="mitigates", pattern="^(mitigates|addresses|monitors)$")
     notes: Optional[str] = None
@@ -130,6 +152,7 @@ class ObligationRiskLinkCreate(BaseModel):
 
 class ObligationRiskLinkResponse(BaseModel):
     """Response schema for an obligation-risk link."""
+
     id: int
     obligation_id: int
     risk_entry_id: int
@@ -146,6 +169,7 @@ class ObligationRiskLinkResponse(BaseModel):
 
 class RiskMapSummary(BaseModel):
     """Response schema for risk map overview."""
+
     total_categories: int
     total_entries: int
     by_inherent_level: Dict[str, int]
@@ -157,6 +181,7 @@ class RiskMapSummary(BaseModel):
 
 class RiskHeatMapCell(BaseModel):
     """Single cell in risk heat map."""
+
     likelihood: str
     impact: str
     count: int
@@ -165,6 +190,7 @@ class RiskHeatMapCell(BaseModel):
 
 class RiskHeatMapResponse(BaseModel):
     """Response schema for risk heat map visualization."""
+
     cells: List[RiskHeatMapCell]
     total_risks: int
 

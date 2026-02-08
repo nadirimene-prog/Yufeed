@@ -1,6 +1,7 @@
 """
 Helpers for recording immutable events and decisions.
 """
+
 import uuid
 from typing import Any, Dict, Optional, List
 from sqlalchemy.orm import Session

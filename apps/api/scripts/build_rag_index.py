@@ -1,6 +1,7 @@
 """
 Script to build RAG chunk index from legal documents.
 """
+
 import sys
 
 from src.database import SessionLocal

@@ -1,17 +1,17 @@
-import { Loader2 } from 'lucide-react';
+import { Loader2 } from "lucide-react";
 
 interface LoadingStateProps {
   message?: string;
-  type?: 'fullscreen' | 'inline' | 'spinner';
+  type?: "fullscreen" | "inline" | "spinner";
   className?: string;
 }
 
 export function LoadingState({
-  message = 'Loading...',
-  type = 'inline',
-  className = '',
+  message = "Loading...",
+  type = "inline",
+  className = "",
 }: LoadingStateProps) {
-  if (type === 'fullscreen') {
+  if (type === "fullscreen") {
     return (
       <div className="flex items-center justify-center min-h-screen bg-gray-50 dark:bg-gray-900">
         <div className="text-center">
@@ -22,7 +22,7 @@ export function LoadingState({
     );
   }
 
-  if (type === 'spinner') {
+  if (type === "spinner") {
     return (
       <div className={`flex items-center justify-center ${className}`}>
         <Loader2 className="h-6 w-6 animate-spin text-blue-600" />

@@ -64,7 +64,7 @@ Return as JSON array with fields: obligation_text, article_ref, applicability, e
 
 ```python
 POLICY_SECTION_SYSTEM_PROMPT = """
-You are a compliance policy writer for a European Electronic Money Institution (EMI) 
+You are a compliance policy writer for a European Electronic Money Institution (EMI)
 and Crypto-Asset Service Provider (CASP) named Yufeed.
 
 Your task is to write professional policy sections that:
@@ -115,7 +115,7 @@ Return as JSON with fields: section_title, content, regulatory_reference
 
 ```python
 MONITORING_RULE_SYSTEM_PROMPT = """
-You are a transaction monitoring specialist. Your task is to translate 
+You are a transaction monitoring specialist. Your task is to translate
 regulatory obligations into configurable monitoring rule parameters.
 
 You understand:
@@ -236,7 +236,7 @@ def upgrade():
 
     # 2. Add 'implemented' status to regulatory_obligations
     # (status column already exists, just documenting the new value)
-    
+
     # 3. Add indexes for deadline queries
     op.create_index(
         'ix_obligations_effective_date',
@@ -244,14 +244,14 @@ def upgrade():
         ['effective_date'],
         postgresql_where=sa.text("status NOT IN ('rejected', 'deprecated')")
     )
-    
+
     op.create_index(
         'ix_obligations_linked_policy',
         'regulatory_obligations',
         ['linked_policy_id'],
         postgresql_where=sa.text("linked_policy_id IS NOT NULL")
     )
-    
+
     op.create_index(
         'ix_internal_rules_obligation_status',
         'internal_rules',
@@ -426,12 +426,12 @@ POLICY_TEMPLATES = [
 
 def seed_templates():
     db = next(get_db())
-    
+
     for template in POLICY_TEMPLATES:
         existing = db.query(PolicyDocument).filter_by(
             policy_id=template["policy_id"]
         ).first()
-        
+
         if not existing:
             policy = PolicyDocument(
                 policy_id=template["policy_id"],
@@ -445,7 +445,7 @@ def seed_templates():
             print(f"Created template: {template['name']}")
         else:
             print(f"Skipped (exists): {template['name']}")
-    
+
     db.commit()
     print(f"\nSeeded {len(POLICY_TEMPLATES)} policy templates")
 
@@ -563,28 +563,28 @@ FEATURE_AUDIT_TRAIL=true                        # Enable audit logging
 
 class Settings(BaseSettings):
     # ... existing settings ...
-    
+
     # Regulatory Pipeline
     anthropic_model: str = "claude-3-5-sonnet-20241022"
     anthropic_max_tokens_policy: int = 2000
     anthropic_max_tokens_extraction: int = 4000
-    
+
     deadline_alert_thresholds: str = "90,60,30,7,1"
     deadline_check_schedule: str = "0 8 * * *"
     overdue_check_schedule: str = "0 9 * * *"
-    
+
     escalation_enabled: bool = False
     escalation_days_threshold: int = 7
     mlro_email: str = ""
-    
+
     policy_templates_auto_seed: bool = True
-    
+
     # Feature Flags
     feature_ai_policy_writer: bool = False
     feature_monitoring_suggestions: bool = False
     feature_deadline_alerts: bool = True
     feature_audit_trail: bool = True
-    
+
     @property
     def deadline_thresholds(self) -> list[int]:
         return [int(x) for x in self.deadline_alert_thresholds.split(",")]
@@ -736,7 +736,7 @@ def create_test_obligation(
     """Create a test obligation for testing."""
     if effective_date is None:
         effective_date = datetime.utcnow() + timedelta(days=90)
-    
+
     obligation = RegulatoryObligation(
         obligation_id=f"OBL-TEST-{datetime.utcnow().timestamp()}",
         doc_id=1,  # Assumes test legal_document exists
@@ -879,7 +879,7 @@ async def create_policy_from_template(
     pass
 
 
-@router.post("/{policy_id}/link-obligation/{obligation_id}", 
+@router.post("/{policy_id}/link-obligation/{obligation_id}",
              response_model=LinkObligationResponse)
 async def link_obligation_to_policy(
     policy_id: int,

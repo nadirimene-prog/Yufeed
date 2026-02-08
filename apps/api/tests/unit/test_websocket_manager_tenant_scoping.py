@@ -63,4 +63,3 @@ async def test_send_to_tenant_user_is_isolated():
 
     assert message in ws_a.sent
     assert message not in ws_b.sent
-

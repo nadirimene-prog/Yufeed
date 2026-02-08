@@ -21,12 +21,16 @@ from src.search import index_document
 from src.ai.analyzer import analyze_document
 from src.ai.cost_tracker import log_usage_from_analysis
 from src.ai.rag_indexer import RAGIndexer
-from src.services.obligation_service import seed_obligations_for_doc, mark_related_obligations_for_review
+from src.services.obligation_service import (
+    seed_obligations_for_doc,
+    mark_related_obligations_for_review,
+)
 from src.compliance.scope import infer_scope_tags, normalize_scopes, scope_keywords
 from src.config import settings
 from src.ingestion.title import derive_title_from_text, is_placeholder_title
 
 logger = logging.getLogger(__name__)
+
 
 class IngestionProcessor:
     def __init__(self, db: Session):
@@ -54,7 +58,7 @@ class IngestionProcessor:
 
         # Check if exists
         existing_doc = self.db.query(LegalDocument).filter(LegalDocument.celex == celex).first()
-        
+
         if existing_doc:
             return self._handle_existing_doc(existing_doc, entry, metadata_only=metadata_only)
         return self._handle_new_doc(celex, entry, metadata_only=metadata_only)
@@ -139,12 +143,16 @@ class IngestionProcessor:
                 content_result = None
                 if entry.get("source_system") == "eur-lex":
                     logger.info(f"Extracting content for {celex}")
-                    content_result = self.content_extractor.extract_content(celex, language=language)
+                    content_result = self.content_extractor.extract_content(
+                        celex, language=language
+                    )
 
                 if content_result and content_result.get("full_text"):
                     if language == (new_doc.primary_language or "en"):
                         new_doc.full_text = content_result["full_text"]
-                        new_doc.article_breakdown = {"articles": content_result.get("article_breakdown", [])}
+                        new_doc.article_breakdown = {
+                            "articles": content_result.get("article_breakdown", [])
+                        }
                         new_doc.content_extraction_method = content_result.get("extraction_method")
                         new_doc.content_extracted_at = utc_now()
                         new_doc.word_count = content_result.get("word_count")
@@ -165,7 +173,9 @@ class IngestionProcessor:
                     )
                     self.db.add(doc_text)
 
-                    logger.info(f"Content extracted for {celex}: {new_doc.word_count} words via {new_doc.content_extraction_method}")
+                    logger.info(
+                        f"Content extracted for {celex}: {new_doc.word_count} words via {new_doc.content_extraction_method}"
+                    )
                     self.db.commit()
 
                     # Index document in OpenSearch
@@ -187,16 +197,20 @@ class IngestionProcessor:
             try:
                 relations = self.cellar.get_related_documents(cellar_id)
                 for relation in relations:
-                    related_celex = relation.get('related_celex')
-                    relation_type = relation.get('relation_type')
+                    related_celex = relation.get("related_celex")
+                    relation_type = relation.get("relation_type")
                     if not related_celex or not relation_type:
                         continue
                     # Check if relation already exists (idempotency)
-                    existing_relation = self.db.query(LegalRelation).filter(
-                        LegalRelation.from_doc_id == new_doc.id,
-                        LegalRelation.relation_type == relation_type,
-                        LegalRelation.to_celex == related_celex,
-                    ).first()
+                    existing_relation = (
+                        self.db.query(LegalRelation)
+                        .filter(
+                            LegalRelation.from_doc_id == new_doc.id,
+                            LegalRelation.relation_type == relation_type,
+                            LegalRelation.to_celex == related_celex,
+                        )
+                        .first()
+                    )
                     if not existing_relation:
                         legal_relation = LegalRelation(
                             from_doc_id=new_doc.id,
@@ -211,9 +225,13 @@ class IngestionProcessor:
                     try:
                         marked = mark_related_obligations_for_review(self.db, new_doc)
                         if marked:
-                            logger.info(f"Marked {marked} related obligations for review due to {celex}")
+                            logger.info(
+                                f"Marked {marked} related obligations for review due to {celex}"
+                            )
                     except Exception as cascade_err:
-                        logger.warning(f"Failed to cascade obligation review for {celex}: {cascade_err}")
+                        logger.warning(
+                            f"Failed to cascade obligation review for {celex}: {cascade_err}"
+                        )
             except Exception as e:
                 logger.warning(f"Failed to fetch/store relations for {celex}: {e}")
 
@@ -227,17 +245,21 @@ class IngestionProcessor:
 
         # Create Initial Version (with idempotency check)
         source_url = entry.get("link")
-        existing_version = self.db.query(LegalVersion).filter(
-            LegalVersion.doc_id == new_doc.id,
-            LegalVersion.language == language,
-            LegalVersion.source_url == source_url,
-        ).first()
+        existing_version = (
+            self.db.query(LegalVersion)
+            .filter(
+                LegalVersion.doc_id == new_doc.id,
+                LegalVersion.language == language,
+                LegalVersion.source_url == source_url,
+            )
+            .first()
+        )
         if not existing_version:
             version = LegalVersion(
                 doc_id=new_doc.id,
                 kind=VersionKind.INITIAL,
                 language=language,
-                source_url=source_url
+                source_url=source_url,
             )
             self.db.add(version)
             self.db.commit()
@@ -264,7 +286,7 @@ class IngestionProcessor:
         # Simple Logic: If the RSS entry suggests a modification or if we want to periodically update.
         # For now, we will log that we saw it.
         # If we had a hash of the content, we would compare it here.
-        
+
         # Check if title changed (simple heuristic)
         if not self._matches_scope(doc.title or "", entry):
             return "skipped"
@@ -272,7 +294,11 @@ class IngestionProcessor:
         updated = False
         doc_changed = False
         incoming_title = entry.get("title")
-        if incoming_title and not is_placeholder_title(incoming_title) and doc.title != incoming_title:
+        if (
+            incoming_title
+            and not is_placeholder_title(incoming_title)
+            and doc.title != incoming_title
+        ):
             logger.info(f"Document {doc.celex} title updated.")
             doc.title = incoming_title
             doc.last_modified = utc_now()
@@ -315,11 +341,15 @@ class IngestionProcessor:
                 doc.oj_signature_identifier = oj_signature_identifier
                 doc_changed = True
         source_url = entry.get("link")
-        existing_version = self.db.query(LegalVersion).filter(
-            LegalVersion.doc_id == doc.id,
-            LegalVersion.language == language,
-            LegalVersion.source_url == source_url,
-        ).first()
+        existing_version = (
+            self.db.query(LegalVersion)
+            .filter(
+                LegalVersion.doc_id == doc.id,
+                LegalVersion.language == language,
+                LegalVersion.source_url == source_url,
+            )
+            .first()
+        )
         if not existing_version:
             version = LegalVersion(
                 doc_id=doc.id,
@@ -336,10 +366,14 @@ class IngestionProcessor:
             self.db.commit()
             updated = True
 
-        existing_text = self.db.query(LegalDocumentText).filter(
-            LegalDocumentText.doc_id == doc.id,
-            LegalDocumentText.language == language,
-        ).first()
+        existing_text = (
+            self.db.query(LegalDocumentText)
+            .filter(
+                LegalDocumentText.doc_id == doc.id,
+                LegalDocumentText.language == language,
+            )
+            .first()
+        )
         should_refresh_content = (
             not metadata_only
             and doc.source_system == "eur-lex"
@@ -353,7 +387,9 @@ class IngestionProcessor:
                 if content_result and content_result.get("full_text"):
                     if language == (doc.primary_language or "en"):
                         doc.full_text = content_result.get("full_text")
-                        doc.article_breakdown = {"articles": content_result.get("article_breakdown", [])}
+                        doc.article_breakdown = {
+                            "articles": content_result.get("article_breakdown", [])
+                        }
                         doc.content_extraction_method = content_result.get("extraction_method")
                         doc.content_extracted_at = utc_now()
                         doc.word_count = content_result.get("word_count")
@@ -364,8 +400,12 @@ class IngestionProcessor:
 
                     if existing_text:
                         existing_text.full_text = content_result.get("full_text")
-                        existing_text.article_breakdown = {"articles": content_result.get("article_breakdown", [])}
-                        existing_text.content_extraction_method = content_result.get("extraction_method")
+                        existing_text.article_breakdown = {
+                            "articles": content_result.get("article_breakdown", [])
+                        }
+                        existing_text.content_extraction_method = content_result.get(
+                            "extraction_method"
+                        )
                         existing_text.content_extracted_at = utc_now()
                         existing_text.word_count = content_result.get("word_count")
                         existing_text.source_url = source_url
@@ -374,7 +414,9 @@ class IngestionProcessor:
                             doc_id=doc.id,
                             language=language,
                             full_text=content_result.get("full_text"),
-                            article_breakdown={"articles": content_result.get("article_breakdown", [])},
+                            article_breakdown={
+                                "articles": content_result.get("article_breakdown", [])
+                            },
                             content_extraction_method=content_result.get("extraction_method"),
                             content_extracted_at=utc_now(),
                             word_count=content_result.get("word_count"),
@@ -408,6 +450,7 @@ class IngestionProcessor:
             if should_refresh_content and doc.full_text:
                 try:
                     from src.worker import index_document_rag
+
                     index_document_rag.delay(doc.id)
                     logger.info(f"Queued RAG re-indexing for document {doc.celex}")
                 except Exception as rag_err:
@@ -419,19 +462,25 @@ class IngestionProcessor:
         oj_ref = entry.get("oj_ref") or entry.get("source_reference")
         act_identifier = extract_oj_act_identifier(oj_ref)
         if act_identifier:
-            record = self.db.query(OfficialJournalAct).filter(
-                OfficialJournalAct.act_identifier == act_identifier
-            ).first()
+            record = (
+                self.db.query(OfficialJournalAct)
+                .filter(OfficialJournalAct.act_identifier == act_identifier)
+                .first()
+            )
             if record:
                 return record.act_identifier, record.signature_identifier
             return act_identifier, None
 
         series = entry.get("oj_series")
         if publication_day and series:
-            matches = self.db.query(OfficialJournalAct).filter(
-                OfficialJournalAct.publication_date == publication_day,
-                OfficialJournalAct.series == series,
-            ).all()
+            matches = (
+                self.db.query(OfficialJournalAct)
+                .filter(
+                    OfficialJournalAct.publication_date == publication_day,
+                    OfficialJournalAct.series == series,
+                )
+                .all()
+            )
             if len(matches) == 1:
                 return matches[0].act_identifier, matches[0].signature_identifier
 
@@ -510,13 +559,18 @@ class IngestionProcessor:
             entry: Original entry dict for retry
         """
         import json as json_module
+
         try:
             # Check if already in DLQ
-            existing = self.db.query(FailedIngestionItem).filter(
-                FailedIngestionItem.celex == doc.celex,
-                FailedIngestionItem.source_key == "ai_analysis",
-                FailedIngestionItem.status.in_(["pending", "retrying"]),
-            ).first()
+            existing = (
+                self.db.query(FailedIngestionItem)
+                .filter(
+                    FailedIngestionItem.celex == doc.celex,
+                    FailedIngestionItem.source_key == "ai_analysis",
+                    FailedIngestionItem.status.in_(["pending", "retrying"]),
+                )
+                .first()
+            )
 
             if existing:
                 # Update existing entry
@@ -531,12 +585,14 @@ class IngestionProcessor:
                     source_key="ai_analysis",
                     error_message=str(exc),
                     error_traceback=traceback.format_exc(),
-                    entry_json=json_module.dumps({
-                        "doc_id": doc.id,
-                        "celex": doc.celex,
-                        "action": "analyze",
-                        "original_entry": entry,
-                    }),
+                    entry_json=json_module.dumps(
+                        {
+                            "doc_id": doc.id,
+                            "celex": doc.celex,
+                            "action": "analyze",
+                            "original_entry": entry,
+                        }
+                    ),
                     status="pending",
                     max_retries=3,
                 )

@@ -17,7 +17,9 @@ interface AuditDetailProps {
 
 function JsonBlock({ value }: { value: unknown }) {
   if (!value) {
-    return <div className="text-sm text-gray-500 dark:text-gray-400">No data</div>;
+    return (
+      <div className="text-sm text-gray-500 dark:text-gray-400">No data</div>
+    );
   }
   return (
     <pre className="text-xs bg-gray-950 text-gray-100 rounded-md p-3 overflow-auto max-h-64">
@@ -26,7 +28,11 @@ function JsonBlock({ value }: { value: unknown }) {
   );
 }
 
-export default function AuditDetail({ open, onOpenChange, log }: AuditDetailProps) {
+export default function AuditDetail({
+  open,
+  onOpenChange,
+  log,
+}: AuditDetailProps) {
   if (!log) return null;
 
   return (
@@ -35,8 +41,7 @@ export default function AuditDetail({ open, onOpenChange, log }: AuditDetailProp
         <DialogHeader>
           <DialogTitle>Audit Entry {log.audit_id}</DialogTitle>
           <DialogDescription>
-            {log.actor_email || log.actor_id || "anonymous"} ·{" "}
-            {log.created_at}
+            {log.actor_email || log.actor_id || "anonymous"} · {log.created_at}
           </DialogDescription>
         </DialogHeader>
 

@@ -37,7 +37,8 @@ function Skeleton({
   };
 
   const animationStyles = {
-    shimmer: "animate-shimmer bg-gradient-to-r from-white/[0.03] via-white/[0.08] to-white/[0.03] bg-[length:200%_100%]",
+    shimmer:
+      "animate-shimmer bg-gradient-to-r from-white/[0.03] via-white/[0.08] to-white/[0.03] bg-[length:200%_100%]",
     pulse: "animate-pulse bg-white/[0.05]",
     none: "bg-white/[0.05]",
   };
@@ -48,7 +49,7 @@ function Skeleton({
         "relative overflow-hidden",
         variantStyles[variant],
         animationStyles[animation],
-        className
+        className,
       )}
       style={{
         width: width,
@@ -127,10 +128,7 @@ function SkeletonAvatar({ size = "md", className }: SkeletonAvatarProps) {
   };
 
   return (
-    <Skeleton
-      variant="circular"
-      className={cn(sizeClasses[size], className)}
-    />
+    <Skeleton variant="circular" className={cn(sizeClasses[size], className)} />
   );
 }
 
@@ -160,7 +158,7 @@ function SkeletonCard({
     <div
       className={cn(
         "rounded-xl border border-white/[0.06] bg-white/[0.02] p-5",
-        className
+        className,
       )}
     >
       {/* Header */}
@@ -196,11 +194,29 @@ interface SkeletonMetricCardProps {
   className?: string;
 }
 
-function SkeletonMetricCard({ size = "md", className }: SkeletonMetricCardProps) {
+function SkeletonMetricCard({
+  size = "md",
+  className,
+}: SkeletonMetricCardProps) {
   const sizeConfig = {
-    sm: { padding: "p-4", title: "h-3 w-16", value: "h-6 w-20", icon: "h-8 w-8" },
-    md: { padding: "p-5", title: "h-3 w-20", value: "h-8 w-24", icon: "h-10 w-10" },
-    lg: { padding: "p-6", title: "h-4 w-24", value: "h-10 w-28", icon: "h-12 w-12" },
+    sm: {
+      padding: "p-4",
+      title: "h-3 w-16",
+      value: "h-6 w-20",
+      icon: "h-8 w-8",
+    },
+    md: {
+      padding: "p-5",
+      title: "h-3 w-20",
+      value: "h-8 w-24",
+      icon: "h-10 w-10",
+    },
+    lg: {
+      padding: "p-6",
+      title: "h-4 w-24",
+      value: "h-10 w-28",
+      icon: "h-12 w-12",
+    },
   };
 
   const config = sizeConfig[size];
@@ -210,7 +226,7 @@ function SkeletonMetricCard({ size = "md", className }: SkeletonMetricCardProps)
       className={cn(
         "rounded-xl border border-white/[0.06] bg-white/[0.02]",
         config.padding,
-        className
+        className,
       )}
     >
       <div className="flex items-start justify-between">
@@ -245,7 +261,12 @@ function SkeletonTable({
   className,
 }: SkeletonTableProps) {
   return (
-    <div className={cn("rounded-xl border border-white/[0.06] overflow-hidden", className)}>
+    <div
+      className={cn(
+        "rounded-xl border border-white/[0.06] overflow-hidden",
+        className,
+      )}
+    >
       {/* Header */}
       {hasHeader && (
         <div className="flex gap-4 p-4 border-b border-white/[0.06] bg-white/[0.02]">
@@ -267,7 +288,9 @@ function SkeletonTable({
               <Skeleton
                 key={colIndex}
                 className="h-4 flex-1"
-                style={{ maxWidth: colIndex === 0 ? "30%" : `${100 / columns}%` }}
+                style={{
+                  maxWidth: colIndex === 0 ? "30%" : `${100 / columns}%`,
+                }}
               />
             ))}
           </div>
@@ -330,7 +353,9 @@ function TableSkeleton({ rows = 5 }: { rows?: number }) {
 }
 
 function GraphSkeleton() {
-  const graphHeights = [0.35, 0.6, 0.45, 0.8, 0.55, 0.7, 0.4, 0.75, 0.5, 0.65, 0.58, 0.72];
+  const graphHeights = [
+    0.35, 0.6, 0.45, 0.8, 0.55, 0.7, 0.4, 0.75, 0.5, 0.65, 0.58, 0.72,
+  ];
   return (
     <div className="rounded-xl border border-white/[0.06] bg-white/[0.02] p-6">
       <Skeleton className="h-6 w-48 mb-6" />

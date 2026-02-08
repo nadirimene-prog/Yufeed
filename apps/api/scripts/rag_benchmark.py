@@ -4,6 +4,7 @@ RAG benchmark runner.
 Runs retrieval once per question, then optionally asks multiple LLM providers to
 answer from the same context. Outputs JSONL + summary stats.
 """
+
 from __future__ import annotations
 
 import argparse
@@ -105,7 +106,7 @@ def run_openai_compatible(prompt: str) -> ProviderResult:
                 if retry_after:
                     sleep_s = float(retry_after)
                 else:
-                    sleep_s = OPENAI_BACKOFF * (2 ** attempt)
+                    sleep_s = OPENAI_BACKOFF * (2**attempt)
                 time.sleep(sleep_s)
                 continue
             response.raise_for_status()
@@ -114,9 +115,11 @@ def run_openai_compatible(prompt: str) -> ProviderResult:
             return ProviderResult("openai", answer, None, time.time() - start)
         except Exception as exc:
             if attempt < OPENAI_RETRIES:
-                time.sleep(OPENAI_BACKOFF * (2 ** attempt))
+                time.sleep(OPENAI_BACKOFF * (2**attempt))
                 continue
             return ProviderResult("openai", None, str(exc), time.time() - start)
+    # Should not reach here, but mypy requires a return
+    return ProviderResult("openai", None, "unexpected control flow", 0.0)
 
 
 def iter_providers(names: Iterable[str], prompt: str) -> List[ProviderResult]:
@@ -134,7 +137,9 @@ def iter_providers(names: Iterable[str], prompt: str) -> List[ProviderResult]:
     return results
 
 
-def evaluate_retrieval(chunks: List[Dict[str, Any]], expected: Optional[List[str]]) -> Dict[str, Any]:
+def evaluate_retrieval(
+    chunks: List[Dict[str, Any]], expected: Optional[List[str]]
+) -> Dict[str, Any]:
     if not expected:
         return {"expected_hit": None, "expected_celex": None}
 
@@ -154,7 +159,9 @@ def main() -> None:
     parser.add_argument("--output", default=DEFAULT_OUTPUT_PATH, help="Output JSONL file")
     parser.add_argument("--retries", type=int, default=0, help="Retries for 429 errors")
     parser.add_argument("--backoff", type=float, default=2.0, help="Backoff base seconds")
-    parser.add_argument("--delay", type=float, default=0.0, help="Delay between questions (seconds)")
+    parser.add_argument(
+        "--delay", type=float, default=0.0, help="Delay between questions (seconds)"
+    )
     args = parser.parse_args()
 
     global OPENAI_RETRIES, OPENAI_BACKOFF, OPENAI_DELAY

@@ -92,4 +92,3 @@ This ingestion plan is part of the larger **Regulatory Intelligence Pipeline** (
 | `regulatory_alerts.py` | Create alerts from approved obligations |
 | `policy_writer.py` | AI-generated policy sections |
 | `deadline_monitor.py` | Celery jobs for deadline tracking |
-

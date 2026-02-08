@@ -39,7 +39,9 @@ def upgrade() -> None:
         if "tenant_id" not in columns:
             op.add_column(
                 table_name,
-                sa.Column("tenant_id", sa.String(length=255), nullable=False, server_default="default"),
+                sa.Column(
+                    "tenant_id", sa.String(length=255), nullable=False, server_default="default"
+                ),
             )
 
         existing_indexes = {i["name"] for i in inspector.get_indexes(table_name)}
@@ -67,4 +69,3 @@ def downgrade() -> None:
         columns = {c["name"] for c in inspector.get_columns(table_name)}
         if "tenant_id" in columns:
             op.drop_column(table_name, "tenant_id")
-

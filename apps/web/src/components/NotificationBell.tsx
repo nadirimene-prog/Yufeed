@@ -1,10 +1,10 @@
-'use client';
+"use client";
 
-import React, { useState } from 'react';
-import { Bell, X, ExternalLink } from 'lucide-react';
-import { useOptionalWebSocket } from './WebSocketProvider';
-import { cn } from '@/lib/utils';
-import { formatDistanceToNow } from 'date-fns';
+import React, { useState } from "react";
+import { Bell, X, ExternalLink } from "lucide-react";
+import { useOptionalWebSocket } from "./WebSocketProvider";
+import { cn } from "@/lib/utils";
+import { formatDistanceToNow } from "date-fns";
 
 /**
  * Notification Bell Component
@@ -26,24 +26,24 @@ export function NotificationBell() {
 
   const getPriorityColor = (priority?: string) => {
     switch (priority) {
-      case 'critical':
-        return 'border-l-red-500 bg-red-50';
-      case 'high':
-        return 'border-l-orange-500 bg-orange-50';
-      case 'medium':
-        return 'border-l-yellow-500 bg-yellow-50';
-      case 'low':
+      case "critical":
+        return "border-l-red-500 bg-red-50";
+      case "high":
+        return "border-l-orange-500 bg-orange-50";
+      case "medium":
+        return "border-l-yellow-500 bg-yellow-50";
+      case "low":
       default:
-        return 'border-l-blue-500 bg-blue-50';
+        return "border-l-blue-500 bg-blue-50";
     }
   };
 
   const getEventTypeIcon = (eventType: string) => {
-    if (eventType.includes('alert')) return '🚨';
-    if (eventType.includes('case')) return '📋';
-    if (eventType.includes('decision')) return '⚖️';
-    if (eventType.includes('system')) return '⚙️';
-    return '📬';
+    if (eventType.includes("alert")) return "🚨";
+    if (eventType.includes("case")) return "📋";
+    if (eventType.includes("decision")) return "⚖️";
+    if (eventType.includes("system")) return "⚙️";
+    return "📬";
   };
 
   return (
@@ -53,7 +53,7 @@ export function NotificationBell() {
         onClick={() => setIsOpen(!isOpen)}
         className={cn(
           "relative p-2 rounded-lg hover:bg-gray-100 transition-colors",
-          isConnected ? "text-gray-700" : "text-gray-400"
+          isConnected ? "text-gray-700" : "text-gray-400",
         )}
         title={isConnected ? "Notifications" : "Disconnected"}
       >
@@ -62,7 +62,7 @@ export function NotificationBell() {
         {/* Unread Badge */}
         {unreadCount > 0 && (
           <span className="absolute top-0 right-0 inline-flex items-center justify-center px-2 py-1 text-xs font-bold leading-none text-white transform translate-x-1/2 -translate-y-1/2 bg-red-500 rounded-full">
-            {unreadCount > 99 ? '99+' : unreadCount}
+            {unreadCount > 99 ? "99+" : unreadCount}
           </span>
         )}
 
@@ -70,7 +70,7 @@ export function NotificationBell() {
         <span
           className={cn(
             "absolute bottom-0 right-0 block h-2 w-2 rounded-full ring-2 ring-white",
-            isConnected ? "bg-green-500" : "bg-gray-400"
+            isConnected ? "bg-green-500" : "bg-gray-400",
           )}
         />
       </button>
@@ -140,7 +140,7 @@ export function NotificationBell() {
                       key={index}
                       className={cn(
                         "px-4 py-3 hover:bg-gray-50 transition-colors border-l-4",
-                        getPriorityColor(notification.priority)
+                        getPriorityColor(notification.priority),
                       )}
                     >
                       <div className="flex items-start gap-3">
@@ -158,7 +158,10 @@ export function NotificationBell() {
                           </p>
                           <div className="flex items-center justify-between mt-2">
                             <p className="text-xs text-gray-500">
-                              {formatDistanceToNow(new Date(notification.timestamp), { addSuffix: true })}
+                              {formatDistanceToNow(
+                                new Date(notification.timestamp),
+                                { addSuffix: true },
+                              )}
                             </p>
                             {notification.link && (
                               <a
@@ -183,7 +186,8 @@ export function NotificationBell() {
             {notifications.length > 0 && (
               <div className="px-4 py-2 border-t border-gray-200 bg-gray-50">
                 <p className="text-xs text-gray-500 text-center">
-                  Showing last {notifications.length} notification{notifications.length !== 1 ? 's' : ''}
+                  Showing last {notifications.length} notification
+                  {notifications.length !== 1 ? "s" : ""}
                 </p>
               </div>
             )}

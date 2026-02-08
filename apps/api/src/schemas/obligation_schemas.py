@@ -5,12 +5,14 @@ from datetime import datetime
 
 class ObligationUpdate(BaseModel):
     """Basic obligation status update."""
+
     status: str = Field(..., min_length=2, max_length=50)
     note: Optional[str] = None
 
 
 class ObligationApproval(BaseModel):
     """Enhanced approval with policy linking and internal rule creation."""
+
     status: str = Field(..., min_length=2, max_length=50)
     note: Optional[str] = None
     linked_policy_id: Optional[int] = None

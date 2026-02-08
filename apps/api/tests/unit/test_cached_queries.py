@@ -90,7 +90,10 @@ def test_cached_queries_flow(db_session, monkeypatch):
             description="desc",
             category="velocity",
             severity="high",
-            conditions={"conditions": [{"field": "amount", "operator": ">", "value": 100}], "logic": "AND"},
+            conditions={
+                "conditions": [{"field": "amount", "operator": ">", "value": 100}],
+                "logic": "AND",
+            },
             thresholds=None,
             enabled=True,
         )

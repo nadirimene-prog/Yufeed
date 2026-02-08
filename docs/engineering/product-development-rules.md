@@ -74,7 +74,7 @@
 1. **Naming Convention**
    - EPIC-001 through EPIC-XXX
    - Use domain-based names (e.g., "Policy Management", not "Sprint 4 Work")
-   
+
 2. **Size Guidelines**
    - 5-15 user stories per epic
    - 30-80 story points per epic

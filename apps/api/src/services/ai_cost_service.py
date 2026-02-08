@@ -3,6 +3,7 @@ AI Cost Analytics Service.
 
 Provides cost reporting and budget management for AI API usage.
 """
+
 from typing import Dict, List, Optional
 from datetime import datetime, timedelta, timezone
 from sqlalchemy.orm import Session
@@ -55,63 +56,88 @@ class AICostService:
 
         # Aggregate metrics
         total_calls = query.count()
-        total_cost = self.db.query(func.sum(AIUsageLog.estimated_cost_usd)).filter(
-            and_(
-                AIUsageLog.tenant_id == tenant_id,
-                AIUsageLog.created_at >= start_date,
-                AIUsageLog.created_at <= end_date,
+        total_cost = (
+            self.db.query(func.sum(AIUsageLog.estimated_cost_usd))
+            .filter(
+                and_(
+                    AIUsageLog.tenant_id == tenant_id,
+                    AIUsageLog.created_at >= start_date,
+                    AIUsageLog.created_at <= end_date,
+                )
             )
-        ).scalar() or 0.0
+            .scalar()
+            or 0.0
+        )
 
-        total_tokens = self.db.query(func.sum(AIUsageLog.total_tokens)).filter(
-            and_(
-                AIUsageLog.tenant_id == tenant_id,
-                AIUsageLog.created_at >= start_date,
-                AIUsageLog.created_at <= end_date,
+        total_tokens = (
+            self.db.query(func.sum(AIUsageLog.total_tokens))
+            .filter(
+                and_(
+                    AIUsageLog.tenant_id == tenant_id,
+                    AIUsageLog.created_at >= start_date,
+                    AIUsageLog.created_at <= end_date,
+                )
             )
-        ).scalar() or 0
+            .scalar()
+            or 0
+        )
 
         # Breakdown by provider
-        provider_breakdown = self.db.query(
-            AIUsageLog.provider,
-            func.count(AIUsageLog.id).label("calls"),
-            func.sum(AIUsageLog.estimated_cost_usd).label("cost"),
-            func.sum(AIUsageLog.total_tokens).label("tokens"),
-        ).filter(
-            and_(
-                AIUsageLog.tenant_id == tenant_id,
-                AIUsageLog.created_at >= start_date,
-                AIUsageLog.created_at <= end_date,
+        provider_breakdown = (
+            self.db.query(
+                AIUsageLog.provider,
+                func.count(AIUsageLog.id).label("calls"),
+                func.sum(AIUsageLog.estimated_cost_usd).label("cost"),
+                func.sum(AIUsageLog.total_tokens).label("tokens"),
             )
-        ).group_by(AIUsageLog.provider).all()
+            .filter(
+                and_(
+                    AIUsageLog.tenant_id == tenant_id,
+                    AIUsageLog.created_at >= start_date,
+                    AIUsageLog.created_at <= end_date,
+                )
+            )
+            .group_by(AIUsageLog.provider)
+            .all()
+        )
 
         # Breakdown by model
-        model_breakdown = self.db.query(
-            AIUsageLog.model,
-            func.count(AIUsageLog.id).label("calls"),
-            func.sum(AIUsageLog.estimated_cost_usd).label("cost"),
-            func.sum(AIUsageLog.total_tokens).label("tokens"),
-        ).filter(
-            and_(
-                AIUsageLog.tenant_id == tenant_id,
-                AIUsageLog.created_at >= start_date,
-                AIUsageLog.created_at <= end_date,
+        model_breakdown = (
+            self.db.query(
+                AIUsageLog.model,
+                func.count(AIUsageLog.id).label("calls"),
+                func.sum(AIUsageLog.estimated_cost_usd).label("cost"),
+                func.sum(AIUsageLog.total_tokens).label("tokens"),
             )
-        ).group_by(AIUsageLog.model).all()
+            .filter(
+                and_(
+                    AIUsageLog.tenant_id == tenant_id,
+                    AIUsageLog.created_at >= start_date,
+                    AIUsageLog.created_at <= end_date,
+                )
+            )
+            .group_by(AIUsageLog.model)
+            .all()
+        )
 
         # Breakdown by operation
-        operation_breakdown = self.db.query(
-            AIUsageLog.operation,
-            func.count(AIUsageLog.id).label("calls"),
-            func.sum(AIUsageLog.estimated_cost_usd).label("cost"),
-        ).filter(
-            and_(
-                AIUsageLog.tenant_id == tenant_id,
-                AIUsageLog.created_at >= start_date,
-                AIUsageLog.created_at <= end_date,
-                AIUsageLog.operation.isnot(None),
+        operation_breakdown = (
+            self.db.query(
+                AIUsageLog.operation,
+                func.count(AIUsageLog.id).label("calls"),
+                func.sum(AIUsageLog.estimated_cost_usd).label("cost"),
             )
-        ).group_by(AIUsageLog.operation).all()
+            .filter(
+                and_(
+                    AIUsageLog.tenant_id == tenant_id,
+                    AIUsageLog.created_at >= start_date,
+                    AIUsageLog.created_at <= end_date,
+                    AIUsageLog.operation.isnot(None),
+                )
+            )
+            .group_by(AIUsageLog.operation)
+            .all()
+        )
 
         return {
             "period": {
@@ -170,17 +196,23 @@ class AICostService:
         start_date = utc_now() - timedelta(days=days)
 
         # Query daily aggregates
-        daily_data = self.db.query(
-            func.date(AIUsageLog.created_at).label("date"),
-            func.count(AIUsageLog.id).label("calls"),
-            func.sum(AIUsageLog.estimated_cost_usd).label("cost"),
-            func.sum(AIUsageLog.total_tokens).label("tokens"),
-        ).filter(
-            and_(
-                AIUsageLog.tenant_id == tenant_id,
-                AIUsageLog.created_at >= start_date,
+        daily_data = (
+            self.db.query(
+                func.date(AIUsageLog.created_at).label("date"),
+                func.count(AIUsageLog.id).label("calls"),
+                func.sum(AIUsageLog.estimated_cost_usd).label("cost"),
+                func.sum(AIUsageLog.total_tokens).label("tokens"),
             )
-        ).group_by(func.date(AIUsageLog.created_at)).order_by(func.date(AIUsageLog.created_at)).all()
+            .filter(
+                and_(
+                    AIUsageLog.tenant_id == tenant_id,
+                    AIUsageLog.created_at >= start_date,
+                )
+            )
+            .group_by(func.date(AIUsageLog.created_at))
+            .order_by(func.date(AIUsageLog.created_at))
+            .all()
+        )
 
         return [
             {
@@ -210,8 +242,16 @@ class AICostService:
                 "message": "No budget configured for this tenant",
             }
 
-        daily_percent = (budget.daily_usage_usd / budget.daily_limit_usd) * 100 if budget.daily_limit_usd > 0 else 0
-        monthly_percent = (budget.monthly_usage_usd / budget.monthly_limit_usd) * 100 if budget.monthly_limit_usd > 0 else 0
+        daily_percent = (
+            (budget.daily_usage_usd / budget.daily_limit_usd) * 100
+            if budget.daily_limit_usd > 0
+            else 0
+        )
+        monthly_percent = (
+            (budget.monthly_usage_usd / budget.monthly_limit_usd) * 100
+            if budget.monthly_limit_usd > 0
+            else 0
+        )
 
         return {
             "exists": True,

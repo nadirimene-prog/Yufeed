@@ -1,6 +1,7 @@
 """
 Seed a minimal audit/event/decision trail for local verification.
 """
+
 from datetime import datetime
 import uuid
 

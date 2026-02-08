@@ -13,6 +13,7 @@ Test Coverage:
 - Policy → Obligations → Rules chain
 - Tenant isolation for compliance data
 """
+
 import pytest
 from fastapi.testclient import TestClient
 from sqlalchemy.orm import Session
@@ -43,8 +44,8 @@ class TestComplianceWorkflow:
                 Suspicious activity reports must be filed within 30 days of detection.
                 """,
                 "effective_date": "2024-01-01",
-                "source": "Bank Secrecy Act"
-            }
+                "source": "Bank Secrecy Act",
+            },
         )
 
         assert policy_response.status_code == 201
@@ -53,8 +54,7 @@ class TestComplianceWorkflow:
 
         # Step 2: Extract obligations from policy (AI-powered)
         extract_response = client.post(
-            f"/api/compliance/policies/{policy_id}/extract-obligations",
-            headers=auth_headers
+            f"/api/compliance/policies/{policy_id}/extract-obligations", headers=auth_headers
         )
 
         assert extract_response.status_code in [200, 201, 202]
@@ -64,10 +64,11 @@ class TestComplianceWorkflow:
         if "job_id" in extraction_result:
             # Poll for completion
             import time
+
             for _ in range(10):
                 status_response = client.get(
                     f"/api/compliance/extraction-jobs/{extraction_result['job_id']}",
-                    headers=auth_headers
+                    headers=auth_headers,
                 )
                 if status_response.json()["status"] == "completed":
                     break
@@ -75,8 +76,7 @@ class TestComplianceWorkflow:
 
         # Get extracted obligations
         obligations_response = client.get(
-            f"/api/compliance/policies/{policy_id}/obligations",
-            headers=auth_headers
+            f"/api/compliance/policies/{policy_id}/obligations", headers=auth_headers
         )
 
         assert obligations_response.status_code == 200
@@ -94,8 +94,8 @@ class TestComplianceWorkflow:
             headers=auth_headers,
             json={
                 "reviewer_notes": "Approved for implementation",
-                "implementation_priority": "high"
-            }
+                "implementation_priority": "high",
+            },
         )
 
         assert approve_response.status_code == 200
@@ -111,22 +111,16 @@ class TestComplianceWorkflow:
                 "description": f"Automated rule created from obligation {obligation_id}",
                 "obligation_id": obligation_id,
                 "rule_type": "threshold",
-                "conditions": [
-                    {
-                        "field": "amount",
-                        "operator": "greater_than",
-                        "value": 10000
-                    }
-                ],
+                "conditions": [{"field": "amount", "operator": "greater_than", "value": 10000}],
                 "actions": [
                     {
                         "action_type": "alert",
                         "severity": "high",
-                        "notify": ["compliance@example.com"]
+                        "notify": ["compliance@example.com"],
                     }
                 ],
-                "is_active": True
-            }
+                "is_active": True,
+            },
         )
 
         assert rule_response.status_code == 201
@@ -143,16 +137,15 @@ class TestComplianceWorkflow:
                 "user_id": "user_compliance_001",
                 "amount": 15000.00,  # Exceeds $10,000 threshold
                 "currency": "USD",
-                "transaction_type": "deposit"
-            }
+                "transaction_type": "deposit",
+            },
         )
 
         assert test_txn_response.status_code == 201
 
         # Check if alert was created by rule
         alerts_response = client.get(
-            "/api/alerts?user_id=user_compliance_001",
-            headers=auth_headers
+            "/api/alerts?user_id=user_compliance_001", headers=auth_headers
         )
 
         assert alerts_response.status_code == 200
@@ -160,9 +153,10 @@ class TestComplianceWorkflow:
 
         # Should have alert triggered by compliance rule
         compliance_alerts = [
-            a for a in alerts
-            if "compliance" in a.get("description", "").lower() or
-               a.get("rule_id") == rule["rule_id"]
+            a
+            for a in alerts
+            if "compliance" in a.get("description", "").lower()
+            or a.get("rule_id") == rule["rule_id"]
         ]
         assert len(compliance_alerts) >= 1
 
@@ -190,8 +184,8 @@ class TestComplianceTenantIsolation:
                 "name": "Tenant 1 Policy",
                 "category": "aml",
                 "content": "Tenant 1 specific requirements",
-                "jurisdiction": "US"
-            }
+                "jurisdiction": "US",
+            },
         )
         assert policy1_response.status_code == 201
         policy1_id = policy1_response.json()["policy_id"]
@@ -204,26 +198,28 @@ class TestComplianceTenantIsolation:
                 "name": "Tenant 2 Policy",
                 "category": "gdpr",
                 "content": "Tenant 2 specific requirements",
-                "jurisdiction": "EU"
-            }
+                "jurisdiction": "EU",
+            },
         )
         assert policy2_response.status_code == 201
         policy2_id = policy2_response.json()["policy_id"]
 
         # Tenant1 should only see their policy
         tenant1_policies = client.get(
-            "/api/compliance/policies",
-            headers={**auth_headers, "X-Tenant-ID": "tenant_policy_1"}
+            "/api/compliance/policies", headers={**auth_headers, "X-Tenant-ID": "tenant_policy_1"}
         )
         tenant1_policy_ids = [p["policy_id"] for p in tenant1_policies.json()]
         assert policy1_id in tenant1_policy_ids
-        assert policy2_id not in tenant1_policy_ids, "Tenant 1 can see Tenant 2's policy - ISOLATION BREACH"
+        assert (
+            policy2_id not in tenant1_policy_ids
+        ), "Tenant 1 can see Tenant 2's policy - ISOLATION BREACH"
 
         # Tenant2 should only see their policy
         tenant2_policies = client.get(
-            "/api/compliance/policies",
-            headers={**auth_headers, "X-Tenant-ID": "tenant_policy_2"}
+            "/api/compliance/policies", headers={**auth_headers, "X-Tenant-ID": "tenant_policy_2"}
         )
         tenant2_policy_ids = [p["policy_id"] for p in tenant2_policies.json()]
         assert policy2_id in tenant2_policy_ids
-        assert policy1_id not in tenant2_policy_ids, "Tenant 2 can see Tenant 1's policy - ISOLATION BREACH"
+        assert (
+            policy1_id not in tenant2_policy_ids
+        ), "Tenant 2 can see Tenant 1's policy - ISOLATION BREACH"

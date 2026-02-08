@@ -3,9 +3,8 @@ User Authentication Models
 
 Stores user credentials and profile information for authentication.
 """
-from sqlalchemy import (
-    Column, Integer, String, Boolean, Index, TIMESTAMP, JSON
-)
+
+from sqlalchemy import Column, Integer, String, Boolean, Index, TIMESTAMP, JSON
 from sqlalchemy.dialects.postgresql import JSONB
 from datetime import datetime, timezone
 
@@ -24,10 +23,9 @@ class User(Base):
     Stores credentials and basic profile information.
     User-tenant relationships are managed by TenantUser.
     """
+
     __tablename__ = "users"
-    __table_args__ = (
-        Index('ix_users_email_lower', 'email'),  # For case-insensitive lookup
-    )
+    __table_args__ = (Index("ix_users_email_lower", "email"),)  # For case-insensitive lookup
 
     id = Column(Integer, primary_key=True)
 
@@ -45,7 +43,7 @@ class User(Base):
     is_superuser = Column(Boolean, default=False, nullable=False)  # Platform admin
 
     # Default role (can be overridden per-tenant via TenantUser)
-    default_role = Column(String(50), default='user')  # 'user', 'analyst', 'compliance', 'admin'
+    default_role = Column(String(50), default="user")  # 'user', 'analyst', 'compliance', 'admin'
 
     # Security
     failed_login_attempts = Column(Integer, default=0)
@@ -55,7 +53,9 @@ class User(Base):
     password_changed_at = Column(TIMESTAMP(timezone=True))
 
     # Preferences
-    preferences = Column(JSON().with_variant(JSONB(), "postgresql"))  # User preferences (theme, notifications, etc.)
+    preferences = Column(
+        JSON().with_variant(JSONB(), "postgresql")
+    )  # User preferences (theme, notifications, etc.)
 
     # Timestamps - explicitly timezone-aware
     created_at = Column(TIMESTAMP(timezone=True), default=utc_now, nullable=False)
@@ -77,6 +77,7 @@ class User(Base):
         self.failed_login_attempts += 1
         if self.failed_login_attempts >= max_attempts:
             from datetime import timedelta
+
             self.locked_until = datetime.now(timezone.utc) + timedelta(minutes=lockout_minutes)
 
     def reset_failed_login(self):

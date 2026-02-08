@@ -7,6 +7,7 @@ This happens when:
 - Content extraction failed during initial ingestion
 - Documents need content refresh
 """
+
 import logging
 from datetime import datetime
 from typing import Optional
@@ -127,14 +128,20 @@ class ContentBackfillService:
                         doc.title = detected
 
             # Create/update language-specific text record
-            existing_text = self.db.query(LegalDocumentText).filter(
-                LegalDocumentText.doc_id == doc.id,
-                LegalDocumentText.language == lang,
-            ).first()
+            existing_text = (
+                self.db.query(LegalDocumentText)
+                .filter(
+                    LegalDocumentText.doc_id == doc.id,
+                    LegalDocumentText.language == lang,
+                )
+                .first()
+            )
 
             if existing_text:
                 existing_text.full_text = content_result["full_text"]
-                existing_text.article_breakdown = {"articles": content_result.get("article_breakdown", [])}
+                existing_text.article_breakdown = {
+                    "articles": content_result.get("article_breakdown", [])
+                }
                 existing_text.content_extraction_method = content_result.get("extraction_method")
                 existing_text.content_extracted_at = utc_now()
                 existing_text.word_count = content_result.get("word_count")
@@ -187,13 +194,15 @@ class ContentBackfillService:
             logger.info(f"Skipping AI analysis for {doc.celex}: no content available")
             return
 
-        analysis_results = analyze_document({
-            "celex": doc.celex,
-            "title": doc.title,
-            "publication_date": doc.publication_date,
-            "full_text": doc.full_text,
-            "article_breakdown": article_breakdown,
-        })
+        analysis_results = analyze_document(
+            {
+                "celex": doc.celex,
+                "title": doc.title,
+                "publication_date": doc.publication_date,
+                "full_text": doc.full_text,
+                "article_breakdown": article_breakdown,
+            }
+        )
 
         log_usage_from_analysis(self.db, analysis_results, document_id=doc.id)
 
@@ -272,17 +281,25 @@ class ContentBackfillService:
 
         total = self.db.query(func.count(LegalDocument.id)).scalar()
 
-        needs_content = self.db.query(func.count(LegalDocument.id)).filter(
-            or_(
-                LegalDocument.full_text.is_(None),
-                LegalDocument.full_text == "",
+        needs_content = (
+            self.db.query(func.count(LegalDocument.id))
+            .filter(
+                or_(
+                    LegalDocument.full_text.is_(None),
+                    LegalDocument.full_text == "",
+                )
             )
-        ).scalar()
+            .scalar()
+        )
 
-        needs_analysis = self.db.query(func.count(LegalDocument.id)).filter(
-            LegalDocument.full_text.isnot(None),
-            LegalDocument.analyzed_at.is_(None),
-        ).scalar()
+        needs_analysis = (
+            self.db.query(func.count(LegalDocument.id))
+            .filter(
+                LegalDocument.full_text.isnot(None),
+                LegalDocument.analyzed_at.is_(None),
+            )
+            .scalar()
+        )
 
         return {
             "total_documents": total,

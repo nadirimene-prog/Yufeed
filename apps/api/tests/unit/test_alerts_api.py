@@ -1,6 +1,7 @@
 """
 Unit tests for alerts API endpoints.
 """
+
 import pytest
 from fastapi.testclient import TestClient
 from sqlalchemy.orm import Session
@@ -13,7 +14,9 @@ from tests.factories import TransactionFactory, AlertFactory
 class TestAlertCreation:
     """Test alert creation endpoint."""
 
-    def test_create_alert_success(self, client: TestClient, db_session: Session, auth_headers: dict):
+    def test_create_alert_success(
+        self, client: TestClient, db_session: Session, auth_headers: dict
+    ):
         """Test successful alert creation."""
         # Create a transaction first
         transaction = TransactionFactory(sqlalchemy_session=db_session)
@@ -30,8 +33,8 @@ class TestAlertCreation:
                 "description": "Transaction exceeds threshold",
                 "risk_score": 85.5,
                 "matched_rules_data": [{"rule_id": "rule_001", "matched": True}],
-                "evidence": {"pattern": "unusual_velocity"}
-            }
+                "evidence": {"pattern": "unusual_velocity"},
+            },
         )
 
         assert response.status_code == 201
@@ -53,8 +56,8 @@ class TestAlertCreation:
                 "user_id": "user_123",
                 "description": "User matched sanctions list",
                 "risk_score": 95.0,
-                "evidence": {"list": "OFAC"}
-            }
+                "evidence": {"list": "OFAC"},
+            },
         )
 
         assert response.status_code == 201
@@ -72,8 +75,8 @@ class TestAlertCreation:
                 "transaction_id": 999999,  # Non-existent
                 "user_id": "user_123",
                 "description": "Test alert",
-                "risk_score": 50.0
-            }
+                "risk_score": 50.0,
+            },
         )
 
         assert response.status_code == 404
@@ -87,7 +90,7 @@ class TestAlertCreation:
             json={
                 "alert_type": "high_value_transaction"
                 # Missing severity, user_id, etc.
-            }
+            },
         )
 
         assert response.status_code == 422
@@ -104,7 +107,9 @@ class TestAlertListing:
         assert response.status_code == 200
         assert response.json() == []
 
-    def test_list_alerts_with_data(self, client: TestClient, db_session: Session, auth_headers: dict):
+    def test_list_alerts_with_data(
+        self, client: TestClient, db_session: Session, auth_headers: dict
+    ):
         """Test listing alerts with data."""
         # Create test alerts
         alerts = AlertFactory.create_batch(5, sqlalchemy_session=db_session)
@@ -116,7 +121,9 @@ class TestAlertListing:
         data = response.json()
         assert len(data) == 5
 
-    def test_list_alerts_pagination(self, client: TestClient, db_session: Session, auth_headers: dict):
+    def test_list_alerts_pagination(
+        self, client: TestClient, db_session: Session, auth_headers: dict
+    ):
         """Test alert listing pagination."""
         # Create 25 test alerts
         AlertFactory.create_batch(25, sqlalchemy_session=db_session)
@@ -137,7 +144,9 @@ class TestAlertListing:
         assert response.status_code == 200
         assert len(response.json()) == 5
 
-    def test_list_alerts_filter_by_status(self, client: TestClient, db_session: Session, auth_headers: dict):
+    def test_list_alerts_filter_by_status(
+        self, client: TestClient, db_session: Session, auth_headers: dict
+    ):
         """Test filtering alerts by status."""
         # Create alerts with different statuses
         AlertFactory(status="pending", sqlalchemy_session=db_session)
@@ -152,7 +161,9 @@ class TestAlertListing:
         assert len(data) == 2
         assert all(alert["status"] == "pending" for alert in data)
 
-    def test_list_alerts_filter_by_severity(self, client: TestClient, db_session: Session, auth_headers: dict):
+    def test_list_alerts_filter_by_severity(
+        self, client: TestClient, db_session: Session, auth_headers: dict
+    ):
         """Test filtering alerts by severity."""
         # Create alerts with different severities
         AlertFactory(severity="high", sqlalchemy_session=db_session)
@@ -167,7 +178,9 @@ class TestAlertListing:
         assert len(data) == 2
         assert all(alert["severity"] == "high" for alert in data)
 
-    def test_list_alerts_filter_by_user(self, client: TestClient, db_session: Session, auth_headers: dict):
+    def test_list_alerts_filter_by_user(
+        self, client: TestClient, db_session: Session, auth_headers: dict
+    ):
         """Test filtering alerts by user_id."""
         # Create alerts for different users
         AlertFactory(user_id="user_001", sqlalchemy_session=db_session)
@@ -182,17 +195,24 @@ class TestAlertListing:
         assert len(data) == 2
         assert all(alert["user_id"] == "user_001" for alert in data)
 
-    def test_list_alerts_multiple_filters(self, client: TestClient, db_session: Session, auth_headers: dict):
+    def test_list_alerts_multiple_filters(
+        self, client: TestClient, db_session: Session, auth_headers: dict
+    ):
         """Test filtering alerts with multiple criteria."""
         # Create test data
-        AlertFactory(status="pending", severity="high", user_id="user_001", sqlalchemy_session=db_session)
-        AlertFactory(status="pending", severity="low", user_id="user_001", sqlalchemy_session=db_session)
-        AlertFactory(status="resolved", severity="high", user_id="user_001", sqlalchemy_session=db_session)
+        AlertFactory(
+            status="pending", severity="high", user_id="user_001", sqlalchemy_session=db_session
+        )
+        AlertFactory(
+            status="pending", severity="low", user_id="user_001", sqlalchemy_session=db_session
+        )
+        AlertFactory(
+            status="resolved", severity="high", user_id="user_001", sqlalchemy_session=db_session
+        )
         db_session.commit()
 
         response = client.get(
-            "/api/alerts?status=pending&severity=high&user_id=user_001",
-            headers=auth_headers
+            "/api/alerts?status=pending&severity=high&user_id=user_001", headers=auth_headers
         )
 
         assert response.status_code == 200
@@ -235,10 +255,7 @@ class TestAlertUpdate:
         response = client.patch(
             f"/api/alerts/{alert.alert_id}",
             headers=auth_headers,
-            json={
-                "assigned_to": "analyst@example.com",
-                "status": "in_review"
-            }
+            json={"assigned_to": "analyst@example.com", "status": "in_review"},
         )
 
         assert response.status_code == 200
@@ -257,8 +274,8 @@ class TestAlertUpdate:
             json={
                 "status": "resolved",
                 "resolution_status": "false_positive",
-                "resolution_notes": "Legitimate transaction verified"
-            }
+                "resolution_notes": "Legitimate transaction verified",
+            },
         )
 
         assert response.status_code == 200
@@ -274,10 +291,7 @@ class TestAlertUpdate:
         response = client.patch(
             f"/api/alerts/{alert.alert_id}",
             headers=auth_headers,
-            json={
-                "status": "escalated",
-                "priority": 1
-            }
+            json={"status": "escalated", "priority": 1},
         )
 
         assert response.status_code == 200
@@ -290,7 +304,9 @@ class TestAlertUpdate:
 class TestAlertStatistics:
     """Test alert statistics endpoint."""
 
-    def test_get_alert_statistics(self, client: TestClient, db_session: Session, auth_headers: dict):
+    def test_get_alert_statistics(
+        self, client: TestClient, db_session: Session, auth_headers: dict
+    ):
         """Test retrieving alert statistics."""
         # Create alerts with various statuses
         AlertFactory(status="pending", severity="high", sqlalchemy_session=db_session)

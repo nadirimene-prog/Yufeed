@@ -28,6 +28,7 @@ router = APIRouter(prefix="/celex", tags=["CELEX Search"])
 # Pydantic Models
 class CelexSuggestion(BaseModel):
     """CELEX suggestion with metadata."""
+
     celex: str
     display_text: str
     match_reason: str  # "alias", "partial", "fuzzy"
@@ -36,6 +37,7 @@ class CelexSuggestion(BaseModel):
 
 class CelexSuggestionsResponse(BaseModel):
     """Response for CELEX auto-suggestions."""
+
     query: str
     suggestions: List[CelexSuggestion]
     count: int
@@ -43,6 +45,7 @@ class CelexSuggestionsResponse(BaseModel):
 
 class CelexMetadataResponse(BaseModel):
     """Single CELEX metadata response."""
+
     celex: str
     title: Optional[str] = None
     work_type: Optional[str] = None
@@ -55,12 +58,14 @@ class CelexMetadataResponse(BaseModel):
 
 class BulkCelexRequest(BaseModel):
     """Request for bulk CELEX queries."""
+
     celex_list: List[str] = Field(..., description="List of CELEX numbers to fetch")
     use_cache: bool = Field(True, description="Whether to use Redis cache")
 
 
 class BulkCelexResponse(BaseModel):
     """Response for bulk CELEX queries."""
+
     results: Dict[str, Optional[CelexMetadataResponse]]
     total: int
     found: int
@@ -70,6 +75,7 @@ class BulkCelexResponse(BaseModel):
 
 class CacheStatsResponse(BaseModel):
     """Redis cache statistics."""
+
     enabled: bool
     connected: Optional[bool] = None
     total_keys: Optional[int] = None
@@ -80,7 +86,7 @@ class CacheStatsResponse(BaseModel):
 @router.get("/suggest", response_model=CelexSuggestionsResponse)
 def get_celex_suggestions(
     q: str = Query(..., min_length=1, description="Search query (partial CELEX, name, or keyword)"),
-    limit: int = Query(10, ge=1, le=50, description="Maximum suggestions to return")
+    limit: int = Query(10, ge=1, le=50, description="Maximum suggestions to return"),
 ):
     """
     Get CELEX auto-suggestions as user types.
@@ -102,32 +108,29 @@ def get_celex_suggestions(
         # Try to find direct CELEX matches via normalization
         normalized = normalize_celex(q)
         if normalized:
-            suggestions.append(CelexSuggestion(
-                celex=normalized,
-                display_text=f"{normalized} (normalized from '{q}')",
-                match_reason="exact",
-                confidence=1.0
-            ))
+            suggestions.append(
+                CelexSuggestion(
+                    celex=normalized,
+                    display_text=f"{normalized} (normalized from '{q}')",
+                    match_reason="exact",
+                    confidence=1.0,
+                )
+            )
 
         # Get alias suggestions
         alias_suggestions = suggest_celex(q, limit=limit)
         for celex in alias_suggestions:
             if celex not in [s.celex for s in suggestions]:
-                suggestions.append(CelexSuggestion(
-                    celex=celex,
-                    display_text=celex,
-                    match_reason="alias",
-                    confidence=0.9
-                ))
+                suggestions.append(
+                    CelexSuggestion(
+                        celex=celex, display_text=celex, match_reason="alias", confidence=0.9
+                    )
+                )
 
         # Limit results
         suggestions = suggestions[:limit]
 
-        return CelexSuggestionsResponse(
-            query=q,
-            suggestions=suggestions,
-            count=len(suggestions)
-        )
+        return CelexSuggestionsResponse(query=q, suggestions=suggestions, count=len(suggestions))
 
     except Exception as e:
         logger.error(f"Error generating CELEX suggestions: {e}")
@@ -136,8 +139,7 @@ def get_celex_suggestions(
 
 @router.get("/query/{celex}", response_model=CelexMetadataResponse)
 def query_celex_metadata(
-    celex: str,
-    use_cache: bool = Query(True, description="Whether to use Redis cache")
+    celex: str, use_cache: bool = Query(True, description="Whether to use Redis cache")
 ):
     """
     Query CELEX metadata with flexible input formats.
@@ -168,10 +170,7 @@ def query_celex_metadata(
         metadata = client.query_by_celex(celex, use_cache=use_cache)
 
         if not metadata:
-            raise HTTPException(
-                status_code=404,
-                detail=f"CELEX document not found: {celex}"
-            )
+            raise HTTPException(status_code=404, detail=f"CELEX document not found: {celex}")
 
         # Check if result was cached
         normalized = normalize_celex(celex)
@@ -183,11 +182,17 @@ def query_celex_metadata(
             celex=metadata.get("celex"),
             title=metadata.get("title"),
             work_type=metadata.get("work_type"),
-            date_document=metadata.get("date_document").isoformat() if metadata.get("date_document") else None,
-            date_entry_into_force=metadata.get("date_entry_into_force").isoformat() if metadata.get("date_entry_into_force") else None,
+            date_document=(
+                metadata.get("date_document").isoformat() if metadata.get("date_document") else None
+            ),
+            date_entry_into_force=(
+                metadata.get("date_entry_into_force").isoformat()
+                if metadata.get("date_entry_into_force")
+                else None
+            ),
             eli=metadata.get("eli"),
             cellar_id=metadata.get("cellar_id"),
-            cached=was_cached
+            cached=was_cached,
         )
 
     except HTTPException:
@@ -247,11 +252,19 @@ def bulk_query_celex(request: BulkCelexRequest):
                     celex=metadata.get("celex"),
                     title=metadata.get("title"),
                     work_type=metadata.get("work_type"),
-                    date_document=metadata.get("date_document").isoformat() if metadata.get("date_document") else None,
-                    date_entry_into_force=metadata.get("date_entry_into_force").isoformat() if metadata.get("date_entry_into_force") else None,
+                    date_document=(
+                        metadata.get("date_document").isoformat()
+                        if metadata.get("date_document")
+                        else None
+                    ),
+                    date_entry_into_force=(
+                        metadata.get("date_entry_into_force").isoformat()
+                        if metadata.get("date_entry_into_force")
+                        else None
+                    ),
                     eli=metadata.get("eli"),
                     cellar_id=metadata.get("cellar_id"),
-                    cached=was_cached
+                    cached=was_cached,
                 )
             else:
                 not_found += 1
@@ -262,7 +275,7 @@ def bulk_query_celex(request: BulkCelexRequest):
             total=len(request.celex_list),
             found=found,
             not_found=not_found,
-            cache_hits=cache_hits
+            cache_hits=cache_hits,
         )
 
     except Exception as e:
@@ -289,7 +302,7 @@ def normalize_celex_input(input: str):
             "input": input,
             "normalized": None,
             "valid": False,
-            "error": "Could not normalize input"
+            "error": "Could not normalize input",
         }
 
     parsed = parse_celex(normalized)
@@ -299,7 +312,7 @@ def normalize_celex_input(input: str):
         "normalized": normalized,
         "valid": True,
         "parsed": parsed,
-        "variations": generate_celex_variations(normalized)
+        "variations": generate_celex_variations(normalized),
     }
 
 
@@ -341,7 +354,7 @@ def clear_cache():
         return {
             "status": "success",
             "entries_cleared": cleared,
-            "message": f"Cleared {cleared} cache entries"
+            "message": f"Cleared {cleared} cache entries",
         }
 
     except Exception as e:
@@ -366,7 +379,7 @@ def celex_health_check():
             "status": "ok",
             "cache_enabled": client.cache is not None,
             "cache_connected": client.cache.is_connected() if client.cache else False,
-            "message": "CELEX service operational"
+            "message": "CELEX service operational",
         }
 
     except Exception as e:
@@ -374,5 +387,5 @@ def celex_health_check():
         return {
             "status": "degraded",
             "error": str(e),
-            "message": "CELEX service experiencing issues"
+            "message": "CELEX service experiencing issues",
         }

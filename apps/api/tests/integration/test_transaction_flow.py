@@ -2,6 +2,7 @@
 Integration tests for end-to-end transaction ingestion and monitoring flow.
 Phase 4A: Task 1.4 - Integration Tests
 """
+
 import pytest
 from fastapi.testclient import TestClient
 from sqlalchemy.orm import Session
@@ -15,7 +16,9 @@ from tests.factories import MonitoringRuleFactory
 class TestTransactionIngestionFlow:
     """Test complete transaction ingestion and alert generation flow."""
 
-    def test_transaction_to_alert_flow(self, client: TestClient, db_session: Session, auth_headers: dict):
+    def test_transaction_to_alert_flow(
+        self, client: TestClient, db_session: Session, auth_headers: dict
+    ):
         """
         Test end-to-end flow: Transaction ingestion → Rule evaluation → Alert creation
         """
@@ -25,11 +28,9 @@ class TestTransactionIngestionFlow:
             category="high_value",
             conditions={
                 "logic": "AND",
-                "conditions": [
-                    {"field": "amount", "operator": ">", "value": 10000}
-                ]
+                "conditions": [{"field": "amount", "operator": ">", "value": 10000}],
             },
-            sqlalchemy_session=db_session
+            sqlalchemy_session=db_session,
         )
         db_session.commit()
 
@@ -45,8 +46,8 @@ class TestTransactionIngestionFlow:
                 "transaction_type": "deposit",
                 "counterparty_id": "counterparty_001",
                 "timestamp": datetime.utcnow().isoformat(),
-                "country_code": "US"
-            }
+                "country_code": "US",
+            },
         )
 
         assert txn_response.status_code == 201
@@ -56,8 +57,7 @@ class TestTransactionIngestionFlow:
 
         # Step 3: Verify alert was created
         alerts_response = client.get(
-            f"/api/alerts?user_id=user_integration_001",
-            headers=auth_headers
+            f"/api/alerts?user_id=user_integration_001", headers=auth_headers
         )
 
         assert alerts_response.status_code == 200
@@ -68,8 +68,7 @@ class TestTransactionIngestionFlow:
 
         # Find alert related to our transaction
         related_alert = next(
-            (a for a in alerts if a.get("transaction_id") == transaction_db_id),
-            None
+            (a for a in alerts if a.get("transaction_id") == transaction_db_id), None
         )
 
         assert related_alert is not None
@@ -87,12 +86,8 @@ class TestTransactionIngestionFlow:
         rule = MonitoringRuleFactory(
             enabled=True,
             category="velocity",
-            thresholds={
-                "window_size": "1h",
-                "metric": "count",
-                "threshold": 5
-            },
-            sqlalchemy_session=db_session
+            thresholds={"window_size": "1h", "metric": "count", "threshold": 5},
+            sqlalchemy_session=db_session,
         )
         db_session.commit()
 
@@ -109,15 +104,14 @@ class TestTransactionIngestionFlow:
                     "amount": 500.00,
                     "currency": "USD",
                     "transaction_type": "transfer",
-                    "timestamp": datetime.utcnow().isoformat()
-                }
+                    "timestamp": datetime.utcnow().isoformat(),
+                },
             )
             assert response.status_code == 201
 
         # Check for velocity alert
         alerts_response = client.get(
-            f"/api/alerts?user_id={user_id}&alert_type=velocity",
-            headers=auth_headers
+            f"/api/alerts?user_id={user_id}&alert_type=velocity", headers=auth_headers
         )
 
         assert alerts_response.status_code == 200
@@ -132,7 +126,9 @@ class TestTransactionIngestionFlow:
 class TestAlertTriageWorkflow:
     """Test alert triage and resolution workflow."""
 
-    def test_alert_triage_workflow(self, client: TestClient, db_session: Session, auth_headers: dict):
+    def test_alert_triage_workflow(
+        self, client: TestClient, db_session: Session, auth_headers: dict
+    ):
         """
         Test complete alert triage workflow:
         Alert creation → Assignment → Investigation → Resolution
@@ -147,8 +143,8 @@ class TestAlertTriageWorkflow:
                 "amount": 25000.00,
                 "currency": "USD",
                 "transaction_type": "withdrawal",
-                "timestamp": datetime.utcnow().isoformat()
-            }
+                "timestamp": datetime.utcnow().isoformat(),
+            },
         )
         assert txn_response.status_code == 201
         txn_id = txn_response.json()["id"]
@@ -163,8 +159,8 @@ class TestAlertTriageWorkflow:
                 "user_id": "user_triage_001",
                 "description": "Large withdrawal detected",
                 "risk_score": 75.5,
-                "evidence": {"pattern": "unusual_amount"}
-            }
+                "evidence": {"pattern": "unusual_amount"},
+            },
         )
         assert alert_response.status_code == 201
         alert = alert_response.json()
@@ -174,10 +170,7 @@ class TestAlertTriageWorkflow:
         assign_response = client.patch(
             f"/api/alerts/{alert_id}",
             headers=auth_headers,
-            json={
-                "assigned_to": "analyst@example.com",
-                "status": "in_review"
-            }
+            json={"assigned_to": "analyst@example.com", "status": "in_review"},
         )
         assert assign_response.status_code == 200
         assigned_alert = assign_response.json()
@@ -191,8 +184,8 @@ class TestAlertTriageWorkflow:
             json={
                 "status": "resolved",
                 "resolution_status": "false_positive",
-                "resolution_notes": "Customer is a verified high-net-worth individual. Withdrawal is legitimate."
-            }
+                "resolution_notes": "Customer is a verified high-net-worth individual. Withdrawal is legitimate.",
+            },
         )
         assert resolve_response.status_code == 200
         resolved_alert = resolve_response.json()
@@ -200,10 +193,7 @@ class TestAlertTriageWorkflow:
         assert resolved_alert["resolution_status"] == "false_positive"
 
         # Step 4: Verify alert is no longer in pending queue
-        pending_response = client.get(
-            "/api/alerts?status=pending",
-            headers=auth_headers
-        )
+        pending_response = client.get("/api/alerts?status=pending", headers=auth_headers)
         pending_alerts = pending_response.json()
 
         # Our alert should not be in pending list
@@ -214,7 +204,9 @@ class TestAlertTriageWorkflow:
 class TestCaseCreationFlow:
     """Test case creation from alerts."""
 
-    def test_create_case_from_alerts(self, client: TestClient, db_session: Session, auth_headers: dict):
+    def test_create_case_from_alerts(
+        self, client: TestClient, db_session: Session, auth_headers: dict
+    ):
         """
         Test creating investigation case from multiple alerts.
         """
@@ -233,8 +225,8 @@ class TestCaseCreationFlow:
                     "amount": 15000.00 + (i * 1000),
                     "currency": "USD",
                     "transaction_type": "deposit",
-                    "timestamp": datetime.utcnow().isoformat()
-                }
+                    "timestamp": datetime.utcnow().isoformat(),
+                },
             )
             txn_id = txn_response.json()["id"]
 
@@ -247,8 +239,8 @@ class TestCaseCreationFlow:
                     "transaction_id": txn_id,
                     "user_id": user_id,
                     "description": f"Suspicious transaction {i}",
-                    "risk_score": 80.0 + i
-                }
+                    "risk_score": 80.0 + i,
+                },
             )
             alert_ids.append(alert_response.json()["id"])
 
@@ -265,8 +257,8 @@ class TestCaseCreationFlow:
                 "priority": "high",
                 "status": "open",
                 "assigned_to": "investigator@example.com",
-                "related_alert_ids": alert_ids
-            }
+                "related_alert_ids": alert_ids,
+            },
         )
 
         assert case_response.status_code == 201
@@ -286,8 +278,8 @@ class TestCaseCreationFlow:
             json={
                 "status": "closed",
                 "outcome": "sar_filed",
-                "outcome_notes": "SAR filed with FinCEN. Case #12345"
-            }
+                "outcome_notes": "SAR filed with FinCEN. Case #12345",
+            },
         )
 
         assert update_response.status_code == 200
@@ -318,9 +310,9 @@ class TestDecisioningFlow:
                     "transaction_id": "txn_decision_001",
                     "amount": 5000.00,
                     "currency": "USD",
-                    "merchant": "Online Casino"
-                }
-            }
+                    "merchant": "Online Casino",
+                },
+            },
         )
 
         assert event_response.status_code in [200, 201]
@@ -331,10 +323,7 @@ class TestDecisioningFlow:
         decision_response = client.post(
             "/api/decisioning/decide",
             headers=admin_headers,
-            json={
-                "event_id": event_id,
-                "decision_type": "transaction_approval"
-            }
+            json={"event_id": event_id, "decision_type": "transaction_approval"},
         )
 
         assert decision_response.status_code in [200, 201]
@@ -350,8 +339,7 @@ class TestDecisioningFlow:
         decision_id = decision["decision_id"]
 
         get_response = client.get(
-            f"/api/decisioning/decisions/{decision_id}",
-            headers=admin_headers
+            f"/api/decisioning/decisions/{decision_id}", headers=admin_headers
         )
 
         assert get_response.status_code == 200
@@ -378,8 +366,8 @@ class TestAuditLogging:
                 "severity": "medium",
                 "user_id": "user_audit_001",
                 "description": "Test alert for audit logging",
-                "risk_score": 50.0
-            }
+                "risk_score": 50.0,
+            },
         )
         alert_id = alert_response.json()["alert_id"]
 
@@ -387,14 +375,14 @@ class TestAuditLogging:
         client.patch(
             f"/api/alerts/{alert_id}",
             headers=admin_headers,
-            json={"status": "in_review", "assigned_to": "analyst@example.com"}
+            json={"status": "in_review", "assigned_to": "analyst@example.com"},
         )
 
         # Step 3: Resolve alert
         client.patch(
             f"/api/alerts/{alert_id}",
             headers=admin_headers,
-            json={"status": "resolved", "resolution_status": "confirmed"}
+            json={"status": "resolved", "resolution_status": "confirmed"},
         )
 
         # Step 4: Check audit log
@@ -405,7 +393,8 @@ class TestAuditLogging:
 
         # Filter logs for our alert
         alert_logs = [
-            log for log in audit_logs
+            log
+            for log in audit_logs
             if log.get("entity_type") == "alerts" and log.get("entity_id") == alert_id
         ]
 

@@ -60,7 +60,7 @@ export function BentoGrid({
         "grid auto-rows-[minmax(120px,auto)]",
         columnClasses[columns],
         gapClasses[gap],
-        className
+        className,
       )}
       {...wrapperProps}
     >
@@ -112,7 +112,7 @@ export function BentoItem({
         colSpanClasses[colSpan],
         rowSpanClasses[rowSpan],
         hover && "hover-lift cursor-pointer",
-        className
+        className,
       )}
     >
       {children}
@@ -161,7 +161,7 @@ export function BentoCard({
         className={cn(
           "h-full rounded-xl glass-interactive p-5",
           glowClasses[glow],
-          "transition-shadow duration-300"
+          "transition-shadow duration-300",
         )}
       >
         {/* Header */}
@@ -231,9 +231,7 @@ export function BentoStat({
       <div className="h-full rounded-xl glass-surface p-5 flex flex-col justify-between">
         <div className="flex items-center justify-between">
           <span className="text-label">{label}</span>
-          {icon && (
-            <span className="text-muted-foreground">{icon}</span>
-          )}
+          {icon && <span className="text-muted-foreground">{icon}</span>}
         </div>
         <div className="mt-2">
           <span className="text-metric text-foreground">{value}</span>
@@ -241,7 +239,7 @@ export function BentoStat({
             <span
               className={cn(
                 "ml-2 text-sm font-medium",
-                trend.positive ? "text-[#06d6a0]" : "text-[#ff3366]"
+                trend.positive ? "text-[#06d6a0]" : "text-[#ff3366]",
               )}
             >
               {trend.value}

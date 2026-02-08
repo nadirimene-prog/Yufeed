@@ -15,4 +15,3 @@ export function formatDate(value?: string | null) {
   if (Number.isNaN(parsed.getTime())) return "—";
   return parsed.toLocaleString();
 }
-

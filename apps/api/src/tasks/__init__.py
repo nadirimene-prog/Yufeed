@@ -2,6 +2,7 @@
 Background Tasks
 Celery tasks for asynchronous processing.
 """
+
 from src.tasks.feature_refresh import (
     refresh_user_features,
     refresh_active_users_features,

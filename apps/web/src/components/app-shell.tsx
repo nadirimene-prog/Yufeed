@@ -25,7 +25,7 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
         <div
           className={cn(
             "relative z-10 flex flex-1 flex-col overflow-y-auto overflow-x-hidden",
-            isChromeless && "w-full"
+            isChromeless && "w-full",
           )}
         >
           {!isChromeless && <Header />}
@@ -33,7 +33,7 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
             className={cn(
               isChromeless
                 ? "mx-auto w-full max-w-6xl px-6 py-10 md:px-10"
-                : "container mx-auto py-6 px-4 md:px-8 max-w-7xl"
+                : "container mx-auto py-6 px-4 md:px-8 max-w-7xl",
             )}
           >
             {!isChromeless && <ApiHealthBanner />}

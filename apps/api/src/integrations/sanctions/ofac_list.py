@@ -31,14 +31,16 @@ class OFACSDNList(BaseIntegration):
     """
 
     OFAC_SDN_URL = "https://sanctionslist.ofac.treas.gov/api/PublicationPreview/exports/SDN.XML"
-    OFAC_SDN_JSON_URL = "https://sanctionslist.ofac.treas.gov/api/PublicationPreview/exports/SDN_ENHANCED.JSON"
+    OFAC_SDN_JSON_URL = (
+        "https://sanctionslist.ofac.treas.gov/api/PublicationPreview/exports/SDN_ENHANCED.JSON"
+    )
 
     def __init__(self):
         super().__init__(
             name="OFAC SDN List",
             base_url=self.OFAC_SDN_URL,
             timeout_seconds=60,
-            cache_ttl_seconds=86400  # 24 hours
+            cache_ttl_seconds=86400,  # 24 hours
         )
 
         self._sanctions_data: List[Dict[str, Any]] = []
@@ -55,17 +57,13 @@ class OFACSDNList(BaseIntegration):
             # In production, would fetch from OFAC endpoint
             # For now, return cached/demo data
             return IntegrationResult(
-                status=IntegrationStatus.SUCCESS,
-                data=self._sanctions_data,
-                source=self.name
+                status=IntegrationStatus.SUCCESS, data=self._sanctions_data, source=self.name
             )
 
         except Exception as e:
             logger.error(f"Failed to fetch OFAC SDN list: {e}")
             return IntegrationResult(
-                status=IntegrationStatus.ERROR,
-                error_message=str(e),
-                source=self.name
+                status=IntegrationStatus.ERROR, error_message=str(e), source=self.name
             )
 
     async def fetch_list(self) -> IntegrationResult:
@@ -76,7 +74,7 @@ class OFACSDNList(BaseIntegration):
         self,
         name: Optional[str] = None,
         sdn_type: Optional[str] = None,
-        program: Optional[str] = None
+        program: Optional[str] = None,
     ) -> List[Dict[str, Any]]:
         """
         Search the OFAC SDN list.
@@ -98,22 +96,19 @@ class OFACSDNList(BaseIntegration):
         if name:
             name_upper = name.upper()
             matches = [
-                m for m in matches
+                m
+                for m in matches
                 if name_upper in m.get("name", "").upper()
                 or any(name_upper in alias.upper() for alias in m.get("aliases", []))
             ]
 
         if sdn_type:
-            matches = [
-                m for m in matches
-                if m.get("entity_type", "").lower() == sdn_type.lower()
-            ]
+            matches = [m for m in matches if m.get("entity_type", "").lower() == sdn_type.lower()]
 
         if program:
             program_upper = program.upper()
             matches = [
-                m for m in matches
-                if any(program_upper in p.upper() for p in m.get("programs", []))
+                m for m in matches if any(program_upper in p.upper() for p in m.get("programs", []))
             ]
 
         return matches
@@ -142,7 +137,7 @@ class OFACSDNList(BaseIntegration):
                     "addresses": self._extract_addresses_ofac(sdn_entry, ns),
                     "programs": self._extract_programs_ofac(sdn_entry, ns),
                     "reasons": self._extract_remarks_ofac(sdn_entry, ns),
-                    "identifications": self._extract_ids_ofac(sdn_entry, ns)
+                    "identifications": self._extract_ids_ofac(sdn_entry, ns),
                 }
                 entries.append(entry)
 
@@ -151,12 +146,7 @@ class OFACSDNList(BaseIntegration):
 
         return entries
 
-    def _get_text(
-        self,
-        element: ET.Element,
-        path: str,
-        ns: Dict[str, str]
-    ) -> str:
+    def _get_text(self, element: ET.Element, path: str, ns: Dict[str, str]) -> str:
         """Get text content from an XML element."""
         found = element.find(path, ns)
         return found.text if found is not None and found.text else ""
@@ -167,7 +157,7 @@ class OFACSDNList(BaseIntegration):
             "Individual": "individual",
             "Entity": "entity",
             "Vessel": "vessel",
-            "Aircraft": "aircraft"
+            "Aircraft": "aircraft",
         }
         return type_map.get(sdn_type, "unknown")
 
@@ -183,11 +173,7 @@ class OFACSDNList(BaseIntegration):
         else:
             return self._get_text(sdn_entry, "ofac:sdnName", ns)
 
-    def _extract_aliases_ofac(
-        self,
-        sdn_entry: ET.Element,
-        ns: Dict[str, str]
-    ) -> List[str]:
+    def _extract_aliases_ofac(self, sdn_entry: ET.Element, ns: Dict[str, str]) -> List[str]:
         """Extract aliases from OFAC entry."""
         aliases = []
         for aka in sdn_entry.findall(".//ofac:akaList/ofac:aka", ns):
@@ -199,11 +185,7 @@ class OFACSDNList(BaseIntegration):
                 aliases.append(alias_name)
         return aliases
 
-    def _extract_nationalities_ofac(
-        self,
-        sdn_entry: ET.Element,
-        ns: Dict[str, str]
-    ) -> List[str]:
+    def _extract_nationalities_ofac(self, sdn_entry: ET.Element, ns: Dict[str, str]) -> List[str]:
         """Extract nationalities from OFAC entry."""
         nationalities = []
         for nationality in sdn_entry.findall(".//ofac:nationalityList/ofac:nationality", ns):
@@ -212,11 +194,7 @@ class OFACSDNList(BaseIntegration):
                 nationalities.append(country)
         return nationalities
 
-    def _extract_dob_ofac(
-        self,
-        sdn_entry: ET.Element,
-        ns: Dict[str, str]
-    ) -> List[str]:
+    def _extract_dob_ofac(self, sdn_entry: ET.Element, ns: Dict[str, str]) -> List[str]:
         """Extract dates of birth from OFAC entry."""
         dobs = []
         for dob in sdn_entry.findall(".//ofac:dateOfBirthList/ofac:dateOfBirthItem", ns):
@@ -225,11 +203,7 @@ class OFACSDNList(BaseIntegration):
                 dobs.append(date)
         return dobs
 
-    def _extract_addresses_ofac(
-        self,
-        sdn_entry: ET.Element,
-        ns: Dict[str, str]
-    ) -> List[str]:
+    def _extract_addresses_ofac(self, sdn_entry: ET.Element, ns: Dict[str, str]) -> List[str]:
         """Extract addresses from OFAC entry."""
         addresses = []
         for addr in sdn_entry.findall(".//ofac:addressList/ofac:address", ns):
@@ -242,11 +216,7 @@ class OFACSDNList(BaseIntegration):
                 addresses.append(", ".join(parts))
         return addresses
 
-    def _extract_programs_ofac(
-        self,
-        sdn_entry: ET.Element,
-        ns: Dict[str, str]
-    ) -> List[str]:
+    def _extract_programs_ofac(self, sdn_entry: ET.Element, ns: Dict[str, str]) -> List[str]:
         """Extract sanctions programs from OFAC entry."""
         programs = []
         for program in sdn_entry.findall(".//ofac:programList/ofac:program", ns):
@@ -254,27 +224,19 @@ class OFACSDNList(BaseIntegration):
                 programs.append(program.text)
         return programs
 
-    def _extract_remarks_ofac(
-        self,
-        sdn_entry: ET.Element,
-        ns: Dict[str, str]
-    ) -> List[str]:
+    def _extract_remarks_ofac(self, sdn_entry: ET.Element, ns: Dict[str, str]) -> List[str]:
         """Extract remarks from OFAC entry."""
         remarks = self._get_text(sdn_entry, "ofac:remarks", ns)
         return [remarks] if remarks else []
 
-    def _extract_ids_ofac(
-        self,
-        sdn_entry: ET.Element,
-        ns: Dict[str, str]
-    ) -> List[Dict[str, str]]:
+    def _extract_ids_ofac(self, sdn_entry: ET.Element, ns: Dict[str, str]) -> List[Dict[str, str]]:
         """Extract identification documents from OFAC entry."""
         ids = []
         for id_item in sdn_entry.findall(".//ofac:idList/ofac:id", ns):
             id_entry = {
                 "type": self._get_text(id_item, "ofac:idType", ns),
                 "number": self._get_text(id_item, "ofac:idNumber", ns),
-                "country": self._get_text(id_item, "ofac:idCountry", ns)
+                "country": self._get_text(id_item, "ofac:idCountry", ns),
             }
             if id_entry["type"] or id_entry["number"]:
                 ids.append(id_entry)

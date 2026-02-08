@@ -12,6 +12,7 @@ Test Coverage:
 - Decision immutability verification
 - Audit logging for decisions
 """
+
 import pytest
 from fastapi.testclient import TestClient
 from sqlalchemy.orm import Session
@@ -39,9 +40,9 @@ class TestDecisioningFlow:
                     "transaction_id": "txn_decision_001",
                     "amount": 5000.00,
                     "currency": "USD",
-                    "merchant": "Online Casino"
-                }
-            }
+                    "merchant": "Online Casino",
+                },
+            },
         )
 
         assert event_response.status_code in [200, 201]
@@ -52,10 +53,7 @@ class TestDecisioningFlow:
         decision_response = client.post(
             "/api/decisioning/decide",
             headers=admin_headers,
-            json={
-                "event_id": event_id,
-                "decision_type": "transaction_approval"
-            }
+            json={"event_id": event_id, "decision_type": "transaction_approval"},
         )
 
         assert decision_response.status_code in [200, 201]
@@ -71,8 +69,7 @@ class TestDecisioningFlow:
         decision_id = decision["decision_id"]
 
         get_response = client.get(
-            f"/api/decisioning/decisions/{decision_id}",
-            headers=admin_headers
+            f"/api/decisioning/decisions/{decision_id}", headers=admin_headers
         )
 
         assert get_response.status_code == 200
@@ -99,8 +96,8 @@ class TestAuditLogging:
                 "severity": "medium",
                 "user_id": "user_audit_001",
                 "description": "Test alert for audit logging",
-                "risk_score": 50.0
-            }
+                "risk_score": 50.0,
+            },
         )
         alert_id = alert_response.json()["alert_id"]
 
@@ -108,14 +105,14 @@ class TestAuditLogging:
         client.patch(
             f"/api/alerts/{alert_id}",
             headers=admin_headers,
-            json={"status": "in_review", "assigned_to": "analyst@example.com"}
+            json={"status": "in_review", "assigned_to": "analyst@example.com"},
         )
 
         # Step 3: Resolve alert
         client.patch(
             f"/api/alerts/{alert_id}",
             headers=admin_headers,
-            json={"status": "resolved", "resolution_status": "confirmed"}
+            json={"status": "resolved", "resolution_status": "confirmed"},
         )
 
         # Step 4: Check audit log
@@ -126,7 +123,8 @@ class TestAuditLogging:
 
         # Filter logs for our alert
         alert_logs = [
-            log for log in audit_logs
+            log
+            for log in audit_logs
             if log.get("entity_type") == "alerts" and log.get("entity_id") == alert_id
         ]
 

@@ -17,7 +17,9 @@ depends_on = None
 
 def upgrade() -> None:
     op.add_column("legal_documents", sa.Column("oj_act_identifier", sa.String(), nullable=True))
-    op.add_column("legal_documents", sa.Column("oj_signature_identifier", sa.String(), nullable=True))
+    op.add_column(
+        "legal_documents", sa.Column("oj_signature_identifier", sa.String(), nullable=True)
+    )
     op.create_index(
         "ix_legal_documents_oj_act_identifier",
         "legal_documents",

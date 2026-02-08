@@ -24,7 +24,10 @@ def test_monitoring_dashboard_and_metrics(db_session):
         description="High risk rule",
         category="velocity",
         severity="high",
-        conditions={"conditions": [{"field": "amount", "operator": ">", "value": 1000}], "logic": "AND"},
+        conditions={
+            "conditions": [{"field": "amount", "operator": ">", "value": 1000}],
+            "logic": "AND",
+        },
         thresholds=None,
         enabled=True,
         alert_count=5,

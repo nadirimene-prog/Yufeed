@@ -39,7 +39,7 @@ class RAGService:
         query: str,
         db: Optional[Session] = None,
         max_documents: int = 5,
-        filters: Optional[Dict[str, Any]] = None
+        filters: Optional[Dict[str, Any]] = None,
     ) -> Dict[str, Any]:
         """
         Answer a natural language query using RAG.
@@ -61,10 +61,7 @@ class RAGService:
 
         # Step 1: Retrieve relevant chunks (RAG)
         retrieved_chunks = await self._retrieve_chunks(
-            query=query,
-            db=db,
-            max_documents=max_documents,
-            filters=filters
+            query=query, db=db, max_documents=max_documents, filters=filters
         )
 
         if not retrieved_chunks:
@@ -72,7 +69,7 @@ class RAGService:
                 "answer": "I couldn't find any relevant documents to answer your question. Please try rephrasing or use different search terms.",
                 "sources": [],
                 "confidence": "low",
-                "document_count": 0
+                "document_count": 0,
             }
 
         # Step 2: Generate answer using Claude
@@ -98,7 +95,9 @@ class RAGService:
             }
             for chunk in retrieved_chunks
         ]
-        answer_data["document_count"] = len({c.get("celex") for c in retrieved_chunks if c.get("celex")})
+        answer_data["document_count"] = len(
+            {c.get("celex") for c in retrieved_chunks if c.get("celex")}
+        )
 
         return answer_data
 
@@ -107,7 +106,7 @@ class RAGService:
         query: str,
         db: Session,
         max_documents: int = 5,
-        filters: Optional[Dict[str, Any]] = None
+        filters: Optional[Dict[str, Any]] = None,
     ) -> List[Dict[str, Any]]:
         """
         Retrieve relevant chunks using OpenSearch hybrid search.
@@ -141,9 +140,7 @@ class RAGService:
 
         enriched_docs: List[Dict[str, Any]] = []
         for source in search_results.get("results", []):
-            doc = db.query(LegalDocument).filter(
-                LegalDocument.celex == source.get("celex")
-            ).first()
+            doc = db.query(LegalDocument).filter(LegalDocument.celex == source.get("celex")).first()
             if doc:
                 source["ai_summary"] = doc.ai_summary
                 source["obligations_json"] = doc.obligations_json
@@ -154,10 +151,7 @@ class RAGService:
                 source["title"] = doc.title
 
             chunk_text = (
-                source.get("ai_summary")
-                or source.get("full_text")
-                or source.get("title")
-                or ""
+                source.get("ai_summary") or source.get("full_text") or source.get("title") or ""
             )
             enriched_docs.append(
                 {
@@ -186,11 +180,11 @@ class RAGService:
                 "answer": (
                     "I am currently operating in **Demo Mode** because no `ANTHROPIC_API_KEY` was found. "
                     "In a live environment, I would analyze the retrieved legal documents to provide a precise answer. "
-                    "\n\n**Retrieved Documents:**\n" + 
-                    "\n".join([f"- {d.get('title')} ({d.get('celex')})" for d in chunks[:3]])
+                    "\n\n**Retrieved Documents:**\n"
+                    + "\n".join([f"- {d.get('title')} ({d.get('celex')})" for d in chunks[:3]])
                 ),
                 "confidence": "low",
-                "model": "demo-fallback"
+                "model": "demo-fallback",
             }
 
         prompt = self._build_rag_prompt(query, chunks)
@@ -200,10 +194,7 @@ class RAGService:
                 model="claude-3-5-sonnet-20240620",
                 max_tokens=2000,
                 temperature=0.3,
-                messages=[{
-                    "role": "user",
-                    "content": prompt
-                }]
+                messages=[{"role": "user", "content": prompt}],
             )
 
             answer_text = message.content[0].text
@@ -212,11 +203,7 @@ class RAGService:
             avg_score = sum(d.get("score", 0) for d in chunks) / len(chunks)
             confidence = "high" if avg_score > 5.0 else "medium" if avg_score > 2.0 else "low"
 
-            return {
-                "answer": answer_text,
-                "confidence": confidence,
-                "model": "claude-3-5-sonnet"
-            }
+            return {"answer": answer_text, "confidence": confidence, "model": "claude-3-5-sonnet"}
 
         except Exception as e:
             logger.error(f"RAG generation error: {e}")
@@ -230,7 +217,7 @@ class RAGService:
         doc_count = len({c.get("celex") for c in chunks if c.get("celex")})
         answer_parts = [
             "⚠️ **Demo Mode**: No `ANTHROPIC_API_KEY` configured. Showing retrieved documents without AI analysis.\n",
-            f"Found {doc_count} relevant document(s) across {len(chunks)} passages:\n"
+            f"Found {doc_count} relevant document(s) across {len(chunks)} passages:\n",
         ]
 
         for i, chunk in enumerate(chunks[:3], 1):
@@ -244,11 +231,7 @@ class RAGService:
         if len(chunks) > 3:
             answer_parts.append(f"\n... and {len(chunks) - 3} more passages")
 
-        return {
-            "answer": "\n".join(answer_parts),
-            "confidence": "low",
-            "model": "fallback"
-        }
+        return {"answer": "\n".join(answer_parts), "confidence": "low", "model": "fallback"}
 
     def _build_rag_prompt(self, query: str, chunks: List[Dict[str, Any]]) -> str:
         """
@@ -299,32 +282,25 @@ Answer:"""
         question: str,
         max_documents: int = 5,
         conversation_history: Optional[List[Dict[str, str]]] = None,
-        filters: Optional[Dict[str, Any]] = None
+        filters: Optional[Dict[str, Any]] = None,
     ) -> Dict[str, Any]:
         """
         Public API for asking a question.
         Matches the orchestrator's expectations.
         """
         response = await self.answer_query(
-            query=question,
-            max_documents=max_documents,
-            filters=filters
+            query=question, max_documents=max_documents, filters=filters
         )
 
         # Add follow-up questions
         response["followup_questions"] = self.suggest_followup_questions(
-            query=question,
-            answer=response["answer"],
-            documents=response.get("sources", [])
+            query=question, answer=response["answer"], documents=response.get("sources", [])
         )
 
         return response
 
     def suggest_followup_questions(
-        self,
-        query: str,
-        answer: str,
-        documents: List[Dict[str, Any]]
+        self, query: str, answer: str, documents: List[Dict[str, Any]]
     ) -> List[str]:
         """
         Suggest relevant follow-up questions based on the query and answer.
@@ -346,7 +322,9 @@ Answer:"""
             suggestions.append("What are the latest sanctions screening requirements?")
 
         # Query-specific follow-ups
-        if "deadline" not in query.lower() and any(d.get("implementation_deadline") for d in documents):
+        if "deadline" not in query.lower() and any(
+            d.get("implementation_deadline") for d in documents
+        ):
             suggestions.append("What are the implementation deadlines for these regulations?")
 
         if "impact" not in query.lower():
@@ -380,26 +358,15 @@ class ConversationManager:
         Process a query in the context of the conversation.
         """
         # TODO: In production, enhance query with conversation context
-        response = await self.rag_service.ask(
-            question=query,
-            filters=filters
-        )
+        response = await self.rag_service.ask(question=query, filters=filters)
 
         # Store in conversation history
-        self.conversation_history.append({
-            "role": "user",
-            "content": query
-        })
-        self.conversation_history.append({
-            "role": "assistant",
-            "content": response["answer"]
-        })
+        self.conversation_history.append({"role": "user", "content": query})
+        self.conversation_history.append({"role": "assistant", "content": response["answer"]})
 
         # Add follow-up suggestions
         response["followup_questions"] = self.rag_service.suggest_followup_questions(
-            query=query,
-            answer=response["answer"],
-            documents=response.get("sources", [])
+            query=query, answer=response["answer"], documents=response.get("sources", [])
         )
 
         return response

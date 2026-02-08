@@ -85,7 +85,11 @@ def process_transaction_sync(db: Session, transaction_db_id: int, tenant_id: str
         .first()
     )
     if not transaction:
-        return {"status": "not_found", "transaction_db_id": transaction_db_id, "tenant_id": tenant_id}
+        return {
+            "status": "not_found",
+            "transaction_db_id": transaction_db_id,
+            "tenant_id": tenant_id,
+        }
 
     risk_service = RiskScoringService(db)
     rules_engine = RulesEngine(db)
@@ -96,7 +100,9 @@ def process_transaction_sync(db: Session, transaction_db_id: int, tenant_id: str
 
     # Evaluate rule-based alerts
     alerts: List[Alert] = rules_engine.evaluate_transaction(transaction_db_id)
-    velocity_alerts: List[Alert] = rules_engine.evaluate_velocity_rules(transaction.user_id, tenant_id=tenant_id)
+    velocity_alerts: List[Alert] = rules_engine.evaluate_velocity_rules(
+        transaction.user_id, tenant_id=tenant_id
+    )
 
     # Update user risk profile (tenant scoped)
     risk_service.update_user_risk_profile(transaction.user_id, tenant_id=tenant_id)

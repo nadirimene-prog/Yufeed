@@ -4,6 +4,8 @@ from datetime import datetime, timezone
 def utc_now() -> datetime:
     """Return current UTC time (timezone-aware)."""
     return datetime.now(timezone.utc)
+
+
 from typing import Dict, Optional
 import uuid
 
@@ -49,7 +51,9 @@ class TravelRuleResponse(BaseModel):
 def create_travel_rule_request(
     request: TravelRuleRequest,
     db: Session = Depends(get_db),
-    current_user: CurrentUser = Depends(require_any_role(["admin", "compliance", "aml_officer", "user"]))
+    current_user: CurrentUser = Depends(
+        require_any_role(["admin", "compliance", "aml_officer", "user"])
+    ),
 ):
     tenant_id = current_user.tenant_id or get_current_tenant()
     if not tenant_id:
@@ -112,7 +116,9 @@ def create_travel_rule_request(
 def list_travel_rule_requests(
     status: Optional[str] = None,
     db: Session = Depends(get_db),
-    current_user: CurrentUser = Depends(require_any_role(["admin", "compliance", "aml_officer", "auditor", "user"]))
+    current_user: CurrentUser = Depends(
+        require_any_role(["admin", "compliance", "aml_officer", "auditor", "user"])
+    ),
 ):
     query = db.query(TravelRuleRequestRecord)
     if status:
@@ -143,11 +149,15 @@ def list_travel_rule_requests(
 def get_travel_rule_request(
     request_id: str,
     db: Session = Depends(get_db),
-    current_user: CurrentUser = Depends(require_any_role(["admin", "compliance", "aml_officer", "auditor"]))
+    current_user: CurrentUser = Depends(
+        require_any_role(["admin", "compliance", "aml_officer", "auditor"])
+    ),
 ):
-    row = db.query(TravelRuleRequestRecord).filter(
-        TravelRuleRequestRecord.request_id == request_id
-    ).first()
+    row = (
+        db.query(TravelRuleRequestRecord)
+        .filter(TravelRuleRequestRecord.request_id == request_id)
+        .first()
+    )
     if not row:
         raise HTTPException(status_code=404, detail="Travel rule request not found")
     return TravelRuleResponse(
@@ -170,15 +180,19 @@ def get_travel_rule_request(
 def submit_travel_rule_request(
     request_id: str,
     db: Session = Depends(get_db),
-    current_user: CurrentUser = Depends(require_any_role(["admin", "compliance", "aml_officer", "user"]))
+    current_user: CurrentUser = Depends(
+        require_any_role(["admin", "compliance", "aml_officer", "user"])
+    ),
 ):
     tenant_id = current_user.tenant_id or get_current_tenant()
     if not tenant_id:
         raise HTTPException(status_code=403, detail="Tenant context is required")
 
-    row = db.query(TravelRuleRequestRecord).filter(
-        TravelRuleRequestRecord.request_id == request_id
-    ).first()
+    row = (
+        db.query(TravelRuleRequestRecord)
+        .filter(TravelRuleRequestRecord.request_id == request_id)
+        .first()
+    )
     if not row:
         raise HTTPException(status_code=404, detail="Travel rule request not found")
     row.status = "submitted"

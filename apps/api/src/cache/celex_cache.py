@@ -35,7 +35,7 @@ class CelexCache:
         self,
         redis_url: str = "redis://localhost:6379/0",
         ttl_hours: int = 24,
-        key_prefix: str = "celex:"
+        key_prefix: str = "celex:",
     ):
         """
         Initialize Redis cache connection.
@@ -86,7 +86,9 @@ class CelexCache:
                 if "date_document" in metadata and metadata["date_document"]:
                     metadata["date_document"] = datetime.fromisoformat(metadata["date_document"])
                 if "date_entry_into_force" in metadata and metadata["date_entry_into_force"]:
-                    metadata["date_entry_into_force"] = datetime.fromisoformat(metadata["date_entry_into_force"])
+                    metadata["date_entry_into_force"] = datetime.fromisoformat(
+                        metadata["date_entry_into_force"]
+                    )
 
                 return metadata
             else:
@@ -117,17 +119,15 @@ class CelexCache:
             # Serialize datetime objects
             serializable_metadata = metadata.copy()
             for field in ["date_document", "date_entry_into_force"]:
-                if field in serializable_metadata and isinstance(serializable_metadata[field], datetime):
+                if field in serializable_metadata and isinstance(
+                    serializable_metadata[field], datetime
+                ):
                     serializable_metadata[field] = serializable_metadata[field].isoformat()
 
             data = json.dumps(serializable_metadata)
 
             # Set with TTL
-            self.redis_client.setex(
-                key,
-                int(self.ttl.total_seconds()),
-                data
-            )
+            self.redis_client.setex(key, int(self.ttl.total_seconds()), data)
 
             logger.debug(f"Cached {celex} with TTL={self.ttl}")
             return True
@@ -160,9 +160,16 @@ class CelexCache:
                         metadata = json.loads(data)
                         # Deserialize dates
                         if "date_document" in metadata and metadata["date_document"]:
-                            metadata["date_document"] = datetime.fromisoformat(metadata["date_document"])
-                        if "date_entry_into_force" in metadata and metadata["date_entry_into_force"]:
-                            metadata["date_entry_into_force"] = datetime.fromisoformat(metadata["date_entry_into_force"])
+                            metadata["date_document"] = datetime.fromisoformat(
+                                metadata["date_document"]
+                            )
+                        if (
+                            "date_entry_into_force" in metadata
+                            and metadata["date_entry_into_force"]
+                        ):
+                            metadata["date_entry_into_force"] = datetime.fromisoformat(
+                                metadata["date_entry_into_force"]
+                            )
                         results[celex] = metadata
                     except json.JSONDecodeError:
                         results[celex] = None
@@ -202,7 +209,9 @@ class CelexCache:
                     # Serialize datetime objects
                     serializable_metadata = metadata.copy()
                     for field in ["date_document", "date_entry_into_force"]:
-                        if field in serializable_metadata and isinstance(serializable_metadata[field], datetime):
+                        if field in serializable_metadata and isinstance(
+                            serializable_metadata[field], datetime
+                        ):
                             serializable_metadata[field] = serializable_metadata[field].isoformat()
 
                     data = json.dumps(serializable_metadata)
@@ -288,10 +297,11 @@ class CelexCache:
                 "keyspace_hits": info.get("keyspace_hits", 0),
                 "keyspace_misses": info.get("keyspace_misses", 0),
                 "hit_rate": round(
-                    info.get("keyspace_hits", 0) /
-                    max(info.get("keyspace_hits", 0) + info.get("keyspace_misses", 0), 1) * 100,
-                    2
-                )
+                    info.get("keyspace_hits", 0)
+                    / max(info.get("keyspace_hits", 0) + info.get("keyspace_misses", 0), 1)
+                    * 100,
+                    2,
+                ),
             }
         except redis.RedisError as e:
             logger.error(f"Error getting cache stats: {e}")

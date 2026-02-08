@@ -3,6 +3,7 @@ Seed RegulatoryObligation rows from existing LegalDocument records.
 - Uses obligations_json when available
 - Falls back to a single placeholder obligation per document
 """
+
 from __future__ import annotations
 
 from typing import Any, Iterable, List, Optional
@@ -60,7 +61,9 @@ def seed_obligations() -> None:
         skipped = 0
 
         for doc in documents:
-            existing = db.query(RegulatoryObligation).filter(RegulatoryObligation.doc_id == doc.id).count()
+            existing = (
+                db.query(RegulatoryObligation).filter(RegulatoryObligation.doc_id == doc.id).count()
+            )
             if existing:
                 skipped += 1
                 continue
@@ -85,13 +88,16 @@ def seed_obligations() -> None:
                 ]
 
             for item in obligations:
-                obligation_scope_tags = infer_scope_tags(
-                    doc.title,
-                    doc.full_text,
-                    doc.ai_summary,
-                    _obligation_text(item, doc.title or "Obligation"),
-                    _article_ref(item),
-                ) or doc_scope_tags
+                obligation_scope_tags = (
+                    infer_scope_tags(
+                        doc.title,
+                        doc.full_text,
+                        doc.ai_summary,
+                        _obligation_text(item, doc.title or "Obligation"),
+                        _article_ref(item),
+                    )
+                    or doc_scope_tags
+                )
                 obligation = RegulatoryObligation(
                     obligation_id=f"OBL-{uuid4().hex[:10].upper()}",
                     doc_id=doc.id,
@@ -105,7 +111,9 @@ def seed_obligations() -> None:
                 created += 1
 
         db.commit()
-        print(f"✅ Seeded {created} obligations. Skipped {skipped} documents with existing obligations.")
+        print(
+            f"✅ Seeded {created} obligations. Skipped {skipped} documents with existing obligations."
+        )
     except Exception as exc:
         db.rollback()
         raise exc

@@ -3,6 +3,7 @@ AI Cost Monitoring API.
 
 Endpoints for viewing AI usage costs and managing budgets.
 """
+
 from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.orm import Session
 from typing import Optional
@@ -19,6 +20,7 @@ router = APIRouter(prefix="/ai-costs", tags=["ai-costs"])
 
 class BudgetUpdate(BaseModel):
     """Budget update request."""
+
     daily_limit_usd: Optional[float] = None
     monthly_limit_usd: Optional[float] = None
     warning_threshold_percent: Optional[int] = None

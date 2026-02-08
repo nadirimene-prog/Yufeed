@@ -2,6 +2,7 @@
 Network Analysis API
 Detect fraud rings and suspicious networks.
 """
+
 from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.orm import Session
 from typing import List
@@ -17,7 +18,7 @@ def analyze_user_network(
     user_id: str,
     depth: int = Query(2, ge=1, le=3),
     days: int = Query(90, ge=1, le=365),
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
 ):
     """
     Analyze network of connections for a user.
@@ -44,7 +45,7 @@ def analyze_user_network(
 def find_related_users(
     user_id: str,
     relationship_type: str = Query("all", pattern="^(all|transaction|ip|device)$"),
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
 ):
     """
     Find users related to a given user.
@@ -64,7 +65,7 @@ def find_related_users(
             "user_id": user_id,
             "relationship_type": relationship_type,
             "related_users": related,
-            "count": len(related)
+            "count": len(related),
         }
 
     except Exception as e:
@@ -77,7 +78,7 @@ def detect_fraud_rings(
     min_suspicion_score: float = Query(50.0, ge=0, le=100),
     days: int = Query(90, ge=1, le=365),
     limit: int = Query(10, ge=1, le=50),
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
 ):
     """
     Detect potential fraud rings across all users.
@@ -89,9 +90,12 @@ def detect_fraud_rings(
     analyzer = NetworkAnalyzer(db)
 
     # Get high-risk users to start analysis
-    high_risk_users = db.query(UserRiskProfile).filter(
-        UserRiskProfile.risk_level.in_(['high', 'critical'])
-    ).limit(50).all()
+    high_risk_users = (
+        db.query(UserRiskProfile)
+        .filter(UserRiskProfile.risk_level.in_(["high", "critical"]))
+        .limit(50)
+        .all()
+    )
 
     fraud_rings = []
 
@@ -99,25 +103,29 @@ def detect_fraud_rings(
         analysis = analyzer.analyze_user_network(profile.user_id, depth=2, days=days)
 
         # Check for suspicious clusters
-        if analysis['risk_indicators']['suspicious_clusters']:
-            for cluster in analysis['risk_indicators']['suspicious_clusters']:
-                if (cluster['connection_count'] >= min_cluster_size and
-                    cluster['suspicion_score'] >= min_suspicion_score):
+        if analysis["risk_indicators"]["suspicious_clusters"]:
+            for cluster in analysis["risk_indicators"]["suspicious_clusters"]:
+                if (
+                    cluster["connection_count"] >= min_cluster_size
+                    and cluster["suspicion_score"] >= min_suspicion_score
+                ):
 
-                    fraud_rings.append({
-                        "center_user": profile.user_id,
-                        "cluster": cluster,
-                        "network_risk_score": analysis['network_risk_score']
-                    })
+                    fraud_rings.append(
+                        {
+                            "center_user": profile.user_id,
+                            "cluster": cluster,
+                            "network_risk_score": analysis["network_risk_score"],
+                        }
+                    )
 
         if len(fraud_rings) >= limit:
             break
 
     # Sort by suspicion score
-    fraud_rings.sort(key=lambda x: x['cluster']['suspicion_score'], reverse=True)
+    fraud_rings.sort(key=lambda x: x["cluster"]["suspicion_score"], reverse=True)
 
     return {
         "fraud_rings_detected": len(fraud_rings),
         "rings": fraud_rings[:limit],
-        "analysis_period_days": days
+        "analysis_period_days": days,
     }

@@ -1,6 +1,7 @@
 from abc import ABC, abstractmethod
 from typing import Dict, Any
 
+
 class BaseRiskPlugin(ABC):
     """Abstract base class for all risk plugins."""
 

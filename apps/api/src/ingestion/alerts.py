@@ -2,6 +2,7 @@
 Ingestion alerting service.
 Sends email notifications on ingestion success/failure with detailed reports.
 """
+
 import logging
 from datetime import datetime
 from typing import List, Optional, Dict, Any
@@ -17,6 +18,7 @@ logger = logging.getLogger(__name__)
 @dataclass
 class IngestionReport:
     """Summary of an ingestion run."""
+
     source_name: str
     status: str  # "completed", "failed", "partial"
     started_at: datetime
@@ -117,7 +119,11 @@ def send_ingestion_report(
     """
 
     for report in reports:
-        status_class = "failed" if report.status == "failed" else "partial" if report.status == "partial" else ""
+        status_class = (
+            "failed"
+            if report.status == "failed"
+            else "partial" if report.status == "partial" else ""
+        )
         duration = (report.completed_at - report.started_at).total_seconds()
 
         html += f"""

@@ -8,6 +8,7 @@ Celery tasks for periodic feature updates:
 - Feature versioning
 - Staleness monitoring
 """
+
 import logging
 from datetime import datetime, timedelta, timezone
 from typing import Dict, Any
@@ -16,6 +17,7 @@ from typing import Dict, Any
 def utc_now() -> datetime:
     """Return current UTC time (timezone-aware)."""
     return datetime.now(timezone.utc)
+
 
 from celery import Task
 from sqlalchemy import func, and_
@@ -32,7 +34,9 @@ logger = logging.getLogger(__name__)
 
 
 @celery_app.task(bind=True, name="tasks.refresh_user_features")
-def refresh_user_features(self: Task, tenant_id: str, user_id: str, version: int = 1) -> Dict[str, Any]:
+def refresh_user_features(
+    self: Task, tenant_id: str, user_id: str, version: int = 1
+) -> Dict[str, Any]:
     """
     Refresh features for a specific user.
 
@@ -46,7 +50,9 @@ def refresh_user_features(self: Task, tenant_id: str, user_id: str, version: int
     """
     db = SessionLocal()
     try:
-        logger.info(f"Refreshing features for tenant={tenant_id} user={user_id} (version {version})")
+        logger.info(
+            f"Refreshing features for tenant={tenant_id} user={user_id} (version {version})"
+        )
 
         with TenantContext(tenant_id):
             # Extract time-series features
@@ -89,7 +95,7 @@ def refresh_user_features(self: Task, tenant_id: str, user_id: str, version: int
             "feature_count": len(features),
             "version": version,
             "refreshed_at": current_time.isoformat(),
-            "status": "success"
+            "status": "success",
         }
 
     except Exception as e:
@@ -98,23 +104,14 @@ def refresh_user_features(self: Task, tenant_id: str, user_id: str, version: int
             exc_info=True,
         )
         db.rollback()
-        return {
-            "tenant_id": tenant_id,
-            "user_id": user_id,
-            "status": "error",
-            "error": str(e)
-        }
+        return {"tenant_id": tenant_id, "user_id": user_id, "status": "error", "error": str(e)}
     finally:
         db.close()
 
 
 @celery_app.task(bind=True, name="tasks.refresh_active_users_features")
 def refresh_active_users_features(
-    self: Task,
-    tenant_id: str,
-    days: int = 30,
-    batch_size: int = 100,
-    version: int = 1
+    self: Task, tenant_id: str, days: int = 30, batch_size: int = 100, version: int = 1
 ) -> Dict[str, Any]:
     """
     Refresh features for all users active in the last N days.
@@ -156,7 +153,7 @@ def refresh_active_users_features(
         total_errors = 0
 
         for i in range(0, len(user_ids), batch_size):
-            batch = user_ids[i:i + batch_size]
+            batch = user_ids[i : i + batch_size]
 
             for user_id in batch:
                 try:
@@ -175,25 +172,21 @@ def refresh_active_users_features(
             "batch_size": batch_size,
             "version": version,
             "started_at": utc_now().isoformat(),
-            "status": "completed"
+            "status": "completed",
         }
 
     except Exception as e:
-        logger.error(f"Failed to refresh active users features for tenant={tenant_id}: {e}", exc_info=True)
-        return {
-            "tenant_id": tenant_id,
-            "status": "error",
-            "error": str(e)
-        }
+        logger.error(
+            f"Failed to refresh active users features for tenant={tenant_id}: {e}", exc_info=True
+        )
+        return {"tenant_id": tenant_id, "status": "error", "error": str(e)}
     finally:
         db.close()
 
 
 @celery_app.task(bind=True, name="tasks.monitor_feature_staleness")
 def monitor_feature_staleness(
-    self: Task,
-    tenant_id: str,
-    staleness_threshold_hours: int = 24
+    self: Task, tenant_id: str, staleness_threshold_hours: int = 24
 ) -> Dict[str, Any]:
     """
     Monitor feature staleness and identify users needing refresh.
@@ -212,16 +205,20 @@ def monitor_feature_staleness(
         staleness_threshold = utc_now() - timedelta(hours=staleness_threshold_hours)
 
         # Find stale features
-        stale_features = db.query(
-            FeatureValue.entity_id,
-            func.max(FeatureValue.calculated_at).label('last_updated')
-        ).filter(
-            and_(
-                FeatureValue.tenant_id == tenant_id,
-                FeatureValue.entity_type == 'user',
-                FeatureValue.calculated_at < staleness_threshold
+        stale_features = (
+            db.query(
+                FeatureValue.entity_id, func.max(FeatureValue.calculated_at).label("last_updated")
             )
-        ).group_by(FeatureValue.entity_id).all()
+            .filter(
+                and_(
+                    FeatureValue.tenant_id == tenant_id,
+                    FeatureValue.entity_type == "user",
+                    FeatureValue.calculated_at < staleness_threshold,
+                )
+            )
+            .group_by(FeatureValue.entity_id)
+            .all()
+        )
 
         stale_user_ids = [row.entity_id for row in stale_features]
 
@@ -230,13 +227,17 @@ def monitor_feature_staleness(
         # Check if users are still active
         active_stale_users = []
         for user_id in stale_user_ids:
-            recent_txns = db.query(func.count(Transaction.id)).filter(
-                and_(
-                    Transaction.tenant_id == tenant_id,
-                    Transaction.user_id == user_id,
-                    Transaction.timestamp >= staleness_threshold
+            recent_txns = (
+                db.query(func.count(Transaction.id))
+                .filter(
+                    and_(
+                        Transaction.tenant_id == tenant_id,
+                        Transaction.user_id == user_id,
+                        Transaction.timestamp >= staleness_threshold,
+                    )
                 )
-            ).scalar()
+                .scalar()
+            )
 
             if recent_txns > 0:
                 active_stale_users.append(user_id)
@@ -254,16 +255,14 @@ def monitor_feature_staleness(
             "queued_for_refresh": len(active_stale_users),
             "staleness_threshold_hours": staleness_threshold_hours,
             "checked_at": utc_now().isoformat(),
-            "status": "completed"
+            "status": "completed",
         }
 
     except Exception as e:
-        logger.error(f"Failed to monitor feature staleness for tenant={tenant_id}: {e}", exc_info=True)
-        return {
-            "tenant_id": tenant_id,
-            "status": "error",
-            "error": str(e)
-        }
+        logger.error(
+            f"Failed to monitor feature staleness for tenant={tenant_id}: {e}", exc_info=True
+        )
+        return {"tenant_id": tenant_id, "status": "error", "error": str(e)}
     finally:
         db.close()
 
@@ -278,17 +277,21 @@ def refresh_active_users_features_all_tenants(
     """Wrapper task: enqueue per-tenant active user refresh for all active tenants."""
     db = SessionLocal()
     try:
-        tenants = db.query(Tenant.tenant_id).filter(Tenant.is_active == True).all()
+        tenants = db.query(Tenant.tenant_id).filter(Tenant.is_active.is_(True)).all()
         tenant_ids = [row[0] for row in tenants]
 
         queued = 0
         errors = 0
         for tid in tenant_ids:
             try:
-                refresh_active_users_features.delay(tid, days=days, batch_size=batch_size, version=version)
+                refresh_active_users_features.delay(
+                    tid, days=days, batch_size=batch_size, version=version
+                )
                 queued += 1
             except Exception as exc:
-                logger.error(f"Failed to enqueue refresh_active_users_features for tenant={tid}: {exc}")
+                logger.error(
+                    f"Failed to enqueue refresh_active_users_features for tenant={tid}: {exc}"
+                )
                 errors += 1
 
         return {
@@ -313,14 +316,16 @@ def monitor_feature_staleness_all_tenants(
     """Wrapper task: enqueue per-tenant staleness monitoring for all active tenants."""
     db = SessionLocal()
     try:
-        tenants = db.query(Tenant.tenant_id).filter(Tenant.is_active == True).all()
+        tenants = db.query(Tenant.tenant_id).filter(Tenant.is_active.is_(True)).all()
         tenant_ids = [row[0] for row in tenants]
 
         queued = 0
         errors = 0
         for tid in tenant_ids:
             try:
-                monitor_feature_staleness.delay(tid, staleness_threshold_hours=staleness_threshold_hours)
+                monitor_feature_staleness.delay(
+                    tid, staleness_threshold_hours=staleness_threshold_hours
+                )
                 queued += 1
             except Exception as exc:
                 logger.error(f"Failed to enqueue monitor_feature_staleness for tenant={tid}: {exc}")
@@ -340,8 +345,7 @@ def monitor_feature_staleness_all_tenants(
 
 @celery_app.task(bind=True, name="tasks.compute_feature_importance")
 def compute_feature_importance(
-    self: Task,
-    model_path: str = "models/alert_triage/latest.joblib"
+    self: Task, model_path: str = "models/alert_triage/latest.joblib"
 ) -> Dict[str, Any]:
     """
     Compute and track feature importance from ML model.
@@ -367,9 +371,11 @@ def compute_feature_importance(
         model = joblib.load(model_file)
 
         # Get feature importance
-        if hasattr(model, 'feature_importances_'):
+        if hasattr(model, "feature_importances_"):
             importances = model.feature_importances_
-            feature_names = getattr(model, 'feature_names_in_', [f'feature_{i}' for i in range(len(importances))])
+            feature_names = getattr(
+                model, "feature_names_in_", [f"feature_{i}" for i in range(len(importances))]
+            )
 
             # Sort by importance
             importance_dict = dict(zip(feature_names, importances))
@@ -387,20 +393,14 @@ def compute_feature_importance(
                 "total_features": len(feature_names),
                 "model_path": model_path,
                 "computed_at": utc_now().isoformat(),
-                "status": "success"
+                "status": "success",
             }
         else:
-            return {
-                "status": "error",
-                "error": "Model does not support feature importance"
-            }
+            return {"status": "error", "error": "Model does not support feature importance"}
 
     except Exception as e:
         logger.error(f"Failed to compute feature importance: {e}", exc_info=True)
-        return {
-            "status": "error",
-            "error": str(e)
-        }
+        return {"status": "error", "error": str(e)}
 
 
 # Periodic task configuration

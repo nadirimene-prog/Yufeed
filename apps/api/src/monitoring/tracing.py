@@ -2,6 +2,7 @@
 OpenTelemetry distributed tracing configuration.
 Phase 4A: Task 2.3 - OpenTelemetry Tracing
 """
+
 import logging
 import os
 
@@ -15,6 +16,7 @@ try:
     from opentelemetry.instrumentation.sqlalchemy import SQLAlchemyInstrumentor
     from opentelemetry.instrumentation.httpx import HTTPXClientInstrumentor
     from opentelemetry.instrumentation.redis import RedisInstrumentor
+
     TRACE_AVAILABLE = True
 except ImportError:
     trace = None
@@ -43,12 +45,14 @@ def setup_tracing(app, engine):
         environment = os.getenv("ENVIRONMENT", "development")
 
         # Create resource with service information
-        resource = Resource(attributes={
-            SERVICE_NAME: service_name,
-            SERVICE_VERSION: service_version,
-            "environment": environment,
-            "deployment.environment": environment
-        })
+        resource = Resource(
+            attributes={
+                SERVICE_NAME: service_name,
+                SERVICE_VERSION: service_version,
+                "environment": environment,
+                "deployment.environment": environment,
+            }
+        )
 
         # Configure tracer provider
         provider = TracerProvider(resource=resource)
@@ -73,10 +77,7 @@ def setup_tracing(app, engine):
         SQLAlchemyInstrumentor().instrument(
             engine=engine,
             enable_commenter=True,
-            commenter_options={
-                "db_framework": True,
-                "opentelemetry_values": True
-            }
+            commenter_options={"db_framework": True, "opentelemetry_values": True},
         )
         logger.info(f"SQLAlchemy instrumented for tracing")
 
@@ -135,10 +136,7 @@ from functools import wraps
 from typing import Callable, Optional
 
 
-def traced(
-    span_name: Optional[str] = None,
-    attributes: Optional[dict] = None
-):
+def traced(span_name: Optional[str] = None, attributes: Optional[dict] = None):
     """
     Decorator to create a custom span for a function.
 
@@ -155,9 +153,11 @@ def traced(
         def evaluate_rule(rule_id: str) -> bool:
             return result
     """
+
     def decorator(func: Callable) -> Callable:
         if not TRACE_AVAILABLE:
             return func
+
         @wraps(func)
         def wrapper(*args, **kwargs):
             tracer = get_tracer(func.__module__)
@@ -198,6 +198,7 @@ def traced(
 # ============================================================================
 # TRACING UTILITIES
 # ============================================================================
+
 
 def add_span_attributes(attributes: dict):
     """

@@ -47,11 +47,14 @@ export default function DecisionDetail({
         <div className="mt-4 space-y-4 text-xs text-gray-600 dark:text-gray-400">
           <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
             <div className="rounded-lg border border-gray-200 dark:border-gray-800 p-3">
-              <div className="text-[10px] uppercase tracking-wider text-gray-400">Decision</div>
+              <div className="text-[10px] uppercase tracking-wider text-gray-400">
+                Decision
+              </div>
               <div className="mt-2">
                 <span
                   className={`inline-flex rounded-full px-2 py-1 text-[11px] font-semibold ${
-                    decisionBadgeStyles[selectedDecision.decision] || "bg-gray-100 text-gray-700"
+                    decisionBadgeStyles[selectedDecision.decision] ||
+                    "bg-gray-100 text-gray-700"
                   }`}
                 >
                   {selectedDecision.decision}
@@ -59,13 +62,17 @@ export default function DecisionDetail({
               </div>
             </div>
             <div className="rounded-lg border border-gray-200 dark:border-gray-800 p-3">
-              <div className="text-[10px] uppercase tracking-wider text-gray-400">Created</div>
+              <div className="text-[10px] uppercase tracking-wider text-gray-400">
+                Created
+              </div>
               <div className="mt-2 font-medium text-gray-900 dark:text-gray-100">
                 {formatDateTime(selectedDecision.created_at)}
               </div>
             </div>
             <div className="rounded-lg border border-gray-200 dark:border-gray-800 p-3">
-              <div className="text-[10px] uppercase tracking-wider text-gray-400">Reason Codes</div>
+              <div className="text-[10px] uppercase tracking-wider text-gray-400">
+                Reason Codes
+              </div>
               <div className="mt-2 flex flex-wrap gap-2">
                 {(selectedDecision.reason_codes || []).length ? (
                   selectedDecision.reason_codes?.map((code) => (
@@ -85,43 +92,57 @@ export default function DecisionDetail({
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div>
-              <div className="text-[10px] uppercase tracking-wider text-gray-400">Decision ID</div>
+              <div className="text-[10px] uppercase tracking-wider text-gray-400">
+                Decision ID
+              </div>
               <div className="font-medium text-gray-900 dark:text-gray-100">
                 {selectedDecision.decision_id}
               </div>
             </div>
             <div>
-              <div className="text-[10px] uppercase tracking-wider text-gray-400">Event ID</div>
+              <div className="text-[10px] uppercase tracking-wider text-gray-400">
+                Event ID
+              </div>
               <div className="font-medium text-gray-900 dark:text-gray-100">
                 {selectedDecision.event_id || "-"}
               </div>
             </div>
             <div>
-              <div className="text-[10px] uppercase tracking-wider text-gray-400">Decision</div>
+              <div className="text-[10px] uppercase tracking-wider text-gray-400">
+                Decision
+              </div>
               <div className="font-medium text-gray-900 dark:text-gray-100">
                 {selectedDecision.decision}
               </div>
             </div>
             <div>
-              <div className="text-[10px] uppercase tracking-wider text-gray-400">Event Type</div>
+              <div className="text-[10px] uppercase tracking-wider text-gray-400">
+                Event Type
+              </div>
               <div className="font-medium text-gray-900 dark:text-gray-100">
                 {selectedDecision.event_type || "-"}
               </div>
             </div>
             <div>
-              <div className="text-[10px] uppercase tracking-wider text-gray-400">Entity</div>
+              <div className="text-[10px] uppercase tracking-wider text-gray-400">
+                Entity
+              </div>
               <div className="font-medium text-gray-900 dark:text-gray-100">
                 {selectedDecision.entity_id || "-"}
               </div>
             </div>
             <div>
-              <div className="text-[10px] uppercase tracking-wider text-gray-400">Rule Version</div>
+              <div className="text-[10px] uppercase tracking-wider text-gray-400">
+                Rule Version
+              </div>
               <div className="font-medium text-gray-900 dark:text-gray-100">
                 {selectedDecision.rule_version || "-"}
               </div>
             </div>
             <div>
-              <div className="text-[10px] uppercase tracking-wider text-gray-400">Model Version</div>
+              <div className="text-[10px] uppercase tracking-wider text-gray-400">
+                Model Version
+              </div>
               <div className="font-medium text-gray-900 dark:text-gray-100">
                 {selectedDecision.model_version || "-"}
               </div>
@@ -146,9 +167,10 @@ export default function DecisionDetail({
           </div>
         </div>
       ) : (
-        <div className="mt-4 text-xs text-gray-500">Select a decision to view details.</div>
+        <div className="mt-4 text-xs text-gray-500">
+          Select a decision to view details.
+        </div>
       )}
     </div>
   );
 }
-

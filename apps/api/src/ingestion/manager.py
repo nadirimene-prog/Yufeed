@@ -8,6 +8,7 @@ Features:
 - Retry logic for transient failures
 - Parallel processing for improved throughput
 """
+
 import logging
 import time
 from concurrent.futures import ThreadPoolExecutor, as_completed
@@ -70,7 +71,7 @@ def retry_with_backoff(
                 logger.error(f"All {max_retries + 1} attempts failed: {e}")
                 raise
 
-            delay = min(base_delay * (2 ** attempt), max_delay)
+            delay = min(base_delay * (2**attempt), max_delay)
             logger.warning(f"Attempt {attempt + 1} failed: {e}. Retrying in {delay:.1f}s...")
             time.sleep(delay)
 
@@ -124,21 +125,23 @@ class IngestionManager:
                 # Send immediate alert for critical failures
                 if send_alerts:
                     send_ingestion_failure_alert(
-                        source_name=source_config['name'],
+                        source_name=source_config["name"],
                         error_message=str(exc),
                     )
                 # Create failed report
-                reports.append(IngestionReport(
-                    source_name=source_config['name'],
-                    status="failed",
-                    started_at=utc_now(),
-                    completed_at=utc_now(),
-                    items_seen=0,
-                    items_new=0,
-                    items_updated=0,
-                    items_skipped=0,
-                    errors=[{"error": str(exc), "entry": "N/A"}],
-                ))
+                reports.append(
+                    IngestionReport(
+                        source_name=source_config["name"],
+                        status="failed",
+                        started_at=utc_now(),
+                        completed_at=utc_now(),
+                        items_seen=0,
+                        items_new=0,
+                        items_updated=0,
+                        items_skipped=0,
+                        errors=[{"error": str(exc), "entry": "N/A"}],
+                    )
+                )
 
         # Send consolidated report
         if send_alerts and reports:
@@ -167,33 +170,37 @@ class IngestionManager:
 
         # EUR-Lex sources (one per language)
         for lang in languages:
-            sources.append({
-                "source_key": f"eur-lex-oj-{lang}",
-                "name": f"EUR-Lex Official Journal ({lang.upper()})",
-                "jurisdiction": "EU",
-                "language": lang,
-                "source_type": "rss",
-                "schedule": "weekly",
-                "base_url": "https://eur-lex.europa.eu/RSS/feed.html",
-                "fetch": lambda s, e, l=lang: self.rss.get_latest_oj_entries(
-                    language=l,
-                    start_date=s,
-                    end_date=e,
-                ),
-            })
+            sources.append(
+                {
+                    "source_key": f"eur-lex-oj-{lang}",
+                    "name": f"EUR-Lex Official Journal ({lang.upper()})",
+                    "jurisdiction": "EU",
+                    "language": lang,
+                    "source_type": "rss",
+                    "schedule": "weekly",
+                    "base_url": "https://eur-lex.europa.eu/RSS/feed.html",
+                    "fetch": lambda s, e, l=lang: self.rss.get_latest_oj_entries(
+                        language=l,
+                        start_date=s,
+                        end_date=e,
+                    ),
+                }
+            )
 
         # Légifrance source (French legal gazette)
         if settings.LEGIFRANCE_JORF_RSS_URL:
-            sources.append({
-                "source_key": "legifrance-jorf-fr",
-                "name": "Légifrance JORF (FR)",
-                "jurisdiction": "FR",
-                "language": "fr",
-                "source_type": "rss",
-                "schedule": "weekly",
-                "base_url": settings.LEGIFRANCE_JORF_RSS_URL,
-                "fetch": lambda s, e: self.legifrance.fetch_latest(),
-            })
+            sources.append(
+                {
+                    "source_key": "legifrance-jorf-fr",
+                    "name": "Légifrance JORF (FR)",
+                    "jurisdiction": "FR",
+                    "language": "fr",
+                    "source_type": "rss",
+                    "schedule": "weekly",
+                    "base_url": settings.LEGIFRANCE_JORF_RSS_URL,
+                    "fetch": lambda s, e: self.legifrance.fetch_latest(),
+                }
+            )
 
         return sources
 
@@ -370,8 +377,7 @@ class IngestionManager:
         with ThreadPoolExecutor(max_workers=max_workers) as executor:
             # Submit all tasks
             future_to_entry = {
-                executor.submit(process_with_new_session, entry): entry
-                for entry in entries
+                executor.submit(process_with_new_session, entry): entry for entry in entries
             }
 
             # Collect results as they complete
@@ -383,11 +389,13 @@ class IngestionManager:
                     entry = future_to_entry[future]
                     entry_link = entry.get("link", entry.get("celex", "unknown"))
                     logger.error(f"Parallel processing failed for {entry_link}: {exc}")
-                    results.append({
-                        "status": "error",
-                        "entry": entry_link,
-                        "error": str(exc),
-                    })
+                    results.append(
+                        {
+                            "status": "error",
+                            "entry": entry_link,
+                            "error": str(exc),
+                        }
+                    )
 
         return results
 
@@ -411,9 +419,11 @@ class IngestionManager:
 
     def _get_or_create_source(self, config: Dict[str, Any]) -> RegulatorySource:
         """Get existing source or create new one."""
-        source = self.db.query(RegulatorySource).filter(
-            RegulatorySource.source_key == config["source_key"]
-        ).first()
+        source = (
+            self.db.query(RegulatorySource)
+            .filter(RegulatorySource.source_key == config["source_key"])
+            .first()
+        )
 
         if source:
             # Update existing source
@@ -461,7 +471,9 @@ class IngestionManager:
         Returns:
             List of IngestionReport
         """
-        logger.info(f"Starting manual ingestion: sources={source_keys}, dates={start_date}-{end_date}")
+        logger.info(
+            f"Starting manual ingestion: sources={source_keys}, dates={start_date}-{end_date}"
+        )
 
         end_dt = end_date or utc_now()
         start_dt = start_date or (end_dt - timedelta(days=30))
@@ -486,17 +498,19 @@ class IngestionManager:
                 reports.append(report)
             except Exception as exc:
                 logger.error(f"Failed to process {source_config['source_key']}: {exc}")
-                reports.append(IngestionReport(
-                    source_name=source_config['name'],
-                    status="failed",
-                    started_at=utc_now(),
-                    completed_at=utc_now(),
-                    items_seen=0,
-                    items_new=0,
-                    items_updated=0,
-                    items_skipped=0,
-                    errors=[{"error": str(exc)}],
-                ))
+                reports.append(
+                    IngestionReport(
+                        source_name=source_config["name"],
+                        status="failed",
+                        started_at=utc_now(),
+                        completed_at=utc_now(),
+                        items_seen=0,
+                        items_new=0,
+                        items_updated=0,
+                        items_skipped=0,
+                        errors=[{"error": str(exc)}],
+                    )
+                )
 
         if send_alerts and reports:
             send_ingestion_report(reports)

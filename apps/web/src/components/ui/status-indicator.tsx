@@ -11,7 +11,14 @@ import { statusPulse } from "@/lib/motion";
  * ═══════════════════════════════════════════════════════════════════
  */
 
-export type StatusState = "live" | "active" | "idle" | "warning" | "error" | "success" | "connecting";
+export type StatusState =
+  | "live"
+  | "active"
+  | "idle"
+  | "warning"
+  | "error"
+  | "success"
+  | "connecting";
 export type StatusSize = "sm" | "md" | "lg";
 
 interface StatusIndicatorProps {
@@ -143,7 +150,7 @@ export function StatusIndicator({
             className={cn(
               "font-medium uppercase tracking-wider",
               config.textColor,
-              sizes.text
+              sizes.text,
             )}
           >
             {displayLabel}
@@ -188,7 +195,7 @@ export function StatusDot({
           className={cn(
             "absolute inset-0 rounded-full",
             config.color,
-            "opacity-40"
+            "opacity-40",
           )}
           animate={{
             scale: [1, 1.8, 1],
@@ -206,9 +213,11 @@ export function StatusDot({
             "relative rounded-full",
             sizes.dot,
             config.color,
-            config.glow
+            config.glow,
           )}
-          animate={status === "connecting" ? { opacity: [1, 0.5, 1] } : statusPulse}
+          animate={
+            status === "connecting" ? { opacity: [1, 0.5, 1] } : statusPulse
+          }
         />
       </div>
     );
@@ -222,7 +231,7 @@ export function StatusDot({
         sizes.dot,
         config.color,
         config.glow,
-        className
+        className,
       )}
       title={config.label}
     />
@@ -260,7 +269,7 @@ export function StatusBadge({
         size === "sm" && "px-2 py-0.5",
         size === "md" && "px-2.5 py-1",
         size === "lg" && "px-3 py-1.5",
-        className
+        className,
       )}
     >
       <StatusDot status={status} size="sm" pulse={false} />
@@ -285,7 +294,11 @@ export function ConnectionStatus({
   connecting = false,
   className,
 }: ConnectionStatusProps) {
-  const status: StatusState = connecting ? "connecting" : connected ? "live" : "error";
+  const status: StatusState = connecting
+    ? "connecting"
+    : connected
+      ? "live"
+      : "error";
 
   return (
     <StatusIndicator

@@ -17,6 +17,8 @@ from datetime import datetime, timedelta, timezone
 def utc_now() -> datetime:
     """Return current UTC time (timezone-aware)."""
     return datetime.now(timezone.utc)
+
+
 from typing import Any, Dict, List, Optional
 from fastapi import APIRouter, Depends, HTTPException, Query, BackgroundTasks
 from pydantic import BaseModel, Field
@@ -44,8 +46,10 @@ router = APIRouter(
 # REQUEST/RESPONSE MODELS
 # =============================================================================
 
+
 class InvestigateAlertRequest(BaseModel):
     """Request to investigate an alert."""
+
     alert_id: int
     alert_data: Dict[str, Any]
     related_transactions: Optional[List[Dict[str, Any]]] = None
@@ -55,12 +59,14 @@ class InvestigateAlertRequest(BaseModel):
 
 class BatchInvestigateRequest(BaseModel):
     """Request to investigate multiple alerts."""
+
     alerts: List[Dict[str, Any]]
     max_concurrent: int = Field(default=5, ge=1, le=20)
 
 
 class ComplianceQuestionRequest(BaseModel):
     """Request to ask a compliance question."""
+
     question: str
     context: Optional[Dict[str, Any]] = None
     conversation_history: Optional[List[Dict[str, str]]] = None
@@ -68,6 +74,7 @@ class ComplianceQuestionRequest(BaseModel):
 
 class SanctionsScreenRequest(BaseModel):
     """Request to screen a name against sanctions lists."""
+
     name: str
     entity_type: Optional[str] = None
     nationality: Optional[str] = None
@@ -77,12 +84,14 @@ class SanctionsScreenRequest(BaseModel):
 
 class BatchSanctionsScreenRequest(BaseModel):
     """Request to screen multiple names."""
+
     names: List[str]
     max_concurrent: int = Field(default=10, ge=1, le=50)
 
 
 class SARPrepareRequest(BaseModel):
     """Request to prepare a SAR."""
+
     case_id: int
     case_data: Dict[str, Any]
     related_alerts: List[Dict[str, Any]] = []
@@ -91,6 +100,7 @@ class SARPrepareRequest(BaseModel):
 
 class InvestigationResponse(BaseModel):
     """Response from an investigation."""
+
     success: bool
     alert_id: Optional[int] = None
     recommendation: Optional[str] = None
@@ -111,6 +121,7 @@ class InvestigationResponse(BaseModel):
 
 class DailyBriefingResponse(BaseModel):
     """Response containing daily briefing."""
+
     briefing_id: str
     generated_at: str
     period_start: str
@@ -125,6 +136,7 @@ class DailyBriefingResponse(BaseModel):
 
 class ComplianceAnswerResponse(BaseModel):
     """Response to a compliance question."""
+
     answer: str
     confidence: str
     sources: List[Dict[str, Any]]
@@ -133,6 +145,7 @@ class ComplianceAnswerResponse(BaseModel):
 
 class SanctionsScreenResponse(BaseModel):
     """Response from sanctions screening."""
+
     screened_name: str
     screened_at: str
     is_hit: bool
@@ -147,11 +160,9 @@ class SanctionsScreenResponse(BaseModel):
 # INVESTIGATION ENDPOINTS
 # =============================================================================
 
+
 @router.post("/investigate", response_model=InvestigationResponse)
-async def investigate_alert(
-    request: InvestigateAlertRequest,
-    db: Session = Depends(get_db)
-):
+async def investigate_alert(request: InvestigateAlertRequest, db: Session = Depends(get_db)):
     """
     Investigate a single alert using the AI Investigation Agent.
 
@@ -173,7 +184,7 @@ async def investigate_alert(
             alert_data=request.alert_data,
             related_transactions=request.related_transactions,
             related_regulations=request.related_regulations,
-            user_id=request.user_id
+            user_id=request.user_id,
         )
 
         return InvestigationResponse(
@@ -188,11 +199,15 @@ async def investigate_alert(
             risk_factors=result.risk_factors,
             red_flags=result.red_flags,
             mitigating_factors=result.mitigating_factors,
-            citations=[c.to_dict() if hasattr(c, 'to_dict') else c for c in result.citations] if hasattr(result, 'citations') else [],
+            citations=(
+                [c.to_dict() if hasattr(c, "to_dict") else c for c in result.citations]
+                if hasattr(result, "citations")
+                else []
+            ),
             next_steps=result.next_steps,
             sar_likelihood=result.sar_likelihood,
             processing_time_ms=result.processing_time_ms,
-            error_message=result.error_message
+            error_message=result.error_message,
         )
 
     except Exception as e:
@@ -204,7 +219,7 @@ async def investigate_alert(
 async def batch_investigate_alerts(
     request: BatchInvestigateRequest,
     background_tasks: BackgroundTasks,
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
 ):
     """
     Investigate multiple alerts concurrently.
@@ -216,8 +231,7 @@ async def batch_investigate_alerts(
         aml_officer = get_aml_officer(db)
 
         results = await aml_officer.batch_investigate(
-            alerts=request.alerts,
-            max_concurrent=request.max_concurrent
+            alerts=request.alerts, max_concurrent=request.max_concurrent
         )
 
         return {
@@ -232,10 +246,10 @@ async def batch_investigate_alerts(
                     "confidence": r.confidence,
                     "risk_score": r.risk_score,
                     "red_flags": r.red_flags,
-                    "error_message": r.error_message
+                    "error_message": r.error_message,
                 }
                 for i, r in enumerate(results)
-            ]
+            ],
         }
 
     except Exception as e:
@@ -244,10 +258,7 @@ async def batch_investigate_alerts(
 
 
 @router.get("/investigation/{investigation_id}")
-async def get_investigation(
-    investigation_id: str,
-    db: Session = Depends(get_db)
-):
+async def get_investigation(investigation_id: str, db: Session = Depends(get_db)):
     """
     Get a previously completed investigation by ID.
 
@@ -255,20 +266,17 @@ async def get_investigation(
     This endpoint is a placeholder for future database storage.
     """
     # TODO: Implement investigation storage and retrieval
-    raise HTTPException(
-        status_code=501,
-        detail="Investigation storage not yet implemented"
-    )
+    raise HTTPException(status_code=501, detail="Investigation storage not yet implemented")
 
 
 # =============================================================================
 # DAILY BRIEFING ENDPOINTS
 # =============================================================================
 
+
 @router.get("/briefing/daily", response_model=DailyBriefingResponse)
 async def get_daily_briefing(
-    lookback_hours: int = Query(default=24, ge=1, le=168),
-    db: Session = Depends(get_db)
+    lookback_hours: int = Query(default=24, ge=1, le=168), db: Session = Depends(get_db)
 ):
     """
     Generate a daily compliance briefing.
@@ -286,9 +294,7 @@ async def get_daily_briefing(
     try:
         aml_officer = get_aml_officer(db)
 
-        briefing = await aml_officer.generate_daily_briefing(
-            lookback_hours=lookback_hours
-        )
+        briefing = await aml_officer.generate_daily_briefing(lookback_hours=lookback_hours)
 
         return DailyBriefingResponse(
             briefing_id=briefing.briefing_id,
@@ -299,30 +305,30 @@ async def get_daily_briefing(
                 "new": briefing.new_alerts_count,
                 "critical": briefing.critical_alerts_count,
                 "pending": briefing.pending_alerts_count,
-                "auto_resolved": briefing.auto_resolved_count
+                "auto_resolved": briefing.auto_resolved_count,
             },
             cases={
                 "open": briefing.open_cases_count,
                 "requiring_action": briefing.cases_requiring_action,
-                "sar_pending": briefing.sar_pending_count
+                "sar_pending": briefing.sar_pending_count,
             },
             risk={
                 "high_risk_users": briefing.high_risk_users,
                 "emerging_patterns": briefing.emerging_patterns,
-                "trend": briefing.risk_trend
+                "trend": briefing.risk_trend,
             },
             regulatory={
                 "new_regulations": briefing.new_regulations,
-                "upcoming_deadlines": briefing.upcoming_deadlines
+                "upcoming_deadlines": briefing.upcoming_deadlines,
             },
             recommendations={
                 "priority_actions": briefing.priority_actions,
-                "focus_areas": briefing.focus_areas
+                "focus_areas": briefing.focus_areas,
             },
             narrative={
                 "executive_summary": briefing.executive_summary,
-                "detailed_analysis": briefing.detailed_analysis
-            }
+                "detailed_analysis": briefing.detailed_analysis,
+            },
         )
 
     except Exception as e:
@@ -331,29 +337,24 @@ async def get_daily_briefing(
 
 
 @router.get("/briefing/weekly")
-async def get_weekly_briefing(
-    db: Session = Depends(get_db)
-):
+async def get_weekly_briefing(db: Session = Depends(get_db)):
     """
     Generate a weekly compliance summary.
 
     Provides a higher-level view suitable for management reporting.
     """
     # TODO: Implement weekly briefing
-    return {
-        "status": "coming_soon",
-        "message": "Weekly briefing feature is under development"
-    }
+    return {"status": "coming_soon", "message": "Weekly briefing feature is under development"}
 
 
 # =============================================================================
 # COMPLIANCE Q&A ENDPOINTS
 # =============================================================================
 
+
 @router.post("/ask", response_model=ComplianceAnswerResponse)
 async def ask_compliance_question(
-    request: ComplianceQuestionRequest,
-    db: Session = Depends(get_db)
+    request: ComplianceQuestionRequest, db: Session = Depends(get_db)
 ):
     """
     Ask a compliance question and get an AI-powered answer.
@@ -375,14 +376,14 @@ async def ask_compliance_question(
         response = await aml_officer.ask(
             question=request.question,
             context=request.context,
-            conversation_history=request.conversation_history
+            conversation_history=request.conversation_history,
         )
 
         return ComplianceAnswerResponse(
             answer=response.get("answer", ""),
             confidence=response.get("confidence", "medium"),
             sources=response.get("sources", []),
-            followup_questions=response.get("followup_questions", [])
+            followup_questions=response.get("followup_questions", []),
         )
 
     except Exception as e:
@@ -394,10 +395,9 @@ async def ask_compliance_question(
 # PROACTIVE MONITORING ENDPOINTS
 # =============================================================================
 
+
 @router.get("/alerts/proactive")
-async def get_proactive_alerts(
-    db: Session = Depends(get_db)
-):
+async def get_proactive_alerts(db: Session = Depends(get_db)):
     """
     Get AI-generated proactive alerts.
 
@@ -412,10 +412,7 @@ async def get_proactive_alerts(
         aml_officer = get_aml_officer(db)
         alerts = await aml_officer.get_proactive_alerts()
 
-        return {
-            "count": len(alerts),
-            "alerts": alerts
-        }
+        return {"count": len(alerts), "alerts": alerts}
 
     except Exception as e:
         logger.error(f"Failed to get proactive alerts: {e}")
@@ -426,11 +423,9 @@ async def get_proactive_alerts(
 # SAR PREPARATION ENDPOINTS
 # =============================================================================
 
+
 @router.post("/sar/prepare")
-async def prepare_sar(
-    request: SARPrepareRequest,
-    db: Session = Depends(get_db)
-):
+async def prepare_sar(request: SARPrepareRequest, db: Session = Depends(get_db)):
     """
     Prepare a Suspicious Activity Report (SAR).
 
@@ -450,7 +445,7 @@ async def prepare_sar(
             case_id=request.case_id,
             case_data=request.case_data,
             related_alerts=request.related_alerts,
-            related_transactions=request.related_transactions
+            related_transactions=request.related_transactions,
         )
 
         publish_event_safe(
@@ -466,10 +461,7 @@ async def prepare_sar(
             },
         )
 
-        return {
-            "success": True,
-            "sar_draft": sar_draft
-        }
+        return {"success": True, "sar_draft": sar_draft}
 
     except Exception as e:
         logger.error(f"Failed to prepare SAR: {e}")
@@ -487,14 +479,14 @@ async def get_sar_templates():
                 "id": "eu_fiu",
                 "name": "EU FIU Standard",
                 "jurisdiction": "EU",
-                "description": "Standard EU Financial Intelligence Unit format"
+                "description": "Standard EU Financial Intelligence Unit format",
             },
             {
                 "id": "goaml",
                 "name": "goAML",
                 "jurisdiction": "International",
-                "description": "UNODC goAML format for international reporting"
-            }
+                "description": "UNODC goAML format for international reporting",
+            },
         ]
     }
 
@@ -503,10 +495,9 @@ async def get_sar_templates():
 # SANCTIONS SCREENING ENDPOINTS
 # =============================================================================
 
+
 @router.post("/sanctions/screen", response_model=SanctionsScreenResponse)
-async def screen_sanctions(
-    request: SanctionsScreenRequest
-):
+async def screen_sanctions(request: SanctionsScreenRequest):
     """
     Screen a name against sanctions lists.
 
@@ -523,7 +514,8 @@ async def screen_sanctions(
         lists_to_check = None
         if request.lists:
             lists_to_check = [
-                SanctionsListType(l) for l in request.lists
+                SanctionsListType(l)
+                for l in request.lists
                 if l in [t.value for t in SanctionsListType]
             ]
 
@@ -537,7 +529,7 @@ async def screen_sanctions(
         result = await service.screen_name(
             name=request.name,
             lists=lists_to_check,
-            additional_info=additional_info if additional_info else None
+            additional_info=additional_info if additional_info else None,
         )
 
         publish_event_safe(
@@ -581,7 +573,7 @@ async def screen_sanctions(
             highest_score=result.highest_score,
             matches=[m.to_dict() for m in result.matches],
             lists_checked=[l.value for l in result.lists_checked],
-            processing_time_ms=result.processing_time_ms
+            processing_time_ms=result.processing_time_ms,
         )
 
     except Exception as e:
@@ -590,9 +582,7 @@ async def screen_sanctions(
 
 
 @router.post("/sanctions/screen/batch")
-async def batch_screen_sanctions(
-    request: BatchSanctionsScreenRequest
-):
+async def batch_screen_sanctions(request: BatchSanctionsScreenRequest):
     """
     Screen multiple names against sanctions lists.
 
@@ -602,8 +592,7 @@ async def batch_screen_sanctions(
         service = SanctionsService()
 
         results = await service.screen_batch(
-            names=request.names,
-            max_concurrent=request.max_concurrent
+            names=request.names, max_concurrent=request.max_concurrent
         )
 
         publish_event_safe(
@@ -624,7 +613,7 @@ async def batch_screen_sanctions(
             "total_screened": len(request.names),
             "hits": sum(1 for r in results if r.is_hit),
             "clear": sum(1 for r in results if not r.is_hit),
-            "results": [r.to_dict() for r in results]
+            "results": [r.to_dict() for r in results],
         }
 
     except Exception as e:
@@ -652,11 +641,10 @@ async def get_sanctions_statistics():
 # WORKFLOW ENDPOINTS
 # =============================================================================
 
+
 @router.post("/workflow/execute")
 async def execute_workflow(
-    workflow_type: str,
-    context_data: Dict[str, Any],
-    db: Session = Depends(get_db)
+    workflow_type: str, context_data: Dict[str, Any], db: Session = Depends(get_db)
 ):
     """
     Execute a multi-agent workflow.
@@ -674,14 +662,11 @@ async def execute_workflow(
             "full_investigation": WorkflowType.FULL_INVESTIGATION,
             "sar_preparation": WorkflowType.SAR_PREPARATION,
             "compliance_qa": WorkflowType.COMPLIANCE_QA,
-            "daily_briefing": WorkflowType.DAILY_BRIEFING
+            "daily_briefing": WorkflowType.DAILY_BRIEFING,
         }
 
         if workflow_type not in workflow_map:
-            raise HTTPException(
-                status_code=400,
-                detail=f"Unknown workflow type: {workflow_type}"
-            )
+            raise HTTPException(status_code=400, detail=f"Unknown workflow type: {workflow_type}")
 
         aml_officer = get_aml_officer(db)
 
@@ -691,12 +676,11 @@ async def execute_workflow(
             task_type=workflow_type,
             primary_data=context_data.get("primary_data"),
             related_data=context_data.get("related_data", []),
-            applicable_regulations=context_data.get("applicable_regulations", [])
+            applicable_regulations=context_data.get("applicable_regulations", []),
         )
 
         result = await aml_officer.execute_workflow(
-            workflow_type=workflow_map[workflow_type],
-            initial_context=context
+            workflow_type=workflow_map[workflow_type], initial_context=context
         )
 
         return result.to_dict()
@@ -711,6 +695,7 @@ async def execute_workflow(
 # =============================================================================
 # HEALTH & STATUS ENDPOINTS
 # =============================================================================
+
 
 @router.get("/health")
 async def health_check():
@@ -727,18 +712,14 @@ async def health_check():
             "components": {
                 "orchestrator": "healthy",
                 "investigation_agent": "healthy",
-                "sanctions_service": "healthy" if sanctions_healthy else "unhealthy"
+                "sanctions_service": "healthy" if sanctions_healthy else "unhealthy",
             },
-            "timestamp": utc_now().isoformat()
+            "timestamp": utc_now().isoformat(),
         }
 
     except Exception as e:
         logger.error(f"Health check failed: {e}")
-        return {
-            "status": "unhealthy",
-            "error": str(e),
-            "timestamp": utc_now().isoformat()
-        }
+        return {"status": "unhealthy", "error": str(e), "timestamp": utc_now().isoformat()}
 
 
 @router.get("/capabilities")
@@ -751,42 +732,29 @@ async def get_capabilities():
             {
                 "type": "investigation",
                 "status": "active",
-                "description": "Deep-dive alert analysis and investigation"
+                "description": "Deep-dive alert analysis and investigation",
             },
             {
                 "type": "triage",
                 "status": "active",
-                "description": "Real-time alert scoring and prioritization"
+                "description": "Real-time alert scoring and prioritization",
             },
             {
                 "type": "sar",
                 "status": "active",
-                "description": "SAR narrative generation and filing"
+                "description": "SAR narrative generation and filing",
             },
             {
                 "type": "compliance_officer",
                 "status": "active",
-                "description": "Daily briefings and proactive monitoring"
+                "description": "Daily briefings and proactive monitoring",
             },
-            {
-                "type": "network",
-                "status": "planned",
-                "description": "Graph-based fraud detection"
-            }
+            {"type": "network", "status": "planned", "description": "Graph-based fraud detection"},
         ],
         "integrations": [
-            {
-                "name": "EU Consolidated Sanctions List",
-                "status": "active"
-            },
-            {
-                "name": "OFAC SDN List",
-                "status": "active"
-            },
-            {
-                "name": "EU CELLAR (Regulations)",
-                "status": "active"
-            }
+            {"name": "EU Consolidated Sanctions List", "status": "active"},
+            {"name": "OFAC SDN List", "status": "active"},
+            {"name": "EU CELLAR (Regulations)", "status": "active"},
         ],
         "features": {
             "investigation": True,
@@ -795,6 +763,6 @@ async def get_capabilities():
             "compliance_qa": True,
             "sanctions_screening": True,
             "sar_preparation": True,
-            "proactive_alerts": True
-        }
+            "proactive_alerts": True,
+        },
     }

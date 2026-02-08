@@ -1,6 +1,6 @@
 [flake8]
 max-line-length = 100
-extend-ignore = E501
+extend-ignore = E501,E402
 exclude =
     __pycache__,
     .venv,
@@ -18,7 +18,8 @@ exclude =
     src/schemas,
     src/services,
     src/tasks,
-    src/utils
+    src/utils,
+    tests
 per-file-ignores =
     src/ai/*.py: E302,E305,E402,E131,W293,W391,F401,E722,E712,F541,F841,W291
     src/ai/agents/*.py: E302,E305,E402,E131,W293,F401
@@ -42,3 +43,6 @@ per-file-ignores =
     src/utils/*.py: E302,E501
     src/websocket/*.py: F401,E305,E402,F541
     src/worker.py: E302,E305
+    tests/*.py: F401,F841,F541,E731
+    tests/**/*.py: F401,F841,F541,E731
+    scripts/*.py: F401,F841,E402

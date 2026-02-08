@@ -86,7 +86,9 @@ class RuleValidator:
             value = cond.get("value") if has_value_key else None
 
             if not field or not isinstance(field, str):
-                issues.append(RuleValidationIssue(path=f"{path_prefix}.field", message="Field is required"))
+                issues.append(
+                    RuleValidationIssue(path=f"{path_prefix}.field", message="Field is required")
+                )
                 continue
 
             if field not in field_categories:
@@ -112,7 +114,9 @@ class RuleValidator:
 
             # Enforce value presence for all current operators.
             if normalized_op not in cls._EQUALITY_OPERATORS and not has_value_key:
-                issues.append(RuleValidationIssue(path=f"{path_prefix}.value", message="Value is required"))
+                issues.append(
+                    RuleValidationIssue(path=f"{path_prefix}.value", message="Value is required")
+                )
                 continue
 
             if normalized_op in cls._NUMERIC_OPERATORS:
@@ -140,7 +144,9 @@ class RuleValidator:
                         )
                     )
                 elif not isinstance(value, str):
-                    issues.append(RuleValidationIssue(path=f"{path_prefix}.value", message="Must be a string"))
+                    issues.append(
+                        RuleValidationIssue(path=f"{path_prefix}.value", message="Must be a string")
+                    )
 
             elif normalized_op in cls._SET_OPERATORS:
                 if not isinstance(value, list) or not value:
@@ -162,9 +168,13 @@ class RuleValidator:
 
             elif normalized_op in cls._EQUALITY_OPERATORS:
                 if category == "numeric" and not cls._is_numeric(value):
-                    issues.append(RuleValidationIssue(path=f"{path_prefix}.value", message="Must be numeric"))
+                    issues.append(
+                        RuleValidationIssue(path=f"{path_prefix}.value", message="Must be numeric")
+                    )
                 if category == "string" and not isinstance(value, str):
-                    issues.append(RuleValidationIssue(path=f"{path_prefix}.value", message="Must be a string"))
+                    issues.append(
+                        RuleValidationIssue(path=f"{path_prefix}.value", message="Must be a string")
+                    )
             else:
                 issues.append(
                     RuleValidationIssue(
@@ -223,4 +233,3 @@ class RuleValidator:
             if not all(isinstance(v, str) for v in value):
                 return "All values must be strings"
         return None
-

@@ -20,6 +20,8 @@ from enum import Enum
 def utc_now() -> datetime:
     """Return current UTC time (timezone-aware)."""
     return datetime.now(timezone.utc)
+
+
 from typing import Any, Dict, List, Optional, Set
 import re
 from difflib import SequenceMatcher
@@ -31,6 +33,7 @@ logger = logging.getLogger(__name__)
 
 class SanctionsListType(str, Enum):
     """Types of sanctions lists."""
+
     EU_CONSOLIDATED = "eu_consolidated"
     OFAC_SDN = "ofac_sdn"
     UN_SECURITY_COUNCIL = "un_sc"
@@ -40,6 +43,7 @@ class SanctionsListType(str, Enum):
 
 class EntityType(str, Enum):
     """Types of sanctioned entities."""
+
     INDIVIDUAL = "individual"
     ENTITY = "entity"
     VESSEL = "vessel"
@@ -49,6 +53,7 @@ class EntityType(str, Enum):
 
 class MatchType(str, Enum):
     """Types of matches."""
+
     EXACT = "exact"
     FUZZY = "fuzzy"
     PARTIAL = "partial"
@@ -59,6 +64,7 @@ class MatchType(str, Enum):
 @dataclass
 class SanctionsMatch:
     """A match against a sanctions list."""
+
     list_type: SanctionsListType
     entity_type: EntityType
     match_type: MatchType
@@ -99,13 +105,14 @@ class SanctionsMatch:
             "programs": self.programs,
             "reasons": self.reasons,
             "listing_date": self.listing_date.isoformat() if self.listing_date else None,
-            "additional_info": self.additional_info
+            "additional_info": self.additional_info,
         }
 
 
 @dataclass
 class ScreeningResult:
     """Result of a sanctions screening."""
+
     screened_name: str
     screened_at: datetime
     matches: List[SanctionsMatch]
@@ -123,7 +130,7 @@ class ScreeningResult:
             "highest_score": self.highest_score,
             "lists_checked": [l.value for l in self.lists_checked],
             "match_count": len(self.matches),
-            "processing_time_ms": self.processing_time_ms
+            "processing_time_ms": self.processing_time_ms,
         }
 
 
@@ -151,7 +158,7 @@ class SanctionsService:
         self,
         threshold: float = DEFAULT_THRESHOLD,
         enable_fuzzy: bool = True,
-        enable_phonetic: bool = True
+        enable_phonetic: bool = True,
     ):
         self.threshold = threshold
         self.enable_fuzzy = enable_fuzzy
@@ -204,7 +211,7 @@ class SanctionsService:
                 "nationalities": ["Russia"],
                 "birth_dates": ["1952-10-07"],
                 "programs": ["EU Russia Sanctions"],
-                "reasons": ["President of the Russian Federation"]
+                "reasons": ["President of the Russian Federation"],
             },
             {
                 "id": "EU-002",
@@ -214,7 +221,7 @@ class SanctionsService:
                 "aliases": ["Sberbank of Russia", "PJSC Sberbank"],
                 "nationalities": ["Russia"],
                 "programs": ["EU Russia Sanctions"],
-                "reasons": ["Major Russian state-owned bank"]
+                "reasons": ["Major Russian state-owned bank"],
             },
             {
                 "id": "OFAC-001",
@@ -224,7 +231,7 @@ class SanctionsService:
                 "aliases": ["Kim Jong-un", "Kim Jong Un"],
                 "nationalities": ["North Korea"],
                 "programs": ["North Korea Sanctions"],
-                "reasons": ["Supreme Leader of North Korea"]
+                "reasons": ["Supreme Leader of North Korea"],
             },
             {
                 "id": "OFAC-002",
@@ -234,7 +241,7 @@ class SanctionsService:
                 "aliases": ["Ayatollah Khamenei", "Ali Khamenei"],
                 "nationalities": ["Iran"],
                 "programs": ["Iran Sanctions"],
-                "reasons": ["Supreme Leader of Iran"]
+                "reasons": ["Supreme Leader of Iran"],
             },
             {
                 "id": "EU-003",
@@ -244,8 +251,8 @@ class SanctionsService:
                 "aliases": ["PMC Wagner", "Wagner PMC"],
                 "nationalities": ["Russia"],
                 "programs": ["EU Russia Sanctions"],
-                "reasons": ["Private military company"]
-            }
+                "reasons": ["Private military company"],
+            },
         ]
 
     async def screen_name(
@@ -253,7 +260,7 @@ class SanctionsService:
         name: str,
         entity_type: Optional[EntityType] = None,
         lists: Optional[List[SanctionsListType]] = None,
-        additional_info: Optional[Dict[str, Any]] = None
+        additional_info: Optional[Dict[str, Any]] = None,
     ) -> ScreeningResult:
         """
         Screen a single name against sanctions lists.
@@ -268,6 +275,7 @@ class SanctionsService:
             ScreeningResult with all matches
         """
         import time
+
         start_time = time.time()
 
         await self.initialize()
@@ -289,11 +297,7 @@ class SanctionsService:
                 continue
 
             # Check for matches
-            match = self._check_match(
-                normalized_name,
-                sanctions_entry,
-                additional_info
-            )
+            match = self._check_match(normalized_name, sanctions_entry, additional_info)
 
             if match and match.score >= self.threshold:
                 matches.append(match)
@@ -310,13 +314,11 @@ class SanctionsService:
             is_hit=len(matches) > 0,
             highest_score=matches[0].score if matches else 0.0,
             lists_checked=lists_to_check,
-            processing_time_ms=processing_time
+            processing_time_ms=processing_time,
         )
 
     async def screen_batch(
-        self,
-        names: List[str],
-        max_concurrent: int = 10
+        self, names: List[str], max_concurrent: int = 10
     ) -> List[ScreeningResult]:
         """
         Screen multiple names concurrently.
@@ -335,22 +337,23 @@ class SanctionsService:
                 return await self.screen_name(name)
 
         results = await asyncio.gather(
-            *[screen_one(name) for name in names],
-            return_exceptions=True
+            *[screen_one(name) for name in names], return_exceptions=True
         )
 
         # Convert exceptions to empty results
         processed_results = []
         for i, result in enumerate(results):
             if isinstance(result, Exception):
-                processed_results.append(ScreeningResult(
-                    screened_name=names[i],
-                    screened_at=utc_now(),
-                    matches=[],
-                    is_hit=False,
-                    highest_score=0.0,
-                    lists_checked=[]
-                ))
+                processed_results.append(
+                    ScreeningResult(
+                        screened_name=names[i],
+                        screened_at=utc_now(),
+                        matches=[],
+                        is_hit=False,
+                        highest_score=0.0,
+                        lists_checked=[],
+                    )
+                )
             else:
                 processed_results.append(result)
 
@@ -368,7 +371,7 @@ class SanctionsService:
         prefixes = ["MR", "MRS", "MS", "DR", "PROF"]
         for prefix in prefixes:
             if normalized.startswith(prefix + " "):
-                normalized = normalized[len(prefix) + 1:]
+                normalized = normalized[len(prefix) + 1 :]
 
         # Remove punctuation except hyphens
         normalized = re.sub(r"[^\w\s-]", "", normalized)
@@ -379,7 +382,7 @@ class SanctionsService:
         self,
         normalized_name: str,
         sanctions_entry: Dict[str, Any],
-        additional_info: Optional[Dict[str, Any]] = None
+        additional_info: Optional[Dict[str, Any]] = None,
     ) -> Optional[SanctionsMatch]:
         """Check if a name matches a sanctions entry."""
         entry_name = self._normalize_name(sanctions_entry["name"])
@@ -443,7 +446,7 @@ class SanctionsService:
             nationalities=sanctions_entry.get("nationalities", []),
             birth_dates=sanctions_entry.get("birth_dates", []),
             programs=sanctions_entry.get("programs", []),
-            reasons=sanctions_entry.get("reasons", [])
+            reasons=sanctions_entry.get("reasons", []),
         )
 
     def _fuzzy_score(self, name1: str, name2: str) -> float:
@@ -466,17 +469,18 @@ class SanctionsService:
         """Get statistics about loaded sanctions lists."""
         await self.initialize()
 
-        eu_count = len([s for s in self._demo_sanctions if s["list_type"] == SanctionsListType.EU_CONSOLIDATED])
-        ofac_count = len([s for s in self._demo_sanctions if s["list_type"] == SanctionsListType.OFAC_SDN])
+        eu_count = len(
+            [s for s in self._demo_sanctions if s["list_type"] == SanctionsListType.EU_CONSOLIDATED]
+        )
+        ofac_count = len(
+            [s for s in self._demo_sanctions if s["list_type"] == SanctionsListType.OFAC_SDN]
+        )
 
         return {
             "total_entries": len(self._demo_sanctions),
-            "by_list": {
-                "eu_consolidated": eu_count,
-                "ofac_sdn": ofac_count
-            },
+            "by_list": {"eu_consolidated": eu_count, "ofac_sdn": ofac_count},
             "last_updated": utc_now().isoformat(),
-            "status": "demo_data"
+            "status": "demo_data",
         }
 
     async def health_check(self) -> bool:

@@ -19,6 +19,8 @@ from enum import Enum
 def utc_now() -> datetime:
     """Return current UTC time (timezone-aware)."""
     return datetime.now(timezone.utc)
+
+
 from typing import Any, Dict, List, Optional
 import logging
 import asyncio
@@ -30,6 +32,7 @@ logger = logging.getLogger(__name__)
 
 class IntegrationStatus(str, Enum):
     """Status of an integration operation."""
+
     SUCCESS = "success"
     PARTIAL = "partial"
     ERROR = "error"
@@ -41,6 +44,7 @@ class IntegrationStatus(str, Enum):
 @dataclass
 class IntegrationResult:
     """Result from an integration operation."""
+
     status: IntegrationStatus
     data: Any = None
     error_message: Optional[str] = None
@@ -57,7 +61,7 @@ class IntegrationResult:
             "processing_time_ms": self.processing_time_ms,
             "cached": self.cached,
             "source": self.source,
-            "timestamp": self.timestamp.isoformat()
+            "timestamp": self.timestamp.isoformat(),
         }
 
 
@@ -81,7 +85,7 @@ class BaseIntegration(ABC):
         timeout_seconds: int = 30,
         max_retries: int = 3,
         cache_ttl_seconds: int = 3600,
-        rate_limit_per_minute: int = 60
+        rate_limit_per_minute: int = 60,
     ):
         self.name = name
         self.base_url = base_url
@@ -113,6 +117,7 @@ class BaseIntegration(ABC):
         Execute with rate limiting, caching, and error handling.
         """
         import time
+
         start_time = time.time()
 
         # Check cache
@@ -128,7 +133,7 @@ class BaseIntegration(ABC):
             return IntegrationResult(
                 status=IntegrationStatus.RATE_LIMITED,
                 error_message=f"Rate limit exceeded for {self.name}",
-                source=self.name
+                source=self.name,
             )
 
         # Execute with retries
@@ -136,8 +141,7 @@ class BaseIntegration(ABC):
         for attempt in range(self.max_retries):
             try:
                 result = await asyncio.wait_for(
-                    self._execute(**kwargs),
-                    timeout=self.timeout_seconds
+                    self._execute(**kwargs), timeout=self.timeout_seconds
                 )
 
                 # Cache successful results
@@ -158,13 +162,13 @@ class BaseIntegration(ABC):
 
             # Wait before retry
             if attempt < self.max_retries - 1:
-                await asyncio.sleep(2 ** attempt)  # Exponential backoff
+                await asyncio.sleep(2**attempt)  # Exponential backoff
 
         return IntegrationResult(
             status=IntegrationStatus.ERROR,
             error_message=last_error,
             processing_time_ms=int((time.time() - start_time) * 1000),
-            source=self.name
+            source=self.name,
         )
 
     def _get_cache_key(self, **kwargs) -> str:
@@ -193,10 +197,7 @@ class BaseIntegration(ABC):
 
         # Remove old request times
         one_minute_ago = now.timestamp() - 60
-        self._request_times = [
-            t for t in self._request_times
-            if t.timestamp() > one_minute_ago
-        ]
+        self._request_times = [t for t in self._request_times if t.timestamp() > one_minute_ago]
 
         # Check limit
         if len(self._request_times) >= self.rate_limit_per_minute:

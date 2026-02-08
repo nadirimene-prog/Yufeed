@@ -27,7 +27,9 @@ export default function FeatureStorePanel({
 }) {
   return (
     <div className="rounded-xl border border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-950 p-6 shadow-sm space-y-4">
-      <h2 className="text-sm font-semibold text-gray-900 dark:text-gray-100">Feature Store</h2>
+      <h2 className="text-sm font-semibold text-gray-900 dark:text-gray-100">
+        Feature Store
+      </h2>
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         <input
           value={featureEntityType}
@@ -72,4 +74,3 @@ export default function FeatureStorePanel({
     </div>
   );
 }
-

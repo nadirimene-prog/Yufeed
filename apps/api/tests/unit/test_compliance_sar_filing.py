@@ -54,7 +54,11 @@ def test_sar_prepare_and_file(db_session, monkeypatch):
     db_session.commit()
 
     system = SARFilingSystem(db_session)
-    monkeypatch.setattr(system.enrichment_service, "generate_sar_draft", lambda *args, **kwargs: {"narrative": "AI narrative"})
+    monkeypatch.setattr(
+        system.enrichment_service,
+        "generate_sar_draft",
+        lambda *args, **kwargs: {"narrative": "AI narrative"},
+    )
 
     sar = system.prepare_sar(case.case_id)
     assert sar["case_reference"] == "case_sar"

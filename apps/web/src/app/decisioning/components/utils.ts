@@ -45,8 +45,7 @@ export function decisionsToCsv(items: DecisionListItem[]) {
     .map((row) =>
       row
         .map((value) => `"${String(value ?? "").replace(/"/g, '""')}"`)
-        .join(",")
+        .join(","),
     )
     .join("\n");
 }
-

@@ -1,7 +1,13 @@
 "use client";
 
 import { useMemo } from "react";
-import { Line, LineChart, ResponsiveContainer, Area, AreaChart } from "recharts";
+import {
+  Line,
+  LineChart,
+  ResponsiveContainer,
+  Area,
+  AreaChart,
+} from "recharts";
 import { cn } from "@/lib/utils";
 
 /**
@@ -11,7 +17,15 @@ import { cn } from "@/lib/utils";
  * ═══════════════════════════════════════════════════════════════════
  */
 
-type SparklineColor = "aurora" | "cyan" | "green" | "yellow" | "orange" | "red" | "purple" | "gray";
+type SparklineColor =
+  | "aurora"
+  | "cyan"
+  | "green"
+  | "yellow"
+  | "orange"
+  | "red"
+  | "purple"
+  | "gray";
 
 interface SparklineProps {
   data: { value: number }[];
@@ -54,7 +68,9 @@ export function Sparkline({
 
   // Determine if color is a preset or custom
   const isPreset = typeof color === "string" && color in colorMap;
-  const strokeColor = isPreset ? colorMap[color as SparklineColor].stroke : color;
+  const strokeColor = isPreset
+    ? colorMap[color as SparklineColor].stroke
+    : color;
 
   // Calculate trend
   const trend = useMemo(() => {
@@ -72,7 +88,10 @@ export function Sparkline({
     <div className={cn("relative", className)} style={{ width, height }}>
       <ResponsiveContainer width="100%" height="100%">
         {filled ? (
-          <AreaChart data={safeData} margin={{ top: 0, right: 0, bottom: 0, left: 0 }}>
+          <AreaChart
+            data={safeData}
+            margin={{ top: 0, right: 0, bottom: 0, left: 0 }}
+          >
             <defs>
               <linearGradient id={gradientId} x1="0" y1="0" x2="0" y2="1">
                 <stop offset="0%" stopColor={strokeColor} stopOpacity={0.3} />
@@ -91,7 +110,10 @@ export function Sparkline({
             />
           </AreaChart>
         ) : (
-          <LineChart data={safeData} margin={{ top: 0, right: 0, bottom: 0, left: 0 }}>
+          <LineChart
+            data={safeData}
+            margin={{ top: 0, right: 0, bottom: 0, left: 0 }}
+          >
             <Line
               type="monotone"
               dataKey="value"
@@ -113,7 +135,7 @@ export function Sparkline({
             "absolute -top-1 -right-1 px-1.5 py-0.5 rounded text-[10px] font-bold",
             trend > 0 && "bg-[#06d6a0]/20 text-[#06d6a0]",
             trend < 0 && "bg-[#ff3366]/20 text-[#ff3366]",
-            trend === 0 && "bg-white/10 text-white/50"
+            trend === 0 && "bg-white/10 text-white/50",
           )}
         >
           {trend > 0 ? "+" : ""}
@@ -151,7 +173,10 @@ export function Sparkbar({
   const barWidth = width / data.length - 1;
 
   return (
-    <div className={cn("flex items-end gap-px", className)} style={{ width, height }}>
+    <div
+      className={cn("flex items-end gap-px", className)}
+      style={{ width, height }}
+    >
       {data.map((d, i) => {
         const barHeight = max > 0 ? (d.value / max) * height : 0;
         return (

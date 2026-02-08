@@ -2,6 +2,7 @@
 AML Scope Analysis API
 AML scope coverage analysis and regulatory coverage reporting.
 """
+
 from fastapi import APIRouter, Depends, Query
 from sqlalchemy.orm import Session
 from sqlalchemy import func, and_, or_, case, select
@@ -103,66 +104,76 @@ def aml_scope_review(
     status_rows = db.query(
         RegulatoryObligation.status,
         func.count(RegulatoryObligation.id).label("count"),
-    ).join(
-        LegalDocument, RegulatoryObligation.doc_id == LegalDocument.id
-    )
+    ).join(LegalDocument, RegulatoryObligation.doc_id == LegalDocument.id)
     if jurisdiction:
         status_rows = status_rows.filter(LegalDocument.jurisdiction == jurisdiction)
     status_rows = _apply_scope_filter_to_obligations(status_rows, scopes, db)
     status_rows = status_rows.group_by(RegulatoryObligation.status).all()
     status_counts = {row.status: row.count for row in status_rows}
 
-    covered_subq = db.query(
-        InternalRule.obligation_id.label("obligation_id")
-    ).distinct().subquery()
-    policy_mapped_subq = db.query(
-        InternalRule.obligation_id.label("obligation_id")
-    ).filter(InternalRule.policy_section_id.isnot(None)).distinct().subquery()
+    covered_subq = db.query(InternalRule.obligation_id.label("obligation_id")).distinct().subquery()
+    policy_mapped_subq = (
+        db.query(InternalRule.obligation_id.label("obligation_id"))
+        .filter(InternalRule.policy_section_id.isnot(None))
+        .distinct()
+        .subquery()
+    )
 
-    covered_count_query = db.query(func.count(RegulatoryObligation.id)).join(
-        LegalDocument, RegulatoryObligation.doc_id == LegalDocument.id
-    ).join(
-        covered_subq, covered_subq.c.obligation_id == RegulatoryObligation.id
+    covered_count_query = (
+        db.query(func.count(RegulatoryObligation.id))
+        .join(LegalDocument, RegulatoryObligation.doc_id == LegalDocument.id)
+        .join(covered_subq, covered_subq.c.obligation_id == RegulatoryObligation.id)
     )
     if jurisdiction:
         covered_count_query = covered_count_query.filter(LegalDocument.jurisdiction == jurisdiction)
     covered_count_query = _apply_scope_filter_to_obligations(covered_count_query, scopes, db)
     covered_count = covered_count_query.scalar() or 0
 
-    policy_mapped_query = db.query(func.count(RegulatoryObligation.id)).join(
-        LegalDocument, RegulatoryObligation.doc_id == LegalDocument.id
-    ).join(
-        policy_mapped_subq, policy_mapped_subq.c.obligation_id == RegulatoryObligation.id
+    policy_mapped_query = (
+        db.query(func.count(RegulatoryObligation.id))
+        .join(LegalDocument, RegulatoryObligation.doc_id == LegalDocument.id)
+        .join(policy_mapped_subq, policy_mapped_subq.c.obligation_id == RegulatoryObligation.id)
     )
     if jurisdiction:
         policy_mapped_query = policy_mapped_query.filter(LegalDocument.jurisdiction == jurisdiction)
     policy_mapped_query = _apply_scope_filter_to_obligations(policy_mapped_query, scopes, db)
     policy_mapped_count = policy_mapped_query.scalar() or 0
 
-    jurisdiction_query = db.query(
-        LegalDocument.jurisdiction.label("jurisdiction"),
-        func.count(RegulatoryObligation.id).label("total"),
-        func.sum(case((RegulatoryObligation.status == "approved", 1), else_=0)).label("approved"),
-        func.sum(case((RegulatoryObligation.status == "in_review", 1), else_=0)).label("in_review"),
-        func.sum(case((RegulatoryObligation.status == "draft", 1), else_=0)).label("draft"),
-        func.sum(case((RegulatoryObligation.status == "rejected", 1), else_=0)).label("rejected"),
-        func.sum(case((covered_subq.c.obligation_id.isnot(None), 1), else_=0)).label("covered"),
-        func.sum(case((policy_mapped_subq.c.obligation_id.isnot(None), 1), else_=0)).label("policy_mapped"),
-    ).join(
-        LegalDocument, RegulatoryObligation.doc_id == LegalDocument.id
-    ).outerjoin(
-        covered_subq, covered_subq.c.obligation_id == RegulatoryObligation.id
-    ).outerjoin(
-        policy_mapped_subq, policy_mapped_subq.c.obligation_id == RegulatoryObligation.id
+    jurisdiction_query = (
+        db.query(
+            LegalDocument.jurisdiction.label("jurisdiction"),
+            func.count(RegulatoryObligation.id).label("total"),
+            func.sum(case((RegulatoryObligation.status == "approved", 1), else_=0)).label(
+                "approved"
+            ),
+            func.sum(case((RegulatoryObligation.status == "in_review", 1), else_=0)).label(
+                "in_review"
+            ),
+            func.sum(case((RegulatoryObligation.status == "draft", 1), else_=0)).label("draft"),
+            func.sum(case((RegulatoryObligation.status == "rejected", 1), else_=0)).label(
+                "rejected"
+            ),
+            func.sum(case((covered_subq.c.obligation_id.isnot(None), 1), else_=0)).label("covered"),
+            func.sum(case((policy_mapped_subq.c.obligation_id.isnot(None), 1), else_=0)).label(
+                "policy_mapped"
+            ),
+        )
+        .join(LegalDocument, RegulatoryObligation.doc_id == LegalDocument.id)
+        .outerjoin(covered_subq, covered_subq.c.obligation_id == RegulatoryObligation.id)
+        .outerjoin(
+            policy_mapped_subq, policy_mapped_subq.c.obligation_id == RegulatoryObligation.id
+        )
     )
 
     if jurisdiction:
         jurisdiction_query = jurisdiction_query.filter(LegalDocument.jurisdiction == jurisdiction)
     jurisdiction_query = _apply_scope_filter_to_obligations(jurisdiction_query, scopes, db)
 
-    jurisdiction_rows = jurisdiction_query.group_by(LegalDocument.jurisdiction).order_by(
-        LegalDocument.jurisdiction.asc()
-    ).all()
+    jurisdiction_rows = (
+        jurisdiction_query.group_by(LegalDocument.jurisdiction)
+        .order_by(LegalDocument.jurisdiction.asc())
+        .all()
+    )
 
     by_jurisdiction = []
     for row in jurisdiction_rows:
@@ -184,11 +195,12 @@ def aml_scope_review(
             }
         )
 
-    gaps_query = db.query(RegulatoryObligation, LegalDocument).join(
-        LegalDocument, RegulatoryObligation.doc_id == LegalDocument.id
-    ).outerjoin(
-        covered_subq, covered_subq.c.obligation_id == RegulatoryObligation.id
-    ).filter(covered_subq.c.obligation_id.is_(None))
+    gaps_query = (
+        db.query(RegulatoryObligation, LegalDocument)
+        .join(LegalDocument, RegulatoryObligation.doc_id == LegalDocument.id)
+        .outerjoin(covered_subq, covered_subq.c.obligation_id == RegulatoryObligation.id)
+        .filter(covered_subq.c.obligation_id.is_(None))
+    )
     if jurisdiction:
         gaps_query = gaps_query.filter(LegalDocument.jurisdiction == jurisdiction)
     gaps_query = _apply_scope_filter_to_obligations(gaps_query, scopes, db)
@@ -212,7 +224,9 @@ def aml_scope_review(
         )
 
     coverage_pct = round((covered_count / total_obligations * 100), 2) if total_obligations else 0
-    policy_mapping_pct = round((policy_mapped_count / total_obligations * 100), 2) if total_obligations else 0
+    policy_mapping_pct = (
+        round((policy_mapped_count / total_obligations * 100), 2) if total_obligations else 0
+    )
 
     return {
         "as_of": utc_now().isoformat(),
@@ -232,9 +246,7 @@ def aml_scope_review(
 
 
 @router.get("/regulatory/coverage")
-def get_regulatory_coverage_report(
-    db: Session = Depends(get_db)
-):
+def get_regulatory_coverage_report(db: Session = Depends(get_db)):
     """
     Report on regulatory coverage and compliance monitoring.
     """
@@ -242,32 +254,42 @@ def get_regulatory_coverage_report(
     total_regulations = db.query(func.count(LegalDocument.id)).scalar() or 0
 
     # Regulations with monitoring rules
-    regs_with_rules = db.query(
-        func.count(func.distinct(MonitoringRule.regulatory_source_id))
-    ).filter(
-        MonitoringRule.regulatory_source_id.isnot(None)
-    ).scalar() or 0
+    regs_with_rules = (
+        db.query(func.count(func.distinct(MonitoringRule.regulatory_source_id)))
+        .filter(MonitoringRule.regulatory_source_id.isnot(None))
+        .scalar()
+        or 0
+    )
 
     # Coverage by domain
-    by_domain = db.query(
-        LegalDocument.compliance_domain,
-        func.count(LegalDocument.id).label('count')
-    ).group_by(LegalDocument.compliance_domain).all()
+    by_domain = (
+        db.query(LegalDocument.compliance_domain, func.count(LegalDocument.id).label("count"))
+        .group_by(LegalDocument.compliance_domain)
+        .all()
+    )
 
     # Rules by regulation
-    rules_per_reg = db.query(
-        MonitoringRule.regulatory_source_id,
-        func.count(MonitoringRule.id).label('rule_count')
-    ).filter(
-        MonitoringRule.regulatory_source_id.isnot(None)
-    ).group_by(MonitoringRule.regulatory_source_id).all()
+    rules_per_reg = (
+        db.query(
+            MonitoringRule.regulatory_source_id, func.count(MonitoringRule.id).label("rule_count")
+        )
+        .filter(MonitoringRule.regulatory_source_id.isnot(None))
+        .group_by(MonitoringRule.regulatory_source_id)
+        .all()
+    )
 
     return {
         "total_regulations_monitored": total_regulations,
         "regulations_with_rules": regs_with_rules,
-        "coverage_rate": round(regs_with_rules / total_regulations * 100, 2) if total_regulations > 0 else 0,
-        "by_compliance_domain": {row.compliance_domain or 'uncategorized': row.count for row in by_domain},
-        "average_rules_per_regulation": round(
-            sum(r.rule_count for r in rules_per_reg) / len(rules_per_reg), 2
-        ) if rules_per_reg else 0
+        "coverage_rate": (
+            round(regs_with_rules / total_regulations * 100, 2) if total_regulations > 0 else 0
+        ),
+        "by_compliance_domain": {
+            row.compliance_domain or "uncategorized": row.count for row in by_domain
+        },
+        "average_rules_per_regulation": (
+            round(sum(r.rule_count for r in rules_per_reg) / len(rules_per_reg), 2)
+            if rules_per_reg
+            else 0
+        ),
     }

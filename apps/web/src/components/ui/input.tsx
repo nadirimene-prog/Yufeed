@@ -11,8 +11,7 @@ import { cn } from "@/lib/utils";
  * ═══════════════════════════════════════════════════════════════════
  */
 
-export interface InputProps
-  extends React.InputHTMLAttributes<HTMLInputElement> {
+export interface InputProps extends React.InputHTMLAttributes<HTMLInputElement> {
   /** Input variant */
   variant?: "default" | "glass" | "ghost";
   /** Left icon/element */
@@ -41,7 +40,7 @@ const Input = React.forwardRef<HTMLInputElement, InputProps>(
       disabled,
       ...props
     },
-    ref
+    ref,
   ) => {
     const [isFocused, setIsFocused] = React.useState(false);
     const resolvedErrorId =
@@ -50,16 +49,16 @@ const Input = React.forwardRef<HTMLInputElement, InputProps>(
     const variantStyles = {
       default: cn(
         "border-white/10 bg-white/5",
-        "focus:border-[#6d5acd]/50 focus:ring-[#6d5acd]/20"
+        "focus:border-[#6d5acd]/50 focus:ring-[#6d5acd]/20",
       ),
       glass: cn(
         "border-white/[0.08] bg-white/[0.03] backdrop-blur-sm",
         "focus:border-[#6d5acd]/40 focus:bg-white/[0.05]",
-        "focus:shadow-[0_0_20px_rgba(109,90,205,0.15)]"
+        "focus:shadow-[0_0_20px_rgba(109,90,205,0.15)]",
       ),
       ghost: cn(
         "border-transparent bg-transparent",
-        "focus:bg-white/[0.03] focus:border-white/10"
+        "focus:bg-white/[0.03] focus:border-white/10",
       ),
     };
 
@@ -85,8 +84,9 @@ const Input = React.forwardRef<HTMLInputElement, InputProps>(
               variantStyles[variant],
               leftElement && "pl-10",
               rightElement && "pr-10",
-              error && "border-[#ff3366]/50 focus:border-[#ff3366] focus:ring-[#ff3366]/20",
-              className
+              error &&
+                "border-[#ff3366]/50 focus:border-[#ff3366] focus:ring-[#ff3366]/20",
+              className,
             )}
             ref={ref}
             disabled={disabled}
@@ -113,10 +113,11 @@ const Input = React.forwardRef<HTMLInputElement, InputProps>(
             <div
               className={cn(
                 "absolute inset-0 rounded-lg pointer-events-none transition-opacity duration-300",
-                isFocused ? "opacity-100" : "opacity-0"
+                isFocused ? "opacity-100" : "opacity-0",
               )}
               style={{
-                background: "linear-gradient(135deg, rgba(109, 90, 205, 0.1) 0%, rgba(0, 212, 255, 0.05) 100%)",
+                background:
+                  "linear-gradient(135deg, rgba(109, 90, 205, 0.1) 0%, rgba(0, 212, 255, 0.05) 100%)",
               }}
             />
           )}
@@ -134,7 +135,7 @@ const Input = React.forwardRef<HTMLInputElement, InputProps>(
         )}
       </div>
     );
-  }
+  },
 );
 Input.displayName = "Input";
 
@@ -167,7 +168,9 @@ const SearchInput = React.forwardRef<HTMLInputElement, SearchInputProps>(
               strokeLinecap="round"
               strokeLinejoin="round"
               animate={loading ? { rotate: 360 } : { rotate: 0 }}
-              transition={loading ? { duration: 1, repeat: Infinity, ease: "linear" } : {}}
+              transition={
+                loading ? { duration: 1, repeat: Infinity, ease: "linear" } : {}
+              }
             >
               {loading ? (
                 <path d="M21 12a9 9 0 1 1-6.219-8.56" />
@@ -191,15 +194,14 @@ const SearchInput = React.forwardRef<HTMLInputElement, SearchInputProps>(
         />
       </div>
     );
-  }
+  },
 );
 SearchInput.displayName = "SearchInput";
 
 /**
  * Textarea - Glass-styled textarea
  */
-export interface TextareaProps
-  extends React.TextareaHTMLAttributes<HTMLTextAreaElement> {
+export interface TextareaProps extends React.TextareaHTMLAttributes<HTMLTextAreaElement> {
   /** Textarea variant */
   variant?: "default" | "glass" | "ghost";
   /** Error state */
@@ -220,23 +222,23 @@ const Textarea = React.forwardRef<HTMLTextAreaElement, TextareaProps>(
       errorMessageId,
       ...props
     },
-    ref
+    ref,
   ) => {
     const resolvedErrorId =
       errorMessageId || (props.id ? `${props.id}-error` : undefined);
     const variantStyles = {
       default: cn(
         "border-white/10 bg-white/5",
-        "focus:border-[#6d5acd]/50 focus:ring-[#6d5acd]/20"
+        "focus:border-[#6d5acd]/50 focus:ring-[#6d5acd]/20",
       ),
       glass: cn(
         "border-white/[0.08] bg-white/[0.03] backdrop-blur-sm",
         "focus:border-[#6d5acd]/40 focus:bg-white/[0.05]",
-        "focus:shadow-[0_0_20px_rgba(109,90,205,0.15)]"
+        "focus:shadow-[0_0_20px_rgba(109,90,205,0.15)]",
       ),
       ghost: cn(
         "border-transparent bg-transparent",
-        "focus:bg-white/[0.03] focus:border-white/10"
+        "focus:bg-white/[0.03] focus:border-white/10",
       ),
     };
 
@@ -251,8 +253,9 @@ const Textarea = React.forwardRef<HTMLTextAreaElement, TextareaProps>(
             "disabled:cursor-not-allowed disabled:opacity-50",
             "resize-none",
             variantStyles[variant],
-            error && "border-[#ff3366]/50 focus:border-[#ff3366] focus:ring-[#ff3366]/20",
-            className
+            error &&
+              "border-[#ff3366]/50 focus:border-[#ff3366] focus:ring-[#ff3366]/20",
+            className,
           )}
           ref={ref}
           {...props}
@@ -270,7 +273,7 @@ const Textarea = React.forwardRef<HTMLTextAreaElement, TextareaProps>(
         )}
       </div>
     );
-  }
+  },
 );
 Textarea.displayName = "Textarea";
 
@@ -297,7 +300,7 @@ function InputGroup({ children, className }: InputGroupProps) {
           className: cn(
             (child as React.ReactElement<ClassNameProps>).props.className,
             !isFirst && "rounded-l-none border-l-0",
-            !isLast && "rounded-r-none"
+            !isLast && "rounded-r-none",
           ),
         });
       })}
@@ -320,7 +323,7 @@ function InputAddon({ children, className }: InputAddonProps) {
         "flex items-center justify-center px-3 rounded-lg",
         "border border-white/[0.08] bg-white/[0.03]",
         "text-sm text-white/50",
-        className
+        className,
       )}
     >
       {children}

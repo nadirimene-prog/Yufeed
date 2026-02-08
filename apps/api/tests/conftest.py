@@ -1,6 +1,7 @@
 """
 Pytest configuration and fixtures for YuFeed API tests.
 """
+
 import os
 from pathlib import Path
 import pytest
@@ -23,6 +24,7 @@ from src.auth.jwt_handler import create_token_response
 # ============================================================================
 # Database Fixtures
 # ============================================================================
+
 
 @pytest.fixture(scope="session")
 def test_db_engine():
@@ -122,6 +124,7 @@ def client(db_session: Session) -> Generator[TestClient, None, None]:
     # Disable rate limiting in tests to avoid hitting auth limits.
     if os.getenv("ENVIRONMENT", "").lower() in {"test", "testing"}:
         from src.middleware import limiter
+
         limiter.enabled = False
 
     def override_get_db():
@@ -142,6 +145,7 @@ def client(db_session: Session) -> Generator[TestClient, None, None]:
 # Redis Fixtures
 # ============================================================================
 
+
 @pytest.fixture(scope="session")
 def redis_client():
     """
@@ -149,8 +153,7 @@ def redis_client():
     Uses database 1 for test isolation.
     """
     client = Redis.from_url(
-        os.getenv("REDIS_URL", "redis://localhost:6379/1"),
-        decode_responses=True
+        os.getenv("REDIS_URL", "redis://localhost:6379/1"), decode_responses=True
     )
 
     yield client
@@ -173,6 +176,7 @@ def clean_redis(redis_client):
 # OpenSearch Fixtures
 # ============================================================================
 
+
 @pytest.fixture(scope="session")
 def opensearch_client():
     """
@@ -183,7 +187,7 @@ def opensearch_client():
         http_auth=None,
         use_ssl=False,
         verify_certs=False,
-        ssl_show_warn=False
+        ssl_show_warn=False,
     )
 
     yield client
@@ -212,12 +216,14 @@ def clean_opensearch(opensearch_client):
 # Authentication Fixtures
 # ============================================================================
 
+
 @pytest.fixture
 def ensure_tenant_membership():
     """
     Ensure a default tenant and membership exist for a user.
     Returns a helper that accepts email, role, and tenant_id.
     """
+
     def _ensure(email: str, role: str = "viewer", tenant_id: str = "default") -> Tenant:
         normalized_email = email.lower()
         db = SessionLocal()
@@ -239,10 +245,14 @@ def ensure_tenant_membership():
             if not user:
                 raise AssertionError(f"User not found for email {normalized_email}")
 
-            membership = db.query(TenantUser).filter(
-                TenantUser.tenant_id == tenant.id,
-                TenantUser.user_id == str(user.id),
-            ).first()
+            membership = (
+                db.query(TenantUser)
+                .filter(
+                    TenantUser.tenant_id == tenant.id,
+                    TenantUser.user_id == str(user.id),
+                )
+                .first()
+            )
             if not membership:
                 membership = TenantUser(
                     tenant_id=tenant.id,
@@ -271,8 +281,8 @@ def test_user_token(client: TestClient, ensure_tenant_membership) -> str:
         json={
             "email": "test@example.com",
             "password": "TestPassword123!",
-            "full_name": "Test User"
-        }
+            "full_name": "Test User",
+        },
     )
 
     # Ensure tenant membership for login
@@ -285,7 +295,7 @@ def test_user_token(client: TestClient, ensure_tenant_membership) -> str:
             "email": "test@example.com",
             "password": "TestPassword123!",
             "tenant_id": "default",
-        }
+        },
     )
 
     return response.json()["access_token"]
@@ -312,8 +322,8 @@ def admin_user_token(client: TestClient, ensure_tenant_membership) -> str:
         json={
             "email": "admin@example.com",
             "password": "AdminPassword123!",
-            "full_name": "Admin User"
-        }
+            "full_name": "Admin User",
+        },
     )
 
     ensure_tenant_membership("admin@example.com", role="admin", tenant_id="default")
@@ -324,7 +334,7 @@ def admin_user_token(client: TestClient, ensure_tenant_membership) -> str:
             "email": "admin@example.com",
             "password": "AdminPassword123!",
             "tenant_id": "default",
-        }
+        },
     )
 
     return response.json()["access_token"]
@@ -372,14 +382,16 @@ def superuser_headers(superuser_token: str) -> dict:
 # Mock External Services
 # ============================================================================
 
+
 @pytest.fixture
 def mock_anthropic_api(monkeypatch):
     """
     Mock Anthropic API calls to avoid real API usage in tests.
     """
+
     class MockAnthropicResponse:
         def __init__(self, content):
-            self.content = [type('obj', (object,), {'text': content})]
+            self.content = [type("obj", (object,), {"text": content})]
 
     class MockAnthropic:
         class messages:
@@ -397,6 +409,7 @@ def mock_http_requests(monkeypatch):
     Mock external HTTP requests.
     """
     import responses as resp_mock
+
     with resp_mock.RequestsMock() as rsps:
         yield rsps
 
@@ -404,6 +417,7 @@ def mock_http_requests(monkeypatch):
 # ============================================================================
 # Test Data Fixtures
 # ============================================================================
+
 
 @pytest.fixture
 def sample_transaction() -> dict:
@@ -418,7 +432,7 @@ def sample_transaction() -> dict:
         "receiver_id": "user_receiver_002",
         "timestamp": "2026-01-22T10:30:00Z",
         "payment_method": "bank_transfer",
-        "country": "US"
+        "country": "US",
     }
 
 
@@ -433,7 +447,7 @@ def sample_alert() -> dict:
         "transaction_id": "txn_test_123456",
         "risk_score": 85,
         "description": "Transaction exceeds threshold",
-        "status": "pending"
+        "status": "pending",
     }
 
 
@@ -447,13 +461,14 @@ def sample_case() -> dict:
         "description": "Multiple high-value transactions detected",
         "priority": "high",
         "status": "open",
-        "assigned_to": None
+        "assigned_to": None,
     }
 
 
 # ============================================================================
 # Async Fixtures
 # ============================================================================
+
 
 @pytest.fixture
 def event_loop():
@@ -462,6 +477,7 @@ def event_loop():
     Required for pytest-asyncio.
     """
     import asyncio
+
     loop = asyncio.get_event_loop_policy().new_event_loop()
     yield loop
     loop.close()

@@ -1,6 +1,7 @@
 """
 Test data factories for YuFeed models.
 """
+
 from tests.factories.transaction_factories import (
     TransactionFactory,
     AlertFactory,

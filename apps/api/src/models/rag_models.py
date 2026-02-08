@@ -2,6 +2,7 @@
 RAG Chunk Models
 Stores document chunks for retrieval and auditing.
 """
+
 from sqlalchemy import Column, Integer, String, DateTime, Text, ForeignKey, JSON
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import relationship
@@ -17,6 +18,7 @@ def utc_now() -> datetime:
 
 class LegalChunk(Base):
     """Chunked legal document content for RAG retrieval."""
+
     __tablename__ = "legal_chunks"
 
     id = Column(Integer, primary_key=True)
@@ -43,4 +45,3 @@ class LegalChunk(Base):
     updated_at = Column(DateTime, default=utc_now, onupdate=utc_now)
 
     document = relationship("LegalDocument")
-

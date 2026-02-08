@@ -44,20 +44,32 @@ def test_ingestion_processor_new_and_existing(monkeypatch, db_session):
     monkeypatch.setattr(processor, "cellar", DummyCellar())
     monkeypatch.setattr(processor, "content_extractor", DummyExtractor())
     monkeypatch.setattr("src.ingestion.processor.index_document", lambda doc: True)
-    monkeypatch.setattr("src.ingestion.processor.analyze_document", lambda data: {
-        "compliance_domain": "aml",
-        "risk_level": "high",
-        "obligations_json": [],
-        "implementation_deadline": None,
-        "ai_summary": "summary",
-        "analyzed_at": datetime(2024, 1, 1, tzinfo=timezone.utc),
-    })
-    monkeypatch.setattr("src.ingestion.processor.seed_obligations_for_doc", lambda *args, **kwargs: None)
+    monkeypatch.setattr(
+        "src.ingestion.processor.analyze_document",
+        lambda data: {
+            "compliance_domain": "aml",
+            "risk_level": "high",
+            "obligations_json": [],
+            "implementation_deadline": None,
+            "ai_summary": "summary",
+            "analyzed_at": datetime(2024, 1, 1, tzinfo=timezone.utc),
+        },
+    )
+    monkeypatch.setattr(
+        "src.ingestion.processor.seed_obligations_for_doc", lambda *args, **kwargs: None
+    )
     monkeypatch.setattr("src.ingestion.processor.RAGIndexer", DummyRAGIndexer)
-    monkeypatch.setattr("src.ingestion.processor.settings", type("S", (), {
-        "RAG_INDEX_ENABLED": False,
-        "REGULATORY_SCOPE_FILTER": "",
-    })())
+    monkeypatch.setattr(
+        "src.ingestion.processor.settings",
+        type(
+            "S",
+            (),
+            {
+                "RAG_INDEX_ENABLED": False,
+                "REGULATORY_SCOPE_FILTER": "",
+            },
+        )(),
+    )
 
     entry = {
         "celex": "32016R0679",

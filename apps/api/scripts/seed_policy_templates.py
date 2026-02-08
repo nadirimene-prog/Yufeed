@@ -2,6 +2,7 @@
 Seed standard EMI + CASP policy templates.
 Run: python -m scripts.seed_policy_templates
 """
+
 from __future__ import annotations
 
 import os

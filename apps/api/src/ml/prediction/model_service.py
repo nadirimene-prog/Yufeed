@@ -2,6 +2,7 @@
 ML Model service for real-time alert triage predictions.
 Phase 4B: Task 4.3 - Model Serving Infrastructure
 """
+
 import logging
 import json
 from pathlib import Path
@@ -13,10 +14,12 @@ def utc_now() -> datetime:
     """Return current UTC time (timezone-aware)."""
     return datetime.now(timezone.utc)
 
+
 try:
     import joblib
     import pandas as pd
     import numpy as np
+
     ML_DEPS_AVAILABLE = True
 except ImportError:
     joblib = None
@@ -82,8 +85,8 @@ class AlertTriageMLModel:
             self.model = joblib.load(model_path)
 
             # Extract base name and timestamp
-            base_name = Path(model_path).stem.rsplit('_', 1)[0]
-            timestamp = Path(model_path).stem.rsplit('_', 1)[1]
+            base_name = Path(model_path).stem.rsplit("_", 1)[0]
+            timestamp = Path(model_path).stem.rsplit("_", 1)[1]
 
             # Load scaler
             scaler_path = self.model_dir / f"{base_name}_scaler_{timestamp}.joblib"
@@ -100,13 +103,13 @@ class AlertTriageMLModel:
             # Load metadata
             metadata_path = self.model_dir / f"{base_name}_metadata_{timestamp}.json"
             if metadata_path.exists():
-                with open(metadata_path, 'r') as f:
+                with open(metadata_path, "r") as f:
                     self.metadata = json.load(f)
 
-                self.feature_names = self.metadata.get('feature_names', [])
-                self.categorical_features = self.metadata.get('categorical_features', [])
-                self.numeric_features = self.metadata.get('numeric_features', [])
-                self.optimal_threshold = self.metadata.get('optimal_threshold', 0.5)
+                self.feature_names = self.metadata.get("feature_names", [])
+                self.categorical_features = self.metadata.get("categorical_features", [])
+                self.numeric_features = self.metadata.get("numeric_features", [])
+                self.optimal_threshold = self.metadata.get("optimal_threshold", 0.5)
 
                 logger.info(f"Loaded metadata from {metadata_path}")
 
@@ -118,12 +121,7 @@ class AlertTriageMLModel:
             self.model_loaded = False
 
     @traced(span_name="ml_predict_alert_triage")
-    def predict(
-        self,
-        db: Session,
-        alert: Alert,
-        return_proba: bool = True
-    ) -> Dict[str, Any]:
+    def predict(self, db: Session, alert: Alert, return_proba: bool = True) -> Dict[str, Any]:
         """
         Predict if alert is false positive.
 
@@ -135,11 +133,13 @@ class AlertTriageMLModel:
         Returns:
             Prediction with confidence and recommendation
         """
-        add_span_attributes({
-            "alert_id": alert.alert_id,
-            "alert_type": alert.alert_type,
-            "model_loaded": self.model_loaded
-        })
+        add_span_attributes(
+            {
+                "alert_id": alert.alert_id,
+                "alert_type": alert.alert_type,
+                "model_loaded": self.model_loaded,
+            }
+        )
 
         # Fallback if model not loaded or dependencies missing
         if not self.model_loaded or not ML_DEPS_AVAILABLE:
@@ -179,14 +179,16 @@ class AlertTriageMLModel:
                 "confidence": confidence,
                 "recommendation": recommendation,
                 "threshold_used": self.optimal_threshold,
-                "model_version": self.metadata.get('timestamp', 'unknown')
+                "model_version": self.metadata.get("timestamp", "unknown"),
             }
 
-            add_span_attributes({
-                "prediction": result["prediction"],
-                "confidence": confidence,
-                "recommendation": recommendation
-            })
+            add_span_attributes(
+                {
+                    "prediction": result["prediction"],
+                    "confidence": confidence,
+                    "recommendation": recommendation,
+                }
+            )
 
             return result
 
@@ -194,42 +196,38 @@ class AlertTriageMLModel:
             logger.error(f"Prediction failed: {e}", exc_info=True)
             return self._fallback_prediction(alert)
 
-    def _extract_features_for_prediction(
-        self,
-        db: Session,
-        alert: Alert
-    ) -> Dict[str, Any]:
+    def _extract_features_for_prediction(self, db: Session, alert: Alert) -> Dict[str, Any]:
         """
         Extract features from alert for prediction.
         """
         features = {}
 
         # Alert metadata
-        features['alert_type'] = alert.alert_type
-        features['severity'] = alert.severity
-        features['risk_score'] = float(alert.risk_score) if alert.risk_score else 0.0
-        features['priority'] = alert.priority
+        features["alert_type"] = alert.alert_type
+        features["severity"] = alert.severity
+        features["risk_score"] = float(alert.risk_score) if alert.risk_score else 0.0
+        features["priority"] = alert.priority
 
         # Temporal features
         if alert.created_at:
-            features['hour_of_day'] = alert.created_at.hour
-            features['day_of_week'] = alert.created_at.weekday()
-            features['is_weekend'] = int(alert.created_at.weekday() >= 5)
+            features["hour_of_day"] = alert.created_at.hour
+            features["day_of_week"] = alert.created_at.weekday()
+            features["is_weekend"] = int(alert.created_at.weekday() >= 5)
 
         # Transaction features
         if alert.transaction:
             txn = alert.transaction
-            features['transaction_amount'] = float(txn.amount)
-            features['currency'] = txn.currency
-            features['transaction_type'] = txn.transaction_type
-            features['country_code'] = txn.country_code or 'UNKNOWN'
-            features['has_counterparty'] = int(txn.counterparty_id is not None)
+            features["transaction_amount"] = float(txn.amount)
+            features["currency"] = txn.currency
+            features["transaction_type"] = txn.transaction_type
+            features["country_code"] = txn.country_code or "UNKNOWN"
+            features["has_counterparty"] = int(txn.counterparty_id is not None)
         else:
-            features['transaction_amount'] = 0.0
-            features['currency'] = 'UNKNOWN'
-            features['transaction_type'] = 'UNKNOWN'
-            features['country_code'] = 'UNKNOWN'
-            features['has_counterparty'] = 0
+            features["transaction_amount"] = 0.0
+            features["currency"] = "UNKNOWN"
+            features["transaction_type"] = "UNKNOWN"
+            features["country_code"] = "UNKNOWN"
+            features["has_counterparty"] = 0
 
         # User behavior features
         if alert.user_id:
@@ -240,55 +238,64 @@ class AlertTriageMLModel:
 
         # Rule matching features
         if alert.matched_rules_data:
-            rules_data = alert.matched_rules_data if isinstance(alert.matched_rules_data, list) else []
-            features['num_rules_matched'] = len(rules_data)
-            features['has_high_severity_rule'] = int(any(
-                r.get('severity') in ['high', 'critical']
-                for r in rules_data
-                if isinstance(r, dict)
-            ))
-            features['has_velocity_rule'] = int(any(
-                'velocity' in str(r.get('rule_name', '')).lower()
-                for r in rules_data
-                if isinstance(r, dict)
-            ))
+            rules_data = (
+                alert.matched_rules_data if isinstance(alert.matched_rules_data, list) else []
+            )
+            features["num_rules_matched"] = len(rules_data)
+            features["has_high_severity_rule"] = int(
+                any(
+                    r.get("severity") in ["high", "critical"]
+                    for r in rules_data
+                    if isinstance(r, dict)
+                )
+            )
+            features["has_velocity_rule"] = int(
+                any(
+                    "velocity" in str(r.get("rule_name", "")).lower()
+                    for r in rules_data
+                    if isinstance(r, dict)
+                )
+            )
         else:
-            features['num_rules_matched'] = 0
-            features['has_high_severity_rule'] = 0
-            features['has_velocity_rule'] = 0
+            features["num_rules_matched"] = 0
+            features["has_high_severity_rule"] = 0
+            features["has_velocity_rule"] = 0
 
         # Evidence count
         if alert.evidence:
-            features['evidence_count'] = len(alert.evidence) if isinstance(alert.evidence, dict) else 0
+            features["evidence_count"] = (
+                len(alert.evidence) if isinstance(alert.evidence, dict) else 0
+            )
         else:
-            features['evidence_count'] = 0
+            features["evidence_count"] = 0
 
         return features
 
     def _compute_user_features_realtime(
-        self,
-        db: Session,
-        user_id: str,
-        current_time: datetime
+        self, db: Session, user_id: str, current_time: datetime
     ) -> Dict[str, float]:
         """
         Compute user features in real-time for prediction.
         """
         lookback_start = current_time - timedelta(days=30)
 
-        transactions = db.query(Transaction).filter(
-            Transaction.user_id == user_id,
-            Transaction.timestamp >= lookback_start,
-            Transaction.timestamp < current_time
-        ).all()
+        transactions = (
+            db.query(Transaction)
+            .filter(
+                Transaction.user_id == user_id,
+                Transaction.timestamp >= lookback_start,
+                Transaction.timestamp < current_time,
+            )
+            .all()
+        )
 
         if not transactions:
             return {
-                'user_txn_count_30d': 0,
-                'user_total_volume_30d': 0.0,
-                'user_avg_amount': 0.0,
-                'user_unique_countries': 0,
-                'user_prior_alerts': 0
+                "user_txn_count_30d": 0,
+                "user_total_volume_30d": 0.0,
+                "user_avg_amount": 0.0,
+                "user_unique_countries": 0,
+                "user_prior_alerts": 0,
             }
 
         txn_count = len(transactions)
@@ -296,17 +303,18 @@ class AlertTriageMLModel:
         avg_amount = total_volume / txn_count if txn_count > 0 else 0
         unique_countries = len(set(t.country_code for t in transactions if t.country_code))
 
-        prior_alerts = db.query(Alert).filter(
-            Alert.user_id == user_id,
-            Alert.created_at < current_time
-        ).count()
+        prior_alerts = (
+            db.query(Alert)
+            .filter(Alert.user_id == user_id, Alert.created_at < current_time)
+            .count()
+        )
 
         return {
-            'user_txn_count_30d': txn_count,
-            'user_total_volume_30d': total_volume,
-            'user_avg_amount': avg_amount,
-            'user_unique_countries': unique_countries,
-            'user_prior_alerts': prior_alerts
+            "user_txn_count_30d": txn_count,
+            "user_total_volume_30d": total_volume,
+            "user_avg_amount": avg_amount,
+            "user_unique_countries": unique_countries,
+            "user_prior_alerts": prior_alerts,
         }
 
     def _prepare_feature_vector(self, features: Dict[str, Any]) -> pd.DataFrame:
@@ -316,7 +324,7 @@ class AlertTriageMLModel:
         # Encode categorical features
         for col in self.categorical_features:
             if col in features and col in self.label_encoders:
-                value = str(features.get(col, 'UNKNOWN'))
+                value = str(features.get(col, "UNKNOWN"))
                 encoder = self.label_encoders[col]
 
                 # Handle unseen categories
@@ -326,10 +334,10 @@ class AlertTriageMLModel:
                     # Use most common class for unknown
                     encoded_value = 0
 
-                features[f'{col}_encoded'] = encoded_value
+                features[f"{col}_encoded"] = encoded_value
 
         # Create feature vector
-        encoded_cols = [f'{col}_encoded' for col in self.categorical_features]
+        encoded_cols = [f"{col}_encoded" for col in self.categorical_features]
         feature_cols = self.numeric_features + encoded_cols
 
         X = pd.DataFrame([features])[feature_cols].fillna(0)
@@ -349,7 +357,7 @@ class AlertTriageMLModel:
         - High risk score + high severity → likely true positive
         """
         risk_score = float(alert.risk_score) if alert.risk_score else 50.0
-        severity_scores = {'low': 25, 'medium': 50, 'high': 75, 'critical': 100}
+        severity_scores = {"low": 25, "medium": 50, "high": 75, "critical": 100}
         severity_score = severity_scores.get(alert.severity, 50)
 
         combined_score = (risk_score + severity_score) / 2
@@ -374,7 +382,7 @@ class AlertTriageMLModel:
             "confidence": confidence,
             "recommendation": recommendation,
             "fallback": True,
-            "reason": "ML model not loaded"
+            "reason": "ML model not loaded",
         }
 
     def get_model_info(self) -> Dict[str, Any]:
@@ -384,10 +392,10 @@ class AlertTriageMLModel:
         return {
             "loaded": self.model_loaded,
             "model_type": type(self.model).__name__ if self.model else None,
-            "version": self.metadata.get('timestamp', 'unknown'),
+            "version": self.metadata.get("timestamp", "unknown"),
             "feature_count": len(self.feature_names),
             "optimal_threshold": self.optimal_threshold,
-            "metadata": self.metadata
+            "metadata": self.metadata,
         }
 
 

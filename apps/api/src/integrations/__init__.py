@@ -17,5 +17,5 @@ __all__ = [
     "IntegrationStatus",
     "SanctionsService",
     "SanctionsMatch",
-    "SanctionsListType"
+    "SanctionsListType",
 ]

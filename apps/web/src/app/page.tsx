@@ -65,8 +65,9 @@ export default function Home() {
       });
       router.replace("/dashboard");
     } catch (err) {
-      const tenants = err instanceof AuthError ? err.availableTenants : undefined;
-      if (tenants && tenants.length) {
+      const tenants =
+        err instanceof AuthError ? err.availableTenants : undefined;
+      if (tenants?.length) {
         setAvailableTenants(tenants);
         setSelectedTenant((prev) => prev || tenants[0] || "");
       }
@@ -175,10 +176,15 @@ export default function Home() {
                   autoComplete="email"
                   inputMode="email"
                   error={emailInvalid}
-                  errorMessage={emailInvalid ? "Enter a valid work email." : undefined}
+                  errorMessage={
+                    emailInvalid ? "Enter a valid work email." : undefined
+                  }
                   errorMessageId={emailErrorId}
                   aria-invalid={emailInvalid || Boolean(error)}
-                  aria-describedby={[errorId, emailErrorId].filter(Boolean).join(" ") || undefined}
+                  aria-describedby={
+                    [errorId, emailErrorId].filter(Boolean).join(" ") ||
+                    undefined
+                  }
                 />
               </div>
 
@@ -198,7 +204,11 @@ export default function Home() {
                     required
                   >
                     {availableTenants.map((tenant) => (
-                      <option key={tenant} value={tenant} className="bg-[#0a0a12]">
+                      <option
+                        key={tenant}
+                        value={tenant}
+                        className="bg-[#0a0a12]"
+                      >
                         {tenant}
                       </option>
                     ))}

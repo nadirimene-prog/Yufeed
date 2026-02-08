@@ -124,4 +124,3 @@ def derive_title_from_text(full_text: Optional[str]) -> Optional[str]:
         return None
 
     return title[:240]
-

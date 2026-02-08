@@ -4,6 +4,7 @@ Phase 4C: Task 7.2 - Multi-Tenancy Context
 
 Manages tenant context using Python contextvars for thread-safe tenant isolation.
 """
+
 from contextvars import ContextVar
 from typing import Optional
 import logging
@@ -11,7 +12,7 @@ import logging
 logger = logging.getLogger(__name__)
 
 # Thread-safe tenant context variable
-tenant_context: ContextVar[Optional[str]] = ContextVar('tenant_context', default=None)
+tenant_context: ContextVar[Optional[str]] = ContextVar("tenant_context", default=None)
 
 
 def get_current_tenant() -> Optional[str]:

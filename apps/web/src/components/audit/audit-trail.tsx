@@ -66,16 +66,21 @@ export default function AuditTrail() {
         limit: String(pageSize),
       });
       if (filters.action !== "all") params.set("action", filters.action);
-      if (filters.entityType !== "all") params.set("entity_type", filters.entityType);
+      if (filters.entityType !== "all")
+        params.set("entity_type", filters.entityType);
       if (filters.entityId) params.set("entity_id", filters.entityId);
       if (filters.actorId) params.set("actor_id", filters.actorId);
 
-      const res = await fetchWithAuth(`${API_URL}/api/audit/logs?${params.toString()}`);
+      const res = await fetchWithAuth(
+        `${API_URL}/api/audit/logs?${params.toString()}`,
+      );
       if (!res.ok) throw new Error(`Failed to load logs (${res.status})`);
       const data = await res.json();
       setLogs(data);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to load audit logs");
+      setError(
+        err instanceof Error ? err.message : "Failed to load audit logs",
+      );
     } finally {
       setLoading(false);
     }
@@ -90,7 +95,9 @@ export default function AuditTrail() {
     setExporting(true);
     setExportError(null);
     try {
-      const res = await fetchWithAuth(`${API_URL}/api/reporting/evidence/case/${trimmed}`);
+      const res = await fetchWithAuth(
+        `${API_URL}/api/reporting/evidence/case/${trimmed}`,
+      );
       if (!res.ok) {
         throw new Error(`Evidence export failed (${res.status})`);
       }
@@ -107,7 +114,9 @@ export default function AuditTrail() {
       link.remove();
       URL.revokeObjectURL(url);
     } catch (err) {
-      setExportError(err instanceof Error ? err.message : "Failed to export evidence");
+      setExportError(
+        err instanceof Error ? err.message : "Failed to export evidence",
+      );
     } finally {
       setExporting(false);
     }
@@ -117,15 +126,9 @@ export default function AuditTrail() {
     if (!filters.search) return logs;
     const query = filters.search.toLowerCase();
     return logs.filter((log) =>
-      [
-        log.audit_id,
-        log.actor_email,
-        log.actor_id,
-        log.entity_id,
-        log.path,
-      ]
+      [log.audit_id, log.actor_email, log.actor_id, log.entity_id, log.path]
         .filter(Boolean)
-        .some((value) => String(value).toLowerCase().includes(query))
+        .some((value) => String(value).toLowerCase().includes(query)),
     );
   }, [logs, filters.search]);
 

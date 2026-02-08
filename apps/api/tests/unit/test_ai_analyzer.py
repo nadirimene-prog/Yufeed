@@ -58,7 +58,11 @@ def test_analyzer_full_analysis_fallback(monkeypatch):
     )
 
     assert result["compliance_domain"] == ComplianceDomain.AML.value
-    assert result["risk_level"] in {RiskLevel.HIGH.value, RiskLevel.MEDIUM.value, RiskLevel.LOW.value}
+    assert result["risk_level"] in {
+        RiskLevel.HIGH.value,
+        RiskLevel.MEDIUM.value,
+        RiskLevel.LOW.value,
+    }
     assert "analyzed_at" in result
 
 
@@ -77,7 +81,7 @@ def test_extract_obligations_parses_markdown_fences(monkeypatch):
             return DummyMessage(
                 "```json\n"
                 "[\n"
-                "  {\"obligation\": \"Banks shall maintain records\", \"article\": \"Article 1\", \"deadline\": null, \"applicability\": \"banks\", \"source_excerpt\": \"Banks shall...\"}\n"
+                '  {"obligation": "Banks shall maintain records", "article": "Article 1", "deadline": null, "applicability": "banks", "source_excerpt": "Banks shall..."}\n'
                 "]\n"
                 "```"
             )

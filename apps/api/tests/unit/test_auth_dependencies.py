@@ -14,12 +14,16 @@ from src.auth.dependencies import (
 
 @pytest.mark.unit
 def test_jwt_handler_tokens_and_passwords():
-    token = JWTHandler.create_access_token({"sub": "user@example.com", "user_id": "u1", "role": "admin"})
+    token = JWTHandler.create_access_token(
+        {"sub": "user@example.com", "user_id": "u1", "role": "admin"}
+    )
     payload = JWTHandler.decode_token(token)
     assert payload["sub"] == "user@example.com"
     assert JWTHandler.verify_token_type(payload, "access") is True
 
-    refresh = JWTHandler.create_refresh_token({"sub": "user@example.com", "user_id": "u1", "role": "admin"})
+    refresh = JWTHandler.create_refresh_token(
+        {"sub": "user@example.com", "user_id": "u1", "role": "admin"}
+    )
     refresh_payload = JWTHandler.decode_token(refresh)
     assert JWTHandler.verify_token_type(refresh_payload, "refresh") is True
 
@@ -34,14 +38,18 @@ def test_jwt_handler_tokens_and_passwords():
 @pytest.mark.unit
 @pytest.mark.asyncio
 async def test_get_current_user_and_optional():
-    token = JWTHandler.create_access_token({"sub": "user@example.com", "user_id": "u1", "role": "admin"})
+    token = JWTHandler.create_access_token(
+        {"sub": "user@example.com", "user_id": "u1", "role": "admin"}
+    )
     creds = HTTPAuthorizationCredentials(scheme="Bearer", credentials=token)
 
     user = await get_current_user(creds)
     assert user.user_id == "u1"
     assert user.has_role("admin") is True
 
-    refresh = JWTHandler.create_refresh_token({"sub": "user@example.com", "user_id": "u1", "role": "admin"})
+    refresh = JWTHandler.create_refresh_token(
+        {"sub": "user@example.com", "user_id": "u1", "role": "admin"}
+    )
     bad_creds = HTTPAuthorizationCredentials(scheme="Bearer", credentials=refresh)
     with pytest.raises(HTTPException):
         await get_current_user(bad_creds)

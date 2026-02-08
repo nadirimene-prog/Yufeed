@@ -5,6 +5,7 @@ Uses Claude to generate detailed regulatory explanations for alerts and transact
 YUFEED INNOVATION: Automatically links transaction patterns to specific regulatory
 requirements and generates human-readable compliance explanations.
 """
+
 import os
 import logging
 from typing import Dict, Any, Optional, List
@@ -54,28 +55,30 @@ class RegulatoryEnrichmentService:
         # Get related documents
         regulations = []
         if alert.related_regulations:
-            regulations = self.db.query(LegalDocument).filter(
-                LegalDocument.id.in_(alert.related_regulations)
-            ).all()
+            regulations = (
+                self.db.query(LegalDocument)
+                .filter(LegalDocument.id.in_(alert.related_regulations))
+                .all()
+            )
 
         # Get transaction
         transaction = None
         if alert.transaction_id:
-            transaction = self.db.query(Transaction).filter(
-                Transaction.id == alert.transaction_id
-            ).first()
+            transaction = (
+                self.db.query(Transaction).filter(Transaction.id == alert.transaction_id).first()
+            )
 
         # Get rule
         rule = None
         if alert.rule_id:
-            rule = self.db.query(MonitoringRule).filter(
-                MonitoringRule.rule_id == alert.rule_id
-            ).first()
+            rule = (
+                self.db.query(MonitoringRule)
+                .filter(MonitoringRule.rule_id == alert.rule_id)
+                .first()
+            )
 
         # Generate context
-        context = self._generate_regulatory_context(
-            alert, transaction, rule, regulations
-        )
+        context = self._generate_regulatory_context(alert, transaction, rule, regulations)
 
         # Save to alert
         alert.regulation_context = context
@@ -88,7 +91,7 @@ class RegulatoryEnrichmentService:
         alert: Alert,
         transaction: Optional[Transaction],
         rule: Optional[MonitoringRule],
-        regulations: List[LegalDocument]
+        regulations: List[LegalDocument],
     ) -> str:
         """
         Use Claude to generate regulatory context.
@@ -128,7 +131,7 @@ class RegulatoryEnrichmentService:
 - Document Type: {reg.document_type}
 - Publication Date: {reg.publication_date}
 """
-                if hasattr(reg, 'summary') and reg.summary:
+                if hasattr(reg, "summary") and reg.summary:
                     prompt += f"- Summary: {reg.summary}\n"
 
         prompt += """
@@ -153,10 +156,7 @@ Keep it concise (2-3 paragraphs maximum).
             response = self.client.messages.create(
                 model="claude-sonnet-4-20250514",
                 max_tokens=1000,
-                messages=[{
-                    "role": "user",
-                    "content": prompt
-                }]
+                messages=[{"role": "user", "content": prompt}],
             )
 
             return response.content[0].text
@@ -165,11 +165,7 @@ Keep it concise (2-3 paragraphs maximum).
             logger.error(f"Error generating regulatory context: {e}")
             return self._fallback_regulatory_context()
 
-    def generate_sar_draft(
-        self,
-        alert_id: int,
-        include_narrative: bool = True
-    ) -> Dict[str, Any]:
+    def generate_sar_draft(self, alert_id: int, include_narrative: bool = True) -> Dict[str, Any]:
         """
         Generate a draft Suspicious Activity Report (SAR) for an alert.
 
@@ -185,9 +181,9 @@ Keep it concise (2-3 paragraphs maximum).
         # Get transaction
         transaction = None
         if alert.transaction_id:
-            transaction = self.db.query(Transaction).filter(
-                Transaction.id == alert.transaction_id
-            ).first()
+            transaction = (
+                self.db.query(Transaction).filter(Transaction.id == alert.transaction_id).first()
+            )
 
         # Build context
         context = self._build_sar_context(alert, transaction)
@@ -205,31 +201,31 @@ Keep it concise (2-3 paragraphs maximum).
             "subject": {
                 "type": "individual",  # or "entity"
                 "user_id": alert.user_id,
-                "identification": "MASKED"  # Mask for draft
+                "identification": "MASKED",  # Mask for draft
             },
             "suspicious_activity": {
                 "type": alert.alert_type,
-                "date": transaction.timestamp.isoformat() if transaction else alert.created_at.isoformat(),
+                "date": (
+                    transaction.timestamp.isoformat()
+                    if transaction
+                    else alert.created_at.isoformat()
+                ),
                 "amount": float(transaction.amount) if transaction else None,
                 "currency": transaction.currency if transaction else None,
-                "description": alert.description
+                "description": alert.description,
             },
             "narrative": narrative,
             "related_regulations": alert.related_regulations or [],
             "supporting_documentation": {
                 "evidence": alert.evidence,
-                "risk_score": float(alert.risk_score) if alert.risk_score else None
+                "risk_score": float(alert.risk_score) if alert.risk_score else None,
             },
-            "filing_reason": self._determine_filing_reason(alert, transaction)
+            "filing_reason": self._determine_filing_reason(alert, transaction),
         }
 
         return sar_draft
 
-    def _build_sar_context(
-        self,
-        alert: Alert,
-        transaction: Optional[Transaction]
-    ) -> str:
+    def _build_sar_context(self, alert: Alert, transaction: Optional[Transaction]) -> str:
         """Build context for SAR generation."""
         context = f"""# SAR Context
 
@@ -292,10 +288,7 @@ Format: 3-5 concise paragraphs.
             response = self.client.messages.create(
                 model="claude-sonnet-4-20250514",
                 max_tokens=1500,
-                messages=[{
-                    "role": "user",
-                    "content": prompt
-                }]
+                messages=[{"role": "user", "content": prompt}],
             )
 
             return response.content[0].text
@@ -304,11 +297,7 @@ Format: 3-5 concise paragraphs.
             logger.error(f"Error generating SAR narrative: {e}")
             return "Error generating SAR narrative. Manual preparation required."
 
-    def auto_link_regulations(
-        self,
-        alert_id: int,
-        search_threshold: float = 0.7
-    ) -> List[int]:
+    def auto_link_regulations(self, alert_id: int, search_threshold: float = 0.7) -> List[int]:
         """
         Automatically find and link relevant regulations to an alert.
 
@@ -334,9 +323,12 @@ Format: 3-5 concise paragraphs.
 
         relevant_docs = []
         for keyword in keywords:
-            docs = self.db.query(LegalDocument).filter(
-                LegalDocument.title.ilike(f"%{keyword}%")
-            ).limit(5).all()
+            docs = (
+                self.db.query(LegalDocument)
+                .filter(LegalDocument.title.ilike(f"%{keyword}%"))
+                .limit(5)
+                .all()
+            )
             relevant_docs.extend(docs)
 
         # Deduplicate
@@ -361,7 +353,7 @@ Format: 3-5 concise paragraphs.
             "amount_threshold": ["customer due diligence", "CDD", "EDD"],
             "structuring": ["structuring", "smurfing", "layering"],
             "high_risk_geography": ["high risk", "third countries"],
-            "wire_transfer": ["transfer of funds", "payment services"]
+            "wire_transfer": ["transfer of funds", "payment services"],
         }
 
         if alert.alert_type in keyword_map:
@@ -369,25 +361,21 @@ Format: 3-5 concise paragraphs.
 
         return keywords
 
-    def _determine_filing_reason(
-        self,
-        alert: Alert,
-        transaction: Optional[Transaction]
-    ) -> str:
+    def _determine_filing_reason(self, alert: Alert, transaction: Optional[Transaction]) -> str:
         """Determine why SAR should be filed."""
         reasons = []
 
-        if alert.severity == 'critical':
+        if alert.severity == "critical":
             reasons.append("Critical severity alert")
 
         if transaction:
-            if transaction.risk_level in ['high', 'critical']:
+            if transaction.risk_level in ["high", "critical"]:
                 reasons.append(f"{transaction.risk_level.capitalize()} risk transaction")
 
-            if transaction.country_code in ['KP', 'IR', 'SY']:
+            if transaction.country_code in ["KP", "IR", "SY"]:
                 reasons.append("Sanctioned jurisdiction involvement")
 
-        if alert.alert_type == 'structuring':
+        if alert.alert_type == "structuring":
             reasons.append("Potential structuring activity")
 
         if not reasons:

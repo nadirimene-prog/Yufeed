@@ -88,7 +88,9 @@ def test_cases_workflow(db_session):
         regulations = cases_api.get_case_regulations(case_id, db_session, tenant_id="default")
         assert regulations
 
-        added = cases_api.add_alert_to_case(case_id, alert.alert_id, db_session, tenant_id="default")
+        added = cases_api.add_alert_to_case(
+            case_id, alert.alert_id, db_session, tenant_id="default"
+        )
         assert added["case_id"] == case_id
 
         evidence = cases_api.add_evidence(

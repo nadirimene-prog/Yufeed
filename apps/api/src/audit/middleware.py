@@ -1,6 +1,7 @@
 """
 Audit logging middleware for append-only mutation tracking.
 """
+
 import json
 import logging
 import uuid

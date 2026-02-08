@@ -1,4 +1,5 @@
 """Risk management API endpoints."""
+
 from datetime import datetime, timezone
 from typing import Optional
 import uuid
@@ -54,13 +55,15 @@ def generate_risk_id() -> str:
 
 def category_to_dict(category: RiskCategory, db: Session) -> dict:
     """Convert risk category model to response dict."""
-    children_count = db.query(func.count(RiskCategory.id)).filter(
-        RiskCategory.parent_id == category.id
-    ).scalar() or 0
+    children_count = (
+        db.query(func.count(RiskCategory.id)).filter(RiskCategory.parent_id == category.id).scalar()
+        or 0
+    )
 
-    entries_count = db.query(func.count(RiskEntry.id)).filter(
-        RiskEntry.category_id == category.id
-    ).scalar() or 0
+    entries_count = (
+        db.query(func.count(RiskEntry.id)).filter(RiskEntry.category_id == category.id).scalar()
+        or 0
+    )
 
     return {
         "id": category.id,
@@ -82,9 +85,12 @@ def entry_to_dict(entry: RiskEntry, db: Session) -> dict:
     category = db.query(RiskCategory).filter(RiskCategory.id == entry.category_id).first()
     category_name = category.name if category else None
 
-    linked_obligations_count = db.query(func.count(ObligationRiskLink.id)).filter(
-        ObligationRiskLink.risk_entry_id == entry.id
-    ).scalar() or 0
+    linked_obligations_count = (
+        db.query(func.count(ObligationRiskLink.id))
+        .filter(ObligationRiskLink.risk_entry_id == entry.id)
+        .scalar()
+        or 0
+    )
 
     return {
         "id": entry.id,
@@ -109,9 +115,9 @@ def entry_to_dict(entry: RiskEntry, db: Session) -> dict:
 
 def link_to_dict(link: ObligationRiskLink, db: Session) -> dict:
     """Convert obligation-risk link model to response dict."""
-    obligation = db.query(RegulatoryObligation).filter(
-        RegulatoryObligation.id == link.obligation_id
-    ).first()
+    obligation = (
+        db.query(RegulatoryObligation).filter(RegulatoryObligation.id == link.obligation_id).first()
+    )
 
     return {
         "id": link.id,
@@ -121,19 +127,26 @@ def link_to_dict(link: ObligationRiskLink, db: Session) -> dict:
         "notes": link.notes,
         "created_by": link.created_by,
         "created_at": link.created_at.isoformat() if link.created_at else None,
-        "obligation_text": obligation.obligation_text[:200] + "..." if obligation and len(obligation.obligation_text or "") > 200 else (obligation.obligation_text if obligation else None),
+        "obligation_text": (
+            obligation.obligation_text[:200] + "..."
+            if obligation and len(obligation.obligation_text or "") > 200
+            else (obligation.obligation_text if obligation else None)
+        ),
         "obligation_article_ref": obligation.article_ref if obligation else None,
     }
 
 
 # ========== Risk Categories ==========
 
+
 @router.get("/categories")
 def list_risk_categories(
     status: Optional[str] = Query(None, description="Filter by status"),
     parent_id: Optional[int] = Query(None, description="Filter by parent category"),
     db: Session = Depends(get_db),
-    _: CurrentUser = Depends(require_any_role(["admin", "compliance", "aml_officer", "auditor", "user"])),
+    _: CurrentUser = Depends(
+        require_any_role(["admin", "compliance", "aml_officer", "auditor", "user"])
+    ),
 ):
     """List all risk categories."""
     query = db.query(RiskCategory)
@@ -154,31 +167,39 @@ def list_risk_categories(
 @router.get("/categories/tree")
 def get_category_tree(
     db: Session = Depends(get_db),
-    _: CurrentUser = Depends(require_any_role(["admin", "compliance", "aml_officer", "auditor", "user"])),
+    _: CurrentUser = Depends(
+        require_any_role(["admin", "compliance", "aml_officer", "auditor", "user"])
+    ),
 ):
     """Get hierarchical category tree."""
+
     def build_tree(parent_id=None):
-        categories = db.query(RiskCategory).filter(
-            RiskCategory.parent_id == parent_id,
-            RiskCategory.status == "active"
-        ).order_by(RiskCategory.name).all()
+        categories = (
+            db.query(RiskCategory)
+            .filter(RiskCategory.parent_id == parent_id, RiskCategory.status == "active")
+            .order_by(RiskCategory.name)
+            .all()
+        )
 
         result = []
         for cat in categories:
-            entries_count = db.query(func.count(RiskEntry.id)).filter(
-                RiskEntry.category_id == cat.id
-            ).scalar() or 0
+            entries_count = (
+                db.query(func.count(RiskEntry.id)).filter(RiskEntry.category_id == cat.id).scalar()
+                or 0
+            )
 
-            result.append({
-                "id": cat.id,
-                "category_id": cat.category_id,
-                "name": cat.name,
-                "description": cat.description,
-                "risk_level": cat.risk_level,
-                "status": cat.status,
-                "children": build_tree(cat.id),
-                "entries_count": entries_count,
-            })
+            result.append(
+                {
+                    "id": cat.id,
+                    "category_id": cat.category_id,
+                    "name": cat.name,
+                    "description": cat.description,
+                    "risk_level": cat.risk_level,
+                    "status": cat.status,
+                    "children": build_tree(cat.id),
+                    "entries_count": entries_count,
+                }
+            )
         return result
 
     return {"items": build_tree()}
@@ -218,7 +239,9 @@ async def create_risk_category(
 def get_risk_category(
     category_id: int,
     db: Session = Depends(get_db),
-    _: CurrentUser = Depends(require_any_role(["admin", "compliance", "aml_officer", "auditor", "user"])),
+    _: CurrentUser = Depends(
+        require_any_role(["admin", "compliance", "aml_officer", "auditor", "user"])
+    ),
 ):
     """Get a risk category by ID."""
     category = db.query(RiskCategory).filter(RiskCategory.id == category_id).first()
@@ -271,25 +294,25 @@ def delete_risk_category(
         raise HTTPException(status_code=404, detail="Category not found")
 
     # Check for child categories
-    children_count = db.query(func.count(RiskCategory.id)).filter(
-        RiskCategory.parent_id == category_id
-    ).scalar() or 0
+    children_count = (
+        db.query(func.count(RiskCategory.id)).filter(RiskCategory.parent_id == category_id).scalar()
+        or 0
+    )
 
     if children_count > 0:
         raise HTTPException(
-            status_code=400,
-            detail=f"Cannot delete category with {children_count} child categories"
+            status_code=400, detail=f"Cannot delete category with {children_count} child categories"
         )
 
     # Check for risk entries
-    entries_count = db.query(func.count(RiskEntry.id)).filter(
-        RiskEntry.category_id == category_id
-    ).scalar() or 0
+    entries_count = (
+        db.query(func.count(RiskEntry.id)).filter(RiskEntry.category_id == category_id).scalar()
+        or 0
+    )
 
     if entries_count > 0:
         raise HTTPException(
-            status_code=400,
-            detail=f"Cannot delete category with {entries_count} risk entries"
+            status_code=400, detail=f"Cannot delete category with {entries_count} risk entries"
         )
 
     db.delete(category)
@@ -299,6 +322,7 @@ def delete_risk_category(
 
 
 # ========== Risk Entries ==========
+
 
 @router.get("/entries")
 def list_risk_entries(
@@ -310,7 +334,9 @@ def list_risk_entries(
     skip: int = Query(0, ge=0),
     limit: int = Query(50, ge=1, le=200),
     db: Session = Depends(get_db),
-    _: CurrentUser = Depends(require_any_role(["admin", "compliance", "aml_officer", "auditor", "user"])),
+    _: CurrentUser = Depends(
+        require_any_role(["admin", "compliance", "aml_officer", "auditor", "user"])
+    ),
 ):
     """List risk entries with optional filters."""
     query = db.query(RiskEntry)
@@ -332,9 +358,7 @@ def list_risk_entries(
 
     if q:
         like = f"%{q}%"
-        query = query.filter(
-            (RiskEntry.name.ilike(like)) | (RiskEntry.description.ilike(like))
-        )
+        query = query.filter((RiskEntry.name.ilike(like)) | (RiskEntry.description.ilike(like)))
 
     total = query.count()
     entries = query.order_by(RiskEntry.updated_at.desc()).offset(skip).limit(limit).all()
@@ -379,14 +403,16 @@ async def create_risk_entry(
 
     # Send WebSocket notification
     try:
-        await ws_manager.send_notification(NotificationEvent(
-            event_type=EventType.RISK_ENTRY_CREATED,
-            title="Risk Entry Created",
-            message=f"New risk entry created: {entry.name}",
-            data={"risk_id": entry.risk_id, "name": entry.name, "category": category.name},
-            priority="normal",
-            link=f"/compliance/risk-map?risk={entry.id}",
-        ))
+        await ws_manager.send_notification(
+            NotificationEvent(
+                event_type=EventType.RISK_ENTRY_CREATED,
+                title="Risk Entry Created",
+                message=f"New risk entry created: {entry.name}",
+                data={"risk_id": entry.risk_id, "name": entry.name, "category": category.name},
+                priority="normal",
+                link=f"/compliance/risk-map?risk={entry.id}",
+            )
+        )
     except Exception:
         pass
 
@@ -397,7 +423,9 @@ async def create_risk_entry(
 def get_risk_entry(
     entry_id: int,
     db: Session = Depends(get_db),
-    _: CurrentUser = Depends(require_any_role(["admin", "compliance", "aml_officer", "auditor", "user"])),
+    _: CurrentUser = Depends(
+        require_any_role(["admin", "compliance", "aml_officer", "auditor", "user"])
+    ),
 ):
     """Get a risk entry by ID."""
     entry = db.query(RiskEntry).filter(RiskEntry.id == entry_id).first()
@@ -457,20 +485,21 @@ def delete_risk_entry(
 
 # ========== Obligation-Risk Links ==========
 
+
 @router.get("/entries/{entry_id}/obligations")
 def list_risk_entry_obligations(
     entry_id: int,
     db: Session = Depends(get_db),
-    _: CurrentUser = Depends(require_any_role(["admin", "compliance", "aml_officer", "auditor", "user"])),
+    _: CurrentUser = Depends(
+        require_any_role(["admin", "compliance", "aml_officer", "auditor", "user"])
+    ),
 ):
     """List obligations linked to a risk entry."""
     entry = db.query(RiskEntry).filter(RiskEntry.id == entry_id).first()
     if not entry:
         raise HTTPException(status_code=404, detail="Risk entry not found")
 
-    links = db.query(ObligationRiskLink).filter(
-        ObligationRiskLink.risk_entry_id == entry_id
-    ).all()
+    links = db.query(ObligationRiskLink).filter(ObligationRiskLink.risk_entry_id == entry_id).all()
 
     return {"items": [link_to_dict(l, db) for l in links]}
 
@@ -487,17 +516,23 @@ async def link_obligation_to_risk(
     if not entry:
         raise HTTPException(status_code=404, detail="Risk entry not found")
 
-    obligation = db.query(RegulatoryObligation).filter(
-        RegulatoryObligation.id == payload.obligation_id
-    ).first()
+    obligation = (
+        db.query(RegulatoryObligation)
+        .filter(RegulatoryObligation.id == payload.obligation_id)
+        .first()
+    )
     if not obligation:
         raise HTTPException(status_code=404, detail="Obligation not found")
 
     # Check for existing link
-    existing = db.query(ObligationRiskLink).filter(
-        ObligationRiskLink.risk_entry_id == entry_id,
-        ObligationRiskLink.obligation_id == payload.obligation_id,
-    ).first()
+    existing = (
+        db.query(ObligationRiskLink)
+        .filter(
+            ObligationRiskLink.risk_entry_id == entry_id,
+            ObligationRiskLink.obligation_id == payload.obligation_id,
+        )
+        .first()
+    )
     if existing:
         raise HTTPException(status_code=400, detail="Obligation already linked to this risk")
 
@@ -536,60 +571,78 @@ def delete_obligation_risk_link(
 
 # ========== Risk Map Overview ==========
 
+
 @router.get("/map")
 def get_risk_map(
     db: Session = Depends(get_db),
-    _: CurrentUser = Depends(require_any_role(["admin", "compliance", "aml_officer", "auditor", "user"])),
+    _: CurrentUser = Depends(
+        require_any_role(["admin", "compliance", "aml_officer", "auditor", "user"])
+    ),
 ):
     """Get aggregated risk map overview."""
-    total_categories = db.query(func.count(RiskCategory.id)).filter(
-        RiskCategory.status == "active"
-    ).scalar() or 0
+    total_categories = (
+        db.query(func.count(RiskCategory.id)).filter(RiskCategory.status == "active").scalar() or 0
+    )
 
     total_entries = db.query(func.count(RiskEntry.id)).scalar() or 0
 
     # Count by inherent risk level
     by_inherent = {}
     for level in ["low", "medium", "high", "critical"]:
-        count = db.query(func.count(RiskEntry.id)).filter(
-            RiskEntry.inherent_risk_level == level
-        ).scalar() or 0
+        count = (
+            db.query(func.count(RiskEntry.id))
+            .filter(RiskEntry.inherent_risk_level == level)
+            .scalar()
+            or 0
+        )
         by_inherent[level] = count
 
     # Count by residual risk level
     by_residual = {}
     for level in ["low", "medium", "high", "critical"]:
-        count = db.query(func.count(RiskEntry.id)).filter(
-            RiskEntry.residual_risk_level == level
-        ).scalar() or 0
+        count = (
+            db.query(func.count(RiskEntry.id))
+            .filter(RiskEntry.residual_risk_level == level)
+            .scalar()
+            or 0
+        )
         by_residual[level] = count
 
     # Count by mitigation status
     by_mitigation = {}
     for status in ["not_started", "in_progress", "implemented", "monitored"]:
-        count = db.query(func.count(RiskEntry.id)).filter(
-            RiskEntry.mitigation_status == status
-        ).scalar() or 0
+        count = (
+            db.query(func.count(RiskEntry.id))
+            .filter(RiskEntry.mitigation_status == status)
+            .scalar()
+            or 0
+        )
         by_mitigation[status] = count
 
     # Count by category
     categories = db.query(RiskCategory).filter(RiskCategory.status == "active").all()
     by_category = []
     for cat in categories:
-        count = db.query(func.count(RiskEntry.id)).filter(
-            RiskEntry.category_id == cat.id
-        ).scalar() or 0
-        by_category.append({
-            "id": cat.id,
-            "category_id": cat.category_id,
-            "name": cat.name,
-            "entries_count": count,
-        })
+        count = (
+            db.query(func.count(RiskEntry.id)).filter(RiskEntry.category_id == cat.id).scalar() or 0
+        )
+        by_category.append(
+            {
+                "id": cat.id,
+                "category_id": cat.category_id,
+                "name": cat.name,
+                "entries_count": count,
+            }
+        )
 
     # High priority risks (high or critical inherent level)
-    high_priority = db.query(RiskEntry).filter(
-        RiskEntry.inherent_risk_level.in_(["high", "critical"])
-    ).order_by(RiskEntry.updated_at.desc()).limit(10).all()
+    high_priority = (
+        db.query(RiskEntry)
+        .filter(RiskEntry.inherent_risk_level.in_(["high", "critical"]))
+        .order_by(RiskEntry.updated_at.desc())
+        .limit(10)
+        .all()
+    )
 
     return {
         "total_categories": total_categories,
@@ -605,7 +658,9 @@ def get_risk_map(
 @router.get("/heatmap")
 def get_risk_heatmap(
     db: Session = Depends(get_db),
-    _: CurrentUser = Depends(require_any_role(["admin", "compliance", "aml_officer", "auditor", "user"])),
+    _: CurrentUser = Depends(
+        require_any_role(["admin", "compliance", "aml_officer", "auditor", "user"])
+    ),
 ):
     """Get risk heat map data (likelihood x impact matrix)."""
     likelihoods = ["rare", "unlikely", "possible", "likely", "almost_certain"]
@@ -616,20 +671,26 @@ def get_risk_heatmap(
 
     for likelihood in likelihoods:
         for impact in impacts:
-            entries = db.query(RiskEntry).filter(
-                RiskEntry.likelihood == likelihood,
-                RiskEntry.impact == impact,
-            ).all()
+            entries = (
+                db.query(RiskEntry)
+                .filter(
+                    RiskEntry.likelihood == likelihood,
+                    RiskEntry.impact == impact,
+                )
+                .all()
+            )
 
             count = len(entries)
             total_risks += count
 
-            cells.append({
-                "likelihood": likelihood,
-                "impact": impact,
-                "count": count,
-                "risk_ids": [e.risk_id for e in entries],
-            })
+            cells.append(
+                {
+                    "likelihood": likelihood,
+                    "impact": impact,
+                    "count": count,
+                    "risk_ids": [e.risk_id for e in entries],
+                }
+            )
 
     return {
         "cells": cells,

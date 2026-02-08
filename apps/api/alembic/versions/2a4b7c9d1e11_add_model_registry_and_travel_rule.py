@@ -4,6 +4,7 @@ Revision ID: 2a4b7c9d1e11
 Revises: 9f3c2b1a7d55
 Create Date: 2026-01-22 19:30:00.000000
 """
+
 from typing import Sequence, Union
 
 from alembic import op
@@ -33,7 +34,9 @@ def upgrade() -> None:
         sa.Column("owner", sa.String(255)),
         sa.Column("status", sa.String(50), server_default="active"),
         sa.Column("created_at", sa.DateTime(), server_default=sa.func.now()),
-        sa.Column("updated_at", sa.DateTime(), server_default=sa.func.now(), onupdate=sa.func.now()),
+        sa.Column(
+            "updated_at", sa.DateTime(), server_default=sa.func.now(), onupdate=sa.func.now()
+        ),
     )
     op.create_index("ix_model_registry_model_id", "model_registry", ["model_id"])
 
@@ -55,7 +58,9 @@ def upgrade() -> None:
     op.create_table(
         "model_drift_reports",
         sa.Column("id", sa.Integer(), primary_key=True),
-        sa.Column("model_version_id", sa.Integer(), sa.ForeignKey("model_versions.id"), nullable=False),
+        sa.Column(
+            "model_version_id", sa.Integer(), sa.ForeignKey("model_versions.id"), nullable=False
+        ),
         sa.Column("drift_score", sa.Numeric(6, 3)),
         sa.Column("status", sa.String(50), server_default="ok"),
         sa.Column("window_start", sa.DateTime()),
@@ -63,7 +68,9 @@ def upgrade() -> None:
         sa.Column("metrics", json_type),
         sa.Column("observed_at", sa.DateTime(), server_default=sa.func.now()),
     )
-    op.create_index("ix_model_drift_reports_version_id", "model_drift_reports", ["model_version_id"])
+    op.create_index(
+        "ix_model_drift_reports_version_id", "model_drift_reports", ["model_version_id"]
+    )
 
     op.create_table(
         "travel_rule_requests",
@@ -78,7 +85,9 @@ def upgrade() -> None:
         sa.Column("message", sa.Text()),
         sa.Column("status", sa.String(50), server_default="pending"),
         sa.Column("created_at", sa.DateTime(), server_default=sa.func.now()),
-        sa.Column("updated_at", sa.DateTime(), server_default=sa.func.now(), onupdate=sa.func.now()),
+        sa.Column(
+            "updated_at", sa.DateTime(), server_default=sa.func.now(), onupdate=sa.func.now()
+        ),
         sa.Column("submitted_at", sa.DateTime()),
     )
     op.create_index("ix_travel_rule_requests_request_id", "travel_rule_requests", ["request_id"])

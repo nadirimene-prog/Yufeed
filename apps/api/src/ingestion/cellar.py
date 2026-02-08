@@ -11,6 +11,7 @@ from src.cache.celex_cache import CelexCache
 
 logger = logging.getLogger(__name__)
 
+
 class CellarClient:
     """
     Client for querying the EU Cellar (Publications Office) SPARQL endpoint.
@@ -52,7 +53,7 @@ class CellarClient:
             return False
         # CELEX must match: 1-5 digits + letter(s) + digits
         # Examples: 32016R0679, 32024R1624
-        pattern = r'^[0-9]{1,5}[A-Z]{1,3}[0-9]{1,6}[A-Z0-9]*$'
+        pattern = r"^[0-9]{1,5}[A-Z]{1,3}[0-9]{1,6}[A-Z0-9]*$"
         return re.match(pattern, celex) is not None
 
     @staticmethod
@@ -61,7 +62,7 @@ class CellarClient:
         Sanitize CELEX input by escaping special characters.
         """
         # Only allow alphanumeric characters
-        return re.sub(r'[^A-Z0-9]', '', celex.upper())
+        return re.sub(r"[^A-Z0-9]", "", celex.upper())
 
     @staticmethod
     def _sanitize_query_term(term: str) -> str:
@@ -233,8 +234,8 @@ class CellarClient:
                 data={"query": sparql_query},
                 headers={
                     "Accept": "application/sparql-results+json",
-                    "Content-Type": "application/x-www-form-urlencoded"
-                }
+                    "Content-Type": "application/x-www-form-urlencoded",
+                },
             )
             response.raise_for_status()
 
@@ -280,16 +281,9 @@ class CellarClient:
 
         language = (language or "en").lower()
         lang_codes = ["en", "eng"] if language == "en" else ["fr", "fra"]
-        lang_filter = " || ".join(
-            [f'LANGMATCHES(LANG(?title), "{code}")' for code in lang_codes]
-        )
+        lang_filter = " || ".join([f'LANGMATCHES(LANG(?title), "{code}")' for code in lang_codes])
         lang_filter = f"({lang_filter})" if require_language else "true"
-        filters = " || ".join(
-            [
-                f'CONTAINS(LCASE(STR(?title)), "{term}")'
-                for term in cleaned_terms
-            ]
-        )
+        filters = " || ".join([f'CONTAINS(LCASE(STR(?title)), "{term}")' for term in cleaned_terms])
 
         sparql_query = f"""
         PREFIX cdm: <http://publications.europa.eu/ontology/cdm#>
@@ -337,12 +331,14 @@ class CellarClient:
             response.raise_for_status()
             data = response.json()
             results = data.get("results", {}).get("bindings", [])
-            items = [self._parse_sparql_result(row, row.get("celex", {}).get("value", "")) for row in results]
+            items = [
+                self._parse_sparql_result(row, row.get("celex", {}).get("value", ""))
+                for row in results
+            ]
             if not require_language:
                 allowed = {"en", "eng", "fr", "fra"}
                 items = [
-                    item for item in items
-                    if (item.get("title_lang") or "").lower() in allowed
+                    item for item in items if (item.get("title_lang") or "").lower() in allowed
                 ]
             return [item for item in items if item.get("celex")]
         except httpx.HTTPError as exc:
@@ -356,6 +352,7 @@ class CellarClient:
         """
         Parse SPARQL JSON result into structured metadata.
         """
+
         def get_value(field: str) -> Optional[str]:
             return result.get(field, {}).get("value")
 
@@ -364,7 +361,7 @@ class CellarClient:
                 return None
             try:
                 # Cellar dates are typically in ISO format (YYYY-MM-DD)
-                return datetime.fromisoformat(date_str.split('T')[0])
+                return datetime.fromisoformat(date_str.split("T")[0])
             except (ValueError, AttributeError):
                 return None
 
@@ -379,7 +376,7 @@ class CellarClient:
             "date_entry_into_force": parse_date(get_value("dateEntryIntoForce")),
             "subject": get_value("subject"),
             "directory_code": get_value("directoryCode"),
-            "work_uri": get_value("work")
+            "work_uri": get_value("work"),
         }
 
         logger.info(f"Parsed Cellar metadata for {celex}: title={metadata.get('title')}")
@@ -414,8 +411,8 @@ class CellarClient:
                 data={"query": sparql_query},
                 headers={
                     "Accept": "application/sparql-results+json",
-                    "Content-Type": "application/x-www-form-urlencoded"
-                }
+                    "Content-Type": "application/x-www-form-urlencoded",
+                },
             )
             response.raise_for_status()
 
@@ -424,10 +421,12 @@ class CellarClient:
 
             manifestations = []
             for binding in bindings:
-                manifestations.append({
-                    "format": binding.get("format", {}).get("value", "").split("/")[-1],
-                    "url": binding.get("url", {}).get("value")
-                })
+                manifestations.append(
+                    {
+                        "format": binding.get("format", {}).get("value", "").split("/")[-1],
+                        "url": binding.get("url", {}).get("value"),
+                    }
+                )
 
             logger.info(f"Found {len(manifestations)} manifestations for {cellar_id}")
             return manifestations
@@ -495,8 +494,8 @@ class CellarClient:
                 data={"query": sparql_query},
                 headers={
                     "Accept": "application/sparql-results+json",
-                    "Content-Type": "application/x-www-form-urlencoded"
-                }
+                    "Content-Type": "application/x-www-form-urlencoded",
+                },
             )
             response.raise_for_status()
 
@@ -506,11 +505,13 @@ class CellarClient:
             relations = []
             for binding in bindings:
                 relation_type = binding.get("relationType", {}).get("value", "").split("#")[-1]
-                relations.append({
-                    "related_celex": binding.get("relatedCelex", {}).get("value"),
-                    "relation_type": relation_type,
-                    "related_work_uri": binding.get("relatedWork", {}).get("value")
-                })
+                relations.append(
+                    {
+                        "related_celex": binding.get("relatedCelex", {}).get("value"),
+                        "relation_type": relation_type,
+                        "related_work_uri": binding.get("relatedWork", {}).get("value"),
+                    }
+                )
 
             logger.info(f"Found {len(relations)} related documents for {cellar_id}")
             return relations
@@ -519,7 +520,9 @@ class CellarClient:
             logger.error(f"Error fetching related documents for {cellar_id}: {e}")
             return []
 
-    def query_bulk_celex(self, celex_list: List[str], use_cache: bool = True) -> Dict[str, Optional[Dict[str, Any]]]:
+    def query_bulk_celex(
+        self, celex_list: List[str], use_cache: bool = True
+    ) -> Dict[str, Optional[Dict[str, Any]]]:
         """
         Query multiple CELEX numbers in batch.
 

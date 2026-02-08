@@ -37,7 +37,9 @@ def _policy_to_dict(policy: PolicyDocument) -> dict:
         "status": policy.status,
         "language": policy.language,
         "effective_date": policy.effective_date.isoformat() if policy.effective_date else None,
-        "last_reviewed_at": policy.last_reviewed_at.isoformat() if policy.last_reviewed_at else None,
+        "last_reviewed_at": (
+            policy.last_reviewed_at.isoformat() if policy.last_reviewed_at else None
+        ),
         "source_url": policy.source_url,
         "updated_at": policy.updated_at.isoformat() if policy.updated_at else None,
     }
@@ -73,20 +75,26 @@ def _internal_rule_to_dict(rule: InternalRule) -> dict:
     }
 
 
-def _mapping_to_dict(mapping: InternalRuleMapping, monitoring_rule: Optional[MonitoringRule]) -> dict:
+def _mapping_to_dict(
+    mapping: InternalRuleMapping, monitoring_rule: Optional[MonitoringRule]
+) -> dict:
     return {
         "id": mapping.id,
         "internal_rule_id": mapping.internal_rule_id,
         "monitoring_rule_id": mapping.monitoring_rule_id,
         "mapping_type": mapping.mapping_type,
         "created_at": mapping.created_at.isoformat() if mapping.created_at else None,
-        "monitoring_rule": {
-            "id": monitoring_rule.id,
-            "rule_id": monitoring_rule.rule_id,
-            "name": monitoring_rule.name,
-            "severity": monitoring_rule.severity,
-            "enabled": monitoring_rule.enabled,
-        } if monitoring_rule else None,
+        "monitoring_rule": (
+            {
+                "id": monitoring_rule.id,
+                "rule_id": monitoring_rule.rule_id,
+                "name": monitoring_rule.name,
+                "severity": monitoring_rule.severity,
+                "enabled": monitoring_rule.enabled,
+            }
+            if monitoring_rule
+            else None
+        ),
     }
 
 
@@ -97,7 +105,9 @@ def list_policies(
     skip: int = Query(0, ge=0),
     limit: int = Query(50, ge=1, le=200),
     db: Session = Depends(get_db),
-    _: CurrentUser = Depends(require_any_role(["admin", "compliance", "aml_officer", "auditor", "user"])),
+    _: CurrentUser = Depends(
+        require_any_role(["admin", "compliance", "aml_officer", "auditor", "user"])
+    ),
 ):
     query = db.query(PolicyDocument)
     if status:
@@ -139,7 +149,9 @@ def create_policy(
 def get_policy(
     policy_id: int,
     db: Session = Depends(get_db),
-    _: CurrentUser = Depends(require_any_role(["admin", "compliance", "aml_officer", "auditor", "user"])),
+    _: CurrentUser = Depends(
+        require_any_role(["admin", "compliance", "aml_officer", "auditor", "user"])
+    ),
 ):
     policy = db.query(PolicyDocument).filter(PolicyDocument.id == policy_id).first()
     if not policy:
@@ -170,12 +182,19 @@ def update_policy(
 def list_policy_sections(
     policy_id: int,
     db: Session = Depends(get_db),
-    _: CurrentUser = Depends(require_any_role(["admin", "compliance", "aml_officer", "auditor", "user"])),
+    _: CurrentUser = Depends(
+        require_any_role(["admin", "compliance", "aml_officer", "auditor", "user"])
+    ),
 ):
-    sections = db.query(PolicySection).filter(PolicySection.policy_id == policy_id).order_by(
-        PolicySection.section_ref.asc().nullslast(),
-        PolicySection.updated_at.desc(),
-    ).all()
+    sections = (
+        db.query(PolicySection)
+        .filter(PolicySection.policy_id == policy_id)
+        .order_by(
+            PolicySection.section_ref.asc().nullslast(),
+            PolicySection.updated_at.desc(),
+        )
+        .all()
+    )
     return {"items": [_section_to_dict(section) for section in sections]}
 
 
@@ -226,21 +245,32 @@ def update_policy_section(
 def list_internal_rules(
     obligation_id: int,
     db: Session = Depends(get_db),
-    _: CurrentUser = Depends(require_any_role(["admin", "compliance", "aml_officer", "auditor", "user"])),
+    _: CurrentUser = Depends(
+        require_any_role(["admin", "compliance", "aml_officer", "auditor", "user"])
+    ),
 ):
-    rules = db.query(InternalRule).filter(InternalRule.obligation_id == obligation_id).order_by(
-        InternalRule.updated_at.desc()
-    ).all()
+    rules = (
+        db.query(InternalRule)
+        .filter(InternalRule.obligation_id == obligation_id)
+        .order_by(InternalRule.updated_at.desc())
+        .all()
+    )
 
     items = []
     for rule in rules:
-        mappings = db.query(InternalRuleMapping, MonitoringRule).outerjoin(
-            MonitoringRule, InternalRuleMapping.monitoring_rule_id == MonitoringRule.id
-        ).filter(InternalRuleMapping.internal_rule_id == rule.id).all()
+        mappings = (
+            db.query(InternalRuleMapping, MonitoringRule)
+            .outerjoin(MonitoringRule, InternalRuleMapping.monitoring_rule_id == MonitoringRule.id)
+            .filter(InternalRuleMapping.internal_rule_id == rule.id)
+            .all()
+        )
         items.append(
             {
                 **_internal_rule_to_dict(rule),
-                "mappings": [_mapping_to_dict(mapping, monitoring_rule) for mapping, monitoring_rule in mappings],
+                "mappings": [
+                    _mapping_to_dict(mapping, monitoring_rule)
+                    for mapping, monitoring_rule in mappings
+                ],
             }
         )
 
@@ -254,7 +284,9 @@ def create_internal_rule(
     db: Session = Depends(get_db),
     _: CurrentUser = Depends(require_any_role(["admin", "compliance", "aml_officer"])),
 ):
-    obligation = db.query(RegulatoryObligation).filter(RegulatoryObligation.id == obligation_id).first()
+    obligation = (
+        db.query(RegulatoryObligation).filter(RegulatoryObligation.id == obligation_id).first()
+    )
     if not obligation:
         raise HTTPException(status_code=404, detail="Obligation not found")
 
@@ -296,12 +328,21 @@ def update_internal_rule(
 def list_internal_rule_mappings(
     internal_rule_id: int,
     db: Session = Depends(get_db),
-    _: CurrentUser = Depends(require_any_role(["admin", "compliance", "aml_officer", "auditor", "user"])),
+    _: CurrentUser = Depends(
+        require_any_role(["admin", "compliance", "aml_officer", "auditor", "user"])
+    ),
 ):
-    mappings = db.query(InternalRuleMapping, MonitoringRule).outerjoin(
-        MonitoringRule, InternalRuleMapping.monitoring_rule_id == MonitoringRule.id
-    ).filter(InternalRuleMapping.internal_rule_id == internal_rule_id).all()
-    return {"items": [_mapping_to_dict(mapping, monitoring_rule) for mapping, monitoring_rule in mappings]}
+    mappings = (
+        db.query(InternalRuleMapping, MonitoringRule)
+        .outerjoin(MonitoringRule, InternalRuleMapping.monitoring_rule_id == MonitoringRule.id)
+        .filter(InternalRuleMapping.internal_rule_id == internal_rule_id)
+        .all()
+    )
+    return {
+        "items": [
+            _mapping_to_dict(mapping, monitoring_rule) for mapping, monitoring_rule in mappings
+        ]
+    }
 
 
 @router.post("/internal-rules/{internal_rule_id}/mappings")
@@ -318,14 +359,18 @@ def create_internal_rule_mapping(
     monitoring_rule = None
     monitoring_rule_id = payload.monitoring_rule_id
     if not monitoring_rule_id and payload.monitoring_rule_rule_id:
-        monitoring_rule = db.query(MonitoringRule).filter(
-            MonitoringRule.rule_id == payload.monitoring_rule_rule_id
-        ).first()
+        monitoring_rule = (
+            db.query(MonitoringRule)
+            .filter(MonitoringRule.rule_id == payload.monitoring_rule_rule_id)
+            .first()
+        )
         if not monitoring_rule:
             raise HTTPException(status_code=404, detail="Monitoring rule not found")
         monitoring_rule_id = monitoring_rule.id
     elif monitoring_rule_id:
-        monitoring_rule = db.query(MonitoringRule).filter(MonitoringRule.id == monitoring_rule_id).first()
+        monitoring_rule = (
+            db.query(MonitoringRule).filter(MonitoringRule.id == monitoring_rule_id).first()
+        )
         if not monitoring_rule:
             raise HTTPException(status_code=404, detail="Monitoring rule not found")
 

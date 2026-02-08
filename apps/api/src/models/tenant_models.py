@@ -4,9 +4,17 @@ Phase 4C: Task 7 - Multi-Tenancy Support
 
 Models for multi-tenant architecture with complete tenant isolation.
 """
+
 from sqlalchemy import (
-    Column, Integer, String, Text, DateTime, Boolean,
-    ForeignKey, JSON, UniqueConstraint
+    Column,
+    Integer,
+    String,
+    Text,
+    DateTime,
+    Boolean,
+    ForeignKey,
+    JSON,
+    UniqueConstraint,
 )
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import relationship
@@ -27,6 +35,7 @@ class Tenant(Base):
     Each tenant represents an organization using the platform
     (e.g., a bank, fintech, or compliance firm).
     """
+
     __tablename__ = "tenants"
 
     id = Column(Integer, primary_key=True)
@@ -36,7 +45,7 @@ class Tenant(Base):
 
     # Status
     is_active = Column(Boolean, default=True, nullable=False)
-    tier = Column(String(50), default='standard')  # 'free', 'standard', 'enterprise'
+    tier = Column(String(50), default="standard")  # 'free', 'standard', 'enterprise'
 
     # Contact information
     contact_email = Column(String(255))
@@ -72,10 +81,11 @@ class TenantAPIKey(Base):
     Format: yk_live_<tenant_id>_<random>
     Example: yk_live_acme_corp_a1b2c3d4e5f6
     """
+
     __tablename__ = "tenant_api_keys"
 
     id = Column(Integer, primary_key=True)
-    tenant_id = Column(Integer, ForeignKey('tenants.id'), nullable=False, index=True)
+    tenant_id = Column(Integer, ForeignKey("tenants.id"), nullable=False, index=True)
 
     # API Key
     key_hash = Column(String(255), unique=True, nullable=False, index=True)  # SHA-256 hash
@@ -93,7 +103,9 @@ class TenantAPIKey(Base):
     usage_count = Column(Integer, default=0)
 
     # Permissions
-    scopes = Column(JSON().with_variant(JSONB(), "postgresql"))  # API scopes ['read:alerts', 'write:cases']
+    scopes = Column(
+        JSON().with_variant(JSONB(), "postgresql")
+    )  # API scopes ['read:alerts', 'write:cases']
 
     # Security
     created_by = Column(String(255))
@@ -114,17 +126,16 @@ class TenantUser(Base):
 
     Supports users belonging to multiple tenants with different roles.
     """
+
     __tablename__ = "tenant_users"
-    __table_args__ = (
-        UniqueConstraint('tenant_id', 'user_id', name='uq_tenant_user'),
-    )
+    __table_args__ = (UniqueConstraint("tenant_id", "user_id", name="uq_tenant_user"),)
 
     id = Column(Integer, primary_key=True)
-    tenant_id = Column(Integer, ForeignKey('tenants.id'), nullable=False, index=True)
+    tenant_id = Column(Integer, ForeignKey("tenants.id"), nullable=False, index=True)
     user_id = Column(String(255), nullable=False, index=True)
 
     # Role in this tenant
-    role = Column(String(50), default='viewer')  # 'admin', 'analyst', 'viewer'
+    role = Column(String(50), default="viewer")  # 'admin', 'analyst', 'viewer'
 
     # Permissions
     permissions = Column(JSON().with_variant(JSONB(), "postgresql"))
@@ -146,10 +157,11 @@ class TenantAuditLog(Base):
 
     Tracks administrative actions like creating API keys, changing settings, etc.
     """
+
     __tablename__ = "tenant_audit_logs"
 
     id = Column(Integer, primary_key=True)
-    tenant_id = Column(Integer, ForeignKey('tenants.id'), nullable=False, index=True)
+    tenant_id = Column(Integer, ForeignKey("tenants.id"), nullable=False, index=True)
 
     # Action details
     action_type = Column(String(100), nullable=False)  # 'api_key_created', 'settings_updated'

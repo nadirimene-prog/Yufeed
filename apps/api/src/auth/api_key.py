@@ -22,17 +22,25 @@ def resolve_api_key(
         return None
 
     key_hash = hashlib.sha256(api_key.encode()).hexdigest()
-    api_key_record = db.query(TenantAPIKey).filter(
-        TenantAPIKey.key_hash == key_hash,
-        TenantAPIKey.is_active == True,
-    ).first()
+    api_key_record = (
+        db.query(TenantAPIKey)
+        .filter(
+            TenantAPIKey.key_hash == key_hash,
+            TenantAPIKey.is_active == True,
+        )
+        .first()
+    )
     if not api_key_record:
         return None
 
-    tenant = db.query(Tenant).filter(
-        Tenant.id == api_key_record.tenant_id,
-        Tenant.is_active == True,
-    ).first()
+    tenant = (
+        db.query(Tenant)
+        .filter(
+            Tenant.id == api_key_record.tenant_id,
+            Tenant.is_active == True,
+        )
+        .first()
+    )
     if not tenant:
         return None
 

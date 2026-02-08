@@ -2,7 +2,18 @@
 Impact Assessment models for regulatory compliance.
 Helps AMLROs understand how regulations affect their operations.
 """
-from sqlalchemy import Column, Integer, String, DateTime, ForeignKey, Text, Enum as SQLEnum, Boolean, JSON
+
+from sqlalchemy import (
+    Column,
+    Integer,
+    String,
+    DateTime,
+    ForeignKey,
+    Text,
+    Enum as SQLEnum,
+    Boolean,
+    JSON,
+)
 from sqlalchemy.orm import relationship
 from sqlalchemy.dialects.postgresql import JSONB
 import enum
@@ -17,6 +28,7 @@ def utc_now() -> datetime:
 
 class ImpactLevel(str, enum.Enum):
     """Impact severity levels."""
+
     CRITICAL = "critical"  # Immediate action required
     HIGH = "high"  # Significant changes needed
     MEDIUM = "medium"  # Moderate effort required
@@ -26,6 +38,7 @@ class ImpactLevel(str, enum.Enum):
 
 class BusinessArea(str, enum.Enum):
     """Bank functional areas affected by regulations."""
+
     ONBOARDING = "onboarding"  # Customer onboarding / KYC
     TRANSACTION_MONITORING = "transaction_monitoring"  # TM systems
     SCREENING = "screening"  # Sanctions / PEP screening
@@ -42,6 +55,7 @@ class BusinessArea(str, enum.Enum):
 
 class ActionStatus(str, enum.Enum):
     """Status of implementation actions."""
+
     NOT_STARTED = "not_started"
     IN_PROGRESS = "in_progress"
     BLOCKED = "blocked"
@@ -54,6 +68,7 @@ class ImpactAssessment(Base):
     Impact assessment for a legal document.
     Analyzes how the regulation affects the bank's operations.
     """
+
     __tablename__ = "impact_assessments"
 
     id = Column(Integer, primary_key=True, index=True)
@@ -64,12 +79,20 @@ class ImpactAssessment(Base):
     executive_summary = Column(Text, nullable=True)  # AI-generated summary for executives
 
     # Affected areas (array of BusinessArea enums)
-    affected_areas_json = Column(JSON().with_variant(JSONB(), "postgresql"), nullable=True)  # List of affected business areas
+    affected_areas_json = Column(
+        JSON().with_variant(JSONB(), "postgresql"), nullable=True
+    )  # List of affected business areas
 
     # Analysis details
-    key_changes = Column(JSON().with_variant(JSONB(), "postgresql"), nullable=True)  # List of key changes introduced
-    new_obligations = Column(JSON().with_variant(JSONB(), "postgresql"), nullable=True)  # New obligations created
-    modified_obligations = Column(JSON().with_variant(JSONB(), "postgresql"), nullable=True)  # Changes to existing obligations
+    key_changes = Column(
+        JSON().with_variant(JSONB(), "postgresql"), nullable=True
+    )  # List of key changes introduced
+    new_obligations = Column(
+        JSON().with_variant(JSONB(), "postgresql"), nullable=True
+    )  # New obligations created
+    modified_obligations = Column(
+        JSON().with_variant(JSONB(), "postgresql"), nullable=True
+    )  # Changes to existing obligations
 
     # Resource estimates
     estimated_effort_hours = Column(Integer, nullable=True)  # Total effort estimate
@@ -85,7 +108,9 @@ class ImpactAssessment(Base):
 
     # Relationships
     document = relationship("LegalDocument", backref="impact_assessment")
-    action_items = relationship("ActionItem", back_populates="assessment", cascade="all, delete-orphan")
+    action_items = relationship(
+        "ActionItem", back_populates="assessment", cascade="all, delete-orphan"
+    )
 
 
 class ActionItem(Base):
@@ -93,6 +118,7 @@ class ActionItem(Base):
     Specific action items required to implement a regulation.
     Provides a task list for compliance teams.
     """
+
     __tablename__ = "action_items"
 
     id = Column(Integer, primary_key=True, index=True)
@@ -117,8 +143,12 @@ class ActionItem(Base):
     completed_at = Column(DateTime, nullable=True)
 
     # Dependencies
-    depends_on_action_ids = Column(JSON().with_variant(JSONB(), "postgresql"), nullable=True)  # List of action IDs this depends on
-    blocks_action_ids = Column(JSON().with_variant(JSONB(), "postgresql"), nullable=True)  # List of action IDs blocked by this
+    depends_on_action_ids = Column(
+        JSON().with_variant(JSONB(), "postgresql"), nullable=True
+    )  # List of action IDs this depends on
+    blocks_action_ids = Column(
+        JSON().with_variant(JSONB(), "postgresql"), nullable=True
+    )  # List of action IDs blocked by this
 
     # Notes and progress
     notes = Column(Text, nullable=True)
@@ -137,6 +167,7 @@ class GapAnalysis(Base):
     Gap analysis comparing current state vs required state.
     Identifies what needs to change to achieve compliance.
     """
+
     __tablename__ = "gap_analyses"
 
     id = Column(Integer, primary_key=True, index=True)

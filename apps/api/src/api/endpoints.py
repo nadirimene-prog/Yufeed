@@ -14,9 +14,7 @@ from src.auth.dependencies import get_current_user
 from src.tenancy.queries import require_tenant
 from src.middleware import limiter, RateLimits
 
-router = APIRouter(
-    dependencies=[Depends(get_current_user), Depends(require_tenant)]
-)
+router = APIRouter(dependencies=[Depends(get_current_user), Depends(require_tenant)])
 
 logger = logging.getLogger(__name__)
 
@@ -27,6 +25,7 @@ def _set_deprecation_headers(response: Response) -> None:
     response.headers["Warning"] = _DEPRECATION_WARNING
     response.headers["X-Deprecated"] = "true"
     response.headers["X-Deprecated-Use"] = "/api/monitoring-rules"
+
 
 def _log_deprecation(request: Request) -> None:
     logger.warning(
@@ -58,6 +57,7 @@ def _legacy_rule_from_model(rule: models.MonitoringRule) -> schemas.MonitoringRu
         updated_at=rule.updated_at,
     )
 
+
 @router.get("/search", response_model=schemas.SearchResponse)
 @limiter.limit(RateLimits.SEARCH)
 def search_api(
@@ -77,7 +77,7 @@ def search_api(
     """
     # Calculate offset
     from_ = (page - 1) * limit
-    
+
     results = search_documents(
         q=q,
         doc_type=type,
@@ -87,10 +87,11 @@ def search_api(
         date_from=date_from,
         date_to=date_to,
         from_=from_,
-        size=limit
+        size=limit,
     )
 
     return results
+
 
 @router.get("/documents/{celex}", response_model=schemas.LegalDocumentRead)
 @limiter.limit(RateLimits.READ)
@@ -103,9 +104,12 @@ def get_document(request: Request, celex: str, db: Session = Depends(get_db)):
         raise HTTPException(status_code=404, detail="Document not found")
     return db_doc
 
+
 @router.get("/documents/{celex}/versions")
 @limiter.limit(RateLimits.READ)
-def get_document_versions(request: Request, celex: str, db: Session = Depends(get_db)) -> Dict[str, Any]:
+def get_document_versions(
+    request: Request, celex: str, db: Session = Depends(get_db)
+) -> Dict[str, Any]:
     """
     Get all versions of a document.
     """
@@ -124,11 +128,12 @@ def get_document_versions(request: Request, celex: str, db: Session = Depends(ge
                 "kind": v.kind,
                 "language": v.language,
                 "source_url": v.source_url,
-                "retrieved_at": v.retrieved_at.isoformat() if v.retrieved_at else None
+                "retrieved_at": v.retrieved_at.isoformat() if v.retrieved_at else None,
             }
             for v in versions
-        ]
+        ],
     }
+
 
 @router.get("/documents/{celex}/diff")
 @limiter.limit(RateLimits.READ)
@@ -138,7 +143,7 @@ def compare_document_versions(
     version1_id: Optional[int] = Query(None, description="ID of first version (older)"),
     version2_id: Optional[int] = Query(None, description="ID of second version (newer)"),
     format: str = Query("json", description="Output format: json or html"),
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
 ) -> Dict[str, Any]:
     """
     Compare two versions of a document and return the diff.
@@ -149,20 +154,24 @@ def compare_document_versions(
         raise HTTPException(status_code=404, detail="Document not found")
 
     # Get versions
-    versions = db.query(models.LegalVersion).filter(
-        models.LegalVersion.doc_id == doc.id
-    ).order_by(models.LegalVersion.retrieved_at.desc()).all()
+    versions = (
+        db.query(models.LegalVersion)
+        .filter(models.LegalVersion.doc_id == doc.id)
+        .order_by(models.LegalVersion.retrieved_at.desc())
+        .all()
+    )
 
     if len(versions) < 2:
-        raise HTTPException(
-            status_code=400,
-            detail="At least 2 versions required for comparison"
-        )
+        raise HTTPException(status_code=400, detail="At least 2 versions required for comparison")
 
     # Select versions to compare
     if version1_id and version2_id:
-        version1 = db.query(models.LegalVersion).filter(models.LegalVersion.id == version1_id).first()
-        version2 = db.query(models.LegalVersion).filter(models.LegalVersion.id == version2_id).first()
+        version1 = (
+            db.query(models.LegalVersion).filter(models.LegalVersion.id == version1_id).first()
+        )
+        version2 = (
+            db.query(models.LegalVersion).filter(models.LegalVersion.id == version2_id).first()
+        )
         if not version1 or not version2:
             raise HTTPException(status_code=404, detail="Version not found")
     else:
@@ -173,10 +182,7 @@ def compare_document_versions(
     # For now, we'll use the document's full_text as a proxy
     # In a complete implementation, versions would have their own content
     if not doc.full_text:
-        raise HTTPException(
-            status_code=400,
-            detail="Document content not available for comparison"
-        )
+        raise HTTPException(status_code=400, detail="Document content not available for comparison")
 
     # Initialize diff analyzer
     analyzer = DiffAnalyzer()
@@ -196,7 +202,7 @@ def compare_document_versions(
             "version1_id": version1.id,
             "version2_id": version2.id,
             "format": "html",
-            "diff_html": html_diff
+            "diff_html": html_diff,
         }
     else:
         diff_result = analyzer.compare_documents(old_text, new_text, old_articles, new_articles)
@@ -205,17 +211,22 @@ def compare_document_versions(
             "title": doc.title,
             "version1": {
                 "id": version1.id,
-                "retrieved_at": version1.retrieved_at.isoformat() if version1.retrieved_at else None
+                "retrieved_at": (
+                    version1.retrieved_at.isoformat() if version1.retrieved_at else None
+                ),
             },
             "version2": {
                 "id": version2.id,
-                "retrieved_at": version2.retrieved_at.isoformat() if version2.retrieved_at else None
+                "retrieved_at": (
+                    version2.retrieved_at.isoformat() if version2.retrieved_at else None
+                ),
             },
-            "diff": diff_result
+            "diff": diff_result,
         }
 
 
 # --- Legacy Monitoring Rules Management (Deprecated) ---
+
 
 @router.post("/rules", response_model=schemas.MonitoringRuleRead, deprecated=True)
 @limiter.limit(RateLimits.CREATE)
@@ -244,10 +255,14 @@ def create_rule(
     if rule.priority is not None or rule.is_template:
         created.priority = rule.priority
         created.is_template = rule.is_template
-        version = db.query(models.RuleVersion).filter(
-            models.RuleVersion.rule_id == created.id,
-            models.RuleVersion.version_number == created.version,
-        ).first()
+        version = (
+            db.query(models.RuleVersion)
+            .filter(
+                models.RuleVersion.rule_id == created.id,
+                models.RuleVersion.version_number == created.version,
+            )
+            .first()
+        )
         if version:
             version.priority = created.priority
         db.commit()

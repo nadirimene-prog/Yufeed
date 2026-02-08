@@ -14,7 +14,7 @@ export default function ApiHealthBanner() {
         "mb-4 rounded-md border px-3 py-2 text-sm",
         status === "checking"
           ? "border-amber-200 bg-amber-50 text-amber-900"
-          : "border-red-200 bg-red-50 text-red-900"
+          : "border-red-200 bg-red-50 text-red-900",
       )}
       role="status"
       aria-live="polite"

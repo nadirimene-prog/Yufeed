@@ -1,0 +1,20 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(alembic upgrade head)",
+      "Bash(sqlite3:*)",
+      "Bash(python:*)",
+      "Bash(python3 -m scripts.seed_policy_templates:*)",
+      "Bash(python3 -m py_compile:*)",
+      "Bash(python3:*)",
+      "mcp__Claude_in_Chrome__computer",
+      "Bash(ls:*)",
+      "Bash(find:*)",
+      "Bash(grep:*)",
+      "Bash(git -C /Users/imenenadir/Documents/Yufeed ls-files:*)",
+      "Bash(npx vitest run:*)",
+      "Bash(npx next lint:*)",
+      "Bash(npm run lint:*)"
+    ]
+  }
+}

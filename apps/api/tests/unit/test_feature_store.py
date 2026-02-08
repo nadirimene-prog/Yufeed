@@ -21,13 +21,9 @@ async def test_feature_store_compute(monkeypatch):
     fake = FakeRedis()
     monkeypatch.setattr(feature_store, "redis", fake)
 
-    result = await feature_store.FeatureStore.compute_features(
-        "user1", "event", {"x": 1}, db=None
-    )
+    result = await feature_store.FeatureStore.compute_features("user1", "event", {"x": 1}, db=None)
     assert result["kyc_status"] == "unknown"
 
     # Cached path
-    cached = await feature_store.FeatureStore.compute_features(
-        "user1", "event", {"x": 1}, db=None
-    )
+    cached = await feature_store.FeatureStore.compute_features("user1", "event", {"x": 1}, db=None)
     assert cached["kyc_status"] == "unknown"

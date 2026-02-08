@@ -17,12 +17,12 @@
   --color-aurora-200: #c7d4ff;
   --color-aurora-300: #a3b8ff;
   --color-aurora-400: #7a8fff;
-  --color-aurora-500: #6d5acd;  /* Electric core */
+  --color-aurora-500: #6d5acd; /* Electric core */
   --color-aurora-600: #5a45b5;
   --color-aurora-700: #4a3799;
   --color-aurora-800: #3d2e7d;
   --color-aurora-900: #342866;
-  --color-aurora-950: #1a1a2e;  /* Deep twilight */
+  --color-aurora-950: #1a1a2e; /* Deep twilight */
 
   /* Cyan Horizon Accent */
   --color-cyan-50: #ecfeff;
@@ -30,7 +30,7 @@
   --color-cyan-200: #a5f3fc;
   --color-cyan-300: #67e8f9;
   --color-cyan-400: #22d3ee;
-  --color-cyan-500: #00d4ff;  /* Horizon cyan */
+  --color-cyan-500: #00d4ff; /* Horizon cyan */
   --color-cyan-600: #00a8cc;
   --color-cyan-700: #0284a8;
   --color-cyan-800: #086788;
@@ -48,8 +48,8 @@
   --color-void-700: #334155;
   --color-void-800: #1e293b;
   --color-void-900: #0f172a;
-  --color-void-925: #0a0a12;  /* Deep void */
-  --color-void-950: #020617;  /* Obsidian */
+  --color-void-925: #0a0a12; /* Deep void */
+  --color-void-950: #020617; /* Obsidian */
 
   /* ════════════════════════════════════════════════════════════════
      RISK LUMINOSITY SYSTEM
@@ -60,32 +60,38 @@
   --color-risk-critical: #ff3366;
   --color-risk-critical-soft: #ff336620;
   --color-risk-critical-border: #ff336650;
-  --color-risk-critical-glow: 0 0 20px rgba(255, 51, 102, 0.4), 0 0 40px rgba(255, 51, 102, 0.2);
-  --color-risk-critical-glow-strong: 0 0 30px rgba(255, 51, 102, 0.6), 0 0 60px rgba(255, 51, 102, 0.3);
+  --color-risk-critical-glow:
+    0 0 20px rgba(255, 51, 102, 0.4), 0 0 40px rgba(255, 51, 102, 0.2);
+  --color-risk-critical-glow-strong:
+    0 0 30px rgba(255, 51, 102, 0.6), 0 0 60px rgba(255, 51, 102, 0.3);
 
   /* High - Elevated urgency */
   --color-risk-high: #ff8c42;
   --color-risk-high-soft: #ff8c4220;
   --color-risk-high-border: #ff8c4250;
-  --color-risk-high-glow: 0 0 15px rgba(255, 140, 66, 0.35), 0 0 30px rgba(255, 140, 66, 0.15);
+  --color-risk-high-glow:
+    0 0 15px rgba(255, 140, 66, 0.35), 0 0 30px rgba(255, 140, 66, 0.15);
 
   /* Medium - Awareness */
   --color-risk-medium: #ffd166;
   --color-risk-medium-soft: #ffd16620;
   --color-risk-medium-border: #ffd16650;
-  --color-risk-medium-glow: 0 0 12px rgba(255, 209, 102, 0.3), 0 0 24px rgba(255, 209, 102, 0.1);
+  --color-risk-medium-glow:
+    0 0 12px rgba(255, 209, 102, 0.3), 0 0 24px rgba(255, 209, 102, 0.1);
 
   /* Low - Confidence */
   --color-risk-low: #06d6a0;
   --color-risk-low-soft: #06d6a020;
   --color-risk-low-border: #06d6a050;
-  --color-risk-low-glow: 0 0 10px rgba(6, 214, 160, 0.25), 0 0 20px rgba(6, 214, 160, 0.1);
+  --color-risk-low-glow:
+    0 0 10px rgba(6, 214, 160, 0.25), 0 0 20px rgba(6, 214, 160, 0.1);
 
   /* Clear - Verified */
   --color-risk-clear: #00d4ff;
   --color-risk-clear-soft: #00d4ff15;
   --color-risk-clear-border: #00d4ff40;
-  --color-risk-clear-glow: 0 0 8px rgba(0, 212, 255, 0.2), 0 0 16px rgba(0, 212, 255, 0.08);
+  --color-risk-clear-glow:
+    0 0 8px rgba(0, 212, 255, 0.2), 0 0 16px rgba(0, 212, 255, 0.08);
 
   /* Info */
   --color-info: #3b82f6;
@@ -129,9 +135,21 @@
 
   /* Mesh Background Gradient */
   --gradient-mesh:
-    radial-gradient(ellipse at 20% 0%, rgba(109, 90, 205, 0.15) 0%, transparent 50%),
-    radial-gradient(ellipse at 80% 100%, rgba(0, 212, 255, 0.1) 0%, transparent 50%),
-    radial-gradient(ellipse at 40% 50%, rgba(74, 63, 107, 0.08) 0%, transparent 40%);
+    radial-gradient(
+      ellipse at 20% 0%,
+      rgba(109, 90, 205, 0.15) 0%,
+      transparent 50%
+    ),
+    radial-gradient(
+      ellipse at 80% 100%,
+      rgba(0, 212, 255, 0.1) 0%,
+      transparent 50%
+    ),
+    radial-gradient(
+      ellipse at 40% 50%,
+      rgba(74, 63, 107, 0.08) 0%,
+      transparent 40%
+    );
 
   /* Risk Gradients */
   --gradient-risk-critical: linear-gradient(135deg, #ff3366 0%, #ff1a4d 100%);
@@ -147,9 +165,12 @@
   /* Elevation Shadows */
   --shadow-xs: 0 1px 2px rgba(0, 0, 0, 0.05);
   --shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.1), 0 1px 2px rgba(0, 0, 0, 0.06);
-  --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
-  --shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
-  --shadow-xl: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
+  --shadow-md:
+    0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+  --shadow-lg:
+    0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+  --shadow-xl:
+    0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
   --shadow-2xl: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
 
   /* Glass Shadows */
@@ -158,8 +179,10 @@
   --shadow-glass-inset: inset 0 1px 0 rgba(255, 255, 255, 0.05);
 
   /* Colored Glow Shadows */
-  --shadow-glow-primary: 0 0 20px rgba(109, 90, 205, 0.3), 0 0 40px rgba(109, 90, 205, 0.1);
-  --shadow-glow-cyan: 0 0 20px rgba(0, 212, 255, 0.3), 0 0 40px rgba(0, 212, 255, 0.1);
+  --shadow-glow-primary:
+    0 0 20px rgba(109, 90, 205, 0.3), 0 0 40px rgba(109, 90, 205, 0.1);
+  --shadow-glow-cyan:
+    0 0 20px rgba(0, 212, 255, 0.3), 0 0 40px rgba(0, 212, 255, 0.1);
 
   /* ════════════════════════════════════════════════════════════════
      GLASS SYSTEM
@@ -190,17 +213,17 @@
   --font-mono: var(--font-jetbrains), ui-monospace, monospace;
 
   /* Font Sizes */
-  --text-2xs: 0.625rem;    /* 10px - Micro labels */
-  --text-xs: 0.6875rem;    /* 11px - Labels */
-  --text-sm: 0.8125rem;    /* 13px - Small body */
-  --text-base: 0.875rem;   /* 14px - Body */
-  --text-lg: 1rem;         /* 16px - Large body */
-  --text-xl: 1.125rem;     /* 18px - H4 */
-  --text-2xl: 1.5rem;      /* 24px - H3 */
-  --text-3xl: 1.875rem;    /* 30px - H2 */
-  --text-4xl: 2.25rem;     /* 36px - H1 */
-  --text-5xl: 3rem;        /* 48px - Display */
-  --text-6xl: 3.75rem;     /* 60px - Hero */
+  --text-2xs: 0.625rem; /* 10px - Micro labels */
+  --text-xs: 0.6875rem; /* 11px - Labels */
+  --text-sm: 0.8125rem; /* 13px - Small body */
+  --text-base: 0.875rem; /* 14px - Body */
+  --text-lg: 1rem; /* 16px - Large body */
+  --text-xl: 1.125rem; /* 18px - H4 */
+  --text-2xl: 1.5rem; /* 24px - H3 */
+  --text-3xl: 1.875rem; /* 30px - H2 */
+  --text-4xl: 2.25rem; /* 36px - H1 */
+  --text-5xl: 3rem; /* 48px - Display */
+  --text-6xl: 3.75rem; /* 60px - Hero */
 
   /* Font Weights */
   --font-light: 300;
@@ -230,37 +253,37 @@
 
   --spacing-0: 0;
   --spacing-px: 1px;
-  --spacing-0-5: 0.125rem;  /* 2px */
-  --spacing-1: 0.25rem;     /* 4px */
-  --spacing-1-5: 0.375rem;  /* 6px */
-  --spacing-2: 0.5rem;      /* 8px */
-  --spacing-2-5: 0.625rem;  /* 10px */
-  --spacing-3: 0.75rem;     /* 12px */
-  --spacing-3-5: 0.875rem;  /* 14px */
-  --spacing-4: 1rem;        /* 16px */
-  --spacing-5: 1.25rem;     /* 20px */
-  --spacing-6: 1.5rem;      /* 24px */
-  --spacing-7: 1.75rem;     /* 28px */
-  --spacing-8: 2rem;        /* 32px */
-  --spacing-9: 2.25rem;     /* 36px */
-  --spacing-10: 2.5rem;     /* 40px */
-  --spacing-12: 3rem;       /* 48px */
-  --spacing-14: 3.5rem;     /* 56px */
-  --spacing-16: 4rem;       /* 64px */
-  --spacing-20: 5rem;       /* 80px */
-  --spacing-24: 6rem;       /* 96px */
+  --spacing-0-5: 0.125rem; /* 2px */
+  --spacing-1: 0.25rem; /* 4px */
+  --spacing-1-5: 0.375rem; /* 6px */
+  --spacing-2: 0.5rem; /* 8px */
+  --spacing-2-5: 0.625rem; /* 10px */
+  --spacing-3: 0.75rem; /* 12px */
+  --spacing-3-5: 0.875rem; /* 14px */
+  --spacing-4: 1rem; /* 16px */
+  --spacing-5: 1.25rem; /* 20px */
+  --spacing-6: 1.5rem; /* 24px */
+  --spacing-7: 1.75rem; /* 28px */
+  --spacing-8: 2rem; /* 32px */
+  --spacing-9: 2.25rem; /* 36px */
+  --spacing-10: 2.5rem; /* 40px */
+  --spacing-12: 3rem; /* 48px */
+  --spacing-14: 3.5rem; /* 56px */
+  --spacing-16: 4rem; /* 64px */
+  --spacing-20: 5rem; /* 80px */
+  --spacing-24: 6rem; /* 96px */
 
   /* ════════════════════════════════════════════════════════════════
      BORDER RADIUS
      ════════════════════════════════════════════════════════════════ */
 
   --radius-none: 0;
-  --radius-sm: 0.25rem;     /* 4px */
-  --radius-md: 0.375rem;    /* 6px */
-  --radius-lg: 0.5rem;      /* 8px */
-  --radius-xl: 0.75rem;     /* 12px */
-  --radius-2xl: 1rem;       /* 16px */
-  --radius-3xl: 1.5rem;     /* 24px */
+  --radius-sm: 0.25rem; /* 4px */
+  --radius-md: 0.375rem; /* 6px */
+  --radius-lg: 0.5rem; /* 8px */
+  --radius-xl: 0.75rem; /* 12px */
+  --radius-2xl: 1rem; /* 16px */
+  --radius-3xl: 1.5rem; /* 24px */
   --radius-full: 9999px;
 
   /* Glass-specific radius (slightly larger for premium feel) */

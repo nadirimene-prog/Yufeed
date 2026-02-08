@@ -1,8 +1,16 @@
 "use client";
 
 import { Download, List, RefreshCw } from "lucide-react";
-import type { DecisionEvidenceBundle, DecisionListItem, DecisionResponse, ReplayDiffRow } from "@/app/decisioning/components/types";
-import { decisionsToCsv, downloadFile } from "@/app/decisioning/components/utils";
+import type {
+  DecisionEvidenceBundle,
+  DecisionListItem,
+  DecisionResponse,
+  ReplayDiffRow,
+} from "@/app/decisioning/components/types";
+import {
+  decisionsToCsv,
+  downloadFile,
+} from "@/app/decisioning/components/utils";
 import DecisionDetail from "@/app/decisioning/components/DecisionDetail";
 import EvidencePanel from "@/app/decisioning/components/EvidencePanel";
 import ReplayComparison from "@/app/decisioning/components/ReplayComparison";
@@ -93,7 +101,8 @@ export default function DecisionLog({
   replaySourceDecisionId: string | null;
   replayResult: DecisionResponse | null;
 }) {
-  const originalDecision: Record<string, unknown> = (evidenceBundle?.decision ?? {}) as Record<string, unknown>;
+  const originalDecision: Record<string, unknown> = (evidenceBundle?.decision ??
+    {}) as Record<string, unknown>;
   const originalEvidenceRaw = originalDecision["evidence"];
   const originalEvidence =
     typeof originalEvidenceRaw === "object" && originalEvidenceRaw !== null
@@ -126,19 +135,27 @@ export default function DecisionLog({
       original: formatValue(
         Array.isArray(originalEvidence["alerts"])
           ? (originalEvidence["alerts"] as unknown[]).map(String).join(", ")
-          : ""
+          : "",
       ),
-      replay: formatValue(Array.isArray(replayResult?.alerts) ? replayResult.alerts.join(", ") : ""),
+      replay: formatValue(
+        Array.isArray(replayResult?.alerts)
+          ? replayResult.alerts.join(", ")
+          : "",
+      ),
     },
     {
       label: "Reason codes",
       original: formatValue(
         Array.isArray(originalDecision["reason_codes"])
-          ? (originalDecision["reason_codes"] as unknown[]).map(String).join(", ")
-          : ""
+          ? (originalDecision["reason_codes"] as unknown[])
+              .map(String)
+              .join(", ")
+          : "",
       ),
       replay: formatValue(
-        Array.isArray(replayResult?.reason_codes) ? replayResult.reason_codes.join(", ") : ""
+        Array.isArray(replayResult?.reason_codes)
+          ? replayResult.reason_codes.join(", ")
+          : "",
       ),
     },
   ];
@@ -156,7 +173,11 @@ export default function DecisionLog({
               <button
                 onClick={() => {
                   const payload = JSON.stringify(decisions, null, 2);
-                  downloadFile("decision-log-page.json", payload, "application/json");
+                  downloadFile(
+                    "decision-log-page.json",
+                    payload,
+                    "application/json",
+                  );
                 }}
                 className="inline-flex items-center gap-2 text-xs text-gray-600 dark:text-gray-400"
                 title="Export JSON"
@@ -266,12 +287,15 @@ export default function DecisionLog({
                   <div className="flex items-center justify-between gap-2">
                     <span
                       className={`rounded-full px-2 py-0.5 text-[10px] font-semibold ${
-                        decisionBadgeStyles[item.decision] || "bg-gray-100 text-gray-700"
+                        decisionBadgeStyles[item.decision] ||
+                        "bg-gray-100 text-gray-700"
                       }`}
                     >
                       {item.decision}
                     </span>
-                    <span className="text-[10px] text-gray-500">{formatDateTime(item.created_at)}</span>
+                    <span className="text-[10px] text-gray-500">
+                      {formatDateTime(item.created_at)}
+                    </span>
                   </div>
                   <div className="mt-2 text-[11px] text-gray-600 dark:text-gray-400">
                     <div>Event: {item.event_type || "-"}</div>
@@ -287,7 +311,7 @@ export default function DecisionLog({
               {decisionTotal > 0
                 ? `Showing ${decisionPage * decisionPageSize + 1}-${Math.min(
                     decisionTotal,
-                    (decisionPage + 1) * decisionPageSize
+                    (decisionPage + 1) * decisionPageSize,
                   )} of ${decisionTotal}`
                 : "No results"}
             </div>
@@ -313,10 +337,14 @@ export default function DecisionLog({
               <button
                 onClick={() =>
                   setDecisionPage((page) =>
-                    (page + 1) * decisionPageSize >= decisionTotal ? page : page + 1
+                    (page + 1) * decisionPageSize >= decisionTotal
+                      ? page
+                      : page + 1,
                   )
                 }
-                disabled={(decisionPage + 1) * decisionPageSize >= decisionTotal}
+                disabled={
+                  (decisionPage + 1) * decisionPageSize >= decisionTotal
+                }
                 className="rounded-md border border-gray-300 dark:border-gray-700 px-2 py-1 disabled:opacity-50"
               >
                 Next
@@ -336,7 +364,10 @@ export default function DecisionLog({
           onReplayDecision={() => onLoadReplayIntoSimulator(true)}
         />
 
-        <EvidencePanel evidenceLoading={evidenceLoading} evidenceBundle={evidenceBundle} />
+        <EvidencePanel
+          evidenceLoading={evidenceLoading}
+          evidenceBundle={evidenceBundle}
+        />
 
         <ReplayComparison canCompare={canCompare} diffRows={diffRows} />
       </div>

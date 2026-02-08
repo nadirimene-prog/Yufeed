@@ -12,6 +12,7 @@ Test Coverage:
 - Multiple alerts linked to single case
 - Case status transitions
 """
+
 import pytest
 from fastapi.testclient import TestClient
 from sqlalchemy.orm import Session
@@ -22,7 +23,9 @@ from datetime import datetime
 class TestCaseCreationFlow:
     """Test case creation from alerts."""
 
-    def test_create_case_from_alerts(self, client: TestClient, db_session: Session, auth_headers: dict):
+    def test_create_case_from_alerts(
+        self, client: TestClient, db_session: Session, auth_headers: dict
+    ):
         """
         Test creating investigation case from multiple alerts.
         """
@@ -41,8 +44,8 @@ class TestCaseCreationFlow:
                     "amount": 15000.00 + (i * 1000),
                     "currency": "USD",
                     "transaction_type": "deposit",
-                    "timestamp": datetime.utcnow().isoformat()
-                }
+                    "timestamp": datetime.utcnow().isoformat(),
+                },
             )
             txn_id = txn_response.json()["id"]
 
@@ -55,8 +58,8 @@ class TestCaseCreationFlow:
                     "transaction_id": txn_id,
                     "user_id": user_id,
                     "description": f"Suspicious transaction {i}",
-                    "risk_score": 80.0 + i
-                }
+                    "risk_score": 80.0 + i,
+                },
             )
             alert_ids.append(alert_response.json()["id"])
 
@@ -73,8 +76,8 @@ class TestCaseCreationFlow:
                 "priority": "high",
                 "status": "open",
                 "assigned_to": "investigator@example.com",
-                "related_alert_ids": alert_ids
-            }
+                "related_alert_ids": alert_ids,
+            },
         )
 
         assert case_response.status_code == 201
@@ -94,8 +97,8 @@ class TestCaseCreationFlow:
             json={
                 "status": "closed",
                 "outcome": "sar_filed",
-                "outcome_notes": "SAR filed with FinCEN. Case #12345"
-            }
+                "outcome_notes": "SAR filed with FinCEN. Case #12345",
+            },
         )
 
         assert update_response.status_code == 200

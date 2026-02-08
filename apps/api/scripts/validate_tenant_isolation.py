@@ -4,6 +4,7 @@ Phase 4C: Task 7 - Validate complete tenant isolation
 
 This script performs comprehensive validation of tenant isolation.
 """
+
 import sys
 import os
 from pathlib import Path
@@ -22,12 +23,7 @@ class TenantIsolationValidator:
 
     def __init__(self, base_url: str = "http://localhost:8000"):
         self.base_url = base_url
-        self.results = {
-            "total_tests": 0,
-            "passed": 0,
-            "failed": 0,
-            "errors": []
-        }
+        self.results = {"total_tests": 0, "passed": 0, "failed": 0, "errors": []}
 
     def test(self, name: str, condition: bool, error_msg: str = None):
         """Record a test result."""
@@ -50,25 +46,21 @@ class TenantIsolationValidator:
         print(f"\n🔐 Testing API Key Authentication for {tenant_id}")
 
         # Test valid API key
-        response = requests.get(
-            f"{self.base_url}/api/alerts",
-            headers={"X-API-Key": api_key}
-        )
+        response = requests.get(f"{self.base_url}/api/alerts", headers={"X-API-Key": api_key})
         self.test(
             "Valid API key accepted",
             response.status_code in [200, 404],  # 404 is ok if no alerts
-            f"Got status {response.status_code}"
+            f"Got status {response.status_code}",
         )
 
         # Test invalid API key
         response = requests.get(
-            f"{self.base_url}/api/alerts",
-            headers={"X-API-Key": "invalid_key_12345"}
+            f"{self.base_url}/api/alerts", headers={"X-API-Key": "invalid_key_12345"}
         )
         self.test(
             "Invalid API key rejected",
             response.status_code == 401,
-            f"Expected 401, got {response.status_code}"
+            f"Expected 401, got {response.status_code}",
         )
 
     def test_data_isolation(self, api_key_a: str, api_key_b: str):
@@ -76,16 +68,10 @@ class TenantIsolationValidator:
         print(f"\n🔒 Testing Data Isolation Between Tenants")
 
         # Get alerts for tenant A
-        response_a = requests.get(
-            f"{self.base_url}/api/alerts",
-            headers={"X-API-Key": api_key_a}
-        )
+        response_a = requests.get(f"{self.base_url}/api/alerts", headers={"X-API-Key": api_key_a})
 
         # Get alerts for tenant B
-        response_b = requests.get(
-            f"{self.base_url}/api/alerts",
-            headers={"X-API-Key": api_key_b}
-        )
+        response_b = requests.get(f"{self.base_url}/api/alerts", headers={"X-API-Key": api_key_b})
 
         if response_a.status_code == 200 and response_b.status_code == 200:
             alerts_a = response_a.json()
@@ -100,20 +86,20 @@ class TenantIsolationValidator:
             self.test(
                 "No alert ID overlap between tenants",
                 len(overlap) == 0,
-                f"Found {len(overlap)} overlapping alerts"
+                f"Found {len(overlap)} overlapping alerts",
             )
 
             # Check both tenants can have data
             self.test(
                 "Tenant A can access own alerts",
                 response_a.status_code == 200,
-                f"Status: {response_a.status_code}"
+                f"Status: {response_a.status_code}",
             )
 
             self.test(
                 "Tenant B can access own alerts",
                 response_b.status_code == 200,
-                f"Status: {response_b.status_code}"
+                f"Status: {response_b.status_code}",
             )
 
     def test_cross_tenant_access(self, api_key_a: str, api_key_b: str):
@@ -121,10 +107,7 @@ class TenantIsolationValidator:
         print(f"\n🚫 Testing Cross-Tenant Access Prevention")
 
         # First, get an alert ID from tenant B
-        response_b = requests.get(
-            f"{self.base_url}/api/alerts",
-            headers={"X-API-Key": api_key_b}
-        )
+        response_b = requests.get(f"{self.base_url}/api/alerts", headers={"X-API-Key": api_key_b})
 
         if response_b.status_code == 200:
             alerts_b = response_b.json()
@@ -133,14 +116,13 @@ class TenantIsolationValidator:
 
                 # Try to access tenant B's alert using tenant A's API key
                 response = requests.get(
-                    f"{self.base_url}/api/alerts/{alert_id_b}",
-                    headers={"X-API-Key": api_key_a}
+                    f"{self.base_url}/api/alerts/{alert_id_b}", headers={"X-API-Key": api_key_a}
                 )
 
                 self.test(
                     "Tenant A cannot access Tenant B's alert",
                     response.status_code in [403, 404],
-                    f"Expected 403/404, got {response.status_code}"
+                    f"Expected 403/404, got {response.status_code}",
                 )
             else:
                 print("   ⚠️  Skipped: Tenant B has no alerts to test with")
@@ -153,14 +135,12 @@ class TenantIsolationValidator:
 
         # Get statistics for tenant A
         response_a = requests.get(
-            f"{self.base_url}/api/alerts/statistics/overview",
-            headers={"X-API-Key": api_key_a}
+            f"{self.base_url}/api/alerts/statistics/overview", headers={"X-API-Key": api_key_a}
         )
 
         # Get statistics for tenant B
         response_b = requests.get(
-            f"{self.base_url}/api/alerts/statistics/overview",
-            headers={"X-API-Key": api_key_b}
+            f"{self.base_url}/api/alerts/statistics/overview", headers={"X-API-Key": api_key_b}
         )
 
         if response_a.status_code == 200 and response_b.status_code == 200:
@@ -170,13 +150,13 @@ class TenantIsolationValidator:
             self.test(
                 "Tenant A gets own statistics",
                 "total_alerts" in stats_a,
-                "Missing total_alerts field"
+                "Missing total_alerts field",
             )
 
             self.test(
                 "Tenant B gets own statistics",
                 "total_alerts" in stats_b,
-                "Missing total_alerts field"
+                "Missing total_alerts field",
             )
 
             # Statistics should be different (unless both have exactly same data)
@@ -191,9 +171,7 @@ class TenantIsolationValidator:
         # List all tenants
         response = requests.get(f"{self.base_url}/api/tenants")
         self.test(
-            "Can list tenants",
-            response.status_code == 200,
-            f"Status: {response.status_code}"
+            "Can list tenants", response.status_code == 200, f"Status: {response.status_code}"
         )
 
         if response.status_code == 200:
@@ -201,19 +179,13 @@ class TenantIsolationValidator:
             self.test(
                 "At least 2 test tenants exist",
                 len(tenants) >= 2,
-                f"Only found {len(tenants)} tenants"
+                f"Only found {len(tenants)} tenants",
             )
 
             # Check for test tenants
             tenant_ids = [t["tenant_id"] for t in tenants]
-            self.test(
-                "acme_corp tenant exists",
-                "acme_corp" in tenant_ids
-            )
-            self.test(
-                "beta_industries tenant exists",
-                "beta_industries" in tenant_ids
-            )
+            self.test("acme_corp tenant exists", "acme_corp" in tenant_ids)
+            self.test("beta_industries tenant exists", "beta_industries" in tenant_ids)
 
     def test_api_key_management(self, api_key: str, tenant_id: str):
         """Test API key management endpoints."""
@@ -221,29 +193,24 @@ class TenantIsolationValidator:
 
         # List API keys for tenant
         response = requests.get(
-            f"{self.base_url}/api/tenants/{tenant_id}/api-keys",
-            headers={"X-API-Key": api_key}
+            f"{self.base_url}/api/tenants/{tenant_id}/api-keys", headers={"X-API-Key": api_key}
         )
 
         self.test(
             f"Can list API keys for {tenant_id}",
             response.status_code == 200,
-            f"Status: {response.status_code}"
+            f"Status: {response.status_code}",
         )
 
         if response.status_code == 200:
             keys = response.json()
-            self.test(
-                "At least 1 API key exists",
-                len(keys) >= 1,
-                f"Found {len(keys)} keys"
-            )
+            self.test("At least 1 API key exists", len(keys) >= 1, f"Found {len(keys)} keys")
 
     def run_all_tests(self, api_keys: Dict[str, str]):
         """Run all validation tests."""
-        print("\n" + "="*70)
+        print("\n" + "=" * 70)
         print("🧪 MULTI-TENANCY ISOLATION VALIDATION")
-        print("="*70)
+        print("=" * 70)
 
         # Get API keys
         api_key_acme = api_keys.get("acme_corp")
@@ -270,9 +237,9 @@ class TenantIsolationValidator:
 
     def print_summary(self):
         """Print test summary."""
-        print("\n" + "="*70)
+        print("\n" + "=" * 70)
         print("📋 TEST SUMMARY")
-        print("="*70)
+        print("=" * 70)
         print(f"\nTotal Tests:  {self.results['total_tests']}")
         print(f"✅ Passed:     {self.results['passed']}")
         print(f"❌ Failed:     {self.results['failed']}")
@@ -285,7 +252,7 @@ class TenantIsolationValidator:
             print("\n🎉 ALL TESTS PASSED!")
             print("✅ Multi-tenancy isolation is working correctly")
 
-        print("\n" + "="*70)
+        print("\n" + "=" * 70)
 
 
 def load_api_keys(keys_file: Path) -> Dict[str, str]:

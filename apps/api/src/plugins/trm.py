@@ -3,6 +3,7 @@ import httpx
 from typing import Dict, Any
 from . import BaseRiskPlugin
 
+
 class TRMPlugin(BaseRiskPlugin):
     def __init__(self, api_key: str | None = None, base_url: str | None = None) -> None:
         self.api_key = api_key or os.getenv("TRM_API_KEY", "")
@@ -18,6 +19,18 @@ class TRMPlugin(BaseRiskPlugin):
             data = response.json()
             risk_score = data.get("risk_score", 0)
             categories = data.get("risk_categories", [])
-            return {"score": risk_score, "categories": categories, "vendor": "TRM", "address": address, "raw": data}
+            return {
+                "score": risk_score,
+                "categories": categories,
+                "vendor": "TRM",
+                "address": address,
+                "raw": data,
+            }
         except Exception as exc:
-            return {"score": 0, "categories": [], "vendor": "TRM", "address": address, "error": str(exc)}
+            return {
+                "score": 0,
+                "categories": [],
+                "vendor": "TRM",
+                "address": address,
+                "error": str(exc),
+            }

@@ -58,7 +58,7 @@ class ContentExtractor:
             "language": language.lower(),
             "extraction_method": "pdf_available",
             "article_breakdown": [],
-            "note": "Full text available in PDF format"
+            "note": "Full text available in PDF format",
         }
 
     def _cellar_language(self, language: str) -> str:
@@ -99,7 +99,9 @@ class ContentExtractor:
         }
         return mapping.get(lang, "eng")
 
-    def _extract_from_cellar_xhtml(self, celex: str, language: str = "EN") -> Optional[Dict[str, Any]]:
+    def _extract_from_cellar_xhtml(
+        self, celex: str, language: str = "EN"
+    ) -> Optional[Dict[str, Any]]:
         """
         Extract content from the CELLAR resource endpoint (XHTML).
 
@@ -168,21 +170,21 @@ class ContentExtractor:
             if response.status_code != 200:
                 return None
 
-            soup = BeautifulSoup(response.content, 'html.parser')
+            soup = BeautifulSoup(response.content, "html.parser")
 
             # Extract main content - EUR-Lex uses different container structures
             content_div = (
-                soup.find('div', {'class': 'eli-container'}) or  # Modern EUR-Lex structure
-                soup.find('div', {'id': 'text'}) or
-                soup.find('div', {'class': 'texte'}) or
-                soup.find('div', {'id': 'TexteOnly'})
+                soup.find("div", {"class": "eli-container"})  # Modern EUR-Lex structure
+                or soup.find("div", {"id": "text"})
+                or soup.find("div", {"class": "texte"})
+                or soup.find("div", {"id": "TexteOnly"})
             )
 
             if not content_div:
                 return None
 
             # Extract text
-            full_text = content_div.get_text(separator='\n', strip=True)
+            full_text = content_div.get_text(separator="\n", strip=True)
 
             # Clean up text
             full_text = self._clean_text(full_text)
@@ -195,7 +197,7 @@ class ContentExtractor:
                 "language": lang.lower(),
                 "extraction_method": "html",
                 "article_breakdown": articles,
-                "word_count": len(full_text.split())
+                "word_count": len(full_text.split()),
             }
 
         except Exception as e:
@@ -211,10 +213,10 @@ class ContentExtractor:
         articles = []
 
         # Look for article headings
-        article_pattern = re.compile(r'Article\s+(\d+[a-z]?)', re.IGNORECASE)
+        article_pattern = re.compile(r"Article\s+(\d+[a-z]?)", re.IGNORECASE)
 
         # Find all headings that match article pattern
-        for heading in content_div.find_all(['h1', 'h2', 'h3', 'h4', 'p']):
+        for heading in content_div.find_all(["h1", "h2", "h3", "h4", "p"]):
             text = heading.get_text(strip=True)
             match = article_pattern.match(text)
 
@@ -234,11 +236,9 @@ class ContentExtractor:
                         content_parts.append(sibling_text)
 
                 if content_parts:
-                    articles.append({
-                        "number": article_num,
-                        "title": text,
-                        "content": "\n".join(content_parts)
-                    })
+                    articles.append(
+                        {"number": article_num, "title": text, "content": "\n".join(content_parts)}
+                    )
 
         return articles
 
@@ -249,14 +249,14 @@ class ContentExtractor:
         Removes excessive whitespace, fixes common issues.
         """
         # Remove multiple consecutive newlines
-        text = re.sub(r'\n{3,}', '\n\n', text)
+        text = re.sub(r"\n{3,}", "\n\n", text)
 
         # Remove multiple spaces
-        text = re.sub(r' {2,}', ' ', text)
+        text = re.sub(r" {2,}", " ", text)
 
         # Remove leading/trailing whitespace from each line
-        lines = [line.strip() for line in text.split('\n')]
-        text = '\n'.join(lines)
+        lines = [line.strip() for line in text.split("\n")]
+        text = "\n".join(lines)
 
         return text.strip()
 
@@ -276,21 +276,19 @@ class ContentExtractor:
         if "Whereas:" in full_text or "Having regard to" in full_text:
             # Find recitals
             recitals_match = re.search(
-                r'(Whereas:.*?)(?=Article|CHAPTER|SECTION)',
-                full_text,
-                re.DOTALL | re.IGNORECASE
+                r"(Whereas:.*?)(?=Article|CHAPTER|SECTION)", full_text, re.DOTALL | re.IGNORECASE
             )
             if recitals_match:
-                sections['recitals'] = recitals_match.group(1).strip()
+                sections["recitals"] = recitals_match.group(1).strip()
 
         # Extract definitions if present
         definitions_match = re.search(
-            r'(Article\s+\d+.*?Definitions?.*?)(?=Article\s+\d+)',
+            r"(Article\s+\d+.*?Definitions?.*?)(?=Article\s+\d+)",
             full_text,
-            re.DOTALL | re.IGNORECASE
+            re.DOTALL | re.IGNORECASE,
         )
         if definitions_match:
-            sections['definitions'] = definitions_match.group(1).strip()
+            sections["definitions"] = definitions_match.group(1).strip()
 
         return sections
 

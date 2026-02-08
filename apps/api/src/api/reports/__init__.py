@@ -2,6 +2,7 @@
 Reports Module
 Aggregates all reporting routers.
 """
+
 from fastapi import APIRouter
 
 from .sar_filing import router as sar_filing_router

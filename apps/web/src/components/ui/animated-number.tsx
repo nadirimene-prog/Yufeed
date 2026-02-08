@@ -40,7 +40,7 @@ function formatNumber(
   format: NumberFormat,
   locale: string,
   decimals?: number,
-  currency?: string
+  currency?: string,
 ): string {
   switch (format) {
     case "currency":
@@ -169,7 +169,9 @@ export function AnimatedNumber({
         updateDisplayValue(current);
 
         if (progress < 1) {
-          frameId = requestAnimationFrame((nextTimestamp) => animate(nextTimestamp, startTime));
+          frameId = requestAnimationFrame((nextTimestamp) =>
+            animate(nextTimestamp, startTime),
+          );
         } else {
           updateDisplayValue(value);
           setIsAnimating(false);
@@ -200,7 +202,7 @@ export function AnimatedNumber({
   // Format the display value
   const formatted = useMemo(
     () => formatNumber(displayValue, format, locale, decimals, currency),
-    [displayValue, format, locale, decimals, currency]
+    [displayValue, format, locale, decimals, currency],
   );
 
   // Split into characters
@@ -210,7 +212,7 @@ export function AnimatedNumber({
     <span
       className={cn(
         "inline-flex items-baseline font-mono tabular-nums",
-        className
+        className,
       )}
     >
       {prefix && <span className="mr-0.5">{prefix}</span>}
@@ -279,7 +281,9 @@ export function CountUp({
       setCount(current);
 
       if (progress < 1) {
-        frameId = requestAnimationFrame((nextTimestamp) => run(nextTimestamp, startTime));
+        frameId = requestAnimationFrame((nextTimestamp) =>
+          run(nextTimestamp, startTime),
+        );
       } else {
         setCount(end);
       }

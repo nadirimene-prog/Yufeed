@@ -6,15 +6,17 @@ Tests normalization, caching, and API functionality
 
 import sys
 import os
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), 'src'))
+
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), "src"))
 
 from utils.celex_utils import (
     normalize_celex,
     is_valid_celex,
     parse_celex,
     generate_celex_variations,
-    suggest_celex
+    suggest_celex,
 )
+
 
 def test_normalization():
     """Test CELEX normalization with various inputs."""
@@ -120,11 +122,7 @@ def test_cache_initialization():
             print("✅ Redis cache connected successfully")
 
             # Test basic operations
-            test_data = {
-                "celex": "32016R0679",
-                "title": "Test GDPR Document",
-                "work_type": "REG"
-            }
+            test_data = {"celex": "32016R0679", "title": "Test GDPR Document", "work_type": "REG"}
 
             cache.set("32016R0679", test_data)
             print("✅ Successfully stored test data in cache")
@@ -136,8 +134,10 @@ def test_cache_initialization():
                 print("❌ Failed to retrieve correct data from cache")
 
             stats = cache.get_stats()
-            print(f"✅ Cache stats: {stats.get('total_keys', 0)} keys, "
-                  f"{stats.get('memory_used_mb', 0):.2f} MB")
+            print(
+                f"✅ Cache stats: {stats.get('total_keys', 0)} keys, "
+                f"{stats.get('memory_used_mb', 0):.2f} MB"
+            )
 
             cache.delete("32016R0679")
             cache.close()

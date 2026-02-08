@@ -2,6 +2,7 @@
 Ingest Official Journal act-by-act records from EUR-Lex (Cellar SPARQL).
 Stores act and signature identifiers for each publication date.
 """
+
 from __future__ import annotations
 
 import argparse
@@ -42,10 +43,16 @@ def _date_range(start_date: date, end_date: date, max_days: Optional[int]) -> It
 
 def main() -> None:
     parser = argparse.ArgumentParser(description="Ingest Official Journal act-by-act records.")
-    parser.add_argument("--start-date", default=getattr(settings, "EURLEX_OJ_START_DATE", "1999-01-01"))
+    parser.add_argument(
+        "--start-date", default=getattr(settings, "EURLEX_OJ_START_DATE", "1999-01-01")
+    )
     parser.add_argument("--end-date", default=None)
-    parser.add_argument("--max-days", type=int, default=None, help="Limit number of days (for testing)")
-    parser.add_argument("--series", default=None, help="Comma-separated OJ series filter (default: all)")
+    parser.add_argument(
+        "--max-days", type=int, default=None, help="Limit number of days (for testing)"
+    )
+    parser.add_argument(
+        "--series", default=None, help="Comma-separated OJ series filter (default: all)"
+    )
     parser.add_argument("--dry-run", action="store_true", help="Fetch without writing to database")
     args = parser.parse_args()
 
@@ -58,7 +65,9 @@ def main() -> None:
 
     try:
         source_key = "eur-lex-oj-act-by-act"
-        source = db.query(RegulatorySource).filter(RegulatorySource.source_key == source_key).first()
+        source = (
+            db.query(RegulatorySource).filter(RegulatorySource.source_key == source_key).first()
+        )
         metadata = {
             "start_date": start_date.isoformat(),
             "end_date": end_date.isoformat(),
@@ -120,9 +129,11 @@ def main() -> None:
                 if args.dry_run:
                     continue
 
-                existing = db.query(OfficialJournalAct).filter(
-                    OfficialJournalAct.act_identifier == act_identifier
-                ).first()
+                existing = (
+                    db.query(OfficialJournalAct)
+                    .filter(OfficialJournalAct.act_identifier == act_identifier)
+                    .first()
+                )
                 if not existing:
                     db.add(
                         OfficialJournalAct(

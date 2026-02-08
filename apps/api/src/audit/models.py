@@ -1,6 +1,7 @@
 """
 Audit, Event, and Decision Models (append-only)
 """
+
 from datetime import datetime, timezone
 from sqlalchemy import Column, Integer, String, DateTime, JSON, ForeignKey
 from sqlalchemy.dialects.postgresql import JSONB
@@ -15,6 +16,7 @@ def utc_now() -> datetime:
 
 class AuditLog(Base):
     """Append-only audit log for all mutations."""
+
     __tablename__ = "audit_logs"
 
     id = Column(Integer, primary_key=True)
@@ -44,6 +46,7 @@ class AuditLog(Base):
 
 class EventRecord(Base):
     """Immutable event record (append-only)."""
+
     __tablename__ = "event_records"
 
     id = Column(Integer, primary_key=True)
@@ -60,6 +63,7 @@ class EventRecord(Base):
 
 class DecisionRecord(Base):
     """Immutable decision record (append-only)."""
+
     __tablename__ = "decision_records"
 
     id = Column(Integer, primary_key=True)

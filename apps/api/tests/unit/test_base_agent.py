@@ -36,14 +36,12 @@ def test_base_agent_cache_and_builders():
     cached = agent._check_cache(context)
     assert cached is result
 
-    chain = agent.build_reasoning_chain([
-        {"description": "step", "evidence": ["a"], "conclusion": "ok", "confidence": 0.7}
-    ])
+    chain = agent.build_reasoning_chain(
+        [{"description": "step", "evidence": ["a"], "conclusion": "ok", "confidence": 0.7}]
+    )
     assert chain[0].description == "step"
 
-    citations = agent.build_citations([
-        {"source_type": "regulation", "reference": "AML"}
-    ])
+    citations = agent.build_citations([{"source_type": "regulation", "reference": "AML"}])
     assert citations[0].reference == "AML"
 
     assert agent.calculate_confidence_level(0.9) == ConfidenceLevel.HIGH

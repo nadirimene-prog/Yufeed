@@ -36,7 +36,9 @@ class EurLexSearchFetcher:
         if results:
             return results
 
-        celexes = self._search_html_celex(terms_list, language=language, page=self._page_from_offset(limit, offset))
+        celexes = self._search_html_celex(
+            terms_list, language=language, page=self._page_from_offset(limit, offset)
+        )
         if not celexes:
             return []
 
@@ -101,7 +103,9 @@ class EurLexSearchFetcher:
 
         language = (language or "en").lower()
         language_upper = language.upper()
-        source_url = f"https://eur-lex.europa.eu/legal-content/{language_upper}/ALL/?uri=CELEX:{celex}"
+        source_url = (
+            f"https://eur-lex.europa.eu/legal-content/{language_upper}/ALL/?uri=CELEX:{celex}"
+        )
 
         return {
             "title": title,

@@ -62,4 +62,3 @@ def downgrade() -> None:
 
     if TX_TENANT_USER_TIME_INDEX in indexes:
         op.drop_index(TX_TENANT_USER_TIME_INDEX, table_name="transactions")
-

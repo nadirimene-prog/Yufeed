@@ -3,7 +3,12 @@ from datetime import datetime
 from fastapi import HTTPException
 from starlette.requests import Request
 
-from src.tenancy.context import set_current_tenant, get_current_tenant, clear_current_tenant, TenantContext
+from src.tenancy.context import (
+    set_current_tenant,
+    get_current_tenant,
+    clear_current_tenant,
+    TenantContext,
+)
 from src.tenancy.queries import (
     get_tenant_filtered_query,
     require_tenant,
@@ -159,6 +164,21 @@ async def test_tenant_middleware_helpers(monkeypatch):
     tenant_default = await middleware._extract_tenant_from_request(request_default)
     assert tenant_default is None
 
-    assert middleware._requires_tenant(Request({"type": "http", "path": "/api/docs", "headers": [], "query_string": b""})) is False
-    assert middleware._requires_tenant(Request({"type": "http", "path": "/api/auth/login", "headers": [], "query_string": b""})) is False
-    assert middleware._requires_tenant(Request({"type": "http", "path": "/api/alerts", "headers": [], "query_string": b""})) is True
+    assert (
+        middleware._requires_tenant(
+            Request({"type": "http", "path": "/api/docs", "headers": [], "query_string": b""})
+        )
+        is False
+    )
+    assert (
+        middleware._requires_tenant(
+            Request({"type": "http", "path": "/api/auth/login", "headers": [], "query_string": b""})
+        )
+        is False
+    )
+    assert (
+        middleware._requires_tenant(
+            Request({"type": "http", "path": "/api/alerts", "headers": [], "query_string": b""})
+        )
+        is True
+    )

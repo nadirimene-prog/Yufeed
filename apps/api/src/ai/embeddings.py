@@ -1,6 +1,7 @@
 """
 Embedding provider for RAG indexing and retrieval.
 """
+
 from typing import List, Optional
 import logging
 import os
@@ -39,6 +40,7 @@ class EmbeddingProvider:
 
         try:
             from sentence_transformers import SentenceTransformer  # type: ignore
+
             # Default to local-only to avoid blocking ingestion/backfill on a large HF download.
             # Set RAG_ALLOW_EMBEDDING_DOWNLOAD=true to opt into downloading the model in the container.
             try:

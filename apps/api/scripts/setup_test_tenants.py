@@ -4,6 +4,7 @@ Phase 4C: Task 7 - Create test tenants and API keys for validation
 
 This script creates sample tenants with API keys for testing.
 """
+
 import sys
 import os
 from pathlib import Path
@@ -23,11 +24,7 @@ from src.tenancy.context import TenantContext
 
 
 def create_tenant(
-    db: Session,
-    tenant_id: str,
-    name: str,
-    tier: str = "standard",
-    contact_email: str = None
+    db: Session, tenant_id: str, name: str, tier: str = "standard", contact_email: str = None
 ) -> Tenant:
     """Create a new tenant."""
     print(f"\n📦 Creating tenant: {tenant_id}")
@@ -45,20 +42,13 @@ def create_tenant(
         tier=tier,
         contact_email=contact_email,
         is_active=True,
-        settings={
-            "timezone": "UTC",
-            "currency": "USD",
-            "language": "en"
-        },
-        rate_limits={
-            "requests_per_minute": 60,
-            "requests_per_hour": 1000
-        },
+        settings={"timezone": "UTC", "currency": "USD", "language": "en"},
+        rate_limits={"requests_per_minute": 60, "requests_per_hour": 1000},
         feature_flags={
             "ml_auto_triage": True,
             "websocket_notifications": True,
-            "advanced_reporting": True
-        }
+            "advanced_reporting": True,
+        },
     )
 
     db.add(tenant)
@@ -69,11 +59,7 @@ def create_tenant(
     return tenant
 
 
-def create_api_key(
-    db: Session,
-    tenant: Tenant,
-    name: str = "Test API Key"
-) -> str:
+def create_api_key(db: Session, tenant: Tenant, name: str = "Test API Key") -> str:
     """Create an API key for a tenant."""
     print(f"\n🔑 Creating API key for tenant: {tenant.tenant_id}")
 
@@ -88,7 +74,7 @@ def create_api_key(
         key_prefix=api_key[:20],
         name=name,
         is_active=True,
-        scopes=["read:alerts", "write:transactions", "read:cases"]
+        scopes=["read:alerts", "write:transactions", "read:cases"],
     )
 
     db.add(api_key_record)
@@ -117,7 +103,7 @@ def create_sample_data(db: Session, tenant: Tenant):
                 transaction_type="transfer",
                 timestamp=datetime.utcnow(),
                 status="completed",
-                tenant_id=tenant.tenant_id
+                tenant_id=tenant.tenant_id,
             )
             transactions.append(tx)
             db.add(tx)
@@ -135,7 +121,7 @@ def create_sample_data(db: Session, tenant: Tenant):
                 user_id=f"user_{tenant.tenant_id}_{i+1}",
                 status="pending",
                 priority=i + 1,
-                tenant_id=tenant.tenant_id
+                tenant_id=tenant.tenant_id,
             )
             alerts.append(alert)
             db.add(alert)
@@ -151,12 +137,14 @@ def validate_isolation(db: Session, tenant_a: Tenant, tenant_b: Tenant):
     # Count data for tenant A
     with TenantContext(tenant_a.tenant_id):
         from src.tenancy.queries import get_tenant_filtered_query
+
         tx_count_a = get_tenant_filtered_query(Transaction, db).count()
         alert_count_a = get_tenant_filtered_query(Alert, db).count()
 
     # Count data for tenant B
     with TenantContext(tenant_b.tenant_id):
         from src.tenancy.queries import get_tenant_filtered_query
+
         tx_count_b = get_tenant_filtered_query(Transaction, db).count()
         alert_count_b = get_tenant_filtered_query(Alert, db).count()
 
@@ -179,9 +167,9 @@ def validate_isolation(db: Session, tenant_a: Tenant, tenant_b: Tenant):
 
 def print_summary(tenants: list, api_keys: dict):
     """Print summary of created tenants and API keys."""
-    print("\n" + "="*70)
+    print("\n" + "=" * 70)
     print("📋 MULTI-TENANCY SETUP SUMMARY")
-    print("="*70)
+    print("=" * 70)
 
     for tenant in tenants:
         print(f"\n🏢 Tenant: {tenant.name}")
@@ -196,22 +184,22 @@ def print_summary(tenants: list, api_keys: dict):
             print(f"   curl -H 'X-API-Key: {api_keys[tenant.tenant_id]}' \\")
             print(f"        http://localhost:8000/api/alerts")
 
-    print("\n" + "="*70)
+    print("\n" + "=" * 70)
     print("✅ Setup complete! Test tenants are ready for validation.")
-    print("="*70)
+    print("=" * 70)
 
 
 def main():
     """Main setup function."""
-    print("\n" + "="*70)
+    print("\n" + "=" * 70)
     print("🚀 MULTI-TENANCY TEST SETUP")
-    print("="*70)
+    print("=" * 70)
     print("\nThis script will:")
     print("  1. Create test tenants (Acme Corp, Beta Industries)")
     print("  2. Generate API keys for each tenant")
     print("  3. Create sample data (transactions & alerts)")
     print("  4. Validate tenant isolation")
-    print("\n" + "="*70)
+    print("\n" + "=" * 70)
 
     db = SessionLocal()
     api_keys = {}
@@ -223,7 +211,7 @@ def main():
             tenant_id="acme_corp",
             name="Acme Corporation",
             tier="enterprise",
-            contact_email="admin@acme.com"
+            contact_email="admin@acme.com",
         )
         api_keys["acme_corp"] = create_api_key(db, tenant_a, "Acme Production Key")
         create_sample_data(db, tenant_a)
@@ -234,7 +222,7 @@ def main():
             tenant_id="beta_industries",
             name="Beta Industries",
             tier="standard",
-            contact_email="admin@beta.com"
+            contact_email="admin@beta.com",
         )
         api_keys["beta_industries"] = create_api_key(db, tenant_b, "Beta Production Key")
         create_sample_data(db, tenant_b)
@@ -245,7 +233,7 @@ def main():
             tenant_id="gamma_llc",
             name="Gamma LLC",
             tier="free",
-            contact_email="admin@gamma.com"
+            contact_email="admin@gamma.com",
         )
         api_keys["gamma_llc"] = create_api_key(db, tenant_c, "Gamma Test Key")
 
@@ -271,6 +259,7 @@ def main():
     except Exception as e:
         print(f"\n❌ Error during setup: {e}")
         import traceback
+
         traceback.print_exc()
         db.rollback()
         return 1

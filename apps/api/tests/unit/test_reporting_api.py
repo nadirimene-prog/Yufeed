@@ -64,7 +64,10 @@ def test_reporting_endpoints_cover_dashboard_and_exports(db_session, monkeypatch
         description="Test rule",
         category="velocity",
         severity="high",
-        conditions={"conditions": [{"field": "amount", "operator": ">", "value": 1000}], "logic": "AND"},
+        conditions={
+            "conditions": [{"field": "amount", "operator": ">", "value": 1000}],
+            "logic": "AND",
+        },
         thresholds={"transaction_count": 1},
         regulatory_source_id=doc.id,
     )
@@ -223,11 +226,15 @@ def test_reporting_endpoints_cover_dashboard_and_exports(db_session, monkeypatch
         risk_level="high",
     )
 
-    db_session.add_all([obligation, policy, policy_section, internal_rule, oj_act, source, risk_profile])
+    db_session.add_all(
+        [obligation, policy, policy_section, internal_rule, oj_act, source, risk_profile]
+    )
     db_session.commit()
 
     # SAR / UAR flows
-    sar = reporting_api.prepare_sar(case.case_id, db_session, CurrentUser("1", "admin@example.com", "admin"))
+    sar = reporting_api.prepare_sar(
+        case.case_id, db_session, CurrentUser("1", "admin@example.com", "admin")
+    )
     assert sar["case_id"] == case.case_id
 
     result = reporting_api.file_sar(
@@ -239,7 +246,9 @@ def test_reporting_endpoints_cover_dashboard_and_exports(db_session, monkeypatch
     )
     assert "filing_reference" in result
 
-    uar = reporting_api.prepare_uar(alert.id, db_session, CurrentUser("1", "admin@example.com", "admin"))
+    uar = reporting_api.prepare_uar(
+        alert.id, db_session, CurrentUser("1", "admin@example.com", "admin")
+    )
     assert uar["alert_id"] == alert.id
 
     # Evidence exports
@@ -249,7 +258,9 @@ def test_reporting_endpoints_cover_dashboard_and_exports(db_session, monkeypatch
     decision_export = reporting_api.export_decision_evidence(decision.decision_id, db_session, None)
     assert decision_export["decision"]["decision_id"] == decision.decision_id
 
-    travel_export = reporting_api.export_travel_rule_evidence(travel_record.request_id, db_session, None)
+    travel_export = reporting_api.export_travel_rule_evidence(
+        travel_record.request_id, db_session, None
+    )
     assert travel_export["travel_rule_request"]["request_id"] == travel_record.request_id
 
     # Dashboard + summary reports
@@ -311,6 +322,8 @@ def test_reporting_scope_filters_no_scopes(db_session):
     obligations_query = db_session.query(RegulatoryObligation, LegalDocument).join(
         LegalDocument, RegulatoryObligation.doc_id == LegalDocument.id
     )
-    filtered_obl = reporting_api._apply_scope_filter_to_obligations(obligations_query, [], db_session)
+    filtered_obl = reporting_api._apply_scope_filter_to_obligations(
+        obligations_query, [], db_session
+    )
     # Query should still be usable even with no obligations
     filtered_obl.count()

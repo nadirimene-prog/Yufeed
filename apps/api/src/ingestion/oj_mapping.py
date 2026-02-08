@@ -1,4 +1,5 @@
 """Helpers for mapping Official Journal references to act-by-act identifiers."""
+
 from __future__ import annotations
 
 import re

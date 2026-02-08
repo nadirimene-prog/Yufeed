@@ -13,7 +13,10 @@ export function resolveApiBaseUrl(): string {
   }
 
   // SSR context: Prefer API_INTERNAL_URL (docker service name)
-  const internalUrl = process.env.API_INTERNAL_URL || process.env.NEXT_PUBLIC_API_URL || "http://api:8000";
+  const internalUrl =
+    process.env.API_INTERNAL_URL ||
+    process.env.NEXT_PUBLIC_API_URL ||
+    "http://api:8000";
   return internalUrl.replace(/\/$/, "");
 }
 

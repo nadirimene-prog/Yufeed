@@ -85,7 +85,9 @@ class RegulatoryObligation(Base):
     obligation_text = Column(Text, nullable=False)
     applicability = Column(Text, nullable=True)
     effective_date = Column(DateTime, nullable=True)
-    status = Column(String(50), default="draft")  # draft | in_review | approved | rejected | deprecated
+    status = Column(
+        String(50), default="draft"
+    )  # draft | in_review | approved | rejected | deprecated
     created_by = Column(String(255), nullable=True)
     reviewed_by = Column(String(255), nullable=True)
     approved_by = Column(String(255), nullable=True)
@@ -163,12 +165,16 @@ class InternalRule(Base):
 
     id = Column(Integer, primary_key=True)
     internal_rule_id = Column(String(64), unique=True, nullable=False, index=True)
-    obligation_id = Column(Integer, ForeignKey("regulatory_obligations.id"), nullable=False, index=True)
+    obligation_id = Column(
+        Integer, ForeignKey("regulatory_obligations.id"), nullable=False, index=True
+    )
     policy_section_id = Column(Integer, ForeignKey("policy_sections.id"), nullable=True, index=True)
     name = Column(String(255), nullable=False)
     description = Column(Text, nullable=True)
     control_owner = Column(String(255), nullable=True)
-    status = Column(String(50), default="draft")  # draft | in_review | approved | implemented | archived
+    status = Column(
+        String(50), default="draft"
+    )  # draft | in_review | approved | implemented | archived
     reviewed_by = Column(String(255), nullable=True)
     approved_by = Column(String(255), nullable=True)
     approved_at = Column(DateTime, nullable=True)
@@ -185,7 +191,9 @@ class InternalRuleMapping(Base):
 
     id = Column(Integer, primary_key=True)
     internal_rule_id = Column(Integer, ForeignKey("internal_rules.id"), nullable=False, index=True)
-    monitoring_rule_id = Column(Integer, ForeignKey("monitoring_rules.id"), nullable=True, index=True)
+    monitoring_rule_id = Column(
+        Integer, ForeignKey("monitoring_rules.id"), nullable=True, index=True
+    )
     mapping_type = Column(String(50), default="transaction_monitoring")
     created_at = Column(DateTime, default=utc_now)
 
@@ -194,6 +202,7 @@ class InternalRuleMapping(Base):
 
 class RiskCategory(Base):
     """Business risk categories (Regulatory, Operational, Financial, Reputational)"""
+
     __tablename__ = "risk_categories"
 
     id = Column(Integer, primary_key=True)
@@ -207,11 +216,14 @@ class RiskCategory(Base):
     updated_at = Column(DateTime, default=utc_now, onupdate=utc_now)
 
     parent = relationship("RiskCategory", remote_side=[id], backref="children")
-    risk_entries = relationship("RiskEntry", back_populates="category", cascade="all, delete-orphan")
+    risk_entries = relationship(
+        "RiskEntry", back_populates="category", cascade="all, delete-orphan"
+    )
 
 
 class RiskEntry(Base):
     """Individual risk items linked to obligations"""
+
     __tablename__ = "risk_entries"
 
     id = Column(Integer, primary_key=True)
@@ -221,9 +233,15 @@ class RiskEntry(Base):
     description = Column(Text, nullable=True)
     inherent_risk_level = Column(String(50), default="medium")  # low | medium | high | critical
     residual_risk_level = Column(String(50), default="medium")  # low | medium | high | critical
-    likelihood = Column(String(50), nullable=True)  # rare | unlikely | possible | likely | almost_certain
-    impact = Column(String(50), nullable=True)  # insignificant | minor | moderate | major | catastrophic
-    mitigation_status = Column(String(50), default="not_started")  # not_started | in_progress | implemented | monitored
+    likelihood = Column(
+        String(50), nullable=True
+    )  # rare | unlikely | possible | likely | almost_certain
+    impact = Column(
+        String(50), nullable=True
+    )  # insignificant | minor | moderate | major | catastrophic
+    mitigation_status = Column(
+        String(50), default="not_started"
+    )  # not_started | in_progress | implemented | monitored
     control_owner = Column(String(255), nullable=True)
     review_date = Column(DateTime, nullable=True)
     metadata_json = Column("metadata", JSON().with_variant(JSONB(), "postgresql"), nullable=True)
@@ -231,15 +249,20 @@ class RiskEntry(Base):
     updated_at = Column(DateTime, default=utc_now, onupdate=utc_now)
 
     category = relationship("RiskCategory", back_populates="risk_entries")
-    obligation_links = relationship("ObligationRiskLink", back_populates="risk_entry", cascade="all, delete-orphan")
+    obligation_links = relationship(
+        "ObligationRiskLink", back_populates="risk_entry", cascade="all, delete-orphan"
+    )
 
 
 class ObligationRiskLink(Base):
     """Many-to-many link between obligations and risks"""
+
     __tablename__ = "obligation_risk_links"
 
     id = Column(Integer, primary_key=True)
-    obligation_id = Column(Integer, ForeignKey("regulatory_obligations.id"), nullable=False, index=True)
+    obligation_id = Column(
+        Integer, ForeignKey("regulatory_obligations.id"), nullable=False, index=True
+    )
     risk_entry_id = Column(Integer, ForeignKey("risk_entries.id"), nullable=False, index=True)
     link_type = Column(String(50), default="mitigates")  # mitigates | addresses | monitors
     notes = Column(Text, nullable=True)
@@ -257,6 +280,7 @@ class FailedIngestionItem(Base):
     Stores documents that failed during ingestion for later retry.
     This enables recovery from transient failures without losing data.
     """
+
     __tablename__ = "failed_ingestion_items"
 
     id = Column(Integer, primary_key=True)
@@ -267,7 +291,9 @@ class FailedIngestionItem(Base):
     entry_json = Column(JSON().with_variant(JSONB(), "postgresql"), nullable=True)
     retry_count = Column(Integer, default=0)
     max_retries = Column(Integer, default=3)
-    status = Column(String(50), default="pending", index=True)  # pending | retrying | resolved | exhausted
+    status = Column(
+        String(50), default="pending", index=True
+    )  # pending | retrying | resolved | exhausted
     created_at = Column(DateTime, default=utc_now, index=True)
     last_retry_at = Column(DateTime, nullable=True)
     resolved_at = Column(DateTime, nullable=True)

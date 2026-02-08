@@ -59,7 +59,8 @@ const MOCK_SARS: SAR[] = [
     activity_type: "money_laundering",
     total_amount: 250000,
     currency: "EUR",
-    narrative_preview: "The subject conducted multiple high-value wire transfers to jurisdictions with weak AML controls...",
+    narrative_preview:
+      "The subject conducted multiple high-value wire transfers to jurisdictions with weak AML controls...",
     red_flags: ["Structuring", "High-risk jurisdictions", "Rapid movement"],
     confidence: 0.85,
   },
@@ -72,8 +73,13 @@ const MOCK_SARS: SAR[] = [
     activity_type: "fraud",
     total_amount: 180000,
     currency: "EUR",
-    narrative_preview: "Analysis reveals a pattern of invoice manipulation and fictitious trading activity...",
-    red_flags: ["Invoice discrepancies", "Shell companies", "No economic purpose"],
+    narrative_preview:
+      "Analysis reveals a pattern of invoice manipulation and fictitious trading activity...",
+    red_flags: [
+      "Invoice discrepancies",
+      "Shell companies",
+      "No economic purpose",
+    ],
     confidence: 0.78,
   },
   {
@@ -85,7 +91,8 @@ const MOCK_SARS: SAR[] = [
     activity_type: "terrorist_financing",
     total_amount: 45000,
     currency: "EUR",
-    narrative_preview: "Transactions show a pattern consistent with potential terrorist financing indicators...",
+    narrative_preview:
+      "Transactions show a pattern consistent with potential terrorist financing indicators...",
     red_flags: ["Conflict zone transfers", "NGO misuse", "Smurfing"],
     confidence: 0.92,
   },
@@ -98,8 +105,13 @@ const MOCK_SARS: SAR[] = [
     activity_type: "tax_evasion",
     total_amount: 520000,
     currency: "EUR",
-    narrative_preview: "Corporate structure utilized for apparent tax evasion through transfer pricing manipulation...",
-    red_flags: ["Complex structures", "Tax haven jurisdictions", "Round-tripping"],
+    narrative_preview:
+      "Corporate structure utilized for apparent tax evasion through transfer pricing manipulation...",
+    red_flags: [
+      "Complex structures",
+      "Tax haven jurisdictions",
+      "Round-tripping",
+    ],
     confidence: 0.88,
   },
 ];
@@ -119,7 +131,11 @@ export default function SARManagementPage() {
       case "draft":
         return { bg: "bg-gray-100", text: "text-gray-700", label: "Draft" };
       case "pending_review":
-        return { bg: "bg-yellow-100", text: "text-yellow-700", label: "Pending Review" };
+        return {
+          bg: "bg-yellow-100",
+          text: "text-yellow-700",
+          label: "Pending Review",
+        };
       case "approved":
         return { bg: "bg-blue-100", text: "text-blue-700", label: "Approved" };
       case "filed":
@@ -197,8 +213,16 @@ export default function SARManagementPage() {
           {[
             { label: "Total SARs", value: stats.total, color: "text-gray-900" },
             { label: "Drafts", value: stats.draft, color: "text-gray-600" },
-            { label: "Pending Review", value: stats.pending, color: "text-yellow-600" },
-            { label: "Approved", value: stats.approved, color: "text-blue-600" },
+            {
+              label: "Pending Review",
+              value: stats.pending,
+              color: "text-yellow-600",
+            },
+            {
+              label: "Approved",
+              value: stats.approved,
+              color: "text-blue-600",
+            },
             { label: "Filed", value: stats.filed, color: "text-green-600" },
           ].map((stat) => (
             <div
@@ -440,9 +464,7 @@ export default function SARManagementPage() {
                     {selectedSAR.status === "filed" && (
                       <div className="flex items-center space-x-2 text-green-600">
                         <CheckCircle className="w-5 h-5" />
-                        <span className="font-medium">
-                          Filed successfully
-                        </span>
+                        <span className="font-medium">Filed successfully</span>
                       </div>
                     )}
 

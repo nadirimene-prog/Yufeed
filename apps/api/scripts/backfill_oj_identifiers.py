@@ -1,4 +1,5 @@
 """Backfill OJ act identifiers on existing legal documents."""
+
 from __future__ import annotations
 
 import argparse
@@ -65,19 +66,25 @@ def main() -> None:
 
             record = None
             if act_identifier:
-                record = db.query(OfficialJournalAct).filter(
-                    OfficialJournalAct.act_identifier == act_identifier
-                ).first()
+                record = (
+                    db.query(OfficialJournalAct)
+                    .filter(OfficialJournalAct.act_identifier == act_identifier)
+                    .first()
+                )
                 if record and record.signature_identifier:
                     signature_identifier = record.signature_identifier
             else:
                 series = extract_oj_series(source_reference)
                 publication_day = doc.publication_date.date() if doc.publication_date else None
                 if series and publication_day:
-                    matches = db.query(OfficialJournalAct).filter(
-                        OfficialJournalAct.publication_date == publication_day,
-                        OfficialJournalAct.series == series,
-                    ).all()
+                    matches = (
+                        db.query(OfficialJournalAct)
+                        .filter(
+                            OfficialJournalAct.publication_date == publication_day,
+                            OfficialJournalAct.series == series,
+                        )
+                        .all()
+                    )
                     if len(matches) == 1:
                         record = matches[0]
                         act_identifier = record.act_identifier
@@ -86,7 +93,10 @@ def main() -> None:
             if not act_identifier and not signature_identifier:
                 continue
 
-            if act_identifier != doc.oj_act_identifier or signature_identifier != doc.oj_signature_identifier:
+            if (
+                act_identifier != doc.oj_act_identifier
+                or signature_identifier != doc.oj_signature_identifier
+            ):
                 updated += 1
                 if not args.dry_run:
                     doc.oj_act_identifier = act_identifier
@@ -95,9 +105,7 @@ def main() -> None:
         if not args.dry_run:
             db.commit()
 
-        print(
-            f"✅ OJ backfill complete. scanned={seen} updated={updated} dry_run={args.dry_run}"
-        )
+        print(f"✅ OJ backfill complete. scanned={seen} updated={updated} dry_run={args.dry_run}")
     finally:
         db.close()
 

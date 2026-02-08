@@ -40,7 +40,9 @@ export type DecisionEvidenceBundle = {
     entity_id?: string | null;
     source?: string | null;
     payload?: Record<string, unknown> | null;
-    metadata?: (Record<string, unknown> & { context?: Record<string, unknown> }) | null;
+    metadata?:
+      | (Record<string, unknown> & { context?: Record<string, unknown> })
+      | null;
   } | null;
   transaction?: Record<string, unknown> | null;
   alerts: Record<string, unknown>[];
@@ -80,4 +82,3 @@ export type ReplayDiffRow = {
   original: string;
   replay: string;
 };
-

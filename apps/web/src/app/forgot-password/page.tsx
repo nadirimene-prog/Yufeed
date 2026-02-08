@@ -24,7 +24,7 @@ export default function ForgotPasswordPage() {
       `Role: ${role || "—"}`,
     ].join("\n");
     return `mailto:support@yufeed.com?subject=${encodeURIComponent(
-      subject
+      subject,
     )}&body=${encodeURIComponent(body)}`;
   }, [email, company, role]);
 
@@ -59,7 +59,10 @@ export default function ForgotPasswordPage() {
 
           <form className="space-y-4">
             <div className="space-y-2">
-              <label htmlFor="email" className="text-xs font-medium text-white/60">
+              <label
+                htmlFor="email"
+                className="text-xs font-medium text-white/60"
+              >
                 Work email
               </label>
               <Input
@@ -71,7 +74,9 @@ export default function ForgotPasswordPage() {
                 placeholder="name@company.com"
                 autoComplete="email"
                 error={emailInvalid}
-                errorMessage={emailInvalid ? "Enter a valid work email." : undefined}
+                errorMessage={
+                  emailInvalid ? "Enter a valid work email." : undefined
+                }
                 errorMessageId={emailErrorId}
                 aria-invalid={emailInvalid}
                 aria-describedby={emailErrorId}
@@ -79,7 +84,10 @@ export default function ForgotPasswordPage() {
             </div>
             <div className="grid gap-4 md:grid-cols-2">
               <div className="space-y-2">
-                <label htmlFor="company" className="text-xs font-medium text-white/60">
+                <label
+                  htmlFor="company"
+                  className="text-xs font-medium text-white/60"
+                >
                   Company
                 </label>
                 <Input
@@ -90,7 +98,10 @@ export default function ForgotPasswordPage() {
                 />
               </div>
               <div className="space-y-2">
-                <label htmlFor="role" className="text-xs font-medium text-white/60">
+                <label
+                  htmlFor="role"
+                  className="text-xs font-medium text-white/60"
+                >
                   Role
                 </label>
                 <Input

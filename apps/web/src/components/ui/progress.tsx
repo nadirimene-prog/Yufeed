@@ -12,7 +12,15 @@ import { springs, transitions } from "@/lib/motion";
  * ═══════════════════════════════════════════════════════════════════
  */
 
-type ProgressColor = "aurora" | "cyan" | "green" | "yellow" | "orange" | "red" | "purple" | "gray";
+type ProgressColor =
+  | "aurora"
+  | "cyan"
+  | "green"
+  | "yellow"
+  | "orange"
+  | "red"
+  | "purple"
+  | "gray";
 
 interface ProgressProps extends React.HTMLAttributes<HTMLDivElement> {
   /** Progress value (0-100) */
@@ -107,7 +115,7 @@ function Progress({
       className={cn(
         "w-full",
         labelPosition === "top" && "space-y-1.5",
-        className
+        className,
       )}
       {...props}
     >
@@ -117,13 +125,18 @@ function Progress({
       )}
 
       {/* Progress container */}
-      <div className={cn("flex items-center gap-3", labelPosition === "right" && showLabel && "gap-3")}>
+      <div
+        className={cn(
+          "flex items-center gap-3",
+          labelPosition === "right" && showLabel && "gap-3",
+        )}
+      >
         {/* Track */}
         <div
           className={cn(
             "relative flex-1 overflow-hidden rounded-full",
             "bg-white/[0.06]",
-            sizes.track
+            sizes.track,
           )}
         >
           {/* Fill */}
@@ -132,7 +145,7 @@ function Progress({
               className={cn(
                 "absolute inset-y-0 w-1/3 rounded-full bg-gradient-to-r",
                 colors.gradient,
-                glow && colors.glow
+                glow && colors.glow,
               )}
               animate={{
                 x: ["-100%", "400%"],
@@ -148,7 +161,7 @@ function Progress({
               className={cn(
                 "h-full rounded-full bg-gradient-to-r",
                 colors.gradient,
-                glow && colors.glow
+                glow && colors.glow,
               )}
               initial={animate ? { width: 0 } : false}
               animate={{ width: `${percentage}%` }}
@@ -232,7 +245,12 @@ function CircularProgress({
   };
 
   return (
-    <div className={cn("relative inline-flex items-center justify-center", className)}>
+    <div
+      className={cn(
+        "relative inline-flex items-center justify-center",
+        className,
+      )}
+    >
       <svg
         width={size}
         height={size}
@@ -278,11 +296,12 @@ function CircularProgress({
 
       {/* Center content */}
       <div className="absolute inset-0 flex items-center justify-center">
-        {children || (showLabel && (
-          <span className="text-sm font-bold font-mono text-white">
-            {Math.round(percentage)}%
-          </span>
-        ))}
+        {children ||
+          (showLabel && (
+            <span className="text-sm font-bold font-mono text-white">
+              {Math.round(percentage)}%
+            </span>
+          ))}
       </div>
     </div>
   );
@@ -331,7 +350,7 @@ function StepProgress({
     <div
       className={cn(
         orientation === "horizontal" ? "flex items-start" : "flex flex-col",
-        className
+        className,
       )}
     >
       {steps.map((step, index) => {
@@ -343,14 +362,16 @@ function StepProgress({
           <div
             key={index}
             className={cn(
-              orientation === "horizontal" ? "flex-1 flex items-start" : "flex gap-3",
-              !isLast && orientation === "horizontal" && "flex-1"
+              orientation === "horizontal"
+                ? "flex-1 flex items-start"
+                : "flex gap-3",
+              !isLast && orientation === "horizontal" && "flex-1",
             )}
           >
             <div
               className={cn(
                 "flex items-center",
-                orientation === "horizontal" ? "flex-col" : "flex-row"
+                orientation === "horizontal" ? "flex-col" : "flex-row",
               )}
             >
               {/* Step circle */}
@@ -360,13 +381,18 @@ function StepProgress({
                   "h-8 w-8 text-sm font-medium",
                   isCompleted && "border-transparent",
                   isCurrent && "border-transparent",
-                  !isCompleted && !isCurrent && "border-white/20 bg-transparent text-white/40"
+                  !isCompleted &&
+                    !isCurrent &&
+                    "border-white/20 bg-transparent text-white/40",
                 )}
                 style={{
-                  background: isCompleted || isCurrent
-                    ? `linear-gradient(135deg, ${gradientColors[color]} 0%, #00d4ff 100%)`
+                  background:
+                    isCompleted || isCurrent
+                      ? `linear-gradient(135deg, ${gradientColors[color]} 0%, #00d4ff 100%)`
+                      : undefined,
+                  boxShadow: isCurrent
+                    ? `0 0 20px ${gradientColors[color]}50`
                     : undefined,
-                  boxShadow: isCurrent ? `0 0 20px ${gradientColors[color]}50` : undefined,
                 }}
                 initial={false}
                 animate={{
@@ -375,11 +401,23 @@ function StepProgress({
                 transition={springs.snappy}
               >
                 {isCompleted ? (
-                  <svg className="h-4 w-4 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                  <svg
+                    className="h-4 w-4 text-white"
+                    fill="none"
+                    viewBox="0 0 24 24"
+                    stroke="currentColor"
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={2}
+                      d="M5 13l4 4L19 7"
+                    />
                   </svg>
                 ) : (
-                  <span className={cn(isCompleted || isCurrent ? "text-white" : "")}>
+                  <span
+                    className={cn(isCompleted || isCurrent ? "text-white" : "")}
+                  >
                     {index + 1}
                   </span>
                 )}
@@ -389,12 +427,17 @@ function StepProgress({
               {!isLast && (
                 <div
                   className={cn(
-                    orientation === "horizontal" ? "h-0.5 flex-1 mx-2" : "w-0.5 h-8 my-2",
-                    "relative overflow-hidden rounded-full bg-white/10"
+                    orientation === "horizontal"
+                      ? "h-0.5 flex-1 mx-2"
+                      : "w-0.5 h-8 my-2",
+                    "relative overflow-hidden rounded-full bg-white/10",
                   )}
                 >
                   <motion.div
-                    className={cn("absolute inset-0 bg-gradient-to-r", colors.gradient)}
+                    className={cn(
+                      "absolute inset-0 bg-gradient-to-r",
+                      colors.gradient,
+                    )}
                     initial={{ scaleX: 0 }}
                     animate={{ scaleX: isCompleted ? 1 : 0 }}
                     transition={transitions.slow}
@@ -407,14 +450,16 @@ function StepProgress({
             {/* Label */}
             <div
               className={cn(
-                orientation === "horizontal" ? "mt-2 text-center" : "flex-1 pt-1",
-                "min-w-0"
+                orientation === "horizontal"
+                  ? "mt-2 text-center"
+                  : "flex-1 pt-1",
+                "min-w-0",
               )}
             >
               <p
                 className={cn(
                   "text-sm font-medium truncate",
-                  isCompleted || isCurrent ? "text-white" : "text-white/40"
+                  isCompleted || isCurrent ? "text-white" : "text-white/40",
                 )}
               >
                 {step.label}

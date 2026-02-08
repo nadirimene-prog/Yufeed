@@ -2,6 +2,7 @@
 Risk OS Decisioning API
 Unified event normalization and low-latency decision endpoint.
 """
+
 from typing import Any, Dict, List, Optional
 import asyncio
 import uuid
@@ -73,7 +74,9 @@ class DecisionResponse(BaseModel):
 def ingest_event(
     request: EventIngestRequest,
     db: Session = Depends(get_db),
-    current_user: CurrentUser = Depends(require_any_role(["admin", "compliance", "analyst", "aml_officer", "user"])),
+    current_user: CurrentUser = Depends(
+        require_any_role(["admin", "compliance", "analyst", "aml_officer", "user"])
+    ),
 ):
     tenant_id = current_user.tenant_id or get_current_tenant()
     if not tenant_id:
@@ -115,7 +118,9 @@ def ingest_event(
 def decide(
     request: DecisionRequest,
     db: Session = Depends(get_db),
-    current_user: CurrentUser = Depends(require_any_role(["admin", "compliance", "analyst", "aml_officer", "user"])),
+    current_user: CurrentUser = Depends(
+        require_any_role(["admin", "compliance", "analyst", "aml_officer", "user"])
+    ),
 ):
     tenant_id = current_user.tenant_id or get_current_tenant()
     if not tenant_id:
@@ -123,10 +128,14 @@ def decide(
 
     event_record: EventRecord | None = None
     if request.event_id:
-        event_record = db.query(EventRecord).filter(
-            EventRecord.event_id == request.event_id,
-            EventRecord.tenant_id == tenant_id,
-        ).first()
+        event_record = (
+            db.query(EventRecord)
+            .filter(
+                EventRecord.event_id == request.event_id,
+                EventRecord.tenant_id == tenant_id,
+            )
+            .first()
+        )
         if not event_record:
             raise HTTPException(status_code=404, detail="Event not found")
 
@@ -135,7 +144,8 @@ def decide(
         event_record.payload if event_record and event_record.payload else request.payload,
         entity_type=event_record.entity_type if event_record else request.entity_type,
         entity_id=event_record.entity_id if event_record else request.entity_id,
-        source=(event_record.source if event_record and event_record.source else request.source) or "decisioning",
+        source=(event_record.source if event_record and event_record.source else request.source)
+        or "decisioning",
     )
 
     if event_record is None:
@@ -159,10 +169,14 @@ def decide(
 
     transaction: Optional[Transaction] = None
     if request.transaction_id is not None:
-        transaction = db.query(Transaction).filter(
-            Transaction.id == request.transaction_id,
-            Transaction.tenant_id == tenant_id,
-        ).first()
+        transaction = (
+            db.query(Transaction)
+            .filter(
+                Transaction.id == request.transaction_id,
+                Transaction.tenant_id == tenant_id,
+            )
+            .first()
+        )
         if not transaction:
             raise HTTPException(status_code=404, detail="Transaction not found")
 
@@ -201,7 +215,11 @@ def decide(
                         alert_id=alert_id,
                         alert_type="onchain_risk",
                         severity=onchain_level,
-                        user_id=request.payload.get("user_id") if isinstance(request.payload, dict) else None,
+                        user_id=(
+                            request.payload.get("user_id")
+                            if isinstance(request.payload, dict)
+                            else None
+                        ),
                         description="On-chain risk score exceeded threshold",
                         evidence=onchain_result,
                     )
@@ -254,16 +272,22 @@ def decide(
 def get_decision(
     decision_id: str,
     db: Session = Depends(get_db),
-    current_user: CurrentUser = Depends(require_any_role(["admin", "compliance", "analyst", "aml_officer", "user"])),
+    current_user: CurrentUser = Depends(
+        require_any_role(["admin", "compliance", "analyst", "aml_officer", "user"])
+    ),
 ):
     tenant_id = current_user.tenant_id or get_current_tenant()
     if not tenant_id:
         raise HTTPException(status_code=403, detail="Tenant context is required")
 
-    record = db.query(DecisionRecord).filter(
-        DecisionRecord.decision_id == decision_id,
-        DecisionRecord.tenant_id == tenant_id,
-    ).first()
+    record = (
+        db.query(DecisionRecord)
+        .filter(
+            DecisionRecord.decision_id == decision_id,
+            DecisionRecord.tenant_id == tenant_id,
+        )
+        .first()
+    )
     if not record:
         raise HTTPException(status_code=404, detail="Decision not found")
 

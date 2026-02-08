@@ -4,7 +4,11 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { ReactQueryDevtools } from "@tanstack/react-query-devtools";
 import React from "react";
 
-export default function ReactQueryProvider({ children }: { children: React.ReactNode }) {
+export default function ReactQueryProvider({
+  children,
+}: {
+  children: React.ReactNode;
+}) {
   const [queryClient] = React.useState(
     () =>
       new QueryClient({
@@ -16,7 +20,7 @@ export default function ReactQueryProvider({ children }: { children: React.React
             retry: 1,
           },
         },
-      })
+      }),
   );
 
   return (
@@ -28,4 +32,3 @@ export default function ReactQueryProvider({ children }: { children: React.React
     </QueryClientProvider>
   );
 }
-

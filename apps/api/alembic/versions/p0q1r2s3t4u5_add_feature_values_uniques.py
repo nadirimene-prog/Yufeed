@@ -62,4 +62,3 @@ def downgrade() -> None:
     unique_constraints = {c["name"] for c in inspector.get_unique_constraints("feature_values")}
     if FEATURE_VALUES_UNIQUE in unique_constraints:
         op.drop_constraint(FEATURE_VALUES_UNIQUE, "feature_values", type_="unique")
-

@@ -125,6 +125,8 @@ def test_tenant_lifecycle_and_api_keys(db_session):
     remaining = db_session.query(TenantUser).filter(TenantUser.user_id == "user_1").first()
     assert remaining is None
 
-    tenants_api.delete_tenant("acme_test", hard_delete=False, db=db_session, current_user=current_user)
+    tenants_api.delete_tenant(
+        "acme_test", hard_delete=False, db=db_session, current_user=current_user
+    )
     deleted = db_session.query(Tenant).filter(Tenant.tenant_id == "acme_test").first()
     assert deleted.is_active is False

@@ -2,6 +2,7 @@
 Compliance Dashboard API
 Comprehensive compliance reporting dashboards and analytics.
 """
+
 from fastapi import APIRouter, Depends, Query
 from sqlalchemy.orm import Session
 from sqlalchemy import func, and_, or_, select
@@ -10,12 +11,16 @@ from typing import Optional
 from datetime import datetime, timedelta, timezone
 
 from src.database import get_db
-from src.models.transaction_models import (
-    Transaction, Alert, Case, MonitoringRule, UserRiskProfile
-)
+from src.models.transaction_models import Transaction, Alert, Case, MonitoringRule, UserRiskProfile
 from src.models.travel_rule import TravelRuleRequestRecord
 from src.models.models import LegalDocument
-from src.models.compliance_workflow import RegulatoryObligation, PolicyDocument, InternalRule, OfficialJournalAct, RegulatorySource
+from src.models.compliance_workflow import (
+    RegulatoryObligation,
+    PolicyDocument,
+    InternalRule,
+    OfficialJournalAct,
+    RegulatorySource,
+)
 from src.audit.models import EventRecord, DecisionRecord
 from src.auth.dependencies import require_any_role, CurrentUser
 from src.compliance.scope import normalize_scopes, scope_keywords
@@ -87,7 +92,7 @@ def _apply_scope_filter_to_obligations(query, scopes: list[str], db: Session):
 def get_compliance_dashboard(
     date_from: Optional[datetime] = None,
     date_to: Optional[datetime] = None,
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
 ):
     """
     Comprehensive compliance reporting dashboard.
@@ -100,40 +105,33 @@ def get_compliance_dashboard(
         date_to = utc_now()
 
     # Alert metrics
-    total_alerts = db.query(func.count(Alert.id)).filter(
-        and_(
-            Alert.created_at >= date_from,
-            Alert.created_at <= date_to
-        )
-    ).scalar() or 0
+    total_alerts = (
+        db.query(func.count(Alert.id))
+        .filter(and_(Alert.created_at >= date_from, Alert.created_at <= date_to))
+        .scalar()
+        or 0
+    )
 
-    alerts_by_severity = db.query(
-        Alert.severity,
-        func.count(Alert.id).label('count')
-    ).filter(
-        and_(
-            Alert.created_at >= date_from,
-            Alert.created_at <= date_to
-        )
-    ).group_by(Alert.severity).all()
+    alerts_by_severity = (
+        db.query(Alert.severity, func.count(Alert.id).label("count"))
+        .filter(and_(Alert.created_at >= date_from, Alert.created_at <= date_to))
+        .group_by(Alert.severity)
+        .all()
+    )
 
-    alerts_by_type = db.query(
-        Alert.alert_type,
-        func.count(Alert.id).label('count')
-    ).filter(
-        and_(
-            Alert.created_at >= date_from,
-            Alert.created_at <= date_to
-        )
-    ).group_by(Alert.alert_type).all()
+    alerts_by_type = (
+        db.query(Alert.alert_type, func.count(Alert.id).label("count"))
+        .filter(and_(Alert.created_at >= date_from, Alert.created_at <= date_to))
+        .group_by(Alert.alert_type)
+        .all()
+    )
 
     # Resolution time average
-    resolved_alerts = db.query(Alert).filter(
-        and_(
-            Alert.created_at >= date_from,
-            Alert.resolved_at.isnot(None)
-        )
-    ).all()
+    resolved_alerts = (
+        db.query(Alert)
+        .filter(and_(Alert.created_at >= date_from, Alert.resolved_at.isnot(None)))
+        .all()
+    )
 
     avg_resolution_hours = 0
     if resolved_alerts:
@@ -144,99 +142,108 @@ def get_compliance_dashboard(
         avg_resolution_hours = total_hours / len(resolved_alerts)
 
     # Case metrics
-    open_cases = db.query(func.count(Case.id)).filter(
-        Case.status.in_(['open', 'in_progress'])
-    ).scalar() or 0
+    open_cases = (
+        db.query(func.count(Case.id)).filter(Case.status.in_(["open", "in_progress"])).scalar() or 0
+    )
 
-    closed_cases = db.query(func.count(Case.id)).filter(
-        and_(
-            Case.status == 'closed',
-            Case.closed_at >= date_from,
-            Case.closed_at <= date_to
+    closed_cases = (
+        db.query(func.count(Case.id))
+        .filter(
+            and_(Case.status == "closed", Case.closed_at >= date_from, Case.closed_at <= date_to)
         )
-    ).scalar() or 0
+        .scalar()
+        or 0
+    )
 
-    sar_filed = db.query(func.count(Case.id)).filter(
-        and_(
-            Case.outcome == 'sar_filed',
-            Case.closed_at >= date_from,
-            Case.closed_at <= date_to
+    sar_filed = (
+        db.query(func.count(Case.id))
+        .filter(
+            and_(
+                Case.outcome == "sar_filed", Case.closed_at >= date_from, Case.closed_at <= date_to
+            )
         )
-    ).scalar() or 0
+        .scalar()
+        or 0
+    )
 
     # Regulatory coverage
     monitored_regulations = db.query(func.count(LegalDocument.id)).scalar() or 0
 
-    rules_with_regs = db.query(func.count(MonitoringRule.id)).filter(
-        MonitoringRule.regulatory_source_id.isnot(None)
-    ).scalar() or 0
+    rules_with_regs = (
+        db.query(func.count(MonitoringRule.id))
+        .filter(MonitoringRule.regulatory_source_id.isnot(None))
+        .scalar()
+        or 0
+    )
 
     total_rules = db.query(func.count(MonitoringRule.id)).scalar() or 1
 
-    recent_updates = db.query(LegalDocument).filter(
-        LegalDocument.last_modified >= date_from
-    ).count()
+    recent_updates = (
+        db.query(LegalDocument).filter(LegalDocument.last_modified >= date_from).count()
+    )
 
     # Risk metrics
-    high_risk_users = db.query(func.count(UserRiskProfile.id)).filter(
-        UserRiskProfile.risk_level.in_(['high', 'critical'])
-    ).scalar() or 0
+    high_risk_users = (
+        db.query(func.count(UserRiskProfile.id))
+        .filter(UserRiskProfile.risk_level.in_(["high", "critical"]))
+        .scalar()
+        or 0
+    )
 
-    transaction_volume = db.query(
-        func.sum(Transaction.amount)
-    ).filter(
-        and_(
-            Transaction.timestamp >= date_from,
-            Transaction.timestamp <= date_to
-        )
-    ).scalar() or 0
+    transaction_volume = (
+        db.query(func.sum(Transaction.amount))
+        .filter(and_(Transaction.timestamp >= date_from, Transaction.timestamp <= date_to))
+        .scalar()
+        or 0
+    )
 
-    avg_risk_score = db.query(
-        func.avg(Transaction.risk_score)
-    ).filter(
-        and_(
-            Transaction.timestamp >= date_from,
-            Transaction.timestamp <= date_to,
-            Transaction.risk_score.isnot(None)
+    avg_risk_score = (
+        db.query(func.avg(Transaction.risk_score))
+        .filter(
+            and_(
+                Transaction.timestamp >= date_from,
+                Transaction.timestamp <= date_to,
+                Transaction.risk_score.isnot(None),
+            )
         )
-    ).scalar() or 0
+        .scalar()
+        or 0
+    )
 
     return {
         "reporting_period": {
             "from": date_from.isoformat(),
             "to": date_to.isoformat(),
-            "days": (date_to - date_from).days
+            "days": (date_to - date_from).days,
         },
         "alert_metrics": {
             "total_alerts": total_alerts,
             "by_severity": {row.severity: row.count for row in alerts_by_severity},
             "by_type": {row.alert_type: row.count for row in alerts_by_type},
-            "resolution_time_avg_hours": round(avg_resolution_hours, 2)
+            "resolution_time_avg_hours": round(avg_resolution_hours, 2),
         },
         "case_metrics": {
             "open_cases": open_cases,
             "closed_cases": closed_cases,
             "sar_filed": sar_filed,
-            "sar_rate": round(sar_filed / closed_cases * 100, 2) if closed_cases > 0 else 0
+            "sar_rate": round(sar_filed / closed_cases * 100, 2) if closed_cases > 0 else 0,
         },
         "regulatory_coverage": {
             "monitored_regulations": monitored_regulations,
             "total_rules": total_rules,
             "rules_derived_from_regs": rules_with_regs,
             "regulatory_coverage_rate": round(rules_with_regs / total_rules * 100, 2),
-            "recent_regulatory_updates": recent_updates
+            "recent_regulatory_updates": recent_updates,
         },
         "risk_metrics": {
             "high_risk_users": high_risk_users,
             "transaction_volume": float(transaction_volume),
             "average_risk_score": round(float(avg_risk_score), 2),
-            "total_transactions": db.query(func.count(Transaction.id)).filter(
-                and_(
-                    Transaction.timestamp >= date_from,
-                    Transaction.timestamp <= date_to
-                )
-            ).scalar() or 0
-        }
+            "total_transactions": db.query(func.count(Transaction.id))
+            .filter(and_(Transaction.timestamp >= date_from, Transaction.timestamp <= date_to))
+            .scalar()
+            or 0,
+        },
     }
 
 
@@ -250,7 +257,7 @@ def compliance_home_dashboard(
     obligation_limit: int = Query(8, ge=1, le=50),
     scope: Optional[str] = Query(None, description="Comma-separated scope tags: psp,eme,vasp"),
     db: Session = Depends(get_db),
-    _: CurrentUser = Depends(require_any_role(["admin", "compliance", "auditor", "user"]))
+    _: CurrentUser = Depends(require_any_role(["admin", "compliance", "auditor", "user"])),
 ):
     """
     Aggregated home dashboard metrics for Compliance Officer.
@@ -267,46 +274,75 @@ def compliance_home_dashboard(
 
     total_docs = docs_query.count()
     rules_total = db.query(func.count(MonitoringRule.id)).scalar() or 0
-    rules_with_celex = db.query(func.count(MonitoringRule.id)).filter(
-        MonitoringRule.regulatory_source_id.isnot(None)
-    ).scalar() or 0
-    celex_covered = db.query(func.count(func.distinct(MonitoringRule.regulatory_source_id))).filter(
-        MonitoringRule.regulatory_source_id.isnot(None),
-        MonitoringRule.regulatory_source_id.in_(scope_doc_ids_select),
-    ).scalar() or 0
+    rules_with_celex = (
+        db.query(func.count(MonitoringRule.id))
+        .filter(MonitoringRule.regulatory_source_id.isnot(None))
+        .scalar()
+        or 0
+    )
+    celex_covered = (
+        db.query(func.count(func.distinct(MonitoringRule.regulatory_source_id)))
+        .filter(
+            MonitoringRule.regulatory_source_id.isnot(None),
+            MonitoringRule.regulatory_source_id.in_(scope_doc_ids_select),
+        )
+        .scalar()
+        or 0
+    )
 
     celex_coverage_pct = round((celex_covered / total_docs * 100), 2) if total_docs > 0 else 0
     rules_coverage_pct = round((rules_with_celex / rules_total * 100), 2) if rules_total > 0 else 0
 
-    mapped_ids_subq = db.query(MonitoringRule.regulatory_source_id).filter(
-        MonitoringRule.regulatory_source_id.isnot(None)
-    ).subquery()
+    mapped_ids_subq = (
+        db.query(MonitoringRule.regulatory_source_id)
+        .filter(MonitoringRule.regulatory_source_id.isnot(None))
+        .subquery()
+    )
     mapped_ids_select = select(mapped_ids_subq.c.regulatory_source_id)
 
-    uncovered_docs = docs_query.filter(
-        ~LegalDocument.id.in_(mapped_ids_select)
-    ).order_by(LegalDocument.publication_date.desc()).limit(5).all()
+    uncovered_docs = (
+        docs_query.filter(~LegalDocument.id.in_(mapped_ids_select))
+        .order_by(LegalDocument.publication_date.desc())
+        .limit(5)
+        .all()
+    )
 
-    rules_without_celex = db.query(MonitoringRule).filter(
-        MonitoringRule.regulatory_source_id.is_(None)
-    ).order_by(MonitoringRule.updated_at.desc()).limit(5).all()
+    rules_without_celex = (
+        db.query(MonitoringRule)
+        .filter(MonitoringRule.regulatory_source_id.is_(None))
+        .order_by(MonitoringRule.updated_at.desc())
+        .limit(5)
+        .all()
+    )
 
     pending_alerts = db.query(func.count(Alert.id)).filter(Alert.status == "pending").scalar() or 0
-    critical_alerts = db.query(func.count(Alert.id)).filter(Alert.severity == "critical").scalar() or 0
-    open_cases = db.query(func.count(Case.id)).filter(Case.status.in_(["open", "in_progress"])).scalar() or 0
+    critical_alerts = (
+        db.query(func.count(Alert.id)).filter(Alert.severity == "critical").scalar() or 0
+    )
+    open_cases = (
+        db.query(func.count(Case.id)).filter(Case.status.in_(["open", "in_progress"])).scalar() or 0
+    )
 
-    decisions_24h = db.query(func.count(DecisionRecord.id)).filter(
-        DecisionRecord.created_at >= last_24h
-    ).scalar() or 0
-    decision_breakdown_rows = db.query(
-        DecisionRecord.decision,
-        func.count(DecisionRecord.id).label("count")
-    ).filter(DecisionRecord.created_at >= last_24h).group_by(DecisionRecord.decision).all()
+    decisions_24h = (
+        db.query(func.count(DecisionRecord.id))
+        .filter(DecisionRecord.created_at >= last_24h)
+        .scalar()
+        or 0
+    )
+    decision_breakdown_rows = (
+        db.query(DecisionRecord.decision, func.count(DecisionRecord.id).label("count"))
+        .filter(DecisionRecord.created_at >= last_24h)
+        .group_by(DecisionRecord.decision)
+        .all()
+    )
     decision_breakdown = {row.decision: row.count for row in decision_breakdown_rows}
 
-    latest_decision_row = db.query(DecisionRecord, EventRecord).outerjoin(
-        EventRecord, DecisionRecord.event_id == EventRecord.event_id
-    ).order_by(DecisionRecord.created_at.desc()).first()
+    latest_decision_row = (
+        db.query(DecisionRecord, EventRecord)
+        .outerjoin(EventRecord, DecisionRecord.event_id == EventRecord.event_id)
+        .order_by(DecisionRecord.created_at.desc())
+        .first()
+    )
     latest_decision = None
     if latest_decision_row:
         latest_decision, latest_event = latest_decision_row
@@ -319,22 +355,32 @@ def compliance_home_dashboard(
             "entity_id": getattr(latest_event, "entity_id", None) if latest_event else None,
         }
 
-    sar_filed_30d = db.query(func.count(Case.id)).filter(
-        Case.outcome == "sar_filed",
-        Case.closed_at >= last_30d
-    ).scalar() or 0
+    sar_filed_30d = (
+        db.query(func.count(Case.id))
+        .filter(Case.outcome == "sar_filed", Case.closed_at >= last_30d)
+        .scalar()
+        or 0
+    )
 
-    travel_pending = db.query(func.count(TravelRuleRequestRecord.id)).filter(
-        TravelRuleRequestRecord.status == "pending"
-    ).scalar() or 0
-    travel_submitted = db.query(func.count(TravelRuleRequestRecord.id)).filter(
-        TravelRuleRequestRecord.status == "submitted"
-    ).scalar() or 0
+    travel_pending = (
+        db.query(func.count(TravelRuleRequestRecord.id))
+        .filter(TravelRuleRequestRecord.status == "pending")
+        .scalar()
+        or 0
+    )
+    travel_submitted = (
+        db.query(func.count(TravelRuleRequestRecord.id))
+        .filter(TravelRuleRequestRecord.status == "submitted")
+        .scalar()
+        or 0
+    )
 
-    onchain_checks = db.query(func.count(EventRecord.id)).filter(
-        EventRecord.event_type == "onchain_risk_check",
-        EventRecord.created_at >= last_24h
-    ).scalar() or 0
+    onchain_checks = (
+        db.query(func.count(EventRecord.id))
+        .filter(EventRecord.event_type == "onchain_risk_check", EventRecord.created_at >= last_24h)
+        .scalar()
+        or 0
+    )
 
     last_window = now - timedelta(days=intake_days)
     new_docs_query = docs_query.filter(LegalDocument.last_modified >= last_window)
@@ -343,10 +389,11 @@ def compliance_home_dashboard(
     if intake_source:
         new_docs_query = new_docs_query.filter(LegalDocument.source_system == intake_source)
     new_docs_total = new_docs_query.count()
-    new_docs_by_jurisdiction_rows = new_docs_query.with_entities(
-        LegalDocument.jurisdiction,
-        func.count(LegalDocument.id)
-    ).group_by(LegalDocument.jurisdiction).all()
+    new_docs_by_jurisdiction_rows = (
+        new_docs_query.with_entities(LegalDocument.jurisdiction, func.count(LegalDocument.id))
+        .group_by(LegalDocument.jurisdiction)
+        .all()
+    )
     new_docs_by_jurisdiction = {
         (row[0] or "unknown"): row[1] for row in new_docs_by_jurisdiction_rows
     }
@@ -354,9 +401,11 @@ def compliance_home_dashboard(
 
     oj_total = db.query(func.count(OfficialJournalAct.id)).scalar() or 0
     oj_latest_date = db.query(func.max(OfficialJournalAct.publication_date)).scalar()
-    oj_source = db.query(RegulatorySource).filter(
-        RegulatorySource.source_key == "eur-lex-oj-act-by-act"
-    ).first()
+    oj_source = (
+        db.query(RegulatorySource)
+        .filter(RegulatorySource.source_key == "eur-lex-oj-act-by-act")
+        .first()
+    )
     oj_last_ingested = oj_source.last_ingested_at if oj_source else None
 
     statuses = None
@@ -366,29 +415,43 @@ def compliance_home_dashboard(
     pending_obligations_query = db.query(RegulatoryObligation, LegalDocument).join(
         LegalDocument, RegulatoryObligation.doc_id == LegalDocument.id
     )
-    pending_obligations_query = _apply_scope_filter_to_obligations(pending_obligations_query, scopes, db)
+    pending_obligations_query = _apply_scope_filter_to_obligations(
+        pending_obligations_query, scopes, db
+    )
     if statuses:
-        pending_obligations_query = pending_obligations_query.filter(RegulatoryObligation.status.in_(statuses))
+        pending_obligations_query = pending_obligations_query.filter(
+            RegulatoryObligation.status.in_(statuses)
+        )
     else:
-        pending_obligations_query = pending_obligations_query.filter(RegulatoryObligation.status.in_(["draft", "in_review"]))
-    pending_obligations_query = pending_obligations_query.order_by(RegulatoryObligation.updated_at.desc())
+        pending_obligations_query = pending_obligations_query.filter(
+            RegulatoryObligation.status.in_(["draft", "in_review"])
+        )
+    pending_obligations_query = pending_obligations_query.order_by(
+        RegulatoryObligation.updated_at.desc()
+    )
     pending_obligations_total = pending_obligations_query.count()
     pending_obligations = pending_obligations_query.limit(obligation_limit).all()
 
     policies_query = db.query(PolicyDocument)
     policies_total = policies_query.count()
-    policy_status_rows = policies_query.with_entities(
-        PolicyDocument.status,
-        func.count(PolicyDocument.id)
-    ).group_by(PolicyDocument.status).all()
+    policy_status_rows = (
+        policies_query.with_entities(PolicyDocument.status, func.count(PolicyDocument.id))
+        .group_by(PolicyDocument.status)
+        .all()
+    )
     policy_by_status = {row[0] or "unknown": row[1] for row in policy_status_rows}
     focus_statuses = ["draft", "in_review"]
-    policies_focus = policies_query.filter(
-        PolicyDocument.status.in_(focus_statuses)
-    ).order_by(PolicyDocument.updated_at.desc()).limit(5).all()
+    policies_focus = (
+        policies_query.filter(PolicyDocument.status.in_(focus_statuses))
+        .order_by(PolicyDocument.updated_at.desc())
+        .limit(5)
+        .all()
+    )
 
     def _doc_to_dict(doc):
-        title = (doc.title or "").strip() or doc.celex or doc.source_reference or "Untitled document"
+        title = (
+            (doc.title or "").strip() or doc.celex or doc.source_reference or "Untitled document"
+        )
         return {
             "id": doc.id,
             "celex": doc.celex,
@@ -398,7 +461,9 @@ def compliance_home_dashboard(
         }
 
     def _doc_to_intake_dict(doc):
-        title = (doc.title or "").strip() or doc.celex or doc.source_reference or "Untitled document"
+        title = (
+            (doc.title or "").strip() or doc.celex or doc.source_reference or "Untitled document"
+        )
         return {
             "id": doc.id,
             "celex": doc.celex,
@@ -414,7 +479,9 @@ def compliance_home_dashboard(
     def _obligation_to_dict(obligation, doc):
         text = (obligation.obligation_text or "").strip()
         summary = text[:180] + ("…" if len(text) > 180 else "")
-        title = (doc.title or "").strip() or doc.celex or doc.source_reference or "Untitled document"
+        title = (
+            (doc.title or "").strip() or doc.celex or doc.source_reference or "Untitled document"
+        )
         return {
             "id": obligation.id,
             "obligation_id": obligation.obligation_id,
@@ -487,7 +554,9 @@ def compliance_home_dashboard(
             },
             "pending_obligations": {
                 "total": pending_obligations_total,
-                "items": [_obligation_to_dict(obligation, doc) for obligation, doc in pending_obligations],
+                "items": [
+                    _obligation_to_dict(obligation, doc) for obligation, doc in pending_obligations
+                ],
             },
         },
         "official_journal": {

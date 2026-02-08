@@ -23,5 +23,5 @@ __all__ = [
     "SanctionsMatch",
     "SanctionsListType",
     "EUConsolidatedList",
-    "OFACSDNList"
+    "OFACSDNList",
 ]

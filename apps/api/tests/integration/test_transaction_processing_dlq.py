@@ -13,7 +13,9 @@ def utc_now() -> datetime:
 
 
 @pytest.mark.integration
-def test_process_transaction_task_writes_dlq_on_non_retryable_error(db_session, test_db_engine, monkeypatch):
+def test_process_transaction_task_writes_dlq_on_non_retryable_error(
+    db_session, test_db_engine, monkeypatch
+):
     # Patch Celery task SessionLocal to use the test DB engine.
     TestSessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=test_db_engine)
     monkeypatch.setattr(transaction_processing, "SessionLocal", TestSessionLocal)
@@ -53,4 +55,3 @@ def test_process_transaction_task_writes_dlq_on_non_retryable_error(db_session, 
     assert item.tenant_id == "tenant-a"
     assert item.transaction_db_id == tx.id
     assert "boom" in (item.error_message or "")
-

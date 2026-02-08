@@ -12,6 +12,7 @@ def utc_now() -> datetime:
 
 class TravelRuleRequestRecord(Base):
     """Persisted Travel Rule requests for audit evidence."""
+
     __tablename__ = "travel_rule_requests"
 
     id = Column(Integer, primary_key=True)

@@ -145,7 +145,9 @@ def test_search_documents_match_all_and_date_filters(monkeypatch):
     client = DummyClient()
     monkeypatch.setattr(search, "get_opensearch_client", lambda: client)
 
-    results = search.search_documents(q=None, date_from=datetime(2024, 1, 1), date_to=datetime(2024, 1, 2))
+    results = search.search_documents(
+        q=None, date_from=datetime(2024, 1, 1), date_to=datetime(2024, 1, 2)
+    )
     assert results["total"] == 2
     assert client.search_calls
 

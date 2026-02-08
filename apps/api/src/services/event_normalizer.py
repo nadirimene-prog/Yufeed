@@ -2,6 +2,7 @@
 Event normalization for Risk OS decisioning.
 Converts incoming event variants into the canonical event schema.
 """
+
 from dataclasses import dataclass
 from datetime import datetime, timezone
 from typing import Any, Dict, Optional

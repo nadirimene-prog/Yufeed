@@ -1,6 +1,7 @@
 """
 Feature Store API Endpoints
 """
+
 from datetime import datetime
 from typing import Any, Dict, Optional
 
@@ -47,7 +48,9 @@ class FeatureSetResponse(BaseModel):
 def set_features(
     request: FeatureSetRequest,
     db: Session = Depends(get_db),
-    _: CurrentUser = Depends(require_any_role(["admin", "compliance", "analyst", "aml_officer", "user"])),
+    _: CurrentUser = Depends(
+        require_any_role(["admin", "compliance", "analyst", "aml_officer", "user"])
+    ),
 ):
     service = FeatureStoreService(db)
     payloads = {
@@ -85,7 +88,9 @@ def get_features(
     entity_id: str,
     names: Optional[str] = Query(None, description="Comma-separated feature names"),
     db: Session = Depends(get_db),
-    _: CurrentUser = Depends(require_any_role(["admin", "compliance", "analyst", "aml_officer", "user"])),
+    _: CurrentUser = Depends(
+        require_any_role(["admin", "compliance", "analyst", "aml_officer", "user"])
+    ),
 ):
     service = FeatureStoreService(db)
     name_list = [name.strip() for name in names.split(",") if name.strip()] if names else None
@@ -113,7 +118,9 @@ def get_feature(
     entity_id: str,
     feature_name: str,
     db: Session = Depends(get_db),
-    _: CurrentUser = Depends(require_any_role(["admin", "compliance", "analyst", "aml_officer", "user"])),
+    _: CurrentUser = Depends(
+        require_any_role(["admin", "compliance", "analyst", "aml_officer", "user"])
+    ),
 ):
     service = FeatureStoreService(db)
     feature = service.get_feature(entity_type, entity_id, feature_name)
@@ -135,7 +142,9 @@ def delete_feature(
     entity_id: str,
     feature_name: str,
     db: Session = Depends(get_db),
-    _: CurrentUser = Depends(require_any_role(["admin", "compliance", "analyst", "aml_officer", "user"])),
+    _: CurrentUser = Depends(
+        require_any_role(["admin", "compliance", "analyst", "aml_officer", "user"])
+    ),
 ):
     service = FeatureStoreService(db)
     service.delete_feature(entity_type, entity_id, feature_name)

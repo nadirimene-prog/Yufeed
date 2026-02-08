@@ -16,8 +16,9 @@ const TooltipRoot = TooltipPrimitive.Root;
 const TooltipTrigger = TooltipPrimitive.Trigger;
 const TooltipPortal = TooltipPrimitive.Portal;
 
-interface TooltipContentProps
-  extends React.ComponentPropsWithoutRef<typeof TooltipPrimitive.Content> {
+interface TooltipContentProps extends React.ComponentPropsWithoutRef<
+  typeof TooltipPrimitive.Content
+> {
   /** Tooltip variant */
   variant?: "default" | "glass" | "dark";
   /** Show arrow */
@@ -27,45 +28,57 @@ interface TooltipContentProps
 const TooltipContent = React.forwardRef<
   React.ElementRef<typeof TooltipPrimitive.Content>,
   TooltipContentProps
->(({ className, sideOffset = 4, variant = "glass", arrow = true, children, ...props }, ref) => {
-  const variantStyles = {
-    default: "bg-white/10 backdrop-blur-md border-white/10",
-    glass: "bg-[#0a0a12]/90 backdrop-blur-xl border-white/[0.08]",
-    dark: "bg-[#0a0a12] border-white/[0.06]",
-  };
+>(
+  (
+    {
+      className,
+      sideOffset = 4,
+      variant = "glass",
+      arrow = true,
+      children,
+      ...props
+    },
+    ref,
+  ) => {
+    const variantStyles = {
+      default: "bg-white/10 backdrop-blur-md border-white/10",
+      glass: "bg-[#0a0a12]/90 backdrop-blur-xl border-white/[0.08]",
+      dark: "bg-[#0a0a12] border-white/[0.06]",
+    };
 
-  return (
-    <TooltipPrimitive.Content
-      ref={ref}
-      sideOffset={sideOffset}
-      className={cn(
-        "z-50 overflow-hidden rounded-lg border px-3 py-2",
-        "text-sm text-white/90 shadow-xl",
-        "animate-in fade-in-0 zoom-in-95",
-        "data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=closed]:zoom-out-95",
-        "data-[side=bottom]:slide-in-from-top-2",
-        "data-[side=left]:slide-in-from-right-2",
-        "data-[side=right]:slide-in-from-left-2",
-        "data-[side=top]:slide-in-from-bottom-2",
-        variantStyles[variant],
-        className
-      )}
-      {...props}
-    >
-      {children}
-      {arrow && (
-        <TooltipPrimitive.Arrow
-          className={cn(
-            "fill-current",
-            variant === "glass" && "text-[#0a0a12]/90",
-            variant === "dark" && "text-[#0a0a12]",
-            variant === "default" && "text-white/10"
-          )}
-        />
-      )}
-    </TooltipPrimitive.Content>
-  );
-});
+    return (
+      <TooltipPrimitive.Content
+        ref={ref}
+        sideOffset={sideOffset}
+        className={cn(
+          "z-50 overflow-hidden rounded-lg border px-3 py-2",
+          "text-sm text-white/90 shadow-xl",
+          "animate-in fade-in-0 zoom-in-95",
+          "data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=closed]:zoom-out-95",
+          "data-[side=bottom]:slide-in-from-top-2",
+          "data-[side=left]:slide-in-from-right-2",
+          "data-[side=right]:slide-in-from-left-2",
+          "data-[side=top]:slide-in-from-bottom-2",
+          variantStyles[variant],
+          className,
+        )}
+        {...props}
+      >
+        {children}
+        {arrow && (
+          <TooltipPrimitive.Arrow
+            className={cn(
+              "fill-current",
+              variant === "glass" && "text-[#0a0a12]/90",
+              variant === "dark" && "text-[#0a0a12]",
+              variant === "default" && "text-white/10",
+            )}
+          />
+        )}
+      </TooltipPrimitive.Content>
+    );
+  },
+);
 TooltipContent.displayName = TooltipPrimitive.Content.displayName;
 
 /**
@@ -152,7 +165,7 @@ function InfoTooltip({
         className={cn(
           "inline-flex items-center justify-center rounded-full",
           "hover:text-white/60 transition-colors",
-          iconColor
+          iconColor,
         )}
       >
         <svg

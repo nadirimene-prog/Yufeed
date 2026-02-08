@@ -48,4 +48,3 @@ export interface InternalRuleMappingCreatePayload {
   monitoring_rule_rule_id?: string;
   mapping_type?: string;
 }
-

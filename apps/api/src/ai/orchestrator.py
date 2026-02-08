@@ -37,6 +37,8 @@ from datetime import datetime, timedelta, timezone
 def utc_now() -> datetime:
     """Return current UTC time (timezone-aware)."""
     return datetime.now(timezone.utc)
+
+
 from typing import Any, Dict, List, Optional, Callable
 from enum import Enum
 import uuid
@@ -48,7 +50,7 @@ from .agents.base import (
     AgentType,
     AgentRegistry,
     ActionRecommendation,
-    ConfidenceLevel
+    ConfidenceLevel,
 )
 
 logger = logging.getLogger(__name__)
@@ -56,6 +58,7 @@ logger = logging.getLogger(__name__)
 
 class WorkflowType(str, Enum):
     """Types of multi-agent workflows."""
+
     ALERT_TRIAGE = "alert_triage"
     FULL_INVESTIGATION = "full_investigation"
     SAR_PREPARATION = "sar_preparation"
@@ -68,6 +71,7 @@ class WorkflowType(str, Enum):
 @dataclass
 class WorkflowStep:
     """A step in a multi-agent workflow."""
+
     agent_type: AgentType
     name: str
     description: str
@@ -79,6 +83,7 @@ class WorkflowStep:
 @dataclass
 class WorkflowResult:
     """Result from a multi-agent workflow."""
+
     workflow_type: WorkflowType
     workflow_id: str
     success: bool
@@ -101,18 +106,21 @@ class WorkflowResult:
             "steps_completed": self.steps_completed,
             "total_steps": self.total_steps,
             "agent_results": [r.to_dict() for r in self.agent_results],
-            "final_recommendation": self.final_recommendation.value if self.final_recommendation else None,
+            "final_recommendation": (
+                self.final_recommendation.value if self.final_recommendation else None
+            ),
             "final_confidence": self.final_confidence,
             "summary": self.summary,
             "processing_time_ms": self.processing_time_ms,
             "error_message": self.error_message,
-            "created_at": self.created_at.isoformat()
+            "created_at": self.created_at.isoformat(),
         }
 
 
 @dataclass
 class DailyBriefing:
     """Daily briefing data structure."""
+
     briefing_id: str
     generated_at: datetime
     period_start: datetime
@@ -157,30 +165,30 @@ class DailyBriefing:
                 "new": self.new_alerts_count,
                 "critical": self.critical_alerts_count,
                 "pending": self.pending_alerts_count,
-                "auto_resolved": self.auto_resolved_count
+                "auto_resolved": self.auto_resolved_count,
             },
             "cases": {
                 "open": self.open_cases_count,
                 "requiring_action": self.cases_requiring_action,
-                "sar_pending": self.sar_pending_count
+                "sar_pending": self.sar_pending_count,
             },
             "risk": {
                 "high_risk_users": self.high_risk_users,
                 "emerging_patterns": self.emerging_patterns,
-                "trend": self.risk_trend
+                "trend": self.risk_trend,
             },
             "regulatory": {
                 "new_regulations": self.new_regulations,
-                "upcoming_deadlines": self.upcoming_deadlines
+                "upcoming_deadlines": self.upcoming_deadlines,
             },
             "recommendations": {
                 "priority_actions": self.priority_actions,
-                "focus_areas": self.focus_areas
+                "focus_areas": self.focus_areas,
             },
             "narrative": {
                 "executive_summary": self.executive_summary,
-                "detailed_analysis": self.detailed_analysis
-            }
+                "detailed_analysis": self.detailed_analysis,
+            },
         }
 
 
@@ -209,62 +217,59 @@ class AMLOfficer:
             WorkflowStep(
                 agent_type=AgentType.TRIAGE,
                 name="Initial Triage",
-                description="Assess alert severity and recommend action"
+                description="Assess alert severity and recommend action",
             )
         ],
         WorkflowType.FULL_INVESTIGATION: [
             WorkflowStep(
                 agent_type=AgentType.TRIAGE,
                 name="Initial Triage",
-                description="Assess alert severity"
+                description="Assess alert severity",
             ),
             WorkflowStep(
                 agent_type=AgentType.INVESTIGATION,
                 name="Deep Investigation",
-                description="Gather evidence and analyze patterns"
+                description="Gather evidence and analyze patterns",
             ),
             WorkflowStep(
                 agent_type=AgentType.NETWORK,
                 name="Network Analysis",
                 description="Analyze transaction network",
                 required=False,
-                condition=lambda results: any(
-                    r.risk_score and r.risk_score > 70
-                    for r in results
-                )
+                condition=lambda results: any(r.risk_score and r.risk_score > 70 for r in results),
             ),
             WorkflowStep(
                 agent_type=AgentType.REGULATORY,
                 name="Regulatory Mapping",
-                description="Map findings to regulations"
-            )
+                description="Map findings to regulations",
+            ),
         ],
         WorkflowType.SAR_PREPARATION: [
             WorkflowStep(
                 agent_type=AgentType.INVESTIGATION,
                 name="Evidence Review",
-                description="Review all case evidence"
+                description="Review all case evidence",
             ),
             WorkflowStep(
                 agent_type=AgentType.SAR,
                 name="SAR Generation",
-                description="Generate SAR narrative and form data"
-            )
+                description="Generate SAR narrative and form data",
+            ),
         ],
         WorkflowType.DAILY_BRIEFING: [
             WorkflowStep(
                 agent_type=AgentType.COMPLIANCE_OFFICER,
                 name="Daily Briefing",
-                description="Generate daily compliance briefing"
+                description="Generate daily compliance briefing",
             )
         ],
         WorkflowType.COMPLIANCE_QA: [
             WorkflowStep(
                 agent_type=AgentType.REGULATORY,
                 name="Regulatory Query",
-                description="Answer compliance question with citations"
+                description="Answer compliance question with citations",
             )
-        ]
+        ],
     }
 
     def __init__(self, db_session=None):
@@ -328,7 +333,7 @@ class AMLOfficer:
         alert_data: Dict[str, Any],
         related_transactions: Optional[List[Dict[str, Any]]] = None,
         related_regulations: Optional[List[Dict[str, Any]]] = None,
-        user_id: Optional[str] = None
+        user_id: Optional[str] = None,
     ) -> AgentResult:
         """
         Investigate a single alert using the Investigation Agent.
@@ -352,10 +357,7 @@ class AMLOfficer:
 
         agent = self.get_agent(AgentType.INVESTIGATION)
         if not agent:
-            return AgentResult.error(
-                AgentType.INVESTIGATION,
-                "Investigation agent not available"
-            )
+            return AgentResult.error(AgentType.INVESTIGATION, "Investigation agent not available")
 
         # Build context
         context = AgentContext(
@@ -365,7 +367,7 @@ class AMLOfficer:
             task_id=str(alert_id),
             primary_data=alert_data,
             related_data=related_transactions or [],
-            applicable_regulations=related_regulations or []
+            applicable_regulations=related_regulations or [],
         )
 
         try:
@@ -385,9 +387,7 @@ class AMLOfficer:
             return AgentResult.error(AgentType.INVESTIGATION, str(e))
 
     async def batch_investigate(
-        self,
-        alerts: List[Dict[str, Any]],
-        max_concurrent: int = 5
+        self, alerts: List[Dict[str, Any]], max_concurrent: int = 5
     ) -> List[AgentResult]:
         """
         Investigate multiple alerts concurrently.
@@ -406,14 +406,11 @@ class AMLOfficer:
         async def investigate_one(alert: Dict[str, Any]) -> AgentResult:
             async with semaphore:
                 return await self.investigate_alert(
-                    alert_id=alert.get("id"),
-                    alert_data=alert,
-                    user_id=alert.get("user_id")
+                    alert_id=alert.get("id"), alert_data=alert, user_id=alert.get("user_id")
                 )
 
         results = await asyncio.gather(
-            *[investigate_one(alert) for alert in alerts],
-            return_exceptions=True
+            *[investigate_one(alert) for alert in alerts], return_exceptions=True
         )
 
         # Convert exceptions to error results
@@ -422,8 +419,7 @@ class AMLOfficer:
             if isinstance(result, Exception):
                 processed_results.append(
                     AgentResult.error(
-                        AgentType.INVESTIGATION,
-                        f"Investigation failed: {str(result)}"
+                        AgentType.INVESTIGATION, f"Investigation failed: {str(result)}"
                     )
                 )
             else:
@@ -436,9 +432,7 @@ class AMLOfficer:
     # =========================================================================
 
     async def execute_workflow(
-        self,
-        workflow_type: WorkflowType,
-        initial_context: AgentContext
+        self, workflow_type: WorkflowType, initial_context: AgentContext
     ) -> WorkflowResult:
         """
         Execute a multi-agent workflow.
@@ -453,6 +447,7 @@ class AMLOfficer:
         await self.initialize()
 
         import time
+
         start_time = time.time()
 
         workflow_id = str(uuid.uuid4())
@@ -466,7 +461,7 @@ class AMLOfficer:
                 steps_completed=0,
                 total_steps=0,
                 agent_results=[],
-                error_message=f"Unknown workflow type: {workflow_type}"
+                error_message=f"Unknown workflow type: {workflow_type}",
             )
 
         results: List[AgentResult] = []
@@ -488,7 +483,7 @@ class AMLOfficer:
                         steps_completed=i,
                         total_steps=len(steps),
                         agent_results=results,
-                        error_message=f"Required agent not available: {step.agent_type.value}"
+                        error_message=f"Required agent not available: {step.agent_type.value}",
                     )
                 continue
 
@@ -497,8 +492,7 @@ class AMLOfficer:
                 context.previous_agent_results = results.copy()
 
                 result = await asyncio.wait_for(
-                    agent.process(context),
-                    timeout=step.timeout_seconds
+                    agent.process(context), timeout=step.timeout_seconds
                 )
                 results.append(result)
 
@@ -513,7 +507,7 @@ class AMLOfficer:
                         steps_completed=i,
                         total_steps=len(steps),
                         agent_results=results,
-                        error_message=f"Step {step.name} timed out"
+                        error_message=f"Step {step.name} timed out",
                     )
             except Exception as e:
                 if step.required:
@@ -524,7 +518,7 @@ class AMLOfficer:
                         steps_completed=i,
                         total_steps=len(steps),
                         agent_results=results,
-                        error_message=f"Step {step.name} failed: {str(e)}"
+                        error_message=f"Step {step.name} failed: {str(e)}",
                     )
 
         # Aggregate final results
@@ -544,12 +538,11 @@ class AMLOfficer:
             final_recommendation=final_recommendation,
             final_confidence=final_confidence,
             summary=summary,
-            processing_time_ms=processing_time
+            processing_time_ms=processing_time,
         )
 
     def _aggregate_recommendations(
-        self,
-        results: List[AgentResult]
+        self, results: List[AgentResult]
     ) -> Optional[ActionRecommendation]:
         """Aggregate recommendations from multiple agents."""
         if not results:
@@ -563,7 +556,7 @@ class AMLOfficer:
             ActionRecommendation.RESOLVE,
             ActionRecommendation.FALSE_POSITIVE,
             ActionRecommendation.MONITOR,
-            ActionRecommendation.NO_ACTION
+            ActionRecommendation.NO_ACTION,
         ]
 
         recommendations = [r.recommendation for r in results if r.recommendation]
@@ -590,9 +583,7 @@ class AMLOfficer:
         return weighted_sum / total_weight if total_weight > 0 else 0.0
 
     def _generate_workflow_summary(
-        self,
-        workflow_type: WorkflowType,
-        results: List[AgentResult]
+        self, workflow_type: WorkflowType, results: List[AgentResult]
     ) -> str:
         """Generate a summary of workflow results."""
         if not results:
@@ -606,7 +597,7 @@ class AMLOfficer:
         summary_parts = [
             f"Workflow: {workflow_type.value}",
             f"Steps completed: {len(results)}",
-            f"Red flags identified: {len(red_flags)}"
+            f"Red flags identified: {len(red_flags)}",
         ]
 
         if summaries:
@@ -619,9 +610,7 @@ class AMLOfficer:
     # =========================================================================
 
     async def generate_daily_briefing(
-        self,
-        user_id: Optional[str] = None,
-        lookback_hours: int = 24
+        self, user_id: Optional[str] = None, lookback_hours: int = 24
     ) -> DailyBriefing:
         """
         Generate a daily compliance briefing.
@@ -659,12 +648,12 @@ class AMLOfficer:
             priority_actions=[
                 "Review 3 high-priority alerts pending triage",
                 "Check upcoming regulatory deadline in 7 days",
-                "Complete SAR preparation for Case #1234"
+                "Complete SAR preparation for Case #1234",
             ],
             focus_areas=[
                 "Transaction monitoring rule effectiveness",
-                "New AMLD 6 requirements implementation"
-            ]
+                "New AMLD 6 requirements implementation",
+            ],
         )
 
         logger.info(f"Generated daily briefing {briefing_id}")
@@ -678,7 +667,7 @@ class AMLOfficer:
         self,
         question: str,
         context: Optional[Dict[str, Any]] = None,
-        conversation_history: Optional[List[Dict[str, str]]] = None
+        conversation_history: Optional[List[Dict[str, str]]] = None,
     ) -> Dict[str, Any]:
         """
         Answer a compliance question using AI.
@@ -703,16 +692,14 @@ class AMLOfficer:
         rag = RAGService(self.db)
 
         response = await rag.ask(
-            question=question,
-            max_documents=5,
-            conversation_history=conversation_history
+            question=question, max_documents=5, conversation_history=conversation_history
         )
 
         return {
             "answer": response.get("answer", ""),
             "confidence": response.get("confidence", "medium"),
             "sources": response.get("sources", []),
-            "followup_questions": response.get("followup_questions", [])
+            "followup_questions": response.get("followup_questions", []),
         }
 
     # =========================================================================
@@ -744,15 +731,15 @@ class AMLOfficer:
                 "severity": "medium",
                 "message": "Transaction velocity patterns have shifted 15% from baseline",
                 "recommendation": "Review velocity rule thresholds",
-                "detected_at": utc_now().isoformat()
+                "detected_at": utc_now().isoformat(),
             },
             {
                 "type": "deadline_warning",
                 "severity": "high",
                 "message": "AMLD 6 implementation deadline in 30 days",
                 "recommendation": "Complete gap assessment",
-                "detected_at": utc_now().isoformat()
-            }
+                "detected_at": utc_now().isoformat(),
+            },
         ]
 
     # =========================================================================
@@ -764,7 +751,7 @@ class AMLOfficer:
         case_id: int,
         case_data: Dict[str, Any],
         related_alerts: List[Dict[str, Any]],
-        related_transactions: List[Dict[str, Any]]
+        related_transactions: List[Dict[str, Any]],
     ) -> Dict[str, Any]:
         """
         Prepare a SAR (Suspicious Activity Report) for filing.
@@ -792,7 +779,7 @@ class AMLOfficer:
                 "case_id": case_id,
                 "status": "error",
                 "error": "SAR agent not available",
-                "generated_at": utc_now().isoformat()
+                "generated_at": utc_now().isoformat(),
             }
 
         # Build context for SAR agent
@@ -806,8 +793,10 @@ class AMLOfficer:
                 "case_id": str(case_id),
                 "case_data": case_data,
                 "transactions": related_transactions,
-                "investigation_summary": related_alerts[0].get("investigation_summary") if related_alerts else None
-            }
+                "investigation_summary": (
+                    related_alerts[0].get("investigation_summary") if related_alerts else None
+                ),
+            },
         )
 
         try:
@@ -820,7 +809,7 @@ class AMLOfficer:
                     "case_id": case_id,
                     "status": "error",
                     "error": result.error or "SAR generation failed",
-                    "generated_at": utc_now().isoformat()
+                    "generated_at": utc_now().isoformat(),
                 }
 
         except Exception as e:
@@ -829,7 +818,7 @@ class AMLOfficer:
                 "case_id": case_id,
                 "status": "error",
                 "error": str(e),
-                "generated_at": utc_now().isoformat()
+                "generated_at": utc_now().isoformat(),
             }
 
 

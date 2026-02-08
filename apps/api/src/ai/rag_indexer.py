@@ -1,6 +1,7 @@
 """
 RAG indexing pipeline for legal document chunks.
 """
+
 from typing import Dict, List, Optional
 import logging
 
@@ -43,7 +44,11 @@ class RAGIndexer:
             return 0
 
         texts = [c["text"] for c in chunks]
-        embeddings = self.embedding_provider.embed_texts(texts) if self.embedding_provider.available else None
+        embeddings = (
+            self.embedding_provider.embed_texts(texts)
+            if self.embedding_provider.available
+            else None
+        )
 
         for idx, chunk in enumerate(chunks):
             chunk_id = f"{document.celex}_{chunk['chunk_index']}"
@@ -76,8 +81,14 @@ class RAGIndexer:
                 "source_system": document.source_system,
                 "jurisdiction": document.jurisdiction,
                 "language": document.primary_language,
-                "publication_date": document.publication_date.isoformat() if document.publication_date else None,
-                "implementation_deadline": document.implementation_deadline.isoformat() if document.implementation_deadline else None,
+                "publication_date": (
+                    document.publication_date.isoformat() if document.publication_date else None
+                ),
+                "implementation_deadline": (
+                    document.implementation_deadline.isoformat()
+                    if document.implementation_deadline
+                    else None
+                ),
                 "compliance_domain": document.compliance_domain,
                 "risk_level": document.risk_level,
                 "scope_tags": getattr(document, "scope_tags", None),

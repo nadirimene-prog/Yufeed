@@ -22,7 +22,9 @@ export default function ObligationHeader({
     <div className="flex flex-col gap-2 lg:flex-row lg:items-center lg:justify-between">
       <div>
         <div className="text-xs text-gray-500">Obligation {obligationId}</div>
-        <h1 className="text-2xl font-semibold text-gray-900 dark:text-white">{title}</h1>
+        <h1 className="text-2xl font-semibold text-gray-900 dark:text-white">
+          {title}
+        </h1>
         <div className="mt-2 flex flex-wrap gap-2 text-xs text-gray-500">
           <span>{celex || "—"}</span>
           <span>•</span>
@@ -32,7 +34,12 @@ export default function ObligationHeader({
         </div>
       </div>
       <div className="flex items-center gap-2">
-        <span className={"rounded-full px-3 py-1 text-xs font-semibold " + obligationStatusStyle(status)}>
+        <span
+          className={
+            "rounded-full px-3 py-1 text-xs font-semibold " +
+            obligationStatusStyle(status)
+          }
+        >
           {status.replace("_", " ")}
         </span>
         <Link
@@ -45,4 +52,3 @@ export default function ObligationHeader({
     </div>
   );
 }
-

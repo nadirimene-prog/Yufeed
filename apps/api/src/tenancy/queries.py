@@ -4,6 +4,7 @@ Phase 4C: Task 7.2 - Row-Level Security
 
 Utilities for automatic tenant filtering in database queries.
 """
+
 import logging
 from typing import Type, TypeVar, Optional
 from sqlalchemy.orm import Session, Query
@@ -13,7 +14,7 @@ from src.tenancy.context import get_current_tenant
 
 logger = logging.getLogger(__name__)
 
-T = TypeVar('T')
+T = TypeVar("T")
 
 
 def get_tenant_filtered_query(model: Type[T], db: Session) -> Query:
@@ -38,13 +39,10 @@ def get_tenant_filtered_query(model: Type[T], db: Session) -> Query:
 
     if not tenant_id:
         logger.error(f"No tenant context set for query on {model.__name__}")
-        raise HTTPException(
-            status_code=403,
-            detail="No tenant context available"
-        )
+        raise HTTPException(status_code=403, detail="No tenant context available")
 
     # Check if model has tenant_id attribute
-    if not hasattr(model, 'tenant_id'):
+    if not hasattr(model, "tenant_id"):
         logger.warning(f"Model {model.__name__} does not have tenant_id field")
         return db.query(model)
 
@@ -71,10 +69,7 @@ def require_tenant() -> str:
     tenant_id = get_current_tenant()
 
     if not tenant_id:
-        raise HTTPException(
-            status_code=403,
-            detail="No tenant context available"
-        )
+        raise HTTPException(status_code=403, detail="No tenant context available")
 
     return tenant_id
 
@@ -90,7 +85,7 @@ def ensure_tenant_match(entity, tenant_id: str) -> None:
     Raises:
         HTTPException: If entity belongs to different tenant
     """
-    if not hasattr(entity, 'tenant_id'):
+    if not hasattr(entity, "tenant_id"):
         return
 
     if entity.tenant_id != tenant_id:
@@ -99,8 +94,7 @@ def ensure_tenant_match(entity, tenant_id: str) -> None:
             f"but current tenant is {tenant_id}"
         )
         raise HTTPException(
-            status_code=403,
-            detail="Access denied: entity belongs to different tenant"
+            status_code=403, detail="Access denied: entity belongs to different tenant"
         )
 
 
@@ -115,7 +109,7 @@ def set_tenant_on_create(entity, tenant_id: Optional[str] = None) -> None:
     Raises:
         HTTPException: If no tenant context and tenant_id not provided
     """
-    if not hasattr(entity, 'tenant_id'):
+    if not hasattr(entity, "tenant_id"):
         return
 
     if tenant_id is None:
@@ -123,8 +117,7 @@ def set_tenant_on_create(entity, tenant_id: Optional[str] = None) -> None:
 
     if not tenant_id:
         raise HTTPException(
-            status_code=403,
-            detail="No tenant context available for entity creation"
+            status_code=403, detail="No tenant context available for entity creation"
         )
 
     entity.tenant_id = tenant_id
@@ -150,10 +143,7 @@ def tenant_required(func):
     async def wrapper(*args, **kwargs):
         tenant_id = get_current_tenant()
         if not tenant_id:
-            raise HTTPException(
-                status_code=403,
-                detail="No tenant context available"
-            )
+            raise HTTPException(status_code=403, detail="No tenant context available")
         return await func(*args, **kwargs)
 
     return wrapper

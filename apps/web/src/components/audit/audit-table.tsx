@@ -64,7 +64,8 @@ export default function AuditTable({ logs, onSelect }: AuditTableProps) {
                   <span
                     className={cn(
                       "inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium uppercase",
-                      actionColors[log.action || ""] ?? "bg-gray-100 text-gray-700 dark:bg-gray-800 dark:text-gray-300"
+                      actionColors[log.action || ""] ??
+                        "bg-gray-100 text-gray-700 dark:bg-gray-800 dark:text-gray-300",
                     )}
                   >
                     {log.action || log.method || "n/a"}
@@ -96,7 +97,10 @@ export default function AuditTable({ logs, onSelect }: AuditTableProps) {
             ))}
             {logs.length === 0 && (
               <tr>
-                <td className="px-4 py-6 text-center text-gray-500 dark:text-gray-400" colSpan={6}>
+                <td
+                  className="px-4 py-6 text-center text-gray-500 dark:text-gray-400"
+                  colSpan={6}
+                >
                   No audit entries found.
                 </td>
               </tr>

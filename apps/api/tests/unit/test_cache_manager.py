@@ -87,6 +87,7 @@ def test_cached_decorator_and_cache_aside():
 
     # Use local cache manager by monkeypatching global instance on module
     import importlib
+
     cache_module = importlib.import_module("src.cache.cache_manager")
     original_manager = cache_module.cache_manager
     cache_module.cache_manager = manager

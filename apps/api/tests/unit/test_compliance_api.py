@@ -32,7 +32,9 @@ class TestComplianceAPI:
                 "analyzed_at": datetime(2026, 1, 1, tzinfo=timezone.utc),
             },
         )
-        monkeypatch.setattr(compliance_api, "seed_obligations_for_doc", lambda *args, **kwargs: None)
+        monkeypatch.setattr(
+            compliance_api, "seed_obligations_for_doc", lambda *args, **kwargs: None
+        )
 
         resp = client.post(
             f"/api/compliance/documents/{celex}/analyze",
@@ -45,7 +47,11 @@ class TestComplianceAPI:
         # Create annotation
         resp = client.post(
             f"/api/compliance/documents/{celex}/annotations",
-            json={"content": "Note", "article_reference": "Art 1", "user_email": "user@example.com"},
+            json={
+                "content": "Note",
+                "article_reference": "Art 1",
+                "user_email": "user@example.com",
+            },
             headers=admin_headers,
         )
         assert resp.status_code == 200

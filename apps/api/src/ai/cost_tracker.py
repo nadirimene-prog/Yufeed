@@ -3,6 +3,7 @@ AI cost tracking utilities.
 
 Tracks AI API usage to database for cost monitoring and budgeting.
 """
+
 from typing import Any, Dict, Optional
 import logging
 from datetime import datetime, timezone, timedelta
@@ -42,12 +43,7 @@ AI_COST_CONFIG = {
 }
 
 
-def estimate_cost(
-    provider: str,
-    model: str,
-    prompt_tokens: int,
-    completion_tokens: int
-) -> float:
+def estimate_cost(provider: str, model: str, prompt_tokens: int, completion_tokens: int) -> float:
     """
     Estimate cost based on token usage.
 
@@ -138,31 +134,19 @@ def log_usage(
         db.commit()
 
         # Update Prometheus metrics
-        ai_api_calls_total.labels(
-            provider=provider,
-            model=model,
-            tenant_id=tenant_id
-        ).inc()
+        ai_api_calls_total.labels(provider=provider, model=model, tenant_id=tenant_id).inc()
 
         ai_api_tokens_used_total.labels(
-            provider=provider,
-            model=model,
-            tenant_id=tenant_id,
-            type="prompt"
+            provider=provider, model=model, tenant_id=tenant_id, type="prompt"
         ).inc(prompt_tokens)
 
         ai_api_tokens_used_total.labels(
-            provider=provider,
-            model=model,
-            tenant_id=tenant_id,
-            type="completion"
+            provider=provider, model=model, tenant_id=tenant_id, type="completion"
         ).inc(completion_tokens)
 
-        ai_api_cost_usd.labels(
-            provider=provider,
-            model=model,
-            tenant_id=tenant_id
-        ).inc(estimated_cost)
+        ai_api_cost_usd.labels(provider=provider, model=model, tenant_id=tenant_id).inc(
+            estimated_cost
+        )
 
         # Update budget tracking
         _update_budget_usage(db, tenant_id, estimated_cost)
@@ -176,7 +160,7 @@ def log_usage(
                 "model": model,
                 "tokens": total_tokens,
                 "cost_usd": estimated_cost,
-            }
+            },
         )
 
         return usage_log
@@ -242,7 +226,9 @@ def _check_budget_thresholds(budget: AIBudget, tenant_id: str):
     now = utc_now()
 
     # Daily threshold checks
-    daily_percent = (budget.daily_usage_usd / budget.daily_limit_usd) * 100 if budget.daily_limit_usd > 0 else 0
+    daily_percent = (
+        (budget.daily_usage_usd / budget.daily_limit_usd) * 100 if budget.daily_limit_usd > 0 else 0
+    )
 
     if daily_percent >= budget.critical_threshold_percent and not budget.daily_critical_sent:
         logger.critical(
@@ -259,7 +245,11 @@ def _check_budget_thresholds(budget: AIBudget, tenant_id: str):
         budget.daily_warning_sent = now
 
     # Monthly threshold checks
-    monthly_percent = (budget.monthly_usage_usd / budget.monthly_limit_usd) * 100 if budget.monthly_limit_usd > 0 else 0
+    monthly_percent = (
+        (budget.monthly_usage_usd / budget.monthly_limit_usd) * 100
+        if budget.monthly_limit_usd > 0
+        else 0
+    )
 
     if monthly_percent >= budget.critical_threshold_percent and not budget.monthly_critical_sent:
         logger.critical(

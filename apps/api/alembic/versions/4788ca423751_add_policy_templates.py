@@ -4,6 +4,7 @@ Revision ID: 4788ca423751
 Revises: m7n8o9p2q3r4
 Create Date: 2026-02-01
 """
+
 from alembic import op
 import sqlalchemy as sa
 
@@ -21,6 +22,7 @@ def upgrade():
 
     if dialect == "postgresql":
         from sqlalchemy.dialects.postgresql import JSONB
+
         json_type = JSONB
     else:
         json_type = sa.JSON
@@ -43,7 +45,9 @@ def upgrade():
         sa.Column("updated_at", sa.DateTime(), nullable=True),
     )
 
-    op.create_index("ix_policy_templates_template_id", "policy_templates", ["template_id"], unique=True)
+    op.create_index(
+        "ix_policy_templates_template_id", "policy_templates", ["template_id"], unique=True
+    )
     op.create_index("ix_policy_templates_category", "policy_templates", ["category"], unique=False)
 
 

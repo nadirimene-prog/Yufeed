@@ -8,8 +8,10 @@ def utc_now() -> datetime:
     """Return current UTC time (timezone-aware)."""
     return datetime.now(timezone.utc)
 
+
 class Annotation(Base):
     """Internal notes and annotations on legal documents for compliance team."""
+
     __tablename__ = "annotations"
 
     id = Column(Integer, primary_key=True, index=True)
@@ -19,5 +21,5 @@ class Annotation(Base):
     article_reference = Column(String, nullable=True)  # e.g., "Article 5(3)"
     created_at = Column(DateTime, default=utc_now)
     updated_at = Column(DateTime, default=utc_now, onupdate=utc_now)
-    
+
     document = relationship("LegalDocument", backref="annotations")

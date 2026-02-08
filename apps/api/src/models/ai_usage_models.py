@@ -2,6 +2,7 @@
 AI Usage tracking models for cost monitoring and budgeting.
 Tracks API calls, token usage, and estimated costs across tenants.
 """
+
 from sqlalchemy import Column, Integer, String, DateTime, ForeignKey, Float, Index
 from sqlalchemy.dialects.postgresql import JSONB
 from datetime import datetime, timezone
@@ -23,6 +24,7 @@ class AIUsageLog(Base):
     - Model usage analysis
     - Cost optimization insights
     """
+
     __tablename__ = "ai_usage_logs"
 
     id = Column(Integer, primary_key=True, index=True)
@@ -43,13 +45,17 @@ class AIUsageLog(Base):
     estimated_cost_usd = Column(Float, nullable=False, default=0.0)
 
     # Context
-    operation = Column(String(100), nullable=True)  # "obligation_extraction", "policy_analysis", etc.
+    operation = Column(
+        String(100), nullable=True
+    )  # "obligation_extraction", "policy_analysis", etc.
     document_id = Column(Integer, ForeignKey("legal_documents.id"), nullable=True)
     obligation_id = Column(Integer, ForeignKey("obligations.id"), nullable=True)
     user_id = Column(String(255), nullable=True)  # User who triggered the request
 
     # Metadata
-    request_metadata = Column(JSONB, nullable=True)  # Additional context (model version, temperature, etc.)
+    request_metadata = Column(
+        JSONB, nullable=True
+    )  # Additional context (model version, temperature, etc.)
     response_metadata = Column(JSONB, nullable=True)  # Response details (finish_reason, etc.)
 
     # Timestamps
@@ -57,9 +63,9 @@ class AIUsageLog(Base):
 
     # Indexes for efficient querying
     __table_args__ = (
-        Index('idx_ai_usage_tenant_created', 'tenant_id', 'created_at'),
-        Index('idx_ai_usage_provider_model', 'provider', 'model'),
-        Index('idx_ai_usage_operation', 'operation'),
+        Index("idx_ai_usage_tenant_created", "tenant_id", "created_at"),
+        Index("idx_ai_usage_provider_model", "provider", "model"),
+        Index("idx_ai_usage_operation", "operation"),
     )
 
 
@@ -68,6 +74,7 @@ class AIBudget(Base):
     AI usage budgets per tenant.
     Enables cost control and alerting.
     """
+
     __tablename__ = "ai_budgets"
 
     id = Column(Integer, primary_key=True, index=True)

@@ -6,6 +6,7 @@ Analyzes differences between document versions to identify:
 - Article-level changes
 - Semantic change detection
 """
+
 import difflib
 from typing import Dict, List, Any, Optional, Tuple
 from datetime import datetime, timezone
@@ -32,7 +33,7 @@ class DiffAnalyzer:
         old_text: str,
         new_text: str,
         old_articles: Optional[List[Dict]] = None,
-        new_articles: Optional[List[Dict]] = None
+        new_articles: Optional[List[Dict]] = None,
     ) -> Dict[str, Any]:
         """
         Compare two document versions and return structured diff.
@@ -56,7 +57,7 @@ class DiffAnalyzer:
                 "summary": {},
                 "text_diff": [],
                 "article_changes": [],
-                "statistics": {}
+                "statistics": {},
             }
 
         # Generate line-by-line diff
@@ -78,7 +79,7 @@ class DiffAnalyzer:
             "text_diff": text_diff,
             "article_changes": article_changes,
             "statistics": statistics,
-            "comparison_date": utc_now().isoformat()
+            "comparison_date": utc_now().isoformat(),
         }
 
     def _generate_text_diff(self, old_text: str, new_text: str) -> List[Dict[str, Any]]:
@@ -100,31 +101,37 @@ class DiffAnalyzer:
         line_number_new = 0
 
         for line in diff:
-            if line.startswith('  '):  # Unchanged
+            if line.startswith("  "):  # Unchanged
                 line_number_old += 1
                 line_number_new += 1
-                structured_diff.append({
-                    "type": "unchanged",
-                    "content": line[2:],
-                    "old_line": line_number_old,
-                    "new_line": line_number_new
-                })
-            elif line.startswith('- '):  # Deletion
+                structured_diff.append(
+                    {
+                        "type": "unchanged",
+                        "content": line[2:],
+                        "old_line": line_number_old,
+                        "new_line": line_number_new,
+                    }
+                )
+            elif line.startswith("- "):  # Deletion
                 line_number_old += 1
-                structured_diff.append({
-                    "type": "deletion",
-                    "content": line[2:],
-                    "old_line": line_number_old,
-                    "new_line": None
-                })
-            elif line.startswith('+ '):  # Insertion
+                structured_diff.append(
+                    {
+                        "type": "deletion",
+                        "content": line[2:],
+                        "old_line": line_number_old,
+                        "new_line": None,
+                    }
+                )
+            elif line.startswith("+ "):  # Insertion
                 line_number_new += 1
-                structured_diff.append({
-                    "type": "insertion",
-                    "content": line[2:],
-                    "old_line": None,
-                    "new_line": line_number_new
-                })
+                structured_diff.append(
+                    {
+                        "type": "insertion",
+                        "content": line[2:],
+                        "old_line": None,
+                        "new_line": line_number_new,
+                    }
+                )
 
         return structured_diff
 
@@ -141,13 +148,15 @@ class DiffAnalyzer:
             "deletions": deletions,
             "unchanged": unchanged,
             "total_changes": total_changes,
-            "change_percentage": round((total_changes / (unchanged + total_changes) * 100), 2) if (unchanged + total_changes) > 0 else 0
+            "change_percentage": (
+                round((total_changes / (unchanged + total_changes) * 100), 2)
+                if (unchanged + total_changes) > 0
+                else 0
+            ),
         }
 
     def _analyze_article_changes(
-        self,
-        old_articles: List[Dict],
-        new_articles: List[Dict]
+        self, old_articles: List[Dict], new_articles: List[Dict]
     ) -> List[Dict[str, Any]]:
         """
         Analyze changes at the article level.
@@ -163,39 +172,43 @@ class DiffAnalyzer:
         # Find added and modified articles
         for article_num, new_article in new_articles_map.items():
             if article_num not in old_articles_map:
-                changes.append({
-                    "article": article_num,
-                    "type": "added",
-                    "title": new_article.get("title", ""),
-                    "content_preview": new_article.get("content", "")[:200]
-                })
+                changes.append(
+                    {
+                        "article": article_num,
+                        "type": "added",
+                        "title": new_article.get("title", ""),
+                        "content_preview": new_article.get("content", "")[:200],
+                    }
+                )
             else:
                 old_article = old_articles_map[article_num]
                 if old_article.get("content") != new_article.get("content"):
-                    changes.append({
-                        "article": article_num,
-                        "type": "modified",
-                        "title": new_article.get("title", ""),
-                        "old_content_preview": old_article.get("content", "")[:200],
-                        "new_content_preview": new_article.get("content", "")[:200]
-                    })
+                    changes.append(
+                        {
+                            "article": article_num,
+                            "type": "modified",
+                            "title": new_article.get("title", ""),
+                            "old_content_preview": old_article.get("content", "")[:200],
+                            "new_content_preview": new_article.get("content", "")[:200],
+                        }
+                    )
 
         # Find deleted articles
         for article_num, old_article in old_articles_map.items():
             if article_num not in new_articles_map:
-                changes.append({
-                    "article": article_num,
-                    "type": "deleted",
-                    "title": old_article.get("title", ""),
-                    "content_preview": old_article.get("content", "")[:200]
-                })
+                changes.append(
+                    {
+                        "article": article_num,
+                        "type": "deleted",
+                        "title": old_article.get("title", ""),
+                        "content_preview": old_article.get("content", "")[:200],
+                    }
+                )
 
         return changes
 
     def _generate_summary(
-        self,
-        statistics: Dict[str, int],
-        article_changes: List[Dict]
+        self, statistics: Dict[str, int], article_changes: List[Dict]
     ) -> Dict[str, Any]:
         """Generate a high-level summary of changes."""
         article_summary = {}
@@ -212,9 +225,9 @@ class DiffAnalyzer:
             "line_changes": {
                 "insertions": statistics["insertions"],
                 "deletions": statistics["deletions"],
-                "total": statistics["total_changes"]
+                "total": statistics["total_changes"],
             },
-            "article_changes": article_summary
+            "article_changes": article_summary,
         }
 
     def _classify_change_magnitude(self, percentage: float) -> str:
@@ -245,7 +258,7 @@ class DiffAnalyzer:
             fromdesc="Previous Version",
             todesc="Current Version",
             context=True,
-            numlines=3
+            numlines=3,
         )
 
         return html_diff

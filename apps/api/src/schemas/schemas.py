@@ -2,6 +2,7 @@ from pydantic import BaseModel
 from typing import List, Optional, Any, Dict
 from datetime import datetime
 
+
 class LegalDocumentBase(BaseModel):
     celex: str
     title: str
@@ -10,12 +11,13 @@ class LegalDocumentBase(BaseModel):
     entry_into_force_date: Optional[datetime] = None
     status: str = "active"
 
+
 class LegalDocumentRead(LegalDocumentBase):
     id: int
     last_modified: datetime
     eli: Optional[str] = None
     cellar_id: Optional[str] = None
-    
+
     # Compliance fields
     compliance_domain: Optional[str] = None
     risk_level: Optional[str] = None
@@ -30,9 +32,11 @@ class LegalDocumentRead(LegalDocumentBase):
     class Config:
         from_attributes = True  # Updated from orm_mode for Pydantic v2
 
+
 class NotificationConfig(BaseModel):
     email: bool = True
     push: bool = False
+
 
 # --- Monitoring Rule Schemas ---
 class MonitoringRuleBase(BaseModel):
@@ -50,8 +54,10 @@ class MonitoringRuleBase(BaseModel):
     regulation_article: Optional[str] = None
     regulatory_requirement: Optional[str] = None
 
+
 class MonitoringRuleCreate(MonitoringRuleBase):
     pass
+
 
 class MonitoringRuleRead(MonitoringRuleBase):
     id: int
@@ -64,6 +70,7 @@ class MonitoringRuleRead(MonitoringRuleBase):
     class Config:
         from_attributes = True
 
+
 # --- Alert & Rule Hit Schemas ---
 class RuleHitRead(BaseModel):
     id: int
@@ -74,6 +81,7 @@ class RuleHitRead(BaseModel):
 
     class Config:
         from_attributes = True
+
 
 class AlertRead(BaseModel):
     id: int
@@ -96,6 +104,7 @@ class AlertRead(BaseModel):
     class Config:
         from_attributes = True
 
+
 # Search Schemas
 class SearchResultItem(BaseModel):
     celex: str
@@ -103,6 +112,7 @@ class SearchResultItem(BaseModel):
     publication_date: Optional[datetime] = None
     status: Optional[str] = None
     score: Optional[float] = None
+
 
 class SearchResponse(BaseModel):
     total: int

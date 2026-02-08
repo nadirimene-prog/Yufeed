@@ -2,6 +2,7 @@
 ML model trainer for alert triage.
 Phase 4B: Task 4.2 - ML Model Training
 """
+
 import logging
 import joblib
 import json
@@ -14,6 +15,7 @@ def utc_now() -> datetime:
     """Return current UTC time (timezone-aware)."""
     return datetime.now(timezone.utc)
 
+
 import pandas as pd
 import numpy as np
 from sklearn.model_selection import train_test_split, cross_val_score, GridSearchCV
@@ -24,7 +26,7 @@ from sklearn.metrics import (
     confusion_matrix,
     roc_auc_score,
     precision_recall_curve,
-    roc_curve
+    roc_curve,
 )
 import xgboost as xgb
 import lightgbm as lgb
@@ -55,10 +57,7 @@ class AlertTriageModelTrainer:
         self.numeric_features = []
 
     def prepare_data(
-        self,
-        df: pd.DataFrame,
-        test_size: float = 0.2,
-        random_state: int = 42
+        self, df: pd.DataFrame, test_size: float = 0.2, random_state: int = 42
     ) -> Tuple[pd.DataFrame, pd.DataFrame, pd.Series, pd.Series]:
         """
         Prepare data for training.
@@ -75,18 +74,30 @@ class AlertTriageModelTrainer:
 
         # Identify feature types
         self.categorical_features = [
-            'alert_type', 'severity', 'currency',
-            'transaction_type', 'country_code'
+            "alert_type",
+            "severity",
+            "currency",
+            "transaction_type",
+            "country_code",
         ]
 
         self.numeric_features = [
-            'risk_score', 'priority', 'transaction_amount',
-            'hour_of_day', 'day_of_week', 'is_weekend',
-            'has_counterparty', 'evidence_count',
-            'user_txn_count_30d', 'user_total_volume_30d',
-            'user_avg_amount', 'user_unique_countries',
-            'user_prior_alerts', 'num_rules_matched',
-            'has_high_severity_rule', 'has_velocity_rule'
+            "risk_score",
+            "priority",
+            "transaction_amount",
+            "hour_of_day",
+            "day_of_week",
+            "is_weekend",
+            "has_counterparty",
+            "evidence_count",
+            "user_txn_count_30d",
+            "user_total_volume_30d",
+            "user_avg_amount",
+            "user_unique_countries",
+            "user_prior_alerts",
+            "num_rules_matched",
+            "has_high_severity_rule",
+            "has_velocity_rule",
         ]
 
         # Filter to available features
@@ -98,24 +109,21 @@ class AlertTriageModelTrainer:
 
         for col in available_cat:
             le = LabelEncoder()
-            df_encoded[f'{col}_encoded'] = le.fit_transform(
-                df_encoded[col].fillna('UNKNOWN').astype(str)
+            df_encoded[f"{col}_encoded"] = le.fit_transform(
+                df_encoded[col].fillna("UNKNOWN").astype(str)
             )
             self.label_encoders[col] = le
 
         # Prepare feature matrix
-        encoded_cols = [f'{col}_encoded' for col in available_cat]
+        encoded_cols = [f"{col}_encoded" for col in available_cat]
         self.feature_names = available_num + encoded_cols
 
         X = df_encoded[self.feature_names].fillna(0)
-        y = df_encoded['label']
+        y = df_encoded["label"]
 
         # Train/test split stratified by label
         X_train, X_test, y_train, y_test = train_test_split(
-            X, y,
-            test_size=test_size,
-            random_state=random_state,
-            stratify=y
+            X, y, test_size=test_size, random_state=random_state, stratify=y
         )
 
         # Scale numeric features
@@ -133,7 +141,7 @@ class AlertTriageModelTrainer:
         self,
         X_train: pd.DataFrame,
         y_train: pd.Series,
-        hyperparameters: Optional[Dict[str, Any]] = None
+        hyperparameters: Optional[Dict[str, Any]] = None,
     ) -> xgb.XGBClassifier:
         """
         Train XGBoost classifier.
@@ -141,12 +149,12 @@ class AlertTriageModelTrainer:
         logger.info("Training XGBoost model")
 
         params = hyperparameters or {
-            'max_depth': 6,
-            'learning_rate': 0.1,
-            'n_estimators': 100,
-            'objective': 'binary:logistic',
-            'eval_metric': 'auc',
-            'random_state': 42
+            "max_depth": 6,
+            "learning_rate": 0.1,
+            "n_estimators": 100,
+            "objective": "binary:logistic",
+            "eval_metric": "auc",
+            "random_state": 42,
         }
 
         model = xgb.XGBClassifier(**params)
@@ -159,7 +167,7 @@ class AlertTriageModelTrainer:
         self,
         X_train: pd.DataFrame,
         y_train: pd.Series,
-        hyperparameters: Optional[Dict[str, Any]] = None
+        hyperparameters: Optional[Dict[str, Any]] = None,
     ) -> lgb.LGBMClassifier:
         """
         Train LightGBM classifier.
@@ -167,12 +175,12 @@ class AlertTriageModelTrainer:
         logger.info("Training LightGBM model")
 
         params = hyperparameters or {
-            'num_leaves': 31,
-            'learning_rate': 0.1,
-            'n_estimators': 100,
-            'objective': 'binary',
-            'metric': 'auc',
-            'random_state': 42
+            "num_leaves": 31,
+            "learning_rate": 0.1,
+            "n_estimators": 100,
+            "objective": "binary",
+            "metric": "auc",
+            "random_state": 42,
         }
 
         model = lgb.LGBMClassifier(**params)
@@ -185,7 +193,7 @@ class AlertTriageModelTrainer:
         self,
         X_train: pd.DataFrame,
         y_train: pd.Series,
-        hyperparameters: Optional[Dict[str, Any]] = None
+        hyperparameters: Optional[Dict[str, Any]] = None,
     ) -> RandomForestClassifier:
         """
         Train Random Forest classifier.
@@ -193,11 +201,11 @@ class AlertTriageModelTrainer:
         logger.info("Training Random Forest model")
 
         params = hyperparameters or {
-            'n_estimators': 100,
-            'max_depth': 10,
-            'min_samples_split': 5,
-            'min_samples_leaf': 2,
-            'random_state': 42
+            "n_estimators": 100,
+            "max_depth": 10,
+            "min_samples_split": 5,
+            "min_samples_leaf": 2,
+            "random_state": 42,
         }
 
         model = RandomForestClassifier(**params)
@@ -207,48 +215,38 @@ class AlertTriageModelTrainer:
         return model
 
     def hyperparameter_tuning(
-        self,
-        X_train: pd.DataFrame,
-        y_train: pd.Series,
-        model_type: str = 'xgboost'
+        self, X_train: pd.DataFrame, y_train: pd.Series, model_type: str = "xgboost"
     ) -> Dict[str, Any]:
         """
         Perform hyperparameter tuning with GridSearchCV.
         """
         logger.info(f"Hyperparameter tuning for {model_type}")
 
-        if model_type == 'xgboost':
+        if model_type == "xgboost":
             model = xgb.XGBClassifier(random_state=42)
             param_grid = {
-                'max_depth': [3, 5, 7],
-                'learning_rate': [0.01, 0.1, 0.2],
-                'n_estimators': [50, 100, 200],
-                'min_child_weight': [1, 3, 5]
+                "max_depth": [3, 5, 7],
+                "learning_rate": [0.01, 0.1, 0.2],
+                "n_estimators": [50, 100, 200],
+                "min_child_weight": [1, 3, 5],
             }
-        elif model_type == 'lightgbm':
+        elif model_type == "lightgbm":
             model = lgb.LGBMClassifier(random_state=42)
             param_grid = {
-                'num_leaves': [15, 31, 63],
-                'learning_rate': [0.01, 0.1, 0.2],
-                'n_estimators': [50, 100, 200],
-                'min_child_samples': [5, 10, 20]
+                "num_leaves": [15, 31, 63],
+                "learning_rate": [0.01, 0.1, 0.2],
+                "n_estimators": [50, 100, 200],
+                "min_child_samples": [5, 10, 20],
             }
         else:  # random_forest
             model = RandomForestClassifier(random_state=42)
             param_grid = {
-                'n_estimators': [50, 100, 200],
-                'max_depth': [5, 10, 15],
-                'min_samples_split': [2, 5, 10]
+                "n_estimators": [50, 100, 200],
+                "max_depth": [5, 10, 15],
+                "min_samples_split": [2, 5, 10],
             }
 
-        grid_search = GridSearchCV(
-            model,
-            param_grid,
-            cv=5,
-            scoring='roc_auc',
-            n_jobs=-1,
-            verbose=1
-        )
+        grid_search = GridSearchCV(model, param_grid, cv=5, scoring="roc_auc", n_jobs=-1, verbose=1)
 
         grid_search.fit(X_train, y_train)
 
@@ -257,12 +255,7 @@ class AlertTriageModelTrainer:
 
         return grid_search.best_params_
 
-    def evaluate_model(
-        self,
-        model,
-        X_test: pd.DataFrame,
-        y_test: pd.Series
-    ) -> Dict[str, Any]:
+    def evaluate_model(self, model, X_test: pd.DataFrame, y_test: pd.Series) -> Dict[str, Any]:
         """
         Evaluate model performance.
         """
@@ -286,14 +279,14 @@ class AlertTriageModelTrainer:
         optimal_threshold = thresholds[optimal_idx] if optimal_idx < len(thresholds) else 0.5
 
         results = {
-            'accuracy': report['accuracy'],
-            'precision': report['1']['precision'],
-            'recall': report['1']['recall'],
-            'f1_score': report['1']['f1-score'],
-            'auc': auc,
-            'confusion_matrix': cm.tolist(),
-            'optimal_threshold': float(optimal_threshold),
-            'classification_report': report
+            "accuracy": report["accuracy"],
+            "precision": report["1"]["precision"],
+            "recall": report["1"]["recall"],
+            "f1_score": report["1"]["f1-score"],
+            "auc": auc,
+            "confusion_matrix": cm.tolist(),
+            "optimal_threshold": float(optimal_threshold),
+            "classification_report": report,
         }
 
         logger.info(f"Model evaluation results:")
@@ -308,7 +301,7 @@ class AlertTriageModelTrainer:
         """
         Get feature importance from trained model.
         """
-        if hasattr(model, 'feature_importances_'):
+        if hasattr(model, "feature_importances_"):
             importances = model.feature_importances_
         else:
             logger.warning("Model does not support feature importance")
@@ -325,12 +318,7 @@ class AlertTriageModelTrainer:
 
         return sorted_importance
 
-    def save_model(
-        self,
-        model,
-        model_name: str,
-        metadata: Optional[Dict[str, Any]] = None
-    ):
+    def save_model(self, model, model_name: str, metadata: Optional[Dict[str, Any]] = None):
         """
         Save trained model and metadata.
         """
@@ -354,20 +342,20 @@ class AlertTriageModelTrainer:
 
         # Save metadata
         metadata_full = {
-            'model_name': model_name,
-            'timestamp': timestamp,
-            'feature_names': self.feature_names,
-            'categorical_features': self.categorical_features,
-            'numeric_features': self.numeric_features,
-            'model_path': str(model_path),
-            'scaler_path': str(scaler_path),
-            'encoders_path': str(encoders_path)
+            "model_name": model_name,
+            "timestamp": timestamp,
+            "feature_names": self.feature_names,
+            "categorical_features": self.categorical_features,
+            "numeric_features": self.numeric_features,
+            "model_path": str(model_path),
+            "scaler_path": str(scaler_path),
+            "encoders_path": str(encoders_path),
         }
 
         if metadata:
             metadata_full.update(metadata)
 
-        with open(metadata_path, 'w') as f:
+        with open(metadata_path, "w") as f:
             json.dump(metadata_full, f, indent=2)
 
         logger.info(f"Metadata saved to {metadata_path}")

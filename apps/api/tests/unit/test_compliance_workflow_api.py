@@ -103,7 +103,10 @@ def test_compliance_workflow_endpoints(db_session):
         description="desc",
         category="velocity",
         severity="high",
-        conditions={"conditions": [{"field": "amount", "operator": ">", "value": 100}], "logic": "AND"},
+        conditions={
+            "conditions": [{"field": "amount", "operator": ">", "value": 100}],
+            "logic": "AND",
+        },
         thresholds=None,
     )
     db_session.add(mon_rule)

@@ -7,13 +7,14 @@ Create Date: 2026-01-23 12:00:00.000000
 Phase 4B: Task 4.4 - Auto-Triage Integration
 Adds ML prediction fields to alerts table for intelligent alert triage.
 """
+
 from alembic import op
 import sqlalchemy as sa
 from sqlalchemy.dialects import postgresql
 
 # revision identifiers, used by Alembic.
-revision = '3e8f9a2b4c56'
-down_revision = '2a4b7c9d1e11'
+revision = "3e8f9a2b4c56"
+down_revision = "2a4b7c9d1e11"
 branch_labels = None
 depends_on = None
 
@@ -23,12 +24,16 @@ def upgrade():
     bind = op.get_bind()
     inspector = sa.inspect(bind)
     columns = {col["name"] for col in inspector.get_columns("alerts")}
-    json_type = postgresql.JSONB(astext_type=sa.Text()) if bind.dialect.name == "postgresql" else sa.JSON()
+    json_type = (
+        postgresql.JSONB(astext_type=sa.Text()) if bind.dialect.name == "postgresql" else sa.JSON()
+    )
 
     if "ml_prediction" not in columns:
         op.add_column("alerts", sa.Column("ml_prediction", sa.String(length=50), nullable=True))
     if "ml_confidence" not in columns:
-        op.add_column("alerts", sa.Column("ml_confidence", sa.Numeric(precision=5, scale=4), nullable=True))
+        op.add_column(
+            "alerts", sa.Column("ml_confidence", sa.Numeric(precision=5, scale=4), nullable=True)
+        )
     if "ml_model_version" not in columns:
         op.add_column("alerts", sa.Column("ml_model_version", sa.String(length=50), nullable=True))
     if "ml_features_snapshot" not in columns:

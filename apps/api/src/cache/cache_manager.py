@@ -2,6 +2,7 @@
 Redis cache manager with TTL support and cache-aside pattern.
 Phase 4A: Task 3.1 & 3.2 - Redis Cache Infrastructure
 """
+
 import json
 import hashlib
 import logging
@@ -57,7 +58,7 @@ class CacheManager:
                     socket_connect_timeout=2,
                     socket_timeout=2,
                     retry_on_timeout=True,
-                    health_check_interval=30
+                    health_check_interval=30,
                 )
                 # Test connection
                 self._client.ping()
@@ -123,7 +124,7 @@ class CacheManager:
         key: str,
         value: Any,
         ttl: Optional[int] = None,
-        cache_type: str = "general"
+        cache_type: str = "general",
     ) -> bool:
         """
         Set value in cache with TTL.
@@ -219,7 +220,9 @@ class CacheManager:
         """
         return self.delete_pattern(namespace, "*")
 
-    def increment(self, namespace: str, key: str, amount: int = 1, ttl: Optional[int] = None) -> Optional[int]:
+    def increment(
+        self, namespace: str, key: str, amount: int = 1, ttl: Optional[int] = None
+    ) -> Optional[int]:
         """
         Increment a counter in cache.
 
@@ -304,7 +307,7 @@ def cached(
     key_prefix: str = "",
     ttl: Optional[int] = None,
     cache_type: str = "general",
-    key_builder: Optional[Callable] = None
+    key_builder: Optional[Callable] = None,
 ):
     """
     Decorator for caching function results.
@@ -325,6 +328,7 @@ def cached(
         def get_rule(rule_id: str) -> dict:
             return fetch_rule(rule_id)
     """
+
     def decorator(func: Callable) -> Callable:
         @wraps(func)
         def wrapper(*args, **kwargs):
@@ -352,7 +356,11 @@ def cached(
         # Add cache management methods to decorated function
         wrapper.cache_invalidate = lambda *args, **kwargs: cache_manager.delete(
             namespace,
-            key_builder(*args, **kwargs) if key_builder else f"{key_prefix}:{hashlib.md5(f'{func.__name__}:{args}:{kwargs}'.encode()).hexdigest()}"
+            (
+                key_builder(*args, **kwargs)
+                if key_builder
+                else f"{key_prefix}:{hashlib.md5(f'{func.__name__}:{args}:{kwargs}'.encode()).hexdigest()}"
+            ),
         )
         wrapper.cache_clear = lambda: cache_manager.clear_namespace(namespace)
 
@@ -366,7 +374,7 @@ def cache_aside(
     key: Union[str, Callable],
     loader: Callable,
     ttl: Optional[int] = None,
-    cache_type: str = "general"
+    cache_type: str = "general",
 ) -> Any:
     """
     Cache-aside pattern helper.

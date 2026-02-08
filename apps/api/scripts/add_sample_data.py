@@ -1,6 +1,7 @@
 """
 Script to add sample EU legal documents to the database for testing.
 """
+
 from src.database import SessionLocal
 from src.models.models import LegalDocument
 from datetime import datetime
@@ -76,7 +77,7 @@ sample_docs = [
 try:
     # Check if documents already exist
     existing_celexes = {doc.celex for doc in db.query(LegalDocument.celex).all()}
-    
+
     added_count = 0
     for doc_data in sample_docs:
         if doc_data["celex"] not in existing_celexes:
@@ -86,11 +87,11 @@ try:
             print(f"Added: {doc_data['celex']} - {doc_data['title'][:60]}...")
         else:
             print(f"Skipped (exists): {doc_data['celex']}")
-    
+
     db.commit()
     print(f"\n✅ Successfully added {added_count} new documents to the database")
     print(f"Total documents in database: {db.query(LegalDocument).count()}")
-    
+
 except Exception as e:
     db.rollback()
     print(f"❌ Error: {e}")

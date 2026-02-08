@@ -4,4 +4,3 @@ target-version = ["py312"]
 extend-exclude = '''
 ^src/(ai|api|auth|cache|compliance|ingestion|integrations|ml|models|monitoring|plugins|schemas|services|tasks|utils)/
 '''
-

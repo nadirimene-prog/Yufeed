@@ -47,15 +47,23 @@ export function useCreateComplianceInternalRule(obligationId: number | null) {
     },
     onSuccess: () => {
       if (typeof obligationId === "number") {
-        queryClient.invalidateQueries({ queryKey: complianceKeys.obligationInternalRules(obligationId) });
-        queryClient.invalidateQueries({ queryKey: complianceKeys.obligationDetail(obligationId) });
-        queryClient.invalidateQueries({ queryKey: complianceKeys.obligations() });
+        queryClient.invalidateQueries({
+          queryKey: complianceKeys.obligationInternalRules(obligationId),
+        });
+        queryClient.invalidateQueries({
+          queryKey: complianceKeys.obligationDetail(obligationId),
+        });
+        queryClient.invalidateQueries({
+          queryKey: complianceKeys.obligations(),
+        });
       }
     },
   });
 }
 
-export function useCreateComplianceInternalRuleMapping(obligationId: number | null) {
+export function useCreateComplianceInternalRuleMapping(
+  obligationId: number | null,
+) {
   const queryClient = useQueryClient();
 
   return useMutation({
@@ -68,10 +76,13 @@ export function useCreateComplianceInternalRuleMapping(obligationId: number | nu
     }) => createComplianceInternalRuleMapping(internalRuleId, payload),
     onSuccess: () => {
       if (typeof obligationId === "number") {
-        queryClient.invalidateQueries({ queryKey: complianceKeys.obligationInternalRules(obligationId) });
-        queryClient.invalidateQueries({ queryKey: complianceKeys.obligationDetail(obligationId) });
+        queryClient.invalidateQueries({
+          queryKey: complianceKeys.obligationInternalRules(obligationId),
+        });
+        queryClient.invalidateQueries({
+          queryKey: complianceKeys.obligationDetail(obligationId),
+        });
       }
     },
   });
 }
-

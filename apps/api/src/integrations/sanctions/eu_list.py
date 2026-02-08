@@ -35,14 +35,16 @@ class EUConsolidatedList(BaseIntegration):
     For now, uses demo data.
     """
 
-    EU_SANCTIONS_URL = "https://webgate.ec.europa.eu/fsd/fsf/public/files/xmlFullSanctionsList/content"
+    EU_SANCTIONS_URL = (
+        "https://webgate.ec.europa.eu/fsd/fsf/public/files/xmlFullSanctionsList/content"
+    )
 
     def __init__(self):
         super().__init__(
             name="EU Consolidated Sanctions List",
             base_url=self.EU_SANCTIONS_URL,
             timeout_seconds=60,
-            cache_ttl_seconds=86400  # 24 hours
+            cache_ttl_seconds=86400,  # 24 hours
         )
 
         self._sanctions_data: List[Dict[str, Any]] = []
@@ -59,17 +61,13 @@ class EUConsolidatedList(BaseIntegration):
             # In production, would fetch from EU endpoint
             # For now, return cached/demo data
             return IntegrationResult(
-                status=IntegrationStatus.SUCCESS,
-                data=self._sanctions_data,
-                source=self.name
+                status=IntegrationStatus.SUCCESS, data=self._sanctions_data, source=self.name
             )
 
         except Exception as e:
             logger.error(f"Failed to fetch EU sanctions list: {e}")
             return IntegrationResult(
-                status=IntegrationStatus.ERROR,
-                error_message=str(e),
-                source=self.name
+                status=IntegrationStatus.ERROR, error_message=str(e), source=self.name
             )
 
     async def fetch_list(self) -> IntegrationResult:
@@ -80,7 +78,7 @@ class EUConsolidatedList(BaseIntegration):
         self,
         name: Optional[str] = None,
         nationality: Optional[str] = None,
-        entity_type: Optional[str] = None
+        entity_type: Optional[str] = None,
     ) -> List[Dict[str, Any]]:
         """
         Search the EU sanctions list.
@@ -102,7 +100,8 @@ class EUConsolidatedList(BaseIntegration):
         if name:
             name_upper = name.upper()
             matches = [
-                m for m in matches
+                m
+                for m in matches
                 if name_upper in m.get("name", "").upper()
                 or any(name_upper in alias.upper() for alias in m.get("aliases", []))
             ]
@@ -110,14 +109,14 @@ class EUConsolidatedList(BaseIntegration):
         if nationality:
             nat_upper = nationality.upper()
             matches = [
-                m for m in matches
+                m
+                for m in matches
                 if any(nat_upper in n.upper() for n in m.get("nationalities", []))
             ]
 
         if entity_type:
             matches = [
-                m for m in matches
-                if m.get("entity_type", "").lower() == entity_type.lower()
+                m for m in matches if m.get("entity_type", "").lower() == entity_type.lower()
             ]
 
         return matches
@@ -141,7 +140,7 @@ class EUConsolidatedList(BaseIntegration):
                     "birth_dates": self._extract_birth_dates(entity),
                     "programs": self._extract_programs(entity),
                     "reasons": self._extract_reasons(entity),
-                    "listing_date": self._extract_listing_date(entity)
+                    "listing_date": self._extract_listing_date(entity),
                 }
                 entries.append(entry)
 

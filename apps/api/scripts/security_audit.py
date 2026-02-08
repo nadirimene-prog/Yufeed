@@ -41,7 +41,9 @@ def _require_substrings(check: str, path: Path, required: Iterable[str]) -> List
     findings: List[Finding] = []
     for needle in required:
         if needle not in text:
-            findings.append(Finding(check=check, message=f"Missing required pattern: {needle!r}", path=path))
+            findings.append(
+                Finding(check=check, message=f"Missing required pattern: {needle!r}", path=path)
+            )
     return findings
 
 
@@ -85,7 +87,7 @@ def run(repo_api_root: Path) -> List[Finding]:
             src / "services" / "feature_store.py",
             [
                 "def _cache_key",
-                "f\"{tenant_id}:{entity_type}:{entity_id}:v{version}\"",
+                'f"{tenant_id}:{entity_type}:{entity_id}:v{version}"',
             ],
         ),
         (
@@ -116,7 +118,7 @@ def run(repo_api_root: Path) -> List[Finding]:
         (
             "websocket_endpoint_auth",
             src / "api" / "websocket.py",
-            ["tenant_id = payload.get(\"tenant_id\")"],
+            ['tenant_id = payload.get("tenant_id")'],
         ),
         (
             "websocket_manager_scoping",
@@ -172,4 +174,3 @@ def main(argv: list[str]) -> int:
 
 if __name__ == "__main__":
     raise SystemExit(main(sys.argv[1:]))
-

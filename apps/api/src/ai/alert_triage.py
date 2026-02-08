@@ -5,6 +5,7 @@ Uses Claude to automatically analyze, prioritize, and recommend actions for aler
 YUFEED INNOVATION: AI agent that understands both transaction patterns AND
 regulatory requirements to provide compliance-aware triage.
 """
+
 import os
 import logging
 from typing import Dict, Any, Optional, List
@@ -66,23 +67,27 @@ class AlertTriageAgent:
         # Get transaction if available
         transaction = None
         if alert.transaction_id:
-            transaction = self.db.query(Transaction).filter(
-                Transaction.id == alert.transaction_id
-            ).first()
+            transaction = (
+                self.db.query(Transaction).filter(Transaction.id == alert.transaction_id).first()
+            )
 
         # Get rule
         rule = None
         if alert.rule_id:
-            rule = self.db.query(MonitoringRule).filter(
-                MonitoringRule.rule_id == alert.rule_id
-            ).first()
+            rule = (
+                self.db.query(MonitoringRule)
+                .filter(MonitoringRule.rule_id == alert.rule_id)
+                .first()
+            )
 
         # Get regulatory documents
         regulations = []
         if alert.related_regulations:
-            regulations = self.db.query(LegalDocument).filter(
-                LegalDocument.id.in_(alert.related_regulations)
-            ).all()
+            regulations = (
+                self.db.query(LegalDocument)
+                .filter(LegalDocument.id.in_(alert.related_regulations))
+                .all()
+            )
 
         # Build context for Claude
         context = self._build_alert_context(alert, transaction, rule, regulations)
@@ -110,22 +115,19 @@ class AlertTriageAgent:
             return []
 
         # Get pending alerts ordered by priority
-        pending_alerts = self.db.query(Alert).filter(
-            Alert.status == 'pending'
-        ).order_by(
-            Alert.severity.desc(),
-            Alert.priority.asc(),
-            Alert.created_at.desc()
-        ).limit(limit).all()
+        pending_alerts = (
+            self.db.query(Alert)
+            .filter(Alert.status == "pending")
+            .order_by(Alert.severity.desc(), Alert.priority.asc(), Alert.created_at.desc())
+            .limit(limit)
+            .all()
+        )
 
         results = []
         for alert in pending_alerts:
             try:
                 analysis = self.triage_alert(alert.id)
-                results.append({
-                    "alert_id": alert.alert_id,
-                    "analysis": analysis
-                })
+                results.append({"alert_id": alert.alert_id, "analysis": analysis})
                 logger.info(f"Triaged alert {alert.alert_id}: {analysis.get('recommendation')}")
             except Exception as e:
                 logger.error(f"Error triaging alert {alert.id}: {e}")
@@ -137,7 +139,7 @@ class AlertTriageAgent:
         alert: Alert,
         transaction: Optional[Transaction],
         rule: Optional[MonitoringRule],
-        regulations: List[LegalDocument]
+        regulations: List[LegalDocument],
     ) -> str:
         """
         Build comprehensive context for Claude analysis.
@@ -257,14 +259,12 @@ Be thorough but concise. Focus on actionable insights."""
             response = self.client.messages.create(
                 model="claude-sonnet-4-20250514",
                 max_tokens=2000,
-                messages=[{
-                    "role": "user",
-                    "content": prompt
-                }]
+                messages=[{"role": "user", "content": prompt}],
             )
 
             # Extract JSON from response
             import json
+
             response_text = response.content[0].text
 
             # Try to extract JSON (Claude might wrap it in markdown)
@@ -279,7 +279,9 @@ Be thorough but concise. Focus on actionable insights."""
 
             analysis = json.loads(response_text)
 
-            logger.info(f"Claude analysis: {analysis.get('recommendation')} (confidence: {analysis.get('confidence')})")
+            logger.info(
+                f"Claude analysis: {analysis.get('recommendation')} (confidence: {analysis.get('confidence')})"
+            )
 
             return analysis
 
@@ -292,7 +294,7 @@ Be thorough but concise. Focus on actionable insights."""
         Apply AI triage results to the alert.
         """
         # Update priority if AI suggests different
-        ai_priority = analysis.get('priority')
+        ai_priority = analysis.get("priority")
         if ai_priority and ai_priority != alert.priority:
             alert.priority = ai_priority
 
@@ -324,16 +326,21 @@ Investigation Steps:
             alert.resolution_notes = triage_summary
 
         # Auto-escalate if AI recommends and confidence is high
-        if analysis.get('recommendation') == 'escalate' and analysis.get('confidence', 0) > 0.8:
-            alert.status = 'escalated'
+        if analysis.get("recommendation") == "escalate" and analysis.get("confidence", 0) > 0.8:
+            alert.status = "escalated"
             logger.info(f"Auto-escalated alert {alert.alert_id} based on AI recommendation")
 
         # Auto-mark as false positive if confidence is very high
-        elif analysis.get('recommendation') == 'false_positive' and analysis.get('confidence', 0) > 0.9:
-            alert.status = 'false_positive'
-            alert.resolution_status = 'false_positive'
-            alert.resolved_by = 'AI_AGENT'
-            alert.resolution_notes += "\n\n[AUTO-RESOLVED] High-confidence false positive identified by AI"
+        elif (
+            analysis.get("recommendation") == "false_positive"
+            and analysis.get("confidence", 0) > 0.9
+        ):
+            alert.status = "false_positive"
+            alert.resolution_status = "false_positive"
+            alert.resolved_by = "AI_AGENT"
+            alert.resolution_notes += (
+                "\n\n[AUTO-RESOLVED] High-confidence false positive identified by AI"
+            )
             logger.info(f"Auto-resolved alert {alert.alert_id} as false positive")
 
         self.db.commit()
@@ -372,13 +379,13 @@ Investigation Steps:
                 "Review transaction details",
                 "Check user history",
                 "Verify regulatory requirements",
-                "Consult with senior analyst"
+                "Consult with senior analyst",
             ],
             "regulatory_concerns": "Unknown - AI analysis unavailable",
             "sar_likelihood": 0.0,
             "recommended_actions": ["Manual review required"],
             "red_flags": [],
-            "mitigating_factors": []
+            "mitigating_factors": [],
         }
 
     def generate_investigation_report(self, alert_id: int) -> str:
@@ -397,19 +404,27 @@ Investigation Steps:
         # Get related data
         transaction = None
         if alert.transaction_id:
-            transaction = self.db.query(Transaction).filter(
-                Transaction.id == alert.transaction_id
-            ).first()
+            transaction = (
+                self.db.query(Transaction).filter(Transaction.id == alert.transaction_id).first()
+            )
 
         context = self._build_alert_context(
             alert,
             transaction,
-            self.db.query(MonitoringRule).filter(
-                MonitoringRule.rule_id == alert.rule_id
-            ).first() if alert.rule_id else None,
-            self.db.query(LegalDocument).filter(
-                LegalDocument.id.in_(alert.related_regulations)
-            ).all() if alert.related_regulations else []
+            (
+                self.db.query(MonitoringRule)
+                .filter(MonitoringRule.rule_id == alert.rule_id)
+                .first()
+                if alert.rule_id
+                else None
+            ),
+            (
+                self.db.query(LegalDocument)
+                .filter(LegalDocument.id.in_(alert.related_regulations))
+                .all()
+                if alert.related_regulations
+                else []
+            ),
         )
 
         prompt = f"""{context}
@@ -433,10 +448,7 @@ Format as professional compliance documentation."""
             response = self.client.messages.create(
                 model="claude-sonnet-4-20250514",
                 max_tokens=4000,
-                messages=[{
-                    "role": "user",
-                    "content": prompt
-                }]
+                messages=[{"role": "user", "content": prompt}],
             )
 
             return response.content[0].text

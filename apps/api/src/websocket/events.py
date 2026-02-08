@@ -1,6 +1,7 @@
 """
 WebSocket event types and notification models.
 """
+
 from enum import Enum
 from typing import Dict, Any, Optional
 from pydantic import BaseModel
@@ -14,6 +15,7 @@ def utc_now() -> datetime:
 
 class EventType(str, Enum):
     """WebSocket event types."""
+
     # Alert events
     ALERT_CREATED = "alert.created"
     ALERT_UPDATED = "alert.updated"
@@ -59,6 +61,7 @@ class NotificationEvent(BaseModel):
     """
     WebSocket notification event model.
     """
+
     event_type: EventType
     title: str
     message: str
@@ -67,16 +70,15 @@ class NotificationEvent(BaseModel):
     priority: str = "normal"  # low, normal, high, critical
 
     def __init__(self, **data):
-        if 'timestamp' not in data or data['timestamp'] is None:
-            data['timestamp'] = utc_now()
+        if "timestamp" not in data or data["timestamp"] is None:
+            data["timestamp"] = utc_now()
         super().__init__(**data)
+
     user_id: Optional[str] = None
     link: Optional[str] = None
 
     class Config:
-        json_encoders = {
-            datetime: lambda v: v.isoformat()
-        }
+        json_encoders = {datetime: lambda v: v.isoformat()}
 
 
 def create_alert_notification(
@@ -85,24 +87,19 @@ def create_alert_notification(
     alert_type: str,
     severity: str,
     user_id: Optional[str] = None,
-    assigned_to: Optional[str] = None
+    assigned_to: Optional[str] = None,
 ) -> NotificationEvent:
     """Create notification for alert events."""
 
     messages = {
         EventType.ALERT_CREATED: f"New {severity} alert: {alert_type}",
         EventType.ALERT_UPDATED: f"Alert {alert_id} updated",
-        EventType.ALERT_ASSIGNED: f"Alert assigned to you",
+        EventType.ALERT_ASSIGNED: "Alert assigned to you",
         EventType.ALERT_RESOLVED: f"Alert {alert_id} resolved",
-        EventType.ALERT_ESCALATED: f"Alert {alert_id} escalated"
+        EventType.ALERT_ESCALATED: f"Alert {alert_id} escalated",
     }
 
-    priority_map = {
-        "low": "low",
-        "medium": "normal",
-        "high": "high",
-        "critical": "critical"
-    }
+    priority_map = {"low": "low", "medium": "normal", "high": "high", "critical": "critical"}
 
     return NotificationEvent(
         event_type=event_type,
@@ -113,11 +110,11 @@ def create_alert_notification(
             "alert_type": alert_type,
             "severity": severity,
             "user_id": user_id,
-            "assigned_to": assigned_to
+            "assigned_to": assigned_to,
         },
         priority=priority_map.get(severity, "normal"),
         user_id=assigned_to,
-        link=f"/alerts/{alert_id}"
+        link=f"/alerts/{alert_id}",
     )
 
 
@@ -127,14 +124,14 @@ def create_transaction_notification(
     amount: float,
     currency: str,
     risk_score: float,
-    user_id: Optional[str] = None
+    user_id: Optional[str] = None,
 ) -> NotificationEvent:
     """Create notification for transaction events."""
 
     messages = {
         EventType.TRANSACTION_FLAGGED: f"Transaction flagged: {currency} {amount:,.2f}",
         EventType.TRANSACTION_BLOCKED: f"Transaction blocked: {currency} {amount:,.2f}",
-        EventType.HIGH_RISK_TRANSACTION: f"High-risk transaction detected"
+        EventType.HIGH_RISK_TRANSACTION: "High-risk transaction detected",
     }
 
     priority = "critical" if risk_score > 80 else "high" if risk_score > 60 else "normal"
@@ -148,10 +145,10 @@ def create_transaction_notification(
             "amount": amount,
             "currency": currency,
             "risk_score": risk_score,
-            "user_id": user_id
+            "user_id": user_id,
         },
         priority=priority,
-        link=f"/transactions/{transaction_id}"
+        link=f"/transactions/{transaction_id}",
     )
 
 
@@ -160,14 +157,14 @@ def create_case_notification(
     case_id: str,
     case_type: str,
     priority: str,
-    assigned_to: Optional[str] = None
+    assigned_to: Optional[str] = None,
 ) -> NotificationEvent:
     """Create notification for case events."""
 
     messages = {
         EventType.CASE_CREATED: f"New {priority} priority case created",
         EventType.CASE_UPDATED: f"Case {case_id} updated",
-        EventType.CASE_CLOSED: f"Case {case_id} closed"
+        EventType.CASE_CLOSED: f"Case {case_id} closed",
     }
 
     return NotificationEvent(
@@ -178,11 +175,11 @@ def create_case_notification(
             "case_id": case_id,
             "case_type": case_type,
             "priority": priority,
-            "assigned_to": assigned_to
+            "assigned_to": assigned_to,
         },
         priority=priority,
         user_id=assigned_to,
-        link=f"/cases/{case_id}"
+        link=f"/cases/{case_id}",
     )
 
 
@@ -192,7 +189,7 @@ def create_obligation_notification(
     obligation_text: str,
     status: str,
     approved_by: Optional[str] = None,
-    internal_rule_id: Optional[str] = None
+    internal_rule_id: Optional[str] = None,
 ) -> NotificationEvent:
     """Create notification for obligation events."""
 
@@ -218,7 +215,7 @@ def create_obligation_notification(
             "internal_rule_id": internal_rule_id,
         },
         priority=priority_map.get(status, "normal"),
-        link=f"/compliance/obligations/{obligation_id}"
+        link=f"/compliance/obligations/{obligation_id}",
     )
 
 
@@ -227,7 +224,7 @@ def create_policy_notification(
     policy_id: str,
     policy_name: str,
     status: str,
-    user_id: Optional[str] = None
+    user_id: Optional[str] = None,
 ) -> NotificationEvent:
     """Create notification for policy events."""
 
@@ -248,7 +245,7 @@ def create_policy_notification(
         },
         priority="normal",
         user_id=user_id,
-        link=f"/compliance/policies?id={policy_id}"
+        link=f"/compliance/policies?id={policy_id}",
     )
 
 
@@ -258,7 +255,7 @@ def create_risk_notification(
     risk_name: str,
     category_name: str,
     risk_level: str,
-    user_id: Optional[str] = None
+    user_id: Optional[str] = None,
 ) -> NotificationEvent:
     """Create notification for risk events."""
 
@@ -286,7 +283,7 @@ def create_risk_notification(
         },
         priority=priority_map.get(risk_level, "normal"),
         user_id=user_id,
-        link=f"/compliance/risk-map?risk={risk_id}"
+        link=f"/compliance/risk-map?risk={risk_id}",
     )
 
 
@@ -295,7 +292,7 @@ def create_internal_rule_notification(
     internal_rule_id: str,
     rule_name: str,
     obligation_id: str,
-    user_id: Optional[str] = None
+    user_id: Optional[str] = None,
 ) -> NotificationEvent:
     """Create notification for internal rule events."""
 
@@ -314,5 +311,5 @@ def create_internal_rule_notification(
         },
         priority="normal",
         user_id=user_id,
-        link=f"/compliance/obligations/{obligation_id}"
+        link=f"/compliance/obligations/{obligation_id}",
     )

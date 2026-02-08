@@ -20,6 +20,8 @@ from datetime import datetime, timezone
 def utc_now() -> datetime:
     """Return current UTC time (timezone-aware)."""
     return datetime.now(timezone.utc)
+
+
 from enum import Enum
 from typing import Any, Dict, List, Optional
 import xml.etree.ElementTree as ET
@@ -32,6 +34,7 @@ logger = logging.getLogger(__name__)
 
 class SARStatus(str, Enum):
     """SAR filing status."""
+
     DRAFT = "draft"
     PENDING_REVIEW = "pending_review"
     APPROVED = "approved"
@@ -43,6 +46,7 @@ class SARStatus(str, Enum):
 
 class FilingJurisdiction(str, Enum):
     """Supported filing jurisdictions."""
+
     EU_GENERIC = "eu_generic"  # Generic EU FIU format
     FRANCE_TRACFIN = "france_tracfin"
     GERMANY_FIU = "germany_fiu"
@@ -52,6 +56,7 @@ class FilingJurisdiction(str, Enum):
 
 class SuspiciousActivityType(str, Enum):
     """Types of suspicious activities for SAR classification."""
+
     MONEY_LAUNDERING = "money_laundering"
     TERRORIST_FINANCING = "terrorist_financing"
     FRAUD = "fraud"
@@ -66,6 +71,7 @@ class SuspiciousActivityType(str, Enum):
 @dataclass
 class SubjectInfo:
     """Information about a SAR subject (person or entity)."""
+
     subject_type: str  # "individual" or "entity"
     name: str
     aliases: List[str] = field(default_factory=list)
@@ -106,13 +112,14 @@ class SubjectInfo:
             "phone": self.phone,
             "email": self.email,
             "occupation": self.occupation,
-            "role": self.role
+            "role": self.role,
         }
 
 
 @dataclass
 class SARDraft:
     """A SAR draft ready for review or filing."""
+
     sar_id: str
     case_id: str
     status: SARStatus
@@ -175,7 +182,7 @@ class SARDraft:
             "created_at": self.created_at.isoformat(),
             "created_by": self.created_by,
             "reviewed_by": self.reviewed_by,
-            "review_notes": self.review_notes
+            "review_notes": self.review_notes,
         }
 
 
@@ -317,9 +324,12 @@ Important:
             # Build the prompt
             prompt = self.SAR_NARRATIVE_PROMPT.format(
                 case_data=self._format_case_data(case_data),
-                investigation_summary=investigation_summary if isinstance(investigation_summary, str)
-                    else str(investigation_summary),
-                transaction_details=transaction_details
+                investigation_summary=(
+                    investigation_summary
+                    if isinstance(investigation_summary, str)
+                    else str(investigation_summary)
+                ),
+                transaction_details=transaction_details,
             )
 
             # Call Claude for narrative generation
@@ -331,7 +341,7 @@ Important:
                 response=response,
                 transactions=transactions,
                 jurisdiction=jurisdiction,
-                case_data=case_data
+                case_data=case_data,
             )
 
             # Calculate confidence
@@ -347,8 +357,8 @@ Important:
                     "activity_type": sar_draft.primary_activity.value,
                     "subject_count": len(sar_draft.subjects),
                     "red_flag_count": len(sar_draft.red_flags),
-                    "filing_urgency": response.get("filing_urgency", "routine")
-                }
+                    "filing_urgency": response.get("filing_urgency", "routine"),
+                },
             )
 
         except Exception as e:
@@ -359,7 +369,7 @@ Important:
                 result=None,
                 confidence=0.0,
                 reasoning=f"SAR generation failed: {str(e)}",
-                error=str(e)
+                error=str(e),
             )
 
     def _format_case_data(self, case_data: Dict[str, Any]) -> str:
@@ -374,16 +384,16 @@ Important:
         lines.append(f"Priority: {case_data.get('priority', 'Unknown')}")
         lines.append(f"Created: {case_data.get('created_at', 'Unknown')}")
 
-        if case_data.get('description'):
+        if case_data.get("description"):
             lines.append(f"\nDescription: {case_data['description']}")
 
-        if case_data.get('customer'):
-            customer = case_data['customer']
+        if case_data.get("customer"):
+            customer = case_data["customer"]
             lines.append(f"\nCustomer: {customer.get('name', 'Unknown')}")
             lines.append(f"Customer ID: {customer.get('id', 'Unknown')}")
             lines.append(f"Risk Rating: {customer.get('risk_rating', 'Unknown')}")
 
-        if case_data.get('alerts'):
+        if case_data.get("alerts"):
             lines.append(f"\nRelated Alerts: {len(case_data['alerts'])}")
 
         return "\n".join(lines)
@@ -396,13 +406,17 @@ Important:
         lines = [f"Total Transactions: {len(transactions)}\n"]
 
         # Calculate totals
-        total_amount = sum(t.get('amount', 0) for t in transactions)
-        currencies = set(t.get('currency', 'EUR') for t in transactions)
+        total_amount = sum(t.get("amount", 0) for t in transactions)
+        currencies = set(t.get("currency", "EUR") for t in transactions)
 
         lines.append(f"Total Amount: {total_amount:,.2f} {'/'.join(currencies)}")
 
         # Date range
-        dates = [t.get('timestamp') or t.get('date') for t in transactions if t.get('timestamp') or t.get('date')]
+        dates = [
+            t.get("timestamp") or t.get("date")
+            for t in transactions
+            if t.get("timestamp") or t.get("date")
+        ]
         if dates:
             lines.append(f"Date Range: {min(dates)} to {max(dates)}")
 
@@ -415,13 +429,13 @@ Important:
             lines.append(f"    Type: {txn.get('type', 'Unknown')}")
             lines.append(f"    Date: {txn.get('timestamp') or txn.get('date', 'Unknown')}")
 
-            if txn.get('sender'):
+            if txn.get("sender"):
                 lines.append(f"    Sender: {txn['sender']}")
-            if txn.get('receiver') or txn.get('recipient'):
+            if txn.get("receiver") or txn.get("recipient"):
                 lines.append(f"    Receiver: {txn.get('receiver') or txn.get('recipient')}")
-            if txn.get('country'):
+            if txn.get("country"):
                 lines.append(f"    Country: {txn['country']}")
-            if txn.get('risk_score'):
+            if txn.get("risk_score"):
                 lines.append(f"    Risk Score: {txn['risk_score']}")
 
         if len(transactions) > 10:
@@ -435,15 +449,14 @@ Important:
         response: Dict[str, Any],
         transactions: List[Dict[str, Any]],
         jurisdiction: FilingJurisdiction,
-        case_data: Dict[str, Any]
+        case_data: Dict[str, Any],
     ) -> SARDraft:
         """Build a SARDraft from Claude's response."""
 
         # Parse activity types
         primary_activity = self._parse_activity_type(response.get("primary_activity", "other"))
         secondary_activities = [
-            self._parse_activity_type(at)
-            for at in response.get("secondary_activities", [])
+            self._parse_activity_type(at) for at in response.get("secondary_activities", [])
         ]
         all_activities = [primary_activity] + secondary_activities
 
@@ -464,17 +477,21 @@ Important:
                 phone=s.get("phone"),
                 email=s.get("email"),
                 occupation=s.get("occupation"),
-                role=s.get("role", "subject")
+                role=s.get("role", "subject"),
             )
             for s in response.get("subjects", [])
         ]
 
         # Calculate financial totals
-        total_amount = sum(t.get('amount', 0) for t in transactions)
-        currency = transactions[0].get('currency', 'EUR') if transactions else 'EUR'
+        total_amount = sum(t.get("amount", 0) for t in transactions)
+        currency = transactions[0].get("currency", "EUR") if transactions else "EUR"
 
         # Date range
-        dates = [t.get('timestamp') or t.get('date') for t in transactions if t.get('timestamp') or t.get('date')]
+        dates = [
+            t.get("timestamp") or t.get("date")
+            for t in transactions
+            if t.get("timestamp") or t.get("date")
+        ]
         date_range_start = min(dates) if dates else utc_now().strftime("%Y-%m-%d")
         date_range_end = max(dates) if dates else utc_now().strftime("%Y-%m-%d")
 
@@ -494,9 +511,12 @@ Important:
             date_range_end=str(date_range_end),
             red_flags=response.get("red_flags", []),
             regulatory_citations=response.get("regulatory_citations", []),
-            jurisdiction=jurisdiction if isinstance(jurisdiction, FilingJurisdiction)
-                else FilingJurisdiction(jurisdiction),
-            reporting_entity=case_data.get("reporting_entity", "Yufeed Financial Institution")
+            jurisdiction=(
+                jurisdiction
+                if isinstance(jurisdiction, FilingJurisdiction)
+                else FilingJurisdiction(jurisdiction)
+            ),
+            reporting_entity=case_data.get("reporting_entity", "Yufeed Financial Institution"),
         )
 
     def _parse_activity_type(self, activity: str) -> SuspiciousActivityType:
@@ -565,7 +585,7 @@ Important:
             ET.SubElement(indicators, "indicator").text = flag
 
         # Format with pretty print
-        xml_str = ET.tostring(root, encoding='unicode')
+        xml_str = ET.tostring(root, encoding="unicode")
         dom = minidom.parseString(xml_str)
         return dom.toprettyxml(indent="  ")
 
@@ -583,8 +603,8 @@ Important:
                 "reporting_date": utc_now().isoformat(),
                 "reporting_entity": {
                     "name": sar_draft.reporting_entity,
-                    "type": "financial_institution"
-                }
+                    "type": "financial_institution",
+                },
             },
             "suspicious_activity": {
                 "type": sar_draft.primary_activity.value,
@@ -592,24 +612,24 @@ Important:
                 "date_from": sar_draft.date_range_start,
                 "date_to": sar_draft.date_range_end,
                 "total_amount": sar_draft.total_amount,
-                "currency": sar_draft.currency
+                "currency": sar_draft.currency,
             },
             "subjects": [s.to_dict() for s in sar_draft.subjects],
             "narrative": {
                 "executive_summary": sar_draft.executive_summary,
-                "detailed_description": sar_draft.narrative
+                "detailed_description": sar_draft.narrative,
             },
             "indicators": {
                 "red_flags": sar_draft.red_flags,
-                "regulatory_references": sar_draft.regulatory_citations
+                "regulatory_references": sar_draft.regulatory_citations,
             },
             "transactions": {
                 "count": sar_draft.transaction_count,
                 "total_value": sar_draft.total_amount,
-                "currency": sar_draft.currency
+                "currency": sar_draft.currency,
             },
             "case_reference": sar_draft.case_id,
-            "status": sar_draft.status.value
+            "status": sar_draft.status.value,
         }
 
 
@@ -635,7 +655,7 @@ class SARWorkflowManager:
         case_data: Dict[str, Any],
         transactions: List[Dict[str, Any]],
         investigation_summary: Optional[str] = None,
-        jurisdiction: FilingJurisdiction = FilingJurisdiction.EU_GENERIC
+        jurisdiction: FilingJurisdiction = FilingJurisdiction.EU_GENERIC,
     ) -> SARDraft:
         """Generate a new SAR draft."""
         context = AgentContext(
@@ -646,8 +666,8 @@ class SARWorkflowManager:
                 "case_data": case_data,
                 "transactions": transactions,
                 "investigation_summary": investigation_summary,
-                "jurisdiction": jurisdiction
-            }
+                "jurisdiction": jurisdiction,
+            },
         )
 
         result = await self.agent.process(context)
@@ -672,7 +692,7 @@ class SARWorkflowManager:
                 red_flags=draft_data["red_flags"],
                 regulatory_citations=draft_data["regulatory_citations"],
                 jurisdiction=FilingJurisdiction(draft_data["jurisdiction"]),
-                reporting_entity=draft_data["reporting_entity"]
+                reporting_entity=draft_data["reporting_entity"],
             )
             self._drafts[draft.sar_id] = draft
             return draft
@@ -733,9 +753,7 @@ class SARWorkflowManager:
         return self._drafts.get(sar_id)
 
     def list_drafts(
-        self,
-        status: Optional[SARStatus] = None,
-        case_id: Optional[str] = None
+        self, status: Optional[SARStatus] = None, case_id: Optional[str] = None
     ) -> List[SARDraft]:
         """List SAR drafts with optional filters."""
         drafts = list(self._drafts.values())

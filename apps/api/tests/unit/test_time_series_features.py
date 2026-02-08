@@ -20,7 +20,7 @@ def test_time_series_features_with_data(db_session):
                 amount=100 * days_ago,
                 currency="USD",
                 transaction_type="deposit",
-            timestamp=now - timedelta(days=days_ago),
+                timestamp=now - timedelta(days=days_ago),
                 status="completed",
                 country_code="US",
             )

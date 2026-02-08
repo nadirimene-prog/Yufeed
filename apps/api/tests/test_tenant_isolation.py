@@ -4,6 +4,7 @@ Phase 4C: Task 7 - Comprehensive tenant isolation validation
 
 Tests to ensure complete data isolation between tenants.
 """
+
 import pytest
 from fastapi.testclient import TestClient
 from sqlalchemy.orm import Session
@@ -25,6 +26,7 @@ client = TestClient(app)
 # FIXTURES
 # ============================================================================
 
+
 @pytest.fixture(scope="module")
 def db():
     """Database session fixture."""
@@ -44,7 +46,7 @@ def tenant_a(db: Session):
         name="Test Tenant A",
         display_name="Tenant A",
         tier="standard",
-        is_active=True
+        is_active=True,
     )
     db.add(tenant)
     db.commit()
@@ -64,7 +66,7 @@ def tenant_b(db: Session):
         name="Test Tenant B",
         display_name="Tenant B",
         tier="enterprise",
-        is_active=True
+        is_active=True,
     )
     db.add(tenant)
     db.commit()
@@ -88,7 +90,7 @@ def api_key_tenant_a(db: Session, tenant_a: Tenant):
         key_hash=key_hash,
         key_prefix=api_key[:20],
         name="Test API Key A",
-        is_active=True
+        is_active=True,
     )
     db.add(api_key_record)
     db.commit()
@@ -112,7 +114,7 @@ def api_key_tenant_b(db: Session, tenant_b: Tenant):
         key_hash=key_hash,
         key_prefix=api_key[:20],
         name="Test API Key B",
-        is_active=True
+        is_active=True,
     )
     db.add(api_key_record)
     db.commit()
@@ -128,6 +130,7 @@ def api_key_tenant_b(db: Session, tenant_b: Tenant):
 # TENANT MANAGEMENT TESTS
 # ============================================================================
 
+
 class TestTenantManagement:
     """Test tenant CRUD operations."""
 
@@ -139,7 +142,7 @@ class TestTenantManagement:
                 "tenant_id": "test_create_tenant",
                 "name": "Test Create Tenant",
                 "tier": "standard",
-                "contact_email": "test@example.com"
+                "contact_email": "test@example.com",
             },
             headers=superuser_headers,
         )
@@ -159,11 +162,7 @@ class TestTenantManagement:
         """Test creating a tenant with duplicate tenant_id."""
         response = client.post(
             "/api/tenants",
-            json={
-                "tenant_id": "test_tenant_a",
-                "name": "Duplicate Tenant",
-                "tier": "standard"
-            },
+            json={"tenant_id": "test_tenant_a", "name": "Duplicate Tenant", "tier": "standard"},
             headers=superuser_headers,
         )
         assert response.status_code == 400
@@ -194,10 +193,7 @@ class TestTenantManagement:
         """Test updating tenant information."""
         response = client.patch(
             f"/api/tenants/{tenant_a.tenant_id}",
-            json={
-                "display_name": "Updated Tenant A",
-                "tier": "enterprise"
-            },
+            json={"display_name": "Updated Tenant A", "tier": "enterprise"},
             headers=superuser_headers,
         )
         assert response.status_code == 200
@@ -210,24 +206,19 @@ class TestTenantManagement:
 # API KEY AUTHENTICATION TESTS
 # ============================================================================
 
+
 class TestAPIKeyAuthentication:
     """Test API key authentication and validation."""
 
     def test_valid_api_key(self, api_key_tenant_a):
         """Test authentication with valid API key."""
-        response = client.get(
-            "/api/alerts",
-            headers={"X-API-Key": api_key_tenant_a}
-        )
+        response = client.get("/api/alerts", headers={"X-API-Key": api_key_tenant_a})
         # Should not return 401/403
         assert response.status_code in [200, 404]  # 404 if no alerts exist
 
     def test_invalid_api_key(self):
         """Test authentication with invalid API key."""
-        response = client.get(
-            "/api/alerts",
-            headers={"X-API-Key": "yk_live_invalid_key_12345"}
-        )
+        response = client.get("/api/alerts", headers={"X-API-Key": "yk_live_invalid_key_12345"})
         assert response.status_code == 401
 
     def test_missing_api_key(self):
@@ -240,16 +231,11 @@ class TestAPIKeyAuthentication:
         """Test that API key usage is tracked."""
         # Get initial usage count
         key_hash = hashlib.sha256(api_key_tenant_a.encode()).hexdigest()
-        api_key_record = db.query(TenantAPIKey).filter(
-            TenantAPIKey.key_hash == key_hash
-        ).first()
+        api_key_record = db.query(TenantAPIKey).filter(TenantAPIKey.key_hash == key_hash).first()
         initial_count = api_key_record.usage_count or 0
 
         # Make a request
-        client.get(
-            "/api/alerts",
-            headers={"X-API-Key": api_key_tenant_a}
-        )
+        client.get("/api/alerts", headers={"X-API-Key": api_key_tenant_a})
 
         # Check usage count increased
         db.refresh(api_key_record)
@@ -260,6 +246,7 @@ class TestAPIKeyAuthentication:
 # ============================================================================
 # DATA ISOLATION TESTS
 # ============================================================================
+
 
 class TestDataIsolation:
     """Test that data is properly isolated between tenants."""
@@ -275,7 +262,7 @@ class TestDataIsolation:
                 currency="USD",
                 transaction_type="transfer",
                 timestamp=datetime.utcnow(),
-                tenant_id=tenant_a.tenant_id
+                tenant_id=tenant_a.tenant_id,
             )
             db.add(tx_a)
             db.commit()
@@ -289,7 +276,7 @@ class TestDataIsolation:
                 currency="EUR",
                 transaction_type="transfer",
                 timestamp=datetime.utcnow(),
-                tenant_id=tenant_b.tenant_id
+                tenant_id=tenant_b.tenant_id,
             )
             db.add(tx_b)
             db.commit()
@@ -297,6 +284,7 @@ class TestDataIsolation:
         # Query as tenant A - should only see tenant A transactions
         with TenantContext(tenant_a.tenant_id):
             from src.tenancy.queries import get_tenant_filtered_query
+
             tx_list = get_tenant_filtered_query(Transaction, db).all()
             tx_ids = [tx.transaction_id for tx in tx_list]
             assert "TX-A-001" in tx_ids
@@ -305,6 +293,7 @@ class TestDataIsolation:
         # Query as tenant B - should only see tenant B transactions
         with TenantContext(tenant_b.tenant_id):
             from src.tenancy.queries import get_tenant_filtered_query
+
             tx_list = get_tenant_filtered_query(Transaction, db).all()
             tx_ids = [tx.transaction_id for tx in tx_list]
             assert "TX-B-001" in tx_ids
@@ -325,7 +314,7 @@ class TestDataIsolation:
                 severity="medium",
                 user_id="user_a_001",
                 status="pending",
-                tenant_id=tenant_a.tenant_id
+                tenant_id=tenant_a.tenant_id,
             )
             db.add(alert_a)
             db.commit()
@@ -338,7 +327,7 @@ class TestDataIsolation:
                 severity="high",
                 user_id="user_b_001",
                 status="pending",
-                tenant_id=tenant_b.tenant_id
+                tenant_id=tenant_b.tenant_id,
             )
             db.add(alert_b)
             db.commit()
@@ -346,6 +335,7 @@ class TestDataIsolation:
         # Query as tenant A
         with TenantContext(tenant_a.tenant_id):
             from src.tenancy.queries import get_tenant_filtered_query
+
             alerts = get_tenant_filtered_query(Alert, db).all()
             alert_ids = [a.alert_id for a in alerts]
             assert "ALT-A-001" in alert_ids
@@ -354,6 +344,7 @@ class TestDataIsolation:
         # Query as tenant B
         with TenantContext(tenant_b.tenant_id):
             from src.tenancy.queries import get_tenant_filtered_query
+
             alerts = get_tenant_filtered_query(Alert, db).all()
             alert_ids = [a.alert_id for a in alerts]
             assert "ALT-B-001" in alert_ids
@@ -375,7 +366,7 @@ class TestDataIsolation:
                 subject_id="user_a_001",
                 status="open",
                 priority="high",
-                tenant_id=tenant_a.tenant_id
+                tenant_id=tenant_a.tenant_id,
             )
             db.add(case_a)
             db.commit()
@@ -389,7 +380,7 @@ class TestDataIsolation:
                 subject_id="user_b_001",
                 status="open",
                 priority="medium",
-                tenant_id=tenant_b.tenant_id
+                tenant_id=tenant_b.tenant_id,
             )
             db.add(case_b)
             db.commit()
@@ -397,6 +388,7 @@ class TestDataIsolation:
         # Query as tenant A
         with TenantContext(tenant_a.tenant_id):
             from src.tenancy.queries import get_tenant_filtered_query
+
             cases = get_tenant_filtered_query(Case, db).all()
             case_ids = [c.case_id for c in cases]
             assert "CASE-A-001" in case_ids
@@ -411,6 +403,7 @@ class TestDataIsolation:
 # ============================================================================
 # CROSS-TENANT ACCESS PREVENTION TESTS
 # ============================================================================
+
 
 class TestCrossTenantAccessPrevention:
     """Test that tenants cannot access each other's data."""
@@ -427,16 +420,13 @@ class TestCrossTenantAccessPrevention:
                 severity="low",
                 user_id="user_b",
                 status="pending",
-                tenant_id=tenant_b.tenant_id
+                tenant_id=tenant_b.tenant_id,
             )
             db.add(alert_b)
             db.commit()
 
         # Try to access as tenant A
-        response = client.get(
-            "/api/alerts/ALT-CROSS-001",
-            headers={"X-API-Key": api_key_tenant_a}
-        )
+        response = client.get("/api/alerts/ALT-CROSS-001", headers={"X-API-Key": api_key_tenant_a})
 
         # Should get 404 (not found) or 403 (forbidden)
         assert response.status_code in [403, 404]
@@ -458,7 +448,7 @@ class TestCrossTenantAccessPrevention:
                 currency="USD",
                 transaction_type="transfer",
                 timestamp=datetime.utcnow(),
-                tenant_id=tenant_b.tenant_id
+                tenant_id=tenant_b.tenant_id,
             )
             db.add(tx_b)
             db.commit()
@@ -467,7 +457,7 @@ class TestCrossTenantAccessPrevention:
         response = client.patch(
             "/api/transactions/TX-CROSS-001",
             headers={"X-API-Key": api_key_tenant_a},
-            json={"status": "blocked"}
+            json={"status": "blocked"},
         )
 
         # Should get 404 or 403
@@ -482,12 +472,11 @@ class TestCrossTenantAccessPrevention:
 # STATISTICS ISOLATION TESTS
 # ============================================================================
 
+
 class TestStatisticsIsolation:
     """Test that statistics and aggregations are tenant-scoped."""
 
-    def test_alert_statistics_isolation(
-        self, db: Session, tenant_a, tenant_b, api_key_tenant_a
-    ):
+    def test_alert_statistics_isolation(self, db: Session, tenant_a, tenant_b, api_key_tenant_a):
         """Test that alert statistics only show tenant's data."""
         # Create alerts for both tenants
         with TenantContext(tenant_a.tenant_id):
@@ -498,7 +487,7 @@ class TestStatisticsIsolation:
                     severity="low",
                     user_id="user_a",
                     status="pending",
-                    tenant_id=tenant_a.tenant_id
+                    tenant_id=tenant_a.tenant_id,
                 )
                 db.add(alert)
             db.commit()
@@ -511,15 +500,14 @@ class TestStatisticsIsolation:
                     severity="low",
                     user_id="user_b",
                     status="pending",
-                    tenant_id=tenant_b.tenant_id
+                    tenant_id=tenant_b.tenant_id,
                 )
                 db.add(alert)
             db.commit()
 
         # Get statistics as tenant A
         response = client.get(
-            "/api/alerts/statistics/overview",
-            headers={"X-API-Key": api_key_tenant_a}
+            "/api/alerts/statistics/overview", headers={"X-API-Key": api_key_tenant_a}
         )
 
         if response.status_code == 200:

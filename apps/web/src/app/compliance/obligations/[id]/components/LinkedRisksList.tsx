@@ -24,7 +24,9 @@ export default function LinkedRisksList({
             className="flex items-center gap-3 rounded-lg border border-gray-100 bg-gray-50/60 p-3 dark:border-slate-800 dark:bg-slate-800/40"
           >
             <div className="flex-1 min-w-0">
-              <div className="text-sm font-medium text-gray-900 dark:text-white truncate">{risk.name}</div>
+              <div className="text-sm font-medium text-gray-900 dark:text-white truncate">
+                {risk.name}
+              </div>
               <div className="text-xs text-gray-500">{risk.risk_id}</div>
             </div>
             <div className="flex items-center gap-2">
@@ -51,4 +53,3 @@ export default function LinkedRisksList({
     </div>
   );
 }
-

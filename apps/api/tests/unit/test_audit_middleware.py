@@ -14,7 +14,7 @@ def test_redact_and_parse():
     assert redacted["password"] == "***"
     assert redacted["nested"]["token"] == "***"
 
-    body = b"{\"a\": 1}"
+    body = b'{"a": 1}'
     parsed = _parse_json(body, "application/json")
     assert parsed["a"] == 1
     assert _parse_json(b"not-json", "application/json") is None

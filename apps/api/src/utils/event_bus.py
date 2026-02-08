@@ -11,6 +11,7 @@ except Exception:  # pragma: no cover - optional dependency in dev
 
 logger = logging.getLogger(__name__)
 
+
 class EventBus:
     def __init__(self, bootstrap_servers: str | None = None):
         self.bootstrap_servers = bootstrap_servers or os.getenv("KAFKA_BOOTSTRAP", "localhost:9092")
@@ -18,7 +19,9 @@ class EventBus:
 
     async def start(self):
         if AIOKafkaProducer is None:
-            raise RuntimeError("aiokafka is not installed. Install aiokafka or disable the event bus.")
+            raise RuntimeError(
+                "aiokafka is not installed. Install aiokafka or disable the event bus."
+            )
         self.producer = AIOKafkaProducer(bootstrap_servers=self.bootstrap_servers)
         await self.producer.start()
 

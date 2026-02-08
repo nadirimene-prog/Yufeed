@@ -1,6 +1,7 @@
 """
 WebSocket API endpoints for real-time notifications.
 """
+
 import json
 import logging
 from datetime import datetime, timezone
@@ -9,6 +10,8 @@ from datetime import datetime, timezone
 def utc_now() -> datetime:
     """Return current UTC time (timezone-aware)."""
     return datetime.now(timezone.utc)
+
+
 from typing import Optional
 
 from fastapi import APIRouter, WebSocket, WebSocketDisconnect, Query
@@ -23,10 +26,7 @@ router = APIRouter()
 
 
 @router.websocket("/ws")
-async def websocket_endpoint(
-    websocket: WebSocket,
-    token: Optional[str] = Query(default=None)
-):
+async def websocket_endpoint(websocket: WebSocket, token: Optional[str] = Query(default=None)):
     """
     WebSocket endpoint for real-time notifications.
 
@@ -65,7 +65,7 @@ async def websocket_endpoint(
         metadata={
             "email": email,
             "role": role,
-        }
+        },
     )
 
     try:
@@ -78,9 +78,7 @@ async def websocket_endpoint(
 
             message_type = message.get("type")
             if message_type == "ping":
-                await websocket.send_json(
-                    {"type": "pong", "timestamp": utc_now().isoformat()}
-                )
+                await websocket.send_json({"type": "pong", "timestamp": utc_now().isoformat()})
             elif message_type == "pong":
                 continue
             else:

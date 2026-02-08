@@ -2,6 +2,7 @@
 Evidence Exports API
 Export evidence bundles for cases, decisions, and travel rule requests.
 """
+
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 from sqlalchemy import and_, or_
@@ -45,7 +46,7 @@ def _model_to_dict(obj):
 def export_case_evidence(
     case_id: str,
     db: Session = Depends(get_db),
-    _: CurrentUser = Depends(require_any_role(["admin", "compliance", "auditor"]))
+    _: CurrentUser = Depends(require_any_role(["admin", "compliance", "auditor"])),
 ):
     """
     Export an evidence bundle for a case.
@@ -59,33 +60,62 @@ def export_case_evidence(
     related_alert_ids = case.related_alert_ids or []
     related_tx_ids = case.related_transaction_ids or []
 
-    alerts = db.query(Alert).filter(Alert.id.in_(related_alert_ids)).all() if related_alert_ids else []
-    transactions = db.query(Transaction).filter(Transaction.id.in_(related_tx_ids)).all() if related_tx_ids else []
+    alerts = (
+        db.query(Alert).filter(Alert.id.in_(related_alert_ids)).all() if related_alert_ids else []
+    )
+    transactions = (
+        db.query(Transaction).filter(Transaction.id.in_(related_tx_ids)).all()
+        if related_tx_ids
+        else []
+    )
 
     # Collect entity IDs for event lookup
     alert_entity_ids = [a.alert_id for a in alerts]
     tx_entity_ids = [t.transaction_id for t in transactions]
 
-    events = db.query(EventRecord).filter(
-        or_(
-            and_(EventRecord.entity_type == "case", EventRecord.entity_id == case.case_id),
-            and_(EventRecord.entity_type == "alert", EventRecord.entity_id.in_(alert_entity_ids or ["__none__"])),
-            and_(EventRecord.entity_type == "transaction", EventRecord.entity_id.in_(tx_entity_ids or ["__none__"])),
+    events = (
+        db.query(EventRecord)
+        .filter(
+            or_(
+                and_(EventRecord.entity_type == "case", EventRecord.entity_id == case.case_id),
+                and_(
+                    EventRecord.entity_type == "alert",
+                    EventRecord.entity_id.in_(alert_entity_ids or ["__none__"]),
+                ),
+                and_(
+                    EventRecord.entity_type == "transaction",
+                    EventRecord.entity_id.in_(tx_entity_ids or ["__none__"]),
+                ),
+            )
         )
-    ).all()
+        .all()
+    )
 
     event_ids = [e.event_id for e in events]
-    decisions = db.query(DecisionRecord).filter(
-        DecisionRecord.event_id.in_(event_ids or ["__none__"])
-    ).all()
+    decisions = (
+        db.query(DecisionRecord)
+        .filter(DecisionRecord.event_id.in_(event_ids or ["__none__"]))
+        .all()
+    )
 
-    audit_logs = db.query(AuditLog).filter(
-        or_(
-            and_(AuditLog.entity_type == "case", AuditLog.entity_id == case.case_id),
-            and_(AuditLog.entity_type == "alert", AuditLog.entity_id.in_(alert_entity_ids or ["__none__"])),
-            and_(AuditLog.entity_type == "transaction", AuditLog.entity_id.in_(tx_entity_ids or ["__none__"])),
+    audit_logs = (
+        db.query(AuditLog)
+        .filter(
+            or_(
+                and_(AuditLog.entity_type == "case", AuditLog.entity_id == case.case_id),
+                and_(
+                    AuditLog.entity_type == "alert",
+                    AuditLog.entity_id.in_(alert_entity_ids or ["__none__"]),
+                ),
+                and_(
+                    AuditLog.entity_type == "transaction",
+                    AuditLog.entity_id.in_(tx_entity_ids or ["__none__"]),
+                ),
+            )
         )
-    ).order_by(AuditLog.created_at.desc()).all()
+        .order_by(AuditLog.created_at.desc())
+        .all()
+    )
 
     return {
         "export_id": f"EVID-{utc_now().strftime('%Y%m%d')}-{case.case_id}",
@@ -103,36 +133,39 @@ def export_case_evidence(
 def export_decision_evidence(
     decision_id: str,
     db: Session = Depends(get_db),
-    _: CurrentUser = Depends(require_any_role(["admin", "compliance", "auditor"]))
+    _: CurrentUser = Depends(require_any_role(["admin", "compliance", "auditor"])),
 ):
     """
     Export an evidence bundle for a decision.
     """
-    decision = db.query(DecisionRecord).filter(
-        DecisionRecord.decision_id == decision_id
-    ).first()
+    decision = db.query(DecisionRecord).filter(DecisionRecord.decision_id == decision_id).first()
     if not decision:
         raise HTTPException(status_code=404, detail="Decision not found")
 
-    event = db.query(EventRecord).filter(
-        EventRecord.event_id == decision.event_id
-    ).first()
+    event = db.query(EventRecord).filter(EventRecord.event_id == decision.event_id).first()
 
     transaction = None
     alerts = []
     if event and event.entity_type == "transaction":
-        transaction = db.query(Transaction).filter(
-            Transaction.transaction_id == event.entity_id
-        ).first()
+        transaction = (
+            db.query(Transaction).filter(Transaction.transaction_id == event.entity_id).first()
+        )
         if transaction:
             alerts = db.query(Alert).filter(Alert.transaction_id == transaction.id).all()
 
-    audit_logs = db.query(AuditLog).filter(
-        or_(
-            and_(AuditLog.entity_type == "decision", AuditLog.entity_id == decision.decision_id),
-            and_(AuditLog.entity_type == "event", AuditLog.entity_id == decision.event_id),
+    audit_logs = (
+        db.query(AuditLog)
+        .filter(
+            or_(
+                and_(
+                    AuditLog.entity_type == "decision", AuditLog.entity_id == decision.decision_id
+                ),
+                and_(AuditLog.entity_type == "event", AuditLog.entity_id == decision.event_id),
+            )
         )
-    ).order_by(AuditLog.created_at.desc()).all()
+        .order_by(AuditLog.created_at.desc())
+        .all()
+    )
 
     return {
         "export_id": f"EVID-{utc_now().strftime('%Y%m%d')}-{decision.decision_id}",
@@ -149,20 +182,27 @@ def export_decision_evidence(
 def export_travel_rule_evidence(
     request_id: str,
     db: Session = Depends(get_db),
-    _: CurrentUser = Depends(require_any_role(["admin", "compliance", "auditor"]))
+    _: CurrentUser = Depends(require_any_role(["admin", "compliance", "auditor"])),
 ):
     """
     Export an evidence bundle for a travel rule request.
     """
-    request = db.query(TravelRuleRequestRecord).filter(
-        TravelRuleRequestRecord.request_id == request_id
-    ).first()
+    request = (
+        db.query(TravelRuleRequestRecord)
+        .filter(TravelRuleRequestRecord.request_id == request_id)
+        .first()
+    )
     if not request:
         raise HTTPException(status_code=404, detail="Travel rule request not found")
 
-    audit_logs = db.query(AuditLog).filter(
-        and_(AuditLog.entity_type == "travel_rule_request", AuditLog.entity_id == request_id)
-    ).order_by(AuditLog.created_at.desc()).all()
+    audit_logs = (
+        db.query(AuditLog)
+        .filter(
+            and_(AuditLog.entity_type == "travel_rule_request", AuditLog.entity_id == request_id)
+        )
+        .order_by(AuditLog.created_at.desc())
+        .all()
+    )
 
     return {
         "export_id": f"EVID-{utc_now().strftime('%Y%m%d')}-{request.request_id}",

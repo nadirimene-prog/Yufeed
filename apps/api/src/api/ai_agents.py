@@ -2,6 +2,7 @@
 AI Agents API Endpoints
 Exposes AI-powered compliance analysis and triage capabilities.
 """
+
 from fastapi import APIRouter, Depends, HTTPException, BackgroundTasks
 from sqlalchemy.orm import Session
 from typing import List, Optional
@@ -24,6 +25,7 @@ router = APIRouter(
 # ============================================================================
 # REQUEST/RESPONSE SCHEMAS
 # ============================================================================
+
 
 class TriageRequest(BaseModel):
     alert_id: int
@@ -66,11 +68,9 @@ class EnrichmentRequest(BaseModel):
 # ALERT TRIAGE ENDPOINTS
 # ============================================================================
 
+
 @router.post("/triage", response_model=TriageResponse)
-def triage_alert(
-    request: TriageRequest,
-    db: Session = Depends(get_db)
-):
+def triage_alert(request: TriageRequest, db: Session = Depends(get_db)):
     """
     Perform AI-powered triage on a single alert.
 
@@ -107,10 +107,7 @@ def triage_alert(
             },
         )
 
-        return TriageResponse(
-            alert_id=alert.alert_id,
-            **analysis
-        )
+        return TriageResponse(alert_id=alert.alert_id, **analysis)
 
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Triage failed: {str(e)}")
@@ -118,9 +115,7 @@ def triage_alert(
 
 @router.post("/triage/batch")
 def batch_triage_alerts(
-    request: BatchTriageRequest,
-    background_tasks: BackgroundTasks,
-    db: Session = Depends(get_db)
+    request: BatchTriageRequest, background_tasks: BackgroundTasks, db: Session = Depends(get_db)
 ):
     """
     Triage multiple pending alerts in batch.
@@ -130,10 +125,7 @@ def batch_triage_alerts(
     agent = AlertTriageAgent(db)
 
     # Run batch triage in background
-    background_tasks.add_task(
-        agent.batch_triage_pending_alerts,
-        limit=request.limit
-    )
+    background_tasks.add_task(agent.batch_triage_pending_alerts, limit=request.limit)
 
     publish_event_safe(
         "events.raw",
@@ -150,7 +142,7 @@ def batch_triage_alerts(
     return {
         "status": "started",
         "message": f"Batch triage of up to {request.limit} alerts initiated",
-        "note": "Processing in background. Check alert statuses for updates."
+        "note": "Processing in background. Check alert statuses for updates.",
     }
 
 
@@ -161,21 +153,16 @@ def get_pending_triage_count(db: Session = Depends(get_db)):
     """
     from sqlalchemy import func, and_
 
-    pending_count = db.query(func.count(Alert.id)).filter(
-        Alert.status == 'pending'
-    ).scalar() or 0
+    pending_count = db.query(func.count(Alert.id)).filter(Alert.status == "pending").scalar() or 0
 
     return {
         "pending_alerts": pending_count,
-        "recommendation": "Run batch triage" if pending_count > 10 else "No action needed"
+        "recommendation": "Run batch triage" if pending_count > 10 else "No action needed",
     }
 
 
 @router.get("/investigation-report/{alert_id}")
-def generate_investigation_report(
-    alert_id: int,
-    db: Session = Depends(get_db)
-):
+def generate_investigation_report(alert_id: int, db: Session = Depends(get_db)):
     """
     Generate a detailed investigation report for an alert.
 
@@ -206,7 +193,7 @@ def generate_investigation_report(
         return {
             "alert_id": alert.alert_id,
             "report": report,
-            "generated_at": "now"  # TODO: Add timestamp
+            "generated_at": "now",  # TODO: Add timestamp
         }
 
     except Exception as e:
@@ -217,11 +204,9 @@ def generate_investigation_report(
 # REGULATORY ENRICHMENT ENDPOINTS
 # ============================================================================
 
+
 @router.post("/enrich/regulatory-context")
-def enrich_regulatory_context(
-    request: EnrichmentRequest,
-    db: Session = Depends(get_db)
-):
+def enrich_regulatory_context(request: EnrichmentRequest, db: Session = Depends(get_db)):
     """
     Enrich an alert with AI-generated regulatory context.
 
@@ -254,7 +239,7 @@ def enrich_regulatory_context(
         return {
             "alert_id": alert.alert_id,
             "regulatory_context": context,
-            "related_regulations": alert.related_regulations
+            "related_regulations": alert.related_regulations,
         }
 
     except Exception as e:
@@ -263,9 +248,7 @@ def enrich_regulatory_context(
 
 @router.post("/enrich/batch")
 def batch_enrich_alerts(
-    alert_ids: List[int],
-    background_tasks: BackgroundTasks,
-    db: Session = Depends(get_db)
+    alert_ids: List[int], background_tasks: BackgroundTasks, db: Session = Depends(get_db)
 ):
     """
     Enrich multiple alerts with regulatory context in batch.
@@ -278,10 +261,7 @@ def batch_enrich_alerts(
         raise HTTPException(status_code=404, detail="Some alerts not found")
 
     # Run enrichment in background
-    background_tasks.add_task(
-        service.batch_enrich_alerts,
-        alert_ids
-    )
+    background_tasks.add_task(service.batch_enrich_alerts, alert_ids)
 
     publish_event_safe(
         "events.raw",
@@ -299,15 +279,12 @@ def batch_enrich_alerts(
     return {
         "status": "started",
         "message": f"Batch enrichment of {len(alert_ids)} alerts initiated",
-        "alert_count": len(alert_ids)
+        "alert_count": len(alert_ids),
     }
 
 
 @router.post("/enrich/auto-link-regulations")
-def auto_link_regulations(
-    request: EnrichmentRequest,
-    db: Session = Depends(get_db)
-):
+def auto_link_regulations(request: EnrichmentRequest, db: Session = Depends(get_db)):
     """
     Automatically find and link relevant regulations to an alert.
 
@@ -339,7 +316,7 @@ def auto_link_regulations(
         return {
             "alert_id": alert.alert_id,
             "linked_regulations": regulation_ids,
-            "count": len(regulation_ids)
+            "count": len(regulation_ids),
         }
 
     except Exception as e:
@@ -350,11 +327,10 @@ def auto_link_regulations(
 # SAR GENERATION ENDPOINTS
 # ============================================================================
 
+
 @router.post("/sar/draft", response_model=SARDraftResponse)
 def generate_sar_draft(
-    alert_id: int,
-    include_narrative: bool = True,
-    db: Session = Depends(get_db)
+    alert_id: int, include_narrative: bool = True, db: Session = Depends(get_db)
 ):
     """
     Generate a draft Suspicious Activity Report (SAR) for an alert.
@@ -392,10 +368,7 @@ def generate_sar_draft(
 
 
 @router.get("/sar/preview/{alert_id}")
-def preview_sar(
-    alert_id: int,
-    db: Session = Depends(get_db)
-):
+def preview_sar(alert_id: int, db: Session = Depends(get_db)):
     """
     Preview SAR data without full narrative generation.
 
@@ -428,7 +401,7 @@ def preview_sar(
             "alert_id": alert.alert_id,
             "sar_preview": sar_draft,
             "sar_worthy": True,  # TODO: Add logic to determine SAR-worthiness
-            "filing_reason": sar_draft.get("filing_reason")
+            "filing_reason": sar_draft.get("filing_reason"),
         }
 
     except Exception as e:
@@ -438,6 +411,7 @@ def preview_sar(
 # ============================================================================
 # AI AGENT STATUS
 # ============================================================================
+
 
 @router.get("/status")
 def get_ai_status():
@@ -454,10 +428,14 @@ def get_ai_status():
             "alert_triage": anthropic_key_set,
             "regulatory_enrichment": anthropic_key_set,
             "sar_generation": anthropic_key_set,
-            "investigation_reports": anthropic_key_set
+            "investigation_reports": anthropic_key_set,
         },
         "model": "claude-sonnet-4-20250514" if anthropic_key_set else None,
-        "note": "Set ANTHROPIC_API_KEY to enable AI features" if not anthropic_key_set else "All AI features available"
+        "note": (
+            "Set ANTHROPIC_API_KEY to enable AI features"
+            if not anthropic_key_set
+            else "All AI features available"
+        ),
     }
 
 
@@ -469,22 +447,22 @@ def get_ai_analytics(db: Session = Depends(get_db)):
     from sqlalchemy import func, and_
 
     # Count auto-resolved alerts
-    auto_resolved = db.query(func.count(Alert.id)).filter(
-        Alert.resolved_by == 'AI_AGENT'
-    ).scalar() or 0
+    auto_resolved = (
+        db.query(func.count(Alert.id)).filter(Alert.resolved_by == "AI_AGENT").scalar() or 0
+    )
 
     # Count escalated by AI
-    auto_escalated = db.query(func.count(Alert.id)).filter(
-        and_(
-            Alert.status == 'escalated',
-            Alert.resolution_notes.like('%AI TRIAGE%')
-        )
-    ).scalar() or 0
+    auto_escalated = (
+        db.query(func.count(Alert.id))
+        .filter(and_(Alert.status == "escalated", Alert.resolution_notes.like("%AI TRIAGE%")))
+        .scalar()
+        or 0
+    )
 
     # Count enriched alerts
-    enriched = db.query(func.count(Alert.id)).filter(
-        Alert.regulation_context.isnot(None)
-    ).scalar() or 0
+    enriched = (
+        db.query(func.count(Alert.id)).filter(Alert.regulation_context.isnot(None)).scalar() or 0
+    )
 
     total_alerts = db.query(func.count(Alert.id)).scalar() or 0
 
@@ -494,5 +472,7 @@ def get_ai_analytics(db: Session = Depends(get_db)):
         "ai_escalated": auto_escalated,
         "regulatory_enriched": enriched,
         "enrichment_rate": (enriched / total_alerts * 100) if total_alerts > 0 else 0,
-        "automation_rate": ((auto_resolved + auto_escalated) / total_alerts * 100) if total_alerts > 0 else 0
+        "automation_rate": (
+            ((auto_resolved + auto_escalated) / total_alerts * 100) if total_alerts > 0 else 0
+        ),
     }

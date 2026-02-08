@@ -1,4 +1,5 @@
 """Unit tests for Official Journal act-by-act parsing helpers."""
+
 import pytest
 
 from src.ingestion.cellar import CellarClient

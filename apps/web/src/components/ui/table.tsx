@@ -33,7 +33,7 @@ const TableHeader = React.forwardRef<
     className={cn(
       "[&_tr]:border-b [&_tr]:border-white/[0.06]",
       "bg-white/[0.02]",
-      className
+      className,
     )}
     {...props}
   />
@@ -60,7 +60,7 @@ const TableFooter = React.forwardRef<
     ref={ref}
     className={cn(
       "border-t border-white/[0.06] bg-white/[0.02] font-medium [&>tr]:last:border-b-0",
-      className
+      className,
     )}
     {...props}
   />
@@ -77,7 +77,7 @@ const TableRow = React.forwardRef<
       "border-b border-white/[0.04] transition-colors",
       "hover:bg-white/[0.03]",
       "data-[state=selected]:bg-[#6d5acd]/10",
-      className
+      className,
     )}
     {...props}
   />
@@ -94,7 +94,7 @@ const TableHead = React.forwardRef<
       "h-11 px-4 text-left align-middle",
       "text-xs font-semibold uppercase tracking-wider text-white/40",
       "[&:has([role=checkbox])]:pr-0 [&>[role=checkbox]]:translate-y-[2px]",
-      className
+      className,
     )}
     {...props}
   />
@@ -110,7 +110,7 @@ const TableCell = React.forwardRef<
     className={cn(
       "px-4 py-3 align-middle text-white/80",
       "[&:has([role=checkbox])]:pr-0 [&>[role=checkbox]]:translate-y-[2px]",
-      className
+      className,
     )}
     {...props}
   />
@@ -136,22 +136,23 @@ interface GlassTableContainerProps extends React.HTMLAttributes<HTMLDivElement> 
   children: React.ReactNode;
 }
 
-const GlassTableContainer = React.forwardRef<HTMLDivElement, GlassTableContainerProps>(
-  ({ className, children, ...props }, ref) => (
-    <div
-      ref={ref}
-      className={cn(
-        "rounded-xl overflow-hidden",
-        "border border-white/[0.06]",
-        "bg-white/[0.02] backdrop-blur-sm",
-        className
-      )}
-      {...props}
-    >
-      {children}
-    </div>
-  )
-);
+const GlassTableContainer = React.forwardRef<
+  HTMLDivElement,
+  GlassTableContainerProps
+>(({ className, children, ...props }, ref) => (
+  <div
+    ref={ref}
+    className={cn(
+      "rounded-xl overflow-hidden",
+      "border border-white/[0.06]",
+      "bg-white/[0.02] backdrop-blur-sm",
+      className,
+    )}
+    {...props}
+  >
+    {children}
+  </div>
+));
 GlassTableContainer.displayName = "GlassTableContainer";
 
 /**
@@ -168,13 +169,13 @@ const TableToolbar = React.forwardRef<HTMLDivElement, TableToolbarProps>(
       className={cn(
         "flex items-center justify-between gap-4 p-4",
         "border-b border-white/[0.06]",
-        className
+        className,
       )}
       {...props}
     >
       {children}
     </div>
-  )
+  ),
 );
 TableToolbar.displayName = "TableToolbar";
 
@@ -193,13 +194,13 @@ const TablePagination = React.forwardRef<HTMLDivElement, TablePaginationProps>(
         "flex items-center justify-between gap-4 px-4 py-3",
         "border-t border-white/[0.06]",
         "text-sm text-white/50",
-        className
+        className,
       )}
       {...props}
     >
       {children}
     </div>
-  )
+  ),
 );
 TablePagination.displayName = "TablePagination";
 

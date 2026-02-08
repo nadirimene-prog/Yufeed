@@ -4,6 +4,7 @@ Revision ID: m7n8o9p2q3r4
 Revises: l6m7n8o9p1
 Create Date: 2026-01-31
 """
+
 from alembic import op
 import sqlalchemy as sa
 
@@ -21,6 +22,7 @@ def upgrade():
 
     if dialect == "postgresql":
         from sqlalchemy.dialects.postgresql import JSONB
+
         json_type = JSONB
     else:
         json_type = sa.JSON
@@ -41,8 +43,12 @@ def upgrade():
         sa.Column("token_count", sa.Integer(), nullable=True),
         sa.Column("char_count", sa.Integer(), nullable=True),
         sa.Column("metadata", json_type, nullable=True),
-        sa.Column("created_at", sa.DateTime(timezone=True), server_default=sa.func.now(), nullable=False),
-        sa.Column("updated_at", sa.DateTime(timezone=True), server_default=sa.func.now(), nullable=True),
+        sa.Column(
+            "created_at", sa.DateTime(timezone=True), server_default=sa.func.now(), nullable=False
+        ),
+        sa.Column(
+            "updated_at", sa.DateTime(timezone=True), server_default=sa.func.now(), nullable=True
+        ),
     )
 
     op.create_index("ix_legal_chunks_chunk_id", "legal_chunks", ["chunk_id"], unique=True)

@@ -2,6 +2,7 @@
 WebSocket connection manager for real-time notifications.
 Phase 4B: Task 6.1 & 6.2 - WebSocket Server Setup & Event Notification System
 """
+
 import logging
 import asyncio
 from typing import Dict, Set, List, Optional, Tuple
@@ -12,6 +13,7 @@ from datetime import datetime, timezone
 def utc_now() -> datetime:
     """Return current UTC time (timezone-aware)."""
     return datetime.now(timezone.utc)
+
 
 from src.websocket.events import NotificationEvent, EventType
 from src.monitoring.metrics import websocket_connections_active, websocket_messages_sent_total
@@ -42,11 +44,7 @@ class ConnectionManager:
         self.connection_metadata: Dict[WebSocket, Dict] = {}
 
     async def connect(
-        self,
-        websocket: WebSocket,
-        tenant_id: str,
-        user_id: str,
-        metadata: Optional[Dict] = None
+        self, websocket: WebSocket, tenant_id: str, user_id: str, metadata: Optional[Dict] = None
     ):
         """
         Accept and register a WebSocket connection.
@@ -76,7 +74,7 @@ class ConnectionManager:
             "tenant_id": tenant_id,
             "user_id": user_id,
             "connected_at": utc_now(),
-            "metadata": metadata or {}
+            "metadata": metadata or {},
         }
 
         # Update metrics
@@ -97,8 +95,8 @@ class ConnectionManager:
                 "message": "Connected to YuFeed real-time notifications",
                 "tenant_id": tenant_id,
                 "user_id": user_id,
-                "timestamp": utc_now().isoformat()
-            }
+                "timestamp": utc_now().isoformat(),
+            },
         )
 
     def disconnect(self, websocket: WebSocket):
@@ -223,7 +221,9 @@ class ConnectionManager:
                         event_type=message.get("event_type", "broadcast")
                     ).inc()
                 except Exception as e:
-                    logger.warning("Failed to global broadcast to tenant=%s user=%s: %s", tenant_id, user_id, e)
+                    logger.warning(
+                        "Failed to global broadcast to tenant=%s user=%s: %s", tenant_id, user_id, e
+                    )
                     disconnected.append(websocket)
 
         for ws in disconnected:
@@ -244,7 +244,7 @@ class ConnectionManager:
         self,
         notification: NotificationEvent,
         tenant_id: Optional[str] = None,
-        target_user: Optional[str] = None
+        target_user: Optional[str] = None,
     ):
         """
         Send notification event to target user or all users.
@@ -261,7 +261,7 @@ class ConnectionManager:
             "data": notification.data,
             "timestamp": notification.timestamp.isoformat(),
             "priority": notification.priority,
-            "link": notification.link
+            "link": notification.link,
         }
 
         target = target_user or notification.user_id
@@ -273,10 +273,7 @@ class ConnectionManager:
             await self.broadcast_global(message)
 
     async def send_system_alert(
-        self,
-        message: str,
-        severity: str = "info",
-        data: Optional[Dict] = None
+        self, message: str, severity: str = "info", data: Optional[Dict] = None
     ):
         """
         Send system-wide alert to all users.
@@ -292,7 +289,7 @@ class ConnectionManager:
             "message": message,
             "severity": severity,
             "data": data or {},
-            "timestamp": utc_now().isoformat()
+            "timestamp": utc_now().isoformat(),
         }
 
         await self.broadcast_global(alert)
@@ -301,10 +298,7 @@ class ConnectionManager:
         """
         Send ping to all connections to check health.
         """
-        ping_message = {
-            "type": "ping",
-            "timestamp": utc_now().isoformat()
-        }
+        ping_message = {"type": "ping", "timestamp": utc_now().isoformat()}
 
         disconnected = []
 

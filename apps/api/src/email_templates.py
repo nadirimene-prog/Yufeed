@@ -1,6 +1,7 @@
 """
 Email templates for Yufeed notifications.
 """
+
 from datetime import datetime, timezone
 from typing import List, Dict, Any
 
@@ -8,6 +9,7 @@ from typing import List, Dict, Any
 def utc_now() -> datetime:
     """Return current UTC time (timezone-aware)."""
     return datetime.now(timezone.utc)
+
 
 def get_email_header() -> str:
     """Common email header with styling."""
@@ -108,6 +110,7 @@ def get_email_header() -> str:
     <body>
     """
 
+
 def get_email_footer() -> str:
     """Common email footer."""
     return """
@@ -118,6 +121,7 @@ def get_email_footer() -> str:
     </body>
     </html>
     """
+
 
 def daily_digest_template(documents: List[Dict[str, Any]], date: str = None) -> str:
     """Generate daily digest email HTML."""
@@ -146,11 +150,15 @@ def daily_digest_template(documents: List[Dict[str, Any]], date: str = None) -> 
             risk_badge = ""
             if doc.get("risk_level"):
                 risk_class = f"badge-{doc['risk_level']}"
-                risk_badge = f'<span class="badge {risk_class}">{doc["risk_level"].upper()} RISK</span>'
+                risk_badge = (
+                    f'<span class="badge {risk_class}">{doc["risk_level"].upper()} RISK</span>'
+                )
 
             domain_badge = ""
             if doc.get("compliance_domain"):
-                domain_badge = f'<span class="badge badge-domain">{doc["compliance_domain"].upper()}</span>'
+                domain_badge = (
+                    f'<span class="badge badge-domain">{doc["compliance_domain"].upper()}</span>'
+                )
 
             html += f"""
             <div class="document-card">
@@ -172,6 +180,7 @@ def daily_digest_template(documents: List[Dict[str, Any]], date: str = None) -> 
     """
     html += get_email_footer()
     return html
+
 
 def watchlist_alert_template(watchlist_name: str, documents: List[Dict[str, Any]]) -> str:
     """Generate watchlist-specific alert email."""
@@ -204,7 +213,10 @@ def watchlist_alert_template(watchlist_name: str, documents: List[Dict[str, Any]
     html += get_email_footer()
     return html
 
-def compliance_alert_template(high_risk_docs: List[Dict[str, Any]], upcoming_deadlines: List[Dict[str, Any]]) -> str:
+
+def compliance_alert_template(
+    high_risk_docs: List[Dict[str, Any]], upcoming_deadlines: List[Dict[str, Any]]
+) -> str:
     """Generate compliance-focused alert email."""
     html = get_email_header()
     html += """
@@ -240,7 +252,7 @@ def compliance_alert_template(high_risk_docs: List[Dict[str, Any]], upcoming_dea
         """
 
         for doc in upcoming_deadlines:
-            deadline_date = doc.get('implementation_deadline', 'Unknown')
+            deadline_date = doc.get("implementation_deadline", "Unknown")
             if isinstance(deadline_date, datetime):
                 deadline_date = deadline_date.strftime("%B %d, %Y")
 
@@ -260,6 +272,7 @@ def compliance_alert_template(high_risk_docs: List[Dict[str, Any]], upcoming_dea
     """
     html += get_email_footer()
     return html
+
 
 def test_email_template() -> str:
     """Generate test email for verification."""

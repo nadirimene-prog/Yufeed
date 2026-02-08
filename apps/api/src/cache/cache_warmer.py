@@ -2,6 +2,7 @@
 Cache warming service to preload frequently accessed data on startup.
 Phase 4A: Task 3.3 - Add cache warming on startup
 """
+
 import logging
 from typing import List
 from sqlalchemy.orm import Session
@@ -11,7 +12,7 @@ from src.cache.cached_queries import (
     get_cached_sanctions_list,
     get_cached_dashboard_stats,
     _fetch_active_rules,
-    _compute_dashboard_stats
+    _compute_dashboard_stats,
 )
 from src.cache.cache_manager import cache_manager
 from src.database import SessionLocal
@@ -55,7 +56,7 @@ class CacheWarmer:
             logger.error(f"Cache warming failed: {e}", exc_info=True)
 
         finally:
-            if 'db' in locals():
+            if "db" in locals():
                 db.close()
 
     def warm_rules_cache(self, db: Session):
@@ -137,12 +138,17 @@ class CacheWarmer:
                     "total_commands_processed": info.get("total_commands_processed", 0),
                     "keyspace_hits": info.get("keyspace_hits", 0),
                     "keyspace_misses": info.get("keyspace_misses", 0),
-                    "hit_rate": round(
-                        info.get("keyspace_hits", 0) /
-                        (info.get("keyspace_hits", 0) + info.get("keyspace_misses", 1)) * 100,
-                        2
-                    ) if (info.get("keyspace_hits", 0) + info.get("keyspace_misses", 0)) > 0 else 0
-                }
+                    "hit_rate": (
+                        round(
+                            info.get("keyspace_hits", 0)
+                            / (info.get("keyspace_hits", 0) + info.get("keyspace_misses", 1))
+                            * 100,
+                            2,
+                        )
+                        if (info.get("keyspace_hits", 0) + info.get("keyspace_misses", 0)) > 0
+                        else 0
+                    ),
+                },
             }
 
         except Exception as e:
@@ -150,7 +156,7 @@ class CacheWarmer:
             return {
                 "enabled": cache_manager.enabled,
                 "warmed_namespaces": self.warmed_namespaces,
-                "error": str(e)
+                "error": str(e),
             }
 
 

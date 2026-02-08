@@ -333,7 +333,8 @@ export const cardHover: Variants = {
   },
   hover: {
     y: -4,
-    boxShadow: "0 16px 48px rgba(0, 0, 0, 0.2), 0 0 0 1px rgba(109, 90, 205, 0.1)",
+    boxShadow:
+      "0 16px 48px rgba(0, 0, 0, 0.2), 0 0 0 1px rgba(109, 90, 205, 0.1)",
     transition: springs.snappy,
   },
   tap: {
@@ -548,7 +549,7 @@ export function withDelay(transition: Transition, delay: number): Transition {
  */
 export function createStaggerContainer(
   staggerChildren = 0.05,
-  delayChildren = 0.1
+  delayChildren = 0.1,
 ): Variants {
   return {
     initial: {},
@@ -576,7 +577,7 @@ export function prefersReducedMotion(): boolean {
  */
 export function getReducedMotionVariants(
   variants: Variants,
-  reducedVariants?: Variants
+  reducedVariants?: Variants,
 ): Variants {
   if (prefersReducedMotion()) {
     return (
@@ -645,7 +646,7 @@ export const reducedModalAnimation: Variants = {
  */
 export function getMotionSafeVariants<T extends Variants>(
   fullVariants: T,
-  reducedVariants?: Variants
+  reducedVariants?: Variants,
 ): Variants {
   if (typeof window === "undefined") return fullVariants;
 
@@ -660,7 +661,7 @@ export function getMotionSafeVariants<T extends Variants>(
  * Returns instant transition when user prefers reduced motion
  */
 export function getMotionSafeTransition(
-  fullTransition: Transition
+  fullTransition: Transition,
 ): Transition {
   if (typeof window === "undefined") return fullTransition;
 
@@ -738,7 +739,9 @@ export const motionSafePresets = {
 
   /** Staggered list with reduced motion fallback */
   staggeredList: () => ({
-    container: prefersReducedMotion() ? reducedStaggerContainer : staggerContainer,
+    container: prefersReducedMotion()
+      ? reducedStaggerContainer
+      : staggerContainer,
     item: prefersReducedMotion() ? reducedStaggerItem : staggerItem,
   }),
 
@@ -826,7 +829,7 @@ export function useReducedMotion(): boolean {
  */
 export function useMotionSafeVariants(
   fullVariants: Variants,
-  reducedVariants: Variants = reducedFadeIn
+  reducedVariants: Variants = reducedFadeIn,
 ): Variants {
   const prefersReduced = useReducedMotion();
   return prefersReduced ? reducedVariants : fullVariants;
@@ -836,7 +839,7 @@ export function useMotionSafeVariants(
  * Hook that returns appropriate transition based on motion preference
  */
 export function useMotionSafeTransition(
-  fullTransition: Transition
+  fullTransition: Transition,
 ): Transition {
   const prefersReduced = useReducedMotion();
   return prefersReduced ? { duration: 0 } : fullTransition;

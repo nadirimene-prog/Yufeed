@@ -4,6 +4,7 @@ Revision ID: 6c9d1a2b3c4d
 Revises: 5b6c7d8e9f01
 Create Date: 2026-01-23 12:15:00.000000
 """
+
 from alembic import op
 import sqlalchemy as sa
 from sqlalchemy.dialects import postgresql
@@ -19,7 +20,9 @@ depends_on = None
 def upgrade():
     bind = op.get_bind()
     inspector = sa.inspect(bind)
-    json_type = postgresql.JSONB(astext_type=sa.Text()) if bind.dialect.name == "postgresql" else sa.JSON()
+    json_type = (
+        postgresql.JSONB(astext_type=sa.Text()) if bind.dialect.name == "postgresql" else sa.JSON()
+    )
 
     # Add source metadata to legal_documents
     existing_columns = {col["name"] for col in inspector.get_columns("legal_documents")}
@@ -54,13 +57,17 @@ def upgrade():
         sa.Column("created_at", sa.DateTime(), nullable=False, server_default=sa.func.now()),
         sa.Column("updated_at", sa.DateTime(), nullable=True, onupdate=sa.func.now()),
     )
-    op.create_index("ix_regulatory_sources_source_key", "regulatory_sources", ["source_key"], unique=True)
+    op.create_index(
+        "ix_regulatory_sources_source_key", "regulatory_sources", ["source_key"], unique=True
+    )
 
     # Ingestion runs
     op.create_table(
         "ingestion_runs",
         sa.Column("id", sa.Integer(), primary_key=True),
-        sa.Column("source_id", sa.Integer(), sa.ForeignKey("regulatory_sources.id"), nullable=False),
+        sa.Column(
+            "source_id", sa.Integer(), sa.ForeignKey("regulatory_sources.id"), nullable=False
+        ),
         sa.Column("status", sa.String(length=50), nullable=False, server_default="running"),
         sa.Column("started_at", sa.DateTime(), nullable=False, server_default=sa.func.now()),
         sa.Column("completed_at", sa.DateTime(), nullable=True),
@@ -86,7 +93,12 @@ def upgrade():
         sa.Column("created_at", sa.DateTime(), nullable=False, server_default=sa.func.now()),
         sa.Column("updated_at", sa.DateTime(), nullable=True, onupdate=sa.func.now()),
     )
-    op.create_index("ix_legal_document_texts_doc_language", "legal_document_texts", ["doc_id", "language"], unique=True)
+    op.create_index(
+        "ix_legal_document_texts_doc_language",
+        "legal_document_texts",
+        ["doc_id", "language"],
+        unique=True,
+    )
 
     # Regulatory obligations
     op.create_table(
@@ -109,8 +121,15 @@ def upgrade():
         sa.Column("created_at", sa.DateTime(), nullable=False, server_default=sa.func.now()),
         sa.Column("updated_at", sa.DateTime(), nullable=True, onupdate=sa.func.now()),
     )
-    op.create_index("ix_regulatory_obligations_obligation_id", "regulatory_obligations", ["obligation_id"], unique=True)
-    op.create_index("ix_regulatory_obligations_doc_id", "regulatory_obligations", ["doc_id"], unique=False)
+    op.create_index(
+        "ix_regulatory_obligations_obligation_id",
+        "regulatory_obligations",
+        ["obligation_id"],
+        unique=True,
+    )
+    op.create_index(
+        "ix_regulatory_obligations_doc_id", "regulatory_obligations", ["doc_id"], unique=False
+    )
 
     # Policy documents
     op.create_table(
@@ -153,8 +172,15 @@ def upgrade():
         "internal_rules",
         sa.Column("id", sa.Integer(), primary_key=True),
         sa.Column("internal_rule_id", sa.String(length=64), nullable=False, unique=True),
-        sa.Column("obligation_id", sa.Integer(), sa.ForeignKey("regulatory_obligations.id"), nullable=False),
-        sa.Column("policy_section_id", sa.Integer(), sa.ForeignKey("policy_sections.id"), nullable=True),
+        sa.Column(
+            "obligation_id",
+            sa.Integer(),
+            sa.ForeignKey("regulatory_obligations.id"),
+            nullable=False,
+        ),
+        sa.Column(
+            "policy_section_id", sa.Integer(), sa.ForeignKey("policy_sections.id"), nullable=True
+        ),
         sa.Column("name", sa.String(length=255), nullable=False),
         sa.Column("description", sa.Text(), nullable=True),
         sa.Column("control_owner", sa.String(length=255), nullable=True),
@@ -166,24 +192,49 @@ def upgrade():
         sa.Column("created_at", sa.DateTime(), nullable=False, server_default=sa.func.now()),
         sa.Column("updated_at", sa.DateTime(), nullable=True, onupdate=sa.func.now()),
     )
-    op.create_index("ix_internal_rules_internal_rule_id", "internal_rules", ["internal_rule_id"], unique=True)
-    op.create_index("ix_internal_rules_obligation_id", "internal_rules", ["obligation_id"], unique=False)
+    op.create_index(
+        "ix_internal_rules_internal_rule_id", "internal_rules", ["internal_rule_id"], unique=True
+    )
+    op.create_index(
+        "ix_internal_rules_obligation_id", "internal_rules", ["obligation_id"], unique=False
+    )
 
     # Internal rule mappings to monitoring rules
     op.create_table(
         "internal_rule_mappings",
         sa.Column("id", sa.Integer(), primary_key=True),
-        sa.Column("internal_rule_id", sa.Integer(), sa.ForeignKey("internal_rules.id"), nullable=False),
-        sa.Column("monitoring_rule_id", sa.Integer(), sa.ForeignKey("monitoring_rules.id"), nullable=True),
-        sa.Column("mapping_type", sa.String(length=50), nullable=False, server_default="transaction_monitoring"),
+        sa.Column(
+            "internal_rule_id", sa.Integer(), sa.ForeignKey("internal_rules.id"), nullable=False
+        ),
+        sa.Column(
+            "monitoring_rule_id", sa.Integer(), sa.ForeignKey("monitoring_rules.id"), nullable=True
+        ),
+        sa.Column(
+            "mapping_type",
+            sa.String(length=50),
+            nullable=False,
+            server_default="transaction_monitoring",
+        ),
         sa.Column("created_at", sa.DateTime(), nullable=False, server_default=sa.func.now()),
     )
-    op.create_index("ix_internal_rule_mappings_internal_rule_id", "internal_rule_mappings", ["internal_rule_id"], unique=False)
-    op.create_index("ix_internal_rule_mappings_monitoring_rule_id", "internal_rule_mappings", ["monitoring_rule_id"], unique=False)
+    op.create_index(
+        "ix_internal_rule_mappings_internal_rule_id",
+        "internal_rule_mappings",
+        ["internal_rule_id"],
+        unique=False,
+    )
+    op.create_index(
+        "ix_internal_rule_mappings_monitoring_rule_id",
+        "internal_rule_mappings",
+        ["monitoring_rule_id"],
+        unique=False,
+    )
 
 
 def downgrade():
-    op.drop_index("ix_internal_rule_mappings_monitoring_rule_id", table_name="internal_rule_mappings")
+    op.drop_index(
+        "ix_internal_rule_mappings_monitoring_rule_id", table_name="internal_rule_mappings"
+    )
     op.drop_index("ix_internal_rule_mappings_internal_rule_id", table_name="internal_rule_mappings")
     op.drop_table("internal_rule_mappings")
 

@@ -32,4 +32,3 @@ export interface MonitoringCase {
   related_alert_ids?: number[];
   related_transaction_ids?: number[];
 }
-

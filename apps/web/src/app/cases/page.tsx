@@ -1,17 +1,24 @@
-'use client';
+"use client";
 
-import { useState } from 'react';
-import { useRouter } from 'next/navigation';
-import { Folder, Search, Clock, CheckCircle, AlertTriangle, FileText } from 'lucide-react';
+import { useState } from "react";
+import { useRouter } from "next/navigation";
+import {
+  Folder,
+  Search,
+  Clock,
+  CheckCircle,
+  AlertTriangle,
+  FileText,
+} from "lucide-react";
 import { useMonitoringCases } from "@/hooks/queries/useMonitoringData";
 import type { MonitoringCase } from "@/types/monitoring";
 
 export default function CasesPage() {
   const router = useRouter();
   const [filters, setFilters] = useState({
-    status: 'all',
-    severity: 'all',
-    search: ''
+    status: "all",
+    severity: "all",
+    search: "",
   });
 
   const casesQuery = useMonitoringCases({
@@ -23,31 +30,33 @@ export default function CasesPage() {
   const cases = casesQuery.data ?? [];
   const loading = casesQuery.isLoading;
 
-  const filteredCases = cases.filter(caseItem => {
+  const filteredCases = cases.filter((caseItem) => {
     if (filters.search) {
       const searchLower = filters.search.toLowerCase();
       return (
         caseItem.case_id.toLowerCase().includes(searchLower) ||
-        (caseItem.subject_id && caseItem.subject_id.toLowerCase().includes(searchLower)) ||
-        (caseItem.description && caseItem.description.toLowerCase().includes(searchLower))
+        caseItem.subject_id?.toLowerCase().includes(searchLower) ||
+        caseItem.description?.toLowerCase().includes(searchLower)
       );
     }
     return true;
   });
 
   const statusColors = {
-    open: 'bg-blue-100 text-blue-800 dark:bg-blue-900/20 dark:text-blue-400',
-    under_investigation: 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900/20 dark:text-yellow-400',
-    escalated: 'bg-orange-100 text-orange-800 dark:bg-orange-900/20 dark:text-orange-400',
-    closed: 'bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-300',
-    sar_filed: 'bg-red-100 text-red-800 dark:bg-red-900/20 dark:text-red-400',
+    open: "bg-blue-100 text-blue-800 dark:bg-blue-900/20 dark:text-blue-400",
+    under_investigation:
+      "bg-yellow-100 text-yellow-800 dark:bg-yellow-900/20 dark:text-yellow-400",
+    escalated:
+      "bg-orange-100 text-orange-800 dark:bg-orange-900/20 dark:text-orange-400",
+    closed: "bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-300",
+    sar_filed: "bg-red-100 text-red-800 dark:bg-red-900/20 dark:text-red-400",
   } as const;
 
   const severityColors = {
-    critical: 'border-red-500',
-    high: 'border-orange-500',
-    medium: 'border-yellow-500',
-    low: 'border-blue-500',
+    critical: "border-red-500",
+    high: "border-orange-500",
+    medium: "border-yellow-500",
+    low: "border-blue-500",
   } as const;
 
   if (loading) {
@@ -55,7 +64,9 @@ export default function CasesPage() {
       <div className="flex items-center justify-center min-h-screen">
         <div className="text-center">
           <Folder className="h-12 w-12 animate-spin mx-auto mb-4 text-blue-600" />
-          <p className="text-lg text-gray-700 dark:text-gray-300">Loading cases...</p>
+          <p className="text-lg text-gray-700 dark:text-gray-300">
+            Loading cases...
+          </p>
         </div>
       </div>
     );
@@ -86,7 +97,9 @@ export default function CasesPage() {
                   placeholder="Search cases, subjects, or descriptions..."
                   className="w-full pl-10 pr-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
                   value={filters.search}
-                  onChange={(e) => setFilters(prev => ({ ...prev, search: e.target.value }))}
+                  onChange={(e) =>
+                    setFilters((prev) => ({ ...prev, search: e.target.value }))
+                  }
                 />
               </div>
             </div>
@@ -95,7 +108,9 @@ export default function CasesPage() {
             <select
               className="px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
               value={filters.status}
-              onChange={(e) => setFilters(prev => ({ ...prev, status: e.target.value }))}
+              onChange={(e) =>
+                setFilters((prev) => ({ ...prev, status: e.target.value }))
+              }
             >
               <option value="all">All Statuses</option>
               <option value="open">Open</option>
@@ -109,7 +124,9 @@ export default function CasesPage() {
             <select
               className="px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
               value={filters.severity}
-              onChange={(e) => setFilters(prev => ({ ...prev, severity: e.target.value }))}
+              onChange={(e) =>
+                setFilters((prev) => ({ ...prev, severity: e.target.value }))
+              }
             >
               <option value="all">All Severities</option>
               <option value="critical">Critical</option>
@@ -130,19 +147,24 @@ export default function CasesPage() {
           />
           <StatCard
             title="Open"
-            value={cases.filter(c => c.status === 'open' || c.status === 'under_investigation').length}
+            value={
+              cases.filter(
+                (c) =>
+                  c.status === "open" || c.status === "under_investigation",
+              ).length
+            }
             icon={<Clock className="h-5 w-5" />}
             color="yellow"
           />
           <StatCard
             title="Escalated"
-            value={cases.filter(c => c.status === 'escalated').length}
+            value={cases.filter((c) => c.status === "escalated").length}
             icon={<AlertTriangle className="h-5 w-5" />}
             color="orange"
           />
           <StatCard
             title="SAR Filed"
-            value={cases.filter(c => c.status === 'sar_filed').length}
+            value={cases.filter((c) => c.status === "sar_filed").length}
             icon={<FileText className="h-5 w-5" />}
             color="red"
           />
@@ -177,29 +199,36 @@ export default function CasesPage() {
   );
 }
 
-function StatCard({ title, value, icon, color }: {
+function StatCard({
+  title,
+  value,
+  icon,
+  color,
+}: {
   title: string;
   value: number;
   icon: React.ReactNode;
-  color: 'blue' | 'yellow' | 'orange' | 'red';
+  color: "blue" | "yellow" | "orange" | "red";
 }) {
   const colorClasses = {
-    blue: 'text-blue-600 bg-blue-50 dark:bg-blue-900/20',
-    yellow: 'text-yellow-600 bg-yellow-50 dark:bg-yellow-900/20',
-    orange: 'text-orange-600 bg-orange-50 dark:bg-orange-900/20',
-    red: 'text-red-600 bg-red-50 dark:bg-red-900/20',
+    blue: "text-blue-600 bg-blue-50 dark:bg-blue-900/20",
+    yellow: "text-yellow-600 bg-yellow-50 dark:bg-yellow-900/20",
+    orange: "text-orange-600 bg-orange-50 dark:bg-orange-900/20",
+    red: "text-red-600 bg-red-50 dark:bg-red-900/20",
   };
 
   return (
     <div className="bg-white dark:bg-gray-800 rounded-lg shadow p-4">
       <div className="flex items-center justify-between">
         <div>
-          <p className="text-sm text-gray-600 dark:text-gray-400 mb-1">{title}</p>
-          <p className="text-2xl font-bold text-gray-900 dark:text-white">{value}</p>
+          <p className="text-sm text-gray-600 dark:text-gray-400 mb-1">
+            {title}
+          </p>
+          <p className="text-2xl font-bold text-gray-900 dark:text-white">
+            {value}
+          </p>
         </div>
-        <div className={`p-3 rounded-lg ${colorClasses[color]}`}>
-          {icon}
-        </div>
+        <div className={`p-3 rounded-lg ${colorClasses[color]}`}>{icon}</div>
       </div>
     </div>
   );
@@ -208,14 +237,20 @@ function StatCard({ title, value, icon, color }: {
 type StatusColors = Record<string, string>;
 type SeverityColors = Record<string, string>;
 
-function CaseCard({ caseItem, onClick, statusColors, severityColors }: {
+function CaseCard({
+  caseItem,
+  onClick,
+  statusColors,
+  severityColors,
+}: {
   caseItem: MonitoringCase;
   onClick: () => void;
   statusColors: StatusColors;
   severityColors: SeverityColors;
 }) {
   const daysSinceOpened = Math.floor(
-    (new Date().getTime() - new Date(caseItem.opened_at).getTime()) / (1000 * 60 * 60 * 24)
+    (new Date().getTime() - new Date(caseItem.opened_at).getTime()) /
+      (1000 * 60 * 60 * 24),
   );
 
   return (
@@ -229,8 +264,10 @@ function CaseCard({ caseItem, onClick, statusColors, severityColors }: {
             <span className="text-base font-mono font-semibold text-gray-900 dark:text-white">
               {caseItem.case_id}
             </span>
-            <span className={`text-xs px-2 py-1 rounded-full ${statusColors[caseItem.status as keyof typeof statusColors]}`}>
-              {caseItem.status.replace(/_/g, ' ')}
+            <span
+              className={`text-xs px-2 py-1 rounded-full ${statusColors[caseItem.status as keyof typeof statusColors]}`}
+            >
+              {caseItem.status.replace(/_/g, " ")}
             </span>
             {caseItem.outcome && (
               <span className="text-xs px-2 py-1 rounded-full bg-gray-100 text-gray-700 dark:bg-gray-700 dark:text-gray-300">
@@ -240,7 +277,7 @@ function CaseCard({ caseItem, onClick, statusColors, severityColors }: {
           </div>
 
           <p className="text-base font-medium text-gray-900 dark:text-white mb-1">
-            {caseItem.case_type.replace(/_/g, ' ').toUpperCase()}
+            {caseItem.case_type.replace(/_/g, " ").toUpperCase()}
           </p>
 
           {caseItem.subject_id && (
@@ -268,9 +305,13 @@ function CaseCard({ caseItem, onClick, statusColors, severityColors }: {
 
       <div className="flex items-center justify-between pt-3 border-t border-gray-200 dark:border-gray-700">
         <div className="flex items-center gap-4 text-xs text-gray-500 dark:text-gray-400">
-          <span>Opened: {new Date(caseItem.opened_at).toLocaleDateString()}</span>
+          <span>
+            Opened: {new Date(caseItem.opened_at).toLocaleDateString()}
+          </span>
           {caseItem.closed_at && (
-            <span>Closed: {new Date(caseItem.closed_at).toLocaleDateString()}</span>
+            <span>
+              Closed: {new Date(caseItem.closed_at).toLocaleDateString()}
+            </span>
           )}
         </div>
 

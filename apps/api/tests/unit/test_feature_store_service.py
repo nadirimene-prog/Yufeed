@@ -83,4 +83,3 @@ def test_feature_store_service_upsert_is_idempotent(db_session):
         )
         assert len(rows) == 1
         assert rows[0].feature_value == 2
-

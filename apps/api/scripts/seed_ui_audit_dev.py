@@ -92,10 +92,14 @@ def ensure_membership(db, *, tenant: Tenant, user: User, role: str) -> None:
     for identifier in identifiers:
         if not identifier:
             continue
-        existing = db.query(TenantUser).filter(
-            TenantUser.tenant_id == tenant.id,
-            TenantUser.user_id == identifier,
-        ).first()
+        existing = (
+            db.query(TenantUser)
+            .filter(
+                TenantUser.tenant_id == tenant.id,
+                TenantUser.user_id == identifier,
+            )
+            .first()
+        )
         if existing:
             if existing.role != role or not existing.is_active:
                 existing.role = role
@@ -168,7 +172,12 @@ def ensure_monitoring_rules(db, tenant_id: str) -> None:
         "Sanctioned Jurisdiction",
         "sanctions",
         "critical",
-        {"logic": "AND", "conditions": [{"field": "country_code", "operator": "in", "value": ["IR", "KP", "SY"]}]},
+        {
+            "logic": "AND",
+            "conditions": [
+                {"field": "country_code", "operator": "in", "value": ["IR", "KP", "SY"]}
+            ],
+        },
     )
     ensure_rule(
         "RULE-DEV-VEL-10-24H",
@@ -185,7 +194,9 @@ def ensure_transactions(db, tenant_id: str, *, target_count: int = 20) -> list[T
     tx_types = ["deposit", "withdrawal", "transfer", "wire_transfer", "payment"]
     statuses = ["completed", "pending", "flagged", "blocked"]
 
-    existing_count = db.query(Transaction).filter(Transaction.transaction_id.like("TX-DEV-%")).count()
+    existing_count = (
+        db.query(Transaction).filter(Transaction.transaction_id.like("TX-DEV-%")).count()
+    )
     if existing_count < target_count:
         base = utc_now()
         for i in range(1, target_count + 1):
@@ -199,11 +210,7 @@ def ensure_transactions(db, tenant_id: str, *, target_count: int = 20) -> list[T
             risk_level = (
                 "low"
                 if score_f < 25
-                else "medium"
-                if score_f < 60
-                else "high"
-                if score_f < 90
-                else "critical"
+                else "medium" if score_f < 60 else "high" if score_f < 90 else "critical"
             )
 
             db.add(
@@ -244,7 +251,15 @@ def ensure_alerts(db, tenant_id: str, txs: list[Transaction], *, target_count: i
         return
 
     # Include both 'under_review' and 'in_review' to surface any UI/status mapping issues during audits.
-    statuses = ["pending", "under_review", "in_review", "escalated", "resolved", "false_positive", "auto_closed"]
+    statuses = [
+        "pending",
+        "under_review",
+        "in_review",
+        "escalated",
+        "resolved",
+        "false_positive",
+        "auto_closed",
+    ]
     severities = ["low", "medium", "high", "critical"]
     for i in range(1, target_count + 1):
         alert_id = f"ALT-DEV-{i:04d}"
@@ -305,8 +320,12 @@ def main() -> int:
     try:
         tenant = ensure_tenant(db, cfg.tenant_id)
 
-        admin = ensure_user(db, email=cfg.admin_email, full_name="Admin User", password=cfg.password)
-        analyst = ensure_user(db, email=cfg.analyst_email, full_name="Analyst User", password=cfg.password)
+        admin = ensure_user(
+            db, email=cfg.admin_email, full_name="Admin User", password=cfg.password
+        )
+        analyst = ensure_user(
+            db, email=cfg.analyst_email, full_name="Analyst User", password=cfg.password
+        )
 
         ensure_membership(db, tenant=tenant, user=admin, role="admin")
         ensure_membership(db, tenant=tenant, user=analyst, role="analyst")

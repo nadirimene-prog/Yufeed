@@ -1,4 +1,5 @@
 """Policy management API endpoints."""
+
 from datetime import datetime, timezone
 from typing import Optional
 import uuid
@@ -9,7 +10,12 @@ from sqlalchemy import func
 
 from src.database import get_db
 from src.auth.dependencies import require_any_role, CurrentUser
-from src.models.compliance_workflow import PolicyDocument, PolicySection, RegulatoryObligation, PolicyTemplate
+from src.models.compliance_workflow import (
+    PolicyDocument,
+    PolicySection,
+    RegulatoryObligation,
+    PolicyTemplate,
+)
 from src.schemas.policy_schemas import (
     PolicyCreate,
     PolicyUpdate,
@@ -41,13 +47,17 @@ def generate_policy_id() -> str:
 
 def policy_to_dict(policy: PolicyDocument, db: Session) -> dict:
     """Convert policy model to response dict."""
-    sections_count = db.query(func.count(PolicySection.id)).filter(
-        PolicySection.policy_id == policy.id
-    ).scalar() or 0
+    sections_count = (
+        db.query(func.count(PolicySection.id)).filter(PolicySection.policy_id == policy.id).scalar()
+        or 0
+    )
 
-    linked_obligations_count = db.query(func.count(RegulatoryObligation.id)).filter(
-        RegulatoryObligation.linked_policy_id == policy.id
-    ).scalar() or 0
+    linked_obligations_count = (
+        db.query(func.count(RegulatoryObligation.id))
+        .filter(RegulatoryObligation.linked_policy_id == policy.id)
+        .scalar()
+        or 0
+    )
 
     return {
         "id": policy.id,
@@ -58,7 +68,9 @@ def policy_to_dict(policy: PolicyDocument, db: Session) -> dict:
         "status": policy.status,
         "language": policy.language,
         "effective_date": policy.effective_date.isoformat() if policy.effective_date else None,
-        "last_reviewed_at": policy.last_reviewed_at.isoformat() if policy.last_reviewed_at else None,
+        "last_reviewed_at": (
+            policy.last_reviewed_at.isoformat() if policy.last_reviewed_at else None
+        ),
         "source_url": policy.source_url,
         "content": policy.content,
         "metadata": policy.metadata_json,
@@ -79,7 +91,9 @@ def section_to_dict(section: PolicySection) -> dict:
         "content": section.content,
         "status": section.status,
         "version": section.version,
-        "last_reviewed_at": section.last_reviewed_at.isoformat() if section.last_reviewed_at else None,
+        "last_reviewed_at": (
+            section.last_reviewed_at.isoformat() if section.last_reviewed_at else None
+        ),
         "created_at": section.created_at.isoformat() if section.created_at else None,
         "updated_at": section.updated_at.isoformat() if section.updated_at else None,
     }
@@ -111,7 +125,9 @@ def list_policy_templates(
     skip: int = Query(0, ge=0),
     limit: int = Query(50, ge=1, le=200),
     db: Session = Depends(get_db),
-    _: CurrentUser = Depends(require_any_role(["admin", "compliance", "aml_officer", "auditor", "user"])),
+    _: CurrentUser = Depends(
+        require_any_role(["admin", "compliance", "aml_officer", "auditor", "user"])
+    ),
 ):
     query = db.query(PolicyTemplate).filter(PolicyTemplate.is_active == True)
     if category:
@@ -131,11 +147,11 @@ def list_policy_templates(
 def get_policy_template(
     template_id: str,
     db: Session = Depends(get_db),
-    _: CurrentUser = Depends(require_any_role(["admin", "compliance", "aml_officer", "auditor", "user"])),
+    _: CurrentUser = Depends(
+        require_any_role(["admin", "compliance", "aml_officer", "auditor", "user"])
+    ),
 ):
-    template = db.query(PolicyTemplate).filter(
-        PolicyTemplate.template_id == template_id
-    ).first()
+    template = db.query(PolicyTemplate).filter(PolicyTemplate.template_id == template_id).first()
     if not template:
         raise HTTPException(status_code=404, detail="Policy template not found")
     return template_to_dict(template)
@@ -148,10 +164,14 @@ async def create_policy_from_template(
     db: Session = Depends(get_db),
     current_user: CurrentUser = Depends(require_any_role(["admin", "compliance", "aml_officer"])),
 ):
-    template = db.query(PolicyTemplate).filter(
-        PolicyTemplate.template_id == template_id,
-        PolicyTemplate.is_active == True,
-    ).first()
+    template = (
+        db.query(PolicyTemplate)
+        .filter(
+            PolicyTemplate.template_id == template_id,
+            PolicyTemplate.is_active == True,
+        )
+        .first()
+    )
     if not template:
         raise HTTPException(status_code=404, detail="Policy template not found")
 
@@ -176,14 +196,16 @@ async def create_policy_from_template(
 
     if stats.get("created"):
         try:
-            await ws_manager.send_notification(NotificationEvent(
-                event_type=EventType.POLICY_CREATED,
-                title="Policy Created",
-                message=f"New master policy created: {policy.name}",
-                data={"policy_id": policy.policy_id, "name": policy.name},
-                priority="normal",
-                link=f"/compliance/policies?id={policy.id}",
-            ))
+            await ws_manager.send_notification(
+                NotificationEvent(
+                    event_type=EventType.POLICY_CREATED,
+                    title="Policy Created",
+                    message=f"New master policy created: {policy.name}",
+                    data={"policy_id": policy.policy_id, "name": policy.name},
+                    priority="normal",
+                    link=f"/compliance/policies?id={policy.id}",
+                )
+            )
         except Exception:
             pass
 
@@ -198,7 +220,9 @@ def list_policies(
     skip: int = Query(0, ge=0),
     limit: int = Query(50, ge=1, le=200),
     db: Session = Depends(get_db),
-    _: CurrentUser = Depends(require_any_role(["admin", "compliance", "aml_officer", "auditor", "user"])),
+    _: CurrentUser = Depends(
+        require_any_role(["admin", "compliance", "aml_officer", "auditor", "user"])
+    ),
 ):
     """List all policies with optional filters."""
     query = db.query(PolicyDocument)
@@ -254,14 +278,16 @@ async def create_policy(
 
     # Send WebSocket notification
     try:
-        await ws_manager.send_notification(NotificationEvent(
-            event_type=EventType.POLICY_CREATED,
-            title="Policy Created",
-            message=f"New policy created: {policy.name}",
-            data={"policy_id": policy.policy_id, "name": policy.name},
-            priority="normal",
-            link=f"/compliance/policies?id={policy.id}",
-        ))
+        await ws_manager.send_notification(
+            NotificationEvent(
+                event_type=EventType.POLICY_CREATED,
+                title="Policy Created",
+                message=f"New policy created: {policy.name}",
+                data={"policy_id": policy.policy_id, "name": policy.name},
+                priority="normal",
+                link=f"/compliance/policies?id={policy.id}",
+            )
+        )
     except Exception:
         pass  # Don't fail request if notification fails
 
@@ -272,7 +298,9 @@ async def create_policy(
 def get_policy(
     policy_id: int,
     db: Session = Depends(get_db),
-    _: CurrentUser = Depends(require_any_role(["admin", "compliance", "aml_officer", "auditor", "user"])),
+    _: CurrentUser = Depends(
+        require_any_role(["admin", "compliance", "aml_officer", "auditor", "user"])
+    ),
 ):
     """Get a policy by ID."""
     policy = db.query(PolicyDocument).filter(PolicyDocument.id == policy_id).first()
@@ -320,14 +348,16 @@ def delete_policy(
         raise HTTPException(status_code=404, detail="Policy not found")
 
     # Check for linked obligations
-    linked_count = db.query(func.count(RegulatoryObligation.id)).filter(
-        RegulatoryObligation.linked_policy_id == policy.id
-    ).scalar() or 0
+    linked_count = (
+        db.query(func.count(RegulatoryObligation.id))
+        .filter(RegulatoryObligation.linked_policy_id == policy.id)
+        .scalar()
+        or 0
+    )
 
     if linked_count > 0:
         raise HTTPException(
-            status_code=400,
-            detail=f"Cannot delete policy with {linked_count} linked obligations"
+            status_code=400, detail=f"Cannot delete policy with {linked_count} linked obligations"
         )
 
     db.delete(policy)
@@ -360,14 +390,16 @@ async def approve_policy(
 
     # Send notification
     try:
-        await ws_manager.send_notification(NotificationEvent(
-            event_type=EventType.POLICY_APPROVED,
-            title="Policy Approved",
-            message=f"Policy approved: {policy.name}",
-            data={"policy_id": policy.policy_id, "name": policy.name},
-            priority="normal",
-            link=f"/compliance/policies?id={policy.id}",
-        ))
+        await ws_manager.send_notification(
+            NotificationEvent(
+                event_type=EventType.POLICY_APPROVED,
+                title="Policy Approved",
+                message=f"Policy approved: {policy.name}",
+                data={"policy_id": policy.policy_id, "name": policy.name},
+                priority="normal",
+                link=f"/compliance/policies?id={policy.id}",
+            )
+        )
     except Exception:
         pass
 
@@ -380,7 +412,9 @@ def list_policy_obligations(
     skip: int = Query(0, ge=0),
     limit: int = Query(50, ge=1, le=200),
     db: Session = Depends(get_db),
-    _: CurrentUser = Depends(require_any_role(["admin", "compliance", "aml_officer", "auditor", "user"])),
+    _: CurrentUser = Depends(
+        require_any_role(["admin", "compliance", "aml_officer", "auditor", "user"])
+    ),
 ):
     """List obligations linked to a policy."""
     policy = db.query(PolicyDocument).filter(PolicyDocument.id == policy_id).first()
@@ -392,7 +426,9 @@ def list_policy_obligations(
     )
 
     total = query.count()
-    obligations = query.order_by(RegulatoryObligation.updated_at.desc()).offset(skip).limit(limit).all()
+    obligations = (
+        query.order_by(RegulatoryObligation.updated_at.desc()).offset(skip).limit(limit).all()
+    )
 
     return {
         "total": total,
@@ -402,7 +438,11 @@ def list_policy_obligations(
                 "obligation_id": o.obligation_id,
                 "status": o.status,
                 "article_ref": o.article_ref,
-                "obligation_text": o.obligation_text[:200] + "..." if len(o.obligation_text or "") > 200 else o.obligation_text,
+                "obligation_text": (
+                    o.obligation_text[:200] + "..."
+                    if len(o.obligation_text or "") > 200
+                    else o.obligation_text
+                ),
                 "updated_at": o.updated_at.isoformat() if o.updated_at else None,
             }
             for o in obligations
@@ -422,7 +462,9 @@ async def link_obligation_to_policy(
     if not policy:
         raise HTTPException(status_code=404, detail="Policy not found")
 
-    obligation = db.query(RegulatoryObligation).filter(RegulatoryObligation.id == obligation_id).first()
+    obligation = (
+        db.query(RegulatoryObligation).filter(RegulatoryObligation.id == obligation_id).first()
+    )
     if not obligation:
         raise HTTPException(status_code=404, detail="Obligation not found")
 
@@ -432,17 +474,19 @@ async def link_obligation_to_policy(
     db.refresh(obligation)
 
     try:
-        await ws_manager.send_notification(NotificationEvent(
-            event_type=EventType.OBLIGATION_UPDATED,
-            title="Obligation Linked",
-            message=f"Linked obligation {obligation.obligation_id} to policy {policy.name}",
-            data={
-                "obligation_id": obligation.obligation_id,
-                "policy_id": policy.policy_id,
-            },
-            priority="normal",
-            link=f"/compliance/obligations/{obligation.id}",
-        ))
+        await ws_manager.send_notification(
+            NotificationEvent(
+                event_type=EventType.OBLIGATION_UPDATED,
+                title="Obligation Linked",
+                message=f"Linked obligation {obligation.obligation_id} to policy {policy.name}",
+                data={
+                    "obligation_id": obligation.obligation_id,
+                    "policy_id": policy.policy_id,
+                },
+                priority="normal",
+                link=f"/compliance/obligations/{obligation.id}",
+            )
+        )
     except Exception:
         pass
 
@@ -455,20 +499,26 @@ async def link_obligation_to_policy(
 
 # Policy Sections endpoints
 
+
 @router.get("/{policy_id}/sections")
 def list_policy_sections(
     policy_id: int,
     db: Session = Depends(get_db),
-    _: CurrentUser = Depends(require_any_role(["admin", "compliance", "aml_officer", "auditor", "user"])),
+    _: CurrentUser = Depends(
+        require_any_role(["admin", "compliance", "aml_officer", "auditor", "user"])
+    ),
 ):
     """List all sections for a policy."""
     policy = db.query(PolicyDocument).filter(PolicyDocument.id == policy_id).first()
     if not policy:
         raise HTTPException(status_code=404, detail="Policy not found")
 
-    sections = db.query(PolicySection).filter(
-        PolicySection.policy_id == policy_id
-    ).order_by(PolicySection.section_ref).all()
+    sections = (
+        db.query(PolicySection)
+        .filter(PolicySection.policy_id == policy_id)
+        .order_by(PolicySection.section_ref)
+        .all()
+    )
 
     return {"items": [section_to_dict(s) for s in sections]}
 

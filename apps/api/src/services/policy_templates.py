@@ -327,9 +327,11 @@ def seed_policy_templates(db: Optional[Session] = None) -> dict:
 
     try:
         for template in POLICY_TEMPLATES:
-            existing = db.query(PolicyTemplate).filter(
-                PolicyTemplate.template_id == template["template_id"]
-            ).first()
+            existing = (
+                db.query(PolicyTemplate)
+                .filter(PolicyTemplate.template_id == template["template_id"])
+                .first()
+            )
             payload = {
                 "name": template["name"],
                 "category": template["category"],

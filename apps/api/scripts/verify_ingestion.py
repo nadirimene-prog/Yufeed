@@ -11,6 +11,7 @@ from src.ingestion.manager import IngestionManager
 
 logging.basicConfig(level=logging.INFO)
 
+
 def main():
     print("Running Ingestion Test...")
     db = SessionLocal()
@@ -22,6 +23,7 @@ def main():
         print(f"Ingestion failed: {e}")
     finally:
         db.close()
+
 
 if __name__ == "__main__":
     main()

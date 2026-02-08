@@ -1,6 +1,7 @@
 """
 Common utilities and shared code.
 """
+
 from src.common.enums import (
     ComplianceStatus,
     RiskLevel,

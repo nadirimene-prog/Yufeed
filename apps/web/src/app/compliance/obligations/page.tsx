@@ -3,14 +3,20 @@
 import { useMemo, useState } from "react";
 import Link from "next/link";
 import { handleApiError } from "@/lib/api-error-handler";
-import { useObligationsList, useUpdateObligationStatus } from "@/hooks/queries/useComplianceData";
+import {
+  useObligationsList,
+  useUpdateObligationStatus,
+} from "@/hooks/queries/useComplianceData";
 import type { Obligation } from "@/types/compliance";
 
 const obligationStatusStyle = (status?: string) => {
   const value = (status || "draft").toLowerCase();
-  if (value === "approved") return "bg-emerald-50 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-300";
-  if (value === "in_review") return "bg-blue-50 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300";
-  if (value === "rejected") return "bg-rose-50 text-rose-700 dark:bg-rose-900/30 dark:text-rose-300";
+  if (value === "approved")
+    return "bg-emerald-50 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-300";
+  if (value === "in_review")
+    return "bg-blue-50 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300";
+  if (value === "rejected")
+    return "bg-rose-50 text-rose-700 dark:bg-rose-900/30 dark:text-rose-300";
   return "bg-amber-50 text-amber-700 dark:bg-amber-900/30 dark:text-amber-300";
 };
 
@@ -33,17 +39,27 @@ export default function ObligationsPage() {
   const pageSize = 20;
 
   const listParams = useMemo(() => {
-    const status = statusFilter === "pending" ? "draft,in_review" : statusFilter;
+    const status =
+      statusFilter === "pending" ? "draft,in_review" : statusFilter;
     return {
       ...(statusFilter !== "all" ? { status } : {}),
-      ...(jurisdictionFilter !== "all" ? { jurisdiction: jurisdictionFilter } : {}),
+      ...(jurisdictionFilter !== "all"
+        ? { jurisdiction: jurisdictionFilter }
+        : {}),
       ...(sourceFilter !== "all" ? { source_system: sourceFilter } : {}),
       ...(scopeFilter !== "all" ? { scope: scopeFilter } : {}),
       ...(query.trim() ? { q: query.trim() } : {}),
       skip: page * pageSize,
       limit: pageSize,
     };
-  }, [statusFilter, jurisdictionFilter, sourceFilter, scopeFilter, query, page]);
+  }, [
+    statusFilter,
+    jurisdictionFilter,
+    sourceFilter,
+    scopeFilter,
+    query,
+    page,
+  ]);
 
   const obligationsQuery = useObligationsList(listParams);
   const updateStatusMutation = useUpdateObligationStatus();
@@ -89,9 +105,12 @@ export default function ObligationsPage() {
     <div className="space-y-6">
       <header className="flex flex-col gap-2 lg:flex-row lg:items-center lg:justify-between">
         <div>
-          <h1 className="text-2xl font-semibold text-gray-900 dark:text-white">Regulatory obligations</h1>
+          <h1 className="text-2xl font-semibold text-gray-900 dark:text-white">
+            Regulatory obligations
+          </h1>
           <p className="text-sm text-gray-500 dark:text-gray-400">
-            Track obligations extracted from EU/FR publications and validate them internally.
+            Track obligations extracted from EU/FR publications and validate
+            them internally.
           </p>
         </div>
         <Link
@@ -174,9 +193,7 @@ export default function ObligationsPage() {
 
       <div className="rounded-lg border border-gray-200 bg-white p-6 shadow-sm dark:border-slate-800 dark:bg-slate-900">
         <div className="flex items-center justify-between text-sm text-gray-500 dark:text-gray-400">
-          <div>
-            {loading ? "Loading obligations…" : `${total} obligations`}
-          </div>
+          <div>{loading ? "Loading obligations…" : `${total} obligations`}</div>
           <div>
             Page {page + 1} / {totalPages}
           </div>
@@ -193,17 +210,27 @@ export default function ObligationsPage() {
               >
                 <div className="flex items-start justify-between gap-3">
                   <div className="min-w-0">
-                    <Link href={`/compliance/obligations/${item.id}`} className="text-sm font-semibold text-gray-900 hover:underline dark:text-white">
+                    <Link
+                      href={`/compliance/obligations/${item.id}`}
+                      className="text-sm font-semibold text-gray-900 hover:underline dark:text-white"
+                    >
                       {item.document.title}
                     </Link>
                     <div className="mt-1 text-xs text-gray-500">
-                      {item.document.celex} • {item.document.jurisdiction || "EU"} • {item.document.source_system || "source"}
+                      {item.document.celex} •{" "}
+                      {item.document.jurisdiction || "EU"} •{" "}
+                      {item.document.source_system || "source"}
                     </div>
                     <p className="mt-2 text-xs text-gray-500 line-clamp-2 dark:text-gray-400">
                       {item.obligation_text}
                     </p>
                   </div>
-                  <span className={"rounded-full px-3 py-1 text-[11px] font-semibold " + obligationStatusStyle(item.status)}>
+                  <span
+                    className={
+                      "rounded-full px-3 py-1 text-[11px] font-semibold " +
+                      obligationStatusStyle(item.status)
+                    }
+                  >
                     {item.status.replace("_", " ")}
                   </span>
                 </div>
@@ -218,7 +245,9 @@ export default function ObligationsPage() {
                       <button
                         key={action.status}
                         onClick={() => updateStatus(item.id, action.status)}
-                        disabled={actionLoading === `${item.id}:${action.status}`}
+                        disabled={
+                          actionLoading === `${item.id}:${action.status}`
+                        }
                         className="rounded-full border border-gray-200 bg-white px-3 py-1 text-[11px] font-semibold text-gray-600 hover:border-gray-300 disabled:cursor-not-allowed disabled:opacity-60 dark:border-slate-700 dark:bg-slate-900 dark:text-gray-300"
                       >
                         {action.label}
@@ -229,7 +258,9 @@ export default function ObligationsPage() {
               </div>
             ))
           ) : (
-            <div className="text-sm text-gray-500">No obligations match your filters.</div>
+            <div className="text-sm text-gray-500">
+              No obligations match your filters.
+            </div>
           )}
         </div>
 
@@ -242,7 +273,9 @@ export default function ObligationsPage() {
             Previous
           </button>
           <button
-            onClick={() => setPage((prev) => Math.min(totalPages - 1, prev + 1))}
+            onClick={() =>
+              setPage((prev) => Math.min(totalPages - 1, prev + 1))
+            }
             disabled={page + 1 >= totalPages}
             className="rounded-full border border-gray-200 bg-white px-4 py-2 text-xs font-medium text-gray-600 disabled:opacity-50 dark:border-slate-800 dark:bg-slate-900 dark:text-gray-300"
           >

@@ -5,6 +5,7 @@ Revises: d123abc45678, cbee3d7ad225
 Create Date: 2026-01-22 12:00:00.000000
 
 """
+
 from typing import Sequence, Union
 
 from alembic import op
@@ -89,7 +90,9 @@ def upgrade() -> None:
             ["event_id"],
             ["event_id"],
         )
-    op.create_index("ix_decision_records_decision_id", "decision_records", ["decision_id"], unique=True)
+    op.create_index(
+        "ix_decision_records_decision_id", "decision_records", ["decision_id"], unique=True
+    )
     op.create_index("ix_decision_records_event_id", "decision_records", ["event_id"])
     op.create_index("ix_decision_records_decision", "decision_records", ["decision"])
     op.create_index("ix_decision_records_created_at", "decision_records", ["created_at"])
@@ -158,7 +161,9 @@ def downgrade() -> None:
             op.execute(f"DROP TRIGGER IF EXISTS {table}_immutable_delete;")
 
     if dialect == "postgresql":
-        op.drop_constraint("fk_decision_records_event_id_event_records", "decision_records", type_="foreignkey")
+        op.drop_constraint(
+            "fk_decision_records_event_id_event_records", "decision_records", type_="foreignkey"
+        )
     op.drop_index("ix_decision_records_created_at", table_name="decision_records")
     op.drop_index("ix_decision_records_decision", table_name="decision_records")
     op.drop_index("ix_decision_records_event_id", table_name="decision_records")

@@ -28,7 +28,9 @@ class AddressRiskResponse(BaseModel):
 
 
 @router.get("/plugins")
-def get_plugins(_: CurrentUser = Depends(require_any_role(["admin", "compliance", "aml_officer", "user"]))):
+def get_plugins(
+    _: CurrentUser = Depends(require_any_role(["admin", "compliance", "aml_officer", "user"]))
+):
     if not list_plugins():
         register_plugin("mock-onchain", get_default_onchain_plugin())
     return {"plugins": list_plugins()}
@@ -38,7 +40,7 @@ def get_plugins(_: CurrentUser = Depends(require_any_role(["admin", "compliance"
 async def score_address(
     request: AddressRiskRequest,
     db: Session = Depends(get_db),
-    _: CurrentUser = Depends(require_any_role(["admin", "compliance", "aml_officer", "user"]))
+    _: CurrentUser = Depends(require_any_role(["admin", "compliance", "aml_officer", "user"])),
 ):
     plugin = get_plugin("mock-onchain")
     if not plugin:

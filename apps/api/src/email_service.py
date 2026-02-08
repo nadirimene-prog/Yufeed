@@ -7,12 +7,13 @@ import logging
 
 logger = logging.getLogger(__name__)
 
+
 def send_email(
     to_email: str | List[str],
     subject: str,
     html_content: str,
     plain_text: Optional[str] = None,
-    from_email: Optional[str] = None
+    from_email: Optional[str] = None,
 ):
     """
     Send an email with HTML content and optional plain text fallback.
@@ -31,31 +32,32 @@ def send_email(
         # Use configured sender or default
         sender = from_email or settings.EMAILS_FROM_EMAIL
 
-        msg = MIMEMultipart('alternative')
-        msg['From'] = sender
-        msg['To'] = ', '.join(recipients)
-        msg['Subject'] = subject
+        msg = MIMEMultipart("alternative")
+        msg["From"] = sender
+        msg["To"] = ", ".join(recipients)
+        msg["Subject"] = subject
 
         # Add plain text version (fallback for non-HTML clients)
         if plain_text:
-            msg.attach(MIMEText(plain_text, 'plain'))
+            msg.attach(MIMEText(plain_text, "plain"))
         else:
             # Basic HTML stripping for plain text fallback
             import re
-            plain_fallback = re.sub('<[^<]+?>', '', html_content)
-            msg.attach(MIMEText(plain_fallback, 'plain'))
+
+            plain_fallback = re.sub("<[^<]+?>", "", html_content)
+            msg.attach(MIMEText(plain_fallback, "plain"))
 
         # Add HTML version
-        msg.attach(MIMEText(html_content, 'html'))
+        msg.attach(MIMEText(html_content, "html"))
 
         # Send email
         with smtplib.SMTP(settings.SMTP_HOST, settings.SMTP_PORT) as server:
             # Enable TLS if configured
-            if hasattr(settings, 'SMTP_TLS') and settings.SMTP_TLS:
+            if hasattr(settings, "SMTP_TLS") and settings.SMTP_TLS:
                 server.starttls()
 
             # Authenticate if credentials provided
-            if hasattr(settings, 'SMTP_USER') and settings.SMTP_USER:
+            if hasattr(settings, "SMTP_USER") and settings.SMTP_USER:
                 server.login(settings.SMTP_USER, settings.SMTP_PASSWORD)
 
             server.send_message(msg)

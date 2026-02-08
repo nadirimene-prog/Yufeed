@@ -41,7 +41,8 @@ const MOCK_INVESTIGATIONS = [
     recommendation: "escalate",
     confidence: 0.87,
     risk_score: 78,
-    summary: "Multiple high-value wire transfers to high-risk jurisdictions detected. Pattern consistent with layering activity.",
+    summary:
+      "Multiple high-value wire transfers to high-risk jurisdictions detected. Pattern consistent with layering activity.",
     red_flags: ["Rapid fund movement", "High-risk countries", "Round amounts"],
   },
   {
@@ -53,7 +54,8 @@ const MOCK_INVESTIGATIONS = [
     recommendation: "dismiss",
     confidence: 0.92,
     risk_score: 15,
-    summary: "Transaction pattern consistent with normal business operations. Customer has established history with similar patterns.",
+    summary:
+      "Transaction pattern consistent with normal business operations. Customer has established history with similar patterns.",
     red_flags: [],
   },
   {
@@ -84,8 +86,11 @@ interface Investigation {
 
 export default function InvestigationsPage() {
   const [investigations] = useState<Investigation[]>(MOCK_INVESTIGATIONS);
-  const [selectedInvestigation, setSelectedInvestigation] = useState<Investigation | null>(null);
-  const [filter, setFilter] = useState<"all" | "completed" | "in_progress">("all");
+  const [selectedInvestigation, setSelectedInvestigation] =
+    useState<Investigation | null>(null);
+  const [filter, setFilter] = useState<"all" | "completed" | "in_progress">(
+    "all",
+  );
 
   const filteredInvestigations = investigations.filter((inv) => {
     if (filter === "all") return true;
@@ -99,7 +104,11 @@ export default function InvestigationsPage() {
       case "escalate":
         return { bg: "bg-red-100", text: "text-red-700", icon: AlertTriangle };
       case "dismiss":
-        return { bg: "bg-green-100", text: "text-green-700", icon: CheckCircle };
+        return {
+          bg: "bg-green-100",
+          text: "text-green-700",
+          icon: CheckCircle,
+        };
       case "review":
         return { bg: "bg-yellow-100", text: "text-yellow-700", icon: Eye };
       default:
@@ -115,7 +124,8 @@ export default function InvestigationsPage() {
   };
 
   const getConfidenceLevel = (confidence: number) => {
-    if (confidence >= 0.9) return { label: "Very High", color: "text-green-600" };
+    if (confidence >= 0.9)
+      return { label: "Very High", color: "text-green-600" };
     if (confidence >= 0.75) return { label: "High", color: "text-blue-600" };
     if (confidence >= 0.5) return { label: "Medium", color: "text-yellow-600" };
     return { label: "Low", color: "text-red-600" };
@@ -208,7 +218,9 @@ export default function InvestigationsPage() {
                             className={`flex items-center space-x-1 text-xs px-2 py-1 rounded-full ${recStyle.bg} ${recStyle.text}`}
                           >
                             <RecIcon className="w-3 h-3" />
-                            <span className="capitalize">{inv.recommendation}</span>
+                            <span className="capitalize">
+                              {inv.recommendation}
+                            </span>
                           </span>
                         ) : (
                           <span className="flex items-center space-x-1 text-xs px-2 py-1 rounded-full bg-blue-100 text-blue-700">
@@ -259,14 +271,16 @@ export default function InvestigationsPage() {
                       </h2>
                       <p className="text-gray-500">
                         Alert #{selectedInvestigation.alert_id} •{" "}
-                        {new Date(selectedInvestigation.created_at).toLocaleString()}
+                        {new Date(
+                          selectedInvestigation.created_at,
+                        ).toLocaleString()}
                       </p>
                     </div>
                     {selectedInvestigation.status === "completed" && (
                       <div className="flex items-center space-x-3">
                         {(() => {
                           const recStyle = getRecommendationStyle(
-                            selectedInvestigation.recommendation
+                            selectedInvestigation.recommendation,
                           );
                           const RecIcon = recStyle.icon;
                           return (
@@ -296,17 +310,22 @@ export default function InvestigationsPage() {
                         </div>
                         <div className="flex items-baseline space-x-2">
                           <span className="text-2xl font-bold text-gray-900">
-                            {(selectedInvestigation.confidence * 100).toFixed(0)}%
+                            {(selectedInvestigation.confidence * 100).toFixed(
+                              0,
+                            )}
+                            %
                           </span>
                           <span
                             className={`text-sm ${
-                              getConfidenceLevel(selectedInvestigation.confidence)
-                                .color
+                              getConfidenceLevel(
+                                selectedInvestigation.confidence,
+                              ).color
                             }`}
                           >
                             {
-                              getConfidenceLevel(selectedInvestigation.confidence)
-                                .label
+                              getConfidenceLevel(
+                                selectedInvestigation.confidence,
+                              ).label
                             }
                           </span>
                         </div>
@@ -322,7 +341,7 @@ export default function InvestigationsPage() {
                         <div className="flex items-baseline space-x-2">
                           <span
                             className={`text-2xl font-bold ${getRiskScoreColor(
-                              selectedInvestigation.risk_score
+                              selectedInvestigation.risk_score,
                             )}`}
                           >
                             {selectedInvestigation.risk_score ?? "N/A"}
@@ -343,10 +362,10 @@ export default function InvestigationsPage() {
                             {selectedInvestigation.completed_at
                               ? (
                                   (new Date(
-                                    selectedInvestigation.completed_at
+                                    selectedInvestigation.completed_at,
                                   ).getTime() -
                                     new Date(
-                                      selectedInvestigation.created_at
+                                      selectedInvestigation.created_at,
                                     ).getTime()) /
                                   1000
                                 ).toFixed(1)

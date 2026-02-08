@@ -30,7 +30,7 @@ export default function RequestAccessPage() {
       `Notes: ${notes || "—"}`,
     ].join("\n");
     return `mailto:support@yufeed.com?subject=${encodeURIComponent(
-      subject
+      subject,
     )}&body=${encodeURIComponent(body)}`;
   }, [name, email, company, role, jurisdiction, notes]);
 
@@ -65,7 +65,10 @@ export default function RequestAccessPage() {
           <form className="space-y-4">
             <div className="grid gap-4 md:grid-cols-2">
               <div className="space-y-2">
-                <label htmlFor="name" className="text-xs font-medium text-white/60">
+                <label
+                  htmlFor="name"
+                  className="text-xs font-medium text-white/60"
+                >
                   Full name
                 </label>
                 <Input
@@ -77,7 +80,10 @@ export default function RequestAccessPage() {
                 />
               </div>
               <div className="space-y-2">
-                <label htmlFor="email" className="text-xs font-medium text-white/60">
+                <label
+                  htmlFor="email"
+                  className="text-xs font-medium text-white/60"
+                >
                   Work email
                 </label>
                 <Input
@@ -89,7 +95,9 @@ export default function RequestAccessPage() {
                   autoComplete="email"
                   required
                   error={emailInvalid}
-                  errorMessage={emailInvalid ? "Enter a valid work email." : undefined}
+                  errorMessage={
+                    emailInvalid ? "Enter a valid work email." : undefined
+                  }
                   errorMessageId={emailErrorId}
                   aria-invalid={emailInvalid}
                   aria-describedby={emailErrorId}
@@ -98,7 +106,10 @@ export default function RequestAccessPage() {
             </div>
             <div className="grid gap-4 md:grid-cols-2">
               <div className="space-y-2">
-                <label htmlFor="company" className="text-xs font-medium text-white/60">
+                <label
+                  htmlFor="company"
+                  className="text-xs font-medium text-white/60"
+                >
                   Company
                 </label>
                 <Input
@@ -109,7 +120,10 @@ export default function RequestAccessPage() {
                 />
               </div>
               <div className="space-y-2">
-                <label htmlFor="role" className="text-xs font-medium text-white/60">
+                <label
+                  htmlFor="role"
+                  className="text-xs font-medium text-white/60"
+                >
                   Role
                 </label>
                 <Input
@@ -121,7 +135,10 @@ export default function RequestAccessPage() {
               </div>
             </div>
             <div className="space-y-2">
-              <label htmlFor="jurisdiction" className="text-xs font-medium text-white/60">
+              <label
+                htmlFor="jurisdiction"
+                className="text-xs font-medium text-white/60"
+              >
                 Jurisdiction
               </label>
               <Input
@@ -132,7 +149,10 @@ export default function RequestAccessPage() {
               />
             </div>
             <div className="space-y-2">
-              <label htmlFor="notes" className="text-xs font-medium text-white/60">
+              <label
+                htmlFor="notes"
+                className="text-xs font-medium text-white/60"
+              >
                 Notes (optional)
               </label>
               <Textarea

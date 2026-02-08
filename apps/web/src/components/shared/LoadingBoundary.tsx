@@ -29,10 +29,10 @@
  * ```
  */
 
-import { ReactNode } from 'react';
-import { AlertCircle, Loader2, Search } from 'lucide-react';
-import { Button } from '@/components/ui/button';
-import { cn } from '@/lib/utils';
+import { ReactNode } from "react";
+import { AlertCircle, Loader2, Search } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { cn } from "@/lib/utils";
 
 interface LoadingBoundaryProps {
   loading: boolean;
@@ -42,7 +42,7 @@ interface LoadingBoundaryProps {
 
   // Loading state customization
   loadingMessage?: string;
-  loadingVariant?: 'spinner' | 'skeleton';
+  loadingVariant?: "spinner" | "skeleton";
   skeletonComponent?: ReactNode;
 
   // Error state customization
@@ -68,36 +68,36 @@ export function LoadingBoundary({
   error,
   isEmpty,
   children,
-  loadingMessage = 'Loading...',
-  loadingVariant = 'spinner',
+  loadingMessage = "Loading...",
+  loadingVariant = "spinner",
   skeletonComponent,
-  errorTitle = 'Error loading data',
+  errorTitle = "Error loading data",
   onRetry,
-  emptyMessage = 'No data available',
+  emptyMessage = "No data available",
   emptyDescription,
   emptyIcon,
   emptyAction,
   className,
-  minHeight = '400px',
+  minHeight = "400px",
 }: LoadingBoundaryProps) {
   // Loading state
   if (loading) {
-    if (loadingVariant === 'skeleton' && skeletonComponent) {
+    if (loadingVariant === "skeleton" && skeletonComponent) {
       return <div className={cn(className)}>{skeletonComponent}</div>;
     }
 
     return (
       <div
-        className={cn(
-          'flex flex-col items-center justify-center',
-          className
-        )}
+        className={cn("flex flex-col items-center justify-center", className)}
         style={{ minHeight }}
         role="status"
         aria-live="polite"
         aria-busy="true"
       >
-        <Loader2 className="h-12 w-12 animate-spin text-blue-600 dark:text-blue-400" aria-hidden="true" />
+        <Loader2
+          className="h-12 w-12 animate-spin text-blue-600 dark:text-blue-400"
+          aria-hidden="true"
+        />
         {loadingMessage && (
           <p className="mt-4 text-sm text-gray-600 dark:text-gray-400">
             {loadingMessage}
@@ -115,15 +115,18 @@ export function LoadingBoundary({
     return (
       <div
         className={cn(
-          'flex flex-col items-center justify-center rounded-lg border-2 border-red-200 bg-red-50 p-8 dark:border-red-900 dark:bg-red-950',
-          className
+          "flex flex-col items-center justify-center rounded-lg border-2 border-red-200 bg-red-50 p-8 dark:border-red-900 dark:bg-red-950",
+          className,
         )}
         style={{ minHeight }}
         role="alert"
         aria-live="assertive"
       >
         <div className="flex h-12 w-12 items-center justify-center rounded-full bg-red-100 dark:bg-red-900">
-          <AlertCircle className="h-6 w-6 text-red-600 dark:text-red-400" aria-hidden="true" />
+          <AlertCircle
+            className="h-6 w-6 text-red-600 dark:text-red-400"
+            aria-hidden="true"
+          />
         </div>
         <h3 className="mt-4 text-lg font-semibold text-red-900 dark:text-red-100">
           {errorTitle}
@@ -149,15 +152,17 @@ export function LoadingBoundary({
     return (
       <div
         className={cn(
-          'flex flex-col items-center justify-center rounded-lg border-2 border-dashed border-gray-200 bg-gray-50 p-8 dark:border-gray-800 dark:bg-gray-950',
-          className
+          "flex flex-col items-center justify-center rounded-lg border-2 border-dashed border-gray-200 bg-gray-50 p-8 dark:border-gray-800 dark:bg-gray-950",
+          className,
         )}
         style={{ minHeight }}
         role="status"
         aria-live="polite"
       >
         <div className="flex h-12 w-12 items-center justify-center rounded-full bg-gray-100 dark:bg-gray-900">
-          {emptyIcon || <Search className="h-6 w-6 text-gray-400" aria-hidden="true" />}
+          {emptyIcon || (
+            <Search className="h-6 w-6 text-gray-400" aria-hidden="true" />
+          )}
         </div>
         <h3 className="mt-4 text-lg font-semibold text-gray-900 dark:text-gray-100">
           {emptyMessage}
@@ -183,13 +188,22 @@ export function LoadingBoundary({
 /**
  * Skeleton variants for common loading patterns
  */
-export function TableSkeleton({ rows = 5, cols = 4 }: { rows?: number; cols?: number }) {
+export function TableSkeleton({
+  rows = 5,
+  cols = 4,
+}: {
+  rows?: number;
+  cols?: number;
+}) {
   return (
     <div className="space-y-3" role="status" aria-label="Loading table">
       {/* Header skeleton */}
       <div className="flex gap-4">
         {Array.from({ length: cols }).map((_, i) => (
-          <div key={i} className="h-4 flex-1 animate-pulse rounded bg-gray-200 dark:bg-gray-800" />
+          <div
+            key={i}
+            className="h-4 flex-1 animate-pulse rounded bg-gray-200 dark:bg-gray-800"
+          />
         ))}
       </div>
       {/* Row skeletons */}
@@ -199,7 +213,9 @@ export function TableSkeleton({ rows = 5, cols = 4 }: { rows?: number; cols?: nu
             <div
               key={colIndex}
               className="h-8 flex-1 animate-pulse rounded bg-gray-100 dark:bg-gray-900"
-              style={{ animationDelay: `${(rowIndex * cols + colIndex) * 50}ms` }}
+              style={{
+                animationDelay: `${(rowIndex * cols + colIndex) * 50}ms`,
+              }}
             />
           ))}
         </div>
@@ -211,7 +227,11 @@ export function TableSkeleton({ rows = 5, cols = 4 }: { rows?: number; cols?: nu
 
 export function CardSkeleton({ count = 3 }: { count?: number }) {
   return (
-    <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3" role="status" aria-label="Loading cards">
+    <div
+      className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3"
+      role="status"
+      aria-label="Loading cards"
+    >
       {Array.from({ length: count }).map((_, i) => (
         <div key={i} className="rounded-lg border p-6 dark:border-gray-800">
           <div className="h-6 w-3/4 animate-pulse rounded bg-gray-200 dark:bg-gray-800" />

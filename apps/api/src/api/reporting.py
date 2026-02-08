@@ -4,6 +4,7 @@ Regulatory reporting, analytics, and audit trails.
 
 This module aggregates all reporting endpoints from the reports/ subdirectory.
 """
+
 from fastapi import APIRouter
 
 # Import the aggregated router from reports module

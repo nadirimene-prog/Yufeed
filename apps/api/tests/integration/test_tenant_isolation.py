@@ -14,6 +14,7 @@ Test Coverage:
 - Tenant-scoped rule evaluation
 - Tenant-scoped risk scoring
 """
+
 from datetime import datetime, timedelta, timezone
 from decimal import Decimal
 import uuid
@@ -21,7 +22,13 @@ import uuid
 import pytest
 from sqlalchemy.orm import sessionmaker
 
-from src.models.transaction_models import Transaction, MonitoringRule, Alert, UserRiskProfile, FeatureValue
+from src.models.transaction_models import (
+    Transaction,
+    MonitoringRule,
+    Alert,
+    UserRiskProfile,
+    FeatureValue,
+)
 from src.tasks import feature_refresh, transaction_processing
 
 
@@ -131,7 +138,9 @@ class TestFeatureRefreshTenantIsolation:
 class TestTransactionProcessingTenantIsolation:
     """Test transaction processing respects tenant boundaries."""
 
-    def test_process_transaction_task_is_tenant_scoped(self, db_session, test_db_engine, monkeypatch):
+    def test_process_transaction_task_is_tenant_scoped(
+        self, db_session, test_db_engine, monkeypatch
+    ):
         """
         Verify transaction processing only evaluates tenant-scoped rules and data.
 
@@ -213,11 +222,15 @@ class TestTransactionProcessingTenantIsolation:
             .first()
         )
         assert refreshed_tx_a is not None
-        assert refreshed_tx_a.risk_score == Decimal("5")  # Base score, not elevated by tenant-b velocity
+        assert refreshed_tx_a.risk_score == Decimal(
+            "5"
+        )  # Base score, not elevated by tenant-b velocity
 
         # No alerts should be created for tenant-a (tenant-b rule should not trigger)
         tenant_a_alerts = db_session.query(Alert).filter(Alert.tenant_id == "tenant-a").count()
-        assert tenant_a_alerts == 0, "Tenant-b rule triggered for tenant-a transaction - ISOLATION BREACH"
+        assert (
+            tenant_a_alerts == 0
+        ), "Tenant-b rule triggered for tenant-a transaction - ISOLATION BREACH"
 
         # User risk profile should only reflect tenant-a data (1 transaction, not 11)
         profile = (
@@ -233,7 +246,9 @@ class TestTransactionProcessingTenantIsolation:
 class TestAPIEndpointTenantIsolation:
     """Test API endpoints respect tenant boundaries."""
 
-    def test_alerts_endpoint_tenant_isolation(self, client, auth_headers, db_session, tenant_factory):
+    def test_alerts_endpoint_tenant_isolation(
+        self, client, auth_headers, db_session, tenant_factory
+    ):
         """
         Verify alerts API endpoint only returns tenant-scoped alerts.
 
@@ -258,8 +273,8 @@ class TestAPIEndpointTenantIsolation:
                 "severity": "high",
                 "user_id": "shared_user_api",
                 "description": "Tenant 1 alert",
-                "risk_score": 70.0
-            }
+                "risk_score": 70.0,
+            },
         )
         assert alert1_response.status_code == 201
         alert1_id = alert1_response.json()["alert_id"]
@@ -273,28 +288,30 @@ class TestAPIEndpointTenantIsolation:
                 "severity": "medium",
                 "user_id": "shared_user_api",
                 "description": "Tenant 2 alert",
-                "risk_score": 50.0
-            }
+                "risk_score": 50.0,
+            },
         )
         assert alert2_response.status_code == 201
         alert2_id = alert2_response.json()["alert_id"]
 
         # Query alerts for tenant1
         tenant1_alerts = client.get(
-            "/api/alerts",
-            headers={**auth_headers, "X-Tenant-ID": "tenant_alert_api_1"}
+            "/api/alerts", headers={**auth_headers, "X-Tenant-ID": "tenant_alert_api_1"}
         )
         tenant1_alert_ids = [a["alert_id"] for a in tenant1_alerts.json()]
 
         assert alert1_id in tenant1_alert_ids
-        assert alert2_id not in tenant1_alert_ids, "Tenant 1 can see Tenant 2's alert via API - ISOLATION BREACH"
+        assert (
+            alert2_id not in tenant1_alert_ids
+        ), "Tenant 1 can see Tenant 2's alert via API - ISOLATION BREACH"
 
         # Query alerts for tenant2
         tenant2_alerts = client.get(
-            "/api/alerts",
-            headers={**auth_headers, "X-Tenant-ID": "tenant_alert_api_2"}
+            "/api/alerts", headers={**auth_headers, "X-Tenant-ID": "tenant_alert_api_2"}
         )
         tenant2_alert_ids = [a["alert_id"] for a in tenant2_alerts.json()]
 
         assert alert2_id in tenant2_alert_ids
-        assert alert1_id not in tenant2_alert_ids, "Tenant 2 can see Tenant 1's alert via API - ISOLATION BREACH"
+        assert (
+            alert1_id not in tenant2_alert_ids
+        ), "Tenant 2 can see Tenant 1's alert via API - ISOLATION BREACH"

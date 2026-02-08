@@ -8,7 +8,12 @@ import {
   PlayCircle,
   Sparkles,
 } from "lucide-react";
-import type { DecisionResponse, EventResponse, FeatureSetResponse, TransactionResponse } from "@/app/decisioning/components/types";
+import type {
+  DecisionResponse,
+  EventResponse,
+  FeatureSetResponse,
+  TransactionResponse,
+} from "@/app/decisioning/components/types";
 import FeatureStorePanel from "@/app/decisioning/components/FeatureStorePanel";
 
 export default function DecisionSimulator({
@@ -131,7 +136,9 @@ export default function DecisionSimulator({
                 </label>
                 <input
                   value={transactionId}
-                  onChange={(event) => onTransactionIdChange(event.target.value)}
+                  onChange={(event) =>
+                    onTransactionIdChange(event.target.value)
+                  }
                   className="mt-1 w-full rounded-md border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900 px-3 py-2 text-sm"
                   placeholder="Numeric ID"
                 />
@@ -158,7 +165,9 @@ export default function DecisionSimulator({
                 />
               </div>
               <div>
-                <label className="text-xs font-medium text-gray-600 dark:text-gray-400">Source</label>
+                <label className="text-xs font-medium text-gray-600 dark:text-gray-400">
+                  Source
+                </label>
                 <input
                   value={source}
                   onChange={(event) => onSourceChange(event.target.value)}
@@ -242,7 +251,9 @@ export default function DecisionSimulator({
 
         <div className="space-y-6">
           <div className="rounded-xl border border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-950 p-6 shadow-sm">
-            <h2 className="text-sm font-semibold text-gray-900 dark:text-gray-100">Event Response</h2>
+            <h2 className="text-sm font-semibold text-gray-900 dark:text-gray-100">
+              Event Response
+            </h2>
             <div className="mt-3 text-xs text-gray-600 dark:text-gray-400">
               {eventResult ? (
                 <pre className="bg-gray-950 text-gray-100 p-3 rounded-md overflow-auto max-h-72">
@@ -255,7 +266,9 @@ export default function DecisionSimulator({
           </div>
 
           <div className="rounded-xl border border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-950 p-6 shadow-sm">
-            <h2 className="text-sm font-semibold text-gray-900 dark:text-gray-100">Transaction</h2>
+            <h2 className="text-sm font-semibold text-gray-900 dark:text-gray-100">
+              Transaction
+            </h2>
             <div className="mt-3 text-xs text-gray-600 dark:text-gray-400">
               {transactionResult ? (
                 <pre className="bg-gray-950 text-gray-100 p-3 rounded-md overflow-auto max-h-72">
@@ -268,7 +281,9 @@ export default function DecisionSimulator({
           </div>
 
           <div className="rounded-xl border border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-950 p-6 shadow-sm">
-            <h2 className="text-sm font-semibold text-gray-900 dark:text-gray-100">Decision Result</h2>
+            <h2 className="text-sm font-semibold text-gray-900 dark:text-gray-100">
+              Decision Result
+            </h2>
             <div className="mt-3 text-xs text-gray-600 dark:text-gray-400">
               {decisionResult ? (
                 <div className="space-y-3">
@@ -355,7 +370,9 @@ export default function DecisionSimulator({
               Quick tips
             </div>
             <ul className="space-y-2">
-              <li>Use transaction_id to attach decisions to stored transactions.</li>
+              <li>
+                Use transaction_id to attach decisions to stored transactions.
+              </li>
               <li>Use /api/features to add online features before deciding.</li>
               <li>Events are immutable and show in the Audit Trail.</li>
             </ul>
@@ -365,4 +382,3 @@ export default function DecisionSimulator({
     </div>
   );
 }
-

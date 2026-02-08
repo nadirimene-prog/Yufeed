@@ -16,6 +16,7 @@ from string import Template
 @dataclass
 class PromptTemplate:
     """A reusable prompt template with variable substitution."""
+
     name: str
     template: str
     description: str = ""
@@ -153,9 +154,8 @@ $context
 
 Provide your analysis in structured JSON format.
 """,
-        variables=["alert_data", "context"]
+        variables=["alert_data", "context"],
     ),
-
     "transaction_pattern": PromptTemplate(
         name="transaction_pattern",
         category="investigation",
@@ -183,9 +183,8 @@ Provide pattern analysis with:
 - Supporting evidence
 - Regulatory implications
 """,
-        variables=["transactions"]
+        variables=["transactions"],
     ),
-
     "risk_assessment": PromptTemplate(
         name="risk_assessment",
         category="investigation",
@@ -219,9 +218,8 @@ $transaction_history
 
 Calculate a risk score (0-100) with factor breakdown.
 """,
-        variables=["entity_data", "transaction_history"]
+        variables=["entity_data", "transaction_history"],
     ),
-
     "evidence_summary": PromptTemplate(
         name="evidence_summary",
         category="investigation",
@@ -244,8 +242,8 @@ Create a comprehensive evidence summary that:
 
 Format as a structured report suitable for case file.
 """,
-        variables=["investigation_id", "evidence_items"]
-    )
+        variables=["investigation_id", "evidence_items"],
+    ),
 }
 
 # =============================================================================
@@ -288,9 +286,8 @@ Target length: 500-1000 words.
 Include specific transaction references and dates.
 Cite applicable regulations (AMLD, national law).
 """,
-        variables=["case_data", "subject_data", "activity_details"]
+        variables=["case_data", "subject_data", "activity_details"],
     ),
-
     "narrative_fincen": PromptTemplate(
         name="narrative_fincen",
         category="sar",
@@ -325,9 +322,8 @@ Include:
 
 Target length: Part III narrative box (approximately 15,000 characters max).
 """,
-        variables=["case_data", "subject_data", "activity_details"]
+        variables=["case_data", "subject_data", "activity_details"],
     ),
-
     "activity_classification": PromptTemplate(
         name="activity_classification",
         category="sar",
@@ -372,8 +368,8 @@ Select all applicable categories:
 
 Provide classification with confidence level.
 """,
-        variables=["activity_details"]
-    )
+        variables=["activity_details"],
+    ),
 }
 
 # =============================================================================
@@ -404,9 +400,8 @@ $regulatory_context
 
 Provide a clear, actionable answer with citations.
 """,
-        variables=["question", "regulatory_context"]
+        variables=["question", "regulatory_context"],
     ),
-
     "policy_guidance": PromptTemplate(
         name="policy_guidance",
         category="qa",
@@ -432,8 +427,8 @@ Provide:
 4. Control recommendations
 5. Testing/validation approach
 """,
-        variables=["requirement", "current_policy", "guidance_request"]
-    )
+        variables=["requirement", "current_policy", "guidance_request"],
+    ),
 }
 
 # =============================================================================
@@ -470,9 +465,8 @@ Create an executive briefing that includes:
 Write in clear, professional tone suitable for AMLRO review.
 Start with most urgent items.
 """,
-        variables=["date", "activity_summary", "open_cases", "regulatory_calendar"]
+        variables=["date", "activity_summary", "open_cases", "regulatory_calendar"],
     ),
-
     "weekly_summary": PromptTemplate(
         name="weekly_summary",
         category="briefing",
@@ -498,8 +492,8 @@ Create a weekly summary report including:
 
 Format suitable for management reporting.
 """,
-        variables=["week_start", "weekly_stats", "significant_events"]
-    )
+        variables=["week_start", "weekly_stats", "significant_events"],
+    ),
 }
 
 # Register all templates

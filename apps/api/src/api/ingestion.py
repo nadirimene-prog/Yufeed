@@ -40,9 +40,7 @@ def get_ingestion_status(
 
     # Get recent run stats (last 7 days)
     seven_days_ago = utc_now() - timedelta(days=7)
-    recent_runs = db.query(IngestionRun).filter(
-        IngestionRun.started_at >= seven_days_ago
-    ).all()
+    recent_runs = db.query(IngestionRun).filter(IngestionRun.started_at >= seven_days_ago).all()
 
     total_runs = len(recent_runs)
     successful_runs = len([r for r in recent_runs if r.status == "completed"])
@@ -54,24 +52,38 @@ def get_ingestion_status(
     total_seen = sum(r.items_seen or 0 for r in recent_runs)
 
     # Get DLQ stats
-    dlq_pending = db.query(func.count(FailedIngestionItem.id)).filter(
-        FailedIngestionItem.status == "pending"
-    ).scalar() or 0
+    dlq_pending = (
+        db.query(func.count(FailedIngestionItem.id))
+        .filter(FailedIngestionItem.status == "pending")
+        .scalar()
+        or 0
+    )
 
-    dlq_exhausted = db.query(func.count(FailedIngestionItem.id)).filter(
-        FailedIngestionItem.status == "exhausted"
-    ).scalar() or 0
+    dlq_exhausted = (
+        db.query(func.count(FailedIngestionItem.id))
+        .filter(FailedIngestionItem.status == "exhausted")
+        .scalar()
+        or 0
+    )
 
     # Get document stats
     total_docs = db.query(func.count(LegalDocument.id)).scalar() or 0
-    docs_with_content = db.query(func.count(LegalDocument.id)).filter(
-        LegalDocument.full_text.isnot(None),
-        LegalDocument.full_text != "",
-    ).scalar() or 0
+    docs_with_content = (
+        db.query(func.count(LegalDocument.id))
+        .filter(
+            LegalDocument.full_text.isnot(None),
+            LegalDocument.full_text != "",
+        )
+        .scalar()
+        or 0
+    )
 
-    docs_analyzed = db.query(func.count(LegalDocument.id)).filter(
-        LegalDocument.analyzed_at.isnot(None)
-    ).scalar() or 0
+    docs_analyzed = (
+        db.query(func.count(LegalDocument.id))
+        .filter(LegalDocument.analyzed_at.isnot(None))
+        .scalar()
+        or 0
+    )
 
     # Determine overall health
     if failed_runs > successful_runs:
@@ -94,7 +106,9 @@ def get_ingestion_status(
                     "source_key": s.source_key,
                     "name": s.name,
                     "jurisdiction": s.jurisdiction,
-                    "last_ingested_at": s.last_ingested_at.isoformat() if s.last_ingested_at else None,
+                    "last_ingested_at": (
+                        s.last_ingested_at.isoformat() if s.last_ingested_at else None
+                    ),
                 }
                 for s in sources
             ],
@@ -117,8 +131,12 @@ def get_ingestion_status(
             "total": total_docs,
             "with_content": docs_with_content,
             "analyzed": docs_analyzed,
-            "content_coverage": round(docs_with_content / total_docs * 100, 1) if total_docs > 0 else 0,
-            "analysis_coverage": round(docs_analyzed / total_docs * 100, 1) if total_docs > 0 else 0,
+            "content_coverage": (
+                round(docs_with_content / total_docs * 100, 1) if total_docs > 0 else 0
+            ),
+            "analysis_coverage": (
+                round(docs_analyzed / total_docs * 100, 1) if total_docs > 0 else 0
+            ),
         },
     }
 
@@ -138,9 +156,11 @@ def list_ingestion_runs(
     """
     cutoff = utc_now() - timedelta(days=days)
 
-    query = db.query(IngestionRun, RegulatorySource).join(
-        RegulatorySource, IngestionRun.source_id == RegulatorySource.id
-    ).filter(IngestionRun.started_at >= cutoff)
+    query = (
+        db.query(IngestionRun, RegulatorySource)
+        .join(RegulatorySource, IngestionRun.source_id == RegulatorySource.id)
+        .filter(IngestionRun.started_at >= cutoff)
+    )
 
     if source_key:
         query = query.filter(RegulatorySource.source_key == source_key)
@@ -161,7 +181,11 @@ def list_ingestion_runs(
                 "status": run.status,
                 "started_at": run.started_at.isoformat() if run.started_at else None,
                 "completed_at": run.completed_at.isoformat() if run.completed_at else None,
-                "duration_seconds": (run.completed_at - run.started_at).total_seconds() if run.completed_at and run.started_at else None,
+                "duration_seconds": (
+                    (run.completed_at - run.started_at).total_seconds()
+                    if run.completed_at and run.started_at
+                    else None
+                ),
                 "items_seen": run.items_seen,
                 "items_new": run.items_new,
                 "items_updated": run.items_updated,
@@ -181,9 +205,12 @@ def get_ingestion_run(
     """
     Get detailed information about a specific ingestion run.
     """
-    row = db.query(IngestionRun, RegulatorySource).join(
-        RegulatorySource, IngestionRun.source_id == RegulatorySource.id
-    ).filter(IngestionRun.id == run_id).first()
+    row = (
+        db.query(IngestionRun, RegulatorySource)
+        .join(RegulatorySource, IngestionRun.source_id == RegulatorySource.id)
+        .filter(IngestionRun.id == run_id)
+        .first()
+    )
 
     if not row:
         raise HTTPException(status_code=404, detail="Ingestion run not found")
@@ -198,7 +225,11 @@ def get_ingestion_run(
         "status": run.status,
         "started_at": run.started_at.isoformat() if run.started_at else None,
         "completed_at": run.completed_at.isoformat() if run.completed_at else None,
-        "duration_seconds": (run.completed_at - run.started_at).total_seconds() if run.completed_at and run.started_at else None,
+        "duration_seconds": (
+            (run.completed_at - run.started_at).total_seconds()
+            if run.completed_at and run.started_at
+            else None
+        ),
         "items_seen": run.items_seen,
         "items_new": run.items_new,
         "items_updated": run.items_updated,
@@ -208,7 +239,9 @@ def get_ingestion_run(
 
 @router.get("/failed")
 def list_failed_items(
-    status: Optional[str] = Query(None, description="Filter by status: pending, retrying, exhausted, resolved"),
+    status: Optional[str] = Query(
+        None, description="Filter by status: pending, retrying, exhausted, resolved"
+    ),
     source_key: Optional[str] = Query(None, description="Filter by source key"),
     skip: int = Query(0, ge=0),
     limit: int = Query(50, ge=1, le=200),
@@ -306,6 +339,7 @@ def retry_failed_item(
 
     # Trigger async retry
     from src.worker import retry_failed_ingestion_items
+
     retry_failed_ingestion_items.delay(limit=1)
 
     return {
@@ -380,9 +414,7 @@ def toggle_source(
     """
     Toggle a source's active status.
     """
-    source = db.query(RegulatorySource).filter(
-        RegulatorySource.source_key == source_key
-    ).first()
+    source = db.query(RegulatorySource).filter(RegulatorySource.source_key == source_key).first()
 
     if not source:
         raise HTTPException(status_code=404, detail="Source not found")
@@ -427,79 +459,117 @@ def get_compliance_metrics(
     total_obligations = db.query(func.count(RegulatoryObligation.id)).scalar() or 0
 
     obligations_by_status = dict(
-        db.query(
-            RegulatoryObligation.status,
-            func.count(RegulatoryObligation.id)
-        ).group_by(RegulatoryObligation.status).all()
+        db.query(RegulatoryObligation.status, func.count(RegulatoryObligation.id))
+        .group_by(RegulatoryObligation.status)
+        .all()
     )
 
-    obligations_with_deadline = db.query(func.count(RegulatoryObligation.id)).filter(
-        RegulatoryObligation.effective_date.isnot(None)
-    ).scalar() or 0
+    obligations_with_deadline = (
+        db.query(func.count(RegulatoryObligation.id))
+        .filter(RegulatoryObligation.effective_date.isnot(None))
+        .scalar()
+        or 0
+    )
 
     # Deadline breakdown
-    overdue = db.query(func.count(RegulatoryObligation.id)).filter(
-        RegulatoryObligation.effective_date < now,
-        RegulatoryObligation.status.in_(["draft", "in_review", "approved"]),
-    ).scalar() or 0
+    overdue = (
+        db.query(func.count(RegulatoryObligation.id))
+        .filter(
+            RegulatoryObligation.effective_date < now,
+            RegulatoryObligation.status.in_(["draft", "in_review", "approved"]),
+        )
+        .scalar()
+        or 0
+    )
 
-    due_7_days = db.query(func.count(RegulatoryObligation.id)).filter(
-        RegulatoryObligation.effective_date >= now,
-        RegulatoryObligation.effective_date < now + timedelta(days=7),
-        RegulatoryObligation.status.in_(["draft", "in_review", "approved"]),
-    ).scalar() or 0
+    due_7_days = (
+        db.query(func.count(RegulatoryObligation.id))
+        .filter(
+            RegulatoryObligation.effective_date >= now,
+            RegulatoryObligation.effective_date < now + timedelta(days=7),
+            RegulatoryObligation.status.in_(["draft", "in_review", "approved"]),
+        )
+        .scalar()
+        or 0
+    )
 
-    due_30_days = db.query(func.count(RegulatoryObligation.id)).filter(
-        RegulatoryObligation.effective_date >= now,
-        RegulatoryObligation.effective_date < now + timedelta(days=30),
-        RegulatoryObligation.status.in_(["draft", "in_review", "approved"]),
-    ).scalar() or 0
+    due_30_days = (
+        db.query(func.count(RegulatoryObligation.id))
+        .filter(
+            RegulatoryObligation.effective_date >= now,
+            RegulatoryObligation.effective_date < now + timedelta(days=30),
+            RegulatoryObligation.status.in_(["draft", "in_review", "approved"]),
+        )
+        .scalar()
+        or 0
+    )
 
     # Policy linkage
-    obligations_linked_to_policy = db.query(func.count(RegulatoryObligation.id)).filter(
-        RegulatoryObligation.linked_policy_id.isnot(None)
-    ).scalar() or 0
+    obligations_linked_to_policy = (
+        db.query(func.count(RegulatoryObligation.id))
+        .filter(RegulatoryObligation.linked_policy_id.isnot(None))
+        .scalar()
+        or 0
+    )
 
     # Document metrics
     total_docs = db.query(func.count(LegalDocument.id)).scalar() or 0
-    docs_analyzed = db.query(func.count(LegalDocument.id)).filter(
-        LegalDocument.analyzed_at.isnot(None)
-    ).scalar() or 0
-    docs_with_obligations = db.query(func.count(func.distinct(RegulatoryObligation.doc_id))).scalar() or 0
-    docs_with_content = db.query(func.count(LegalDocument.id)).filter(
-        LegalDocument.full_text.isnot(None),
-        LegalDocument.full_text != "",
-    ).scalar() or 0
+    docs_analyzed = (
+        db.query(func.count(LegalDocument.id))
+        .filter(LegalDocument.analyzed_at.isnot(None))
+        .scalar()
+        or 0
+    )
+    docs_with_obligations = (
+        db.query(func.count(func.distinct(RegulatoryObligation.doc_id))).scalar() or 0
+    )
+    docs_with_content = (
+        db.query(func.count(LegalDocument.id))
+        .filter(
+            LegalDocument.full_text.isnot(None),
+            LegalDocument.full_text != "",
+        )
+        .scalar()
+        or 0
+    )
 
     # Policy metrics
     total_policies = db.query(func.count(PolicyDocument.id)).scalar() or 0
-    active_policies = db.query(func.count(PolicyDocument.id)).filter(
-        PolicyDocument.status == "active"
-    ).scalar() or 0
+    active_policies = (
+        db.query(func.count(PolicyDocument.id)).filter(PolicyDocument.status == "active").scalar()
+        or 0
+    )
 
     # Internal rules metrics
     total_internal_rules = db.query(func.count(InternalRule.id)).scalar() or 0
     internal_rules_by_status = dict(
-        db.query(
-            InternalRule.status,
-            func.count(InternalRule.id)
-        ).group_by(InternalRule.status).all()
+        db.query(InternalRule.status, func.count(InternalRule.id))
+        .group_by(InternalRule.status)
+        .all()
     )
 
     # Risk metrics
     total_risk_entries = db.query(func.count(RiskEntry.id)).scalar() or 0
-    obligations_with_risk_links = db.query(
-        func.count(func.distinct(ObligationRiskLink.obligation_id))
-    ).scalar() or 0
+    obligations_with_risk_links = (
+        db.query(func.count(func.distinct(ObligationRiskLink.obligation_id))).scalar() or 0
+    )
 
     # DLQ metrics
-    dlq_pending = db.query(func.count(FailedIngestionItem.id)).filter(
-        FailedIngestionItem.status == "pending"
-    ).scalar() or 0
-    dlq_analysis_pending = db.query(func.count(FailedIngestionItem.id)).filter(
-        FailedIngestionItem.status == "pending",
-        FailedIngestionItem.source_key == "ai_analysis",
-    ).scalar() or 0
+    dlq_pending = (
+        db.query(func.count(FailedIngestionItem.id))
+        .filter(FailedIngestionItem.status == "pending")
+        .scalar()
+        or 0
+    )
+    dlq_analysis_pending = (
+        db.query(func.count(FailedIngestionItem.id))
+        .filter(
+            FailedIngestionItem.status == "pending",
+            FailedIngestionItem.source_key == "ai_analysis",
+        )
+        .scalar()
+        or 0
+    )
 
     return {
         "timestamp": now.isoformat(),
@@ -515,7 +585,11 @@ def get_compliance_metrics(
             "with_deadline": obligations_with_deadline,
             "linked_to_policy": obligations_linked_to_policy,
             "with_risk_links": obligations_with_risk_links,
-            "policy_linkage_rate": round(obligations_linked_to_policy / total_obligations * 100, 1) if total_obligations > 0 else 0,
+            "policy_linkage_rate": (
+                round(obligations_linked_to_policy / total_obligations * 100, 1)
+                if total_obligations > 0
+                else 0
+            ),
         },
         "deadlines": {
             "overdue": overdue,
@@ -528,7 +602,9 @@ def get_compliance_metrics(
             "with_obligations": docs_with_obligations,
             "with_content": docs_with_content,
             "analysis_rate": round(docs_analyzed / total_docs * 100, 1) if total_docs > 0 else 0,
-            "obligation_coverage": round(docs_with_obligations / total_docs * 100, 1) if total_docs > 0 else 0,
+            "obligation_coverage": (
+                round(docs_with_obligations / total_docs * 100, 1) if total_docs > 0 else 0
+            ),
         },
         "policies": {
             "total": total_policies,

@@ -2,6 +2,7 @@
 AI-powered document analysis for compliance intelligence.
 Uses LLM to classify documents, assess risk, and extract obligations.
 """
+
 import json
 import logging
 import re
@@ -78,6 +79,7 @@ def _is_anthropic_credit_error(exc: Exception) -> bool:
     msg = str(exc).lower()
     return "credit balance is too low" in msg or ("insufficient" in msg and "credit" in msg)
 
+
 def _is_anthropic_model_not_found(exc: Exception) -> bool:
     msg = str(exc).lower()
     return "not_found_error" in msg and "model" in msg
@@ -123,9 +125,9 @@ def _openai_chat(prompt: str, max_tokens: int, temperature: float = 0.3) -> str:
             if response.status_code == 429 and attempt < retries:
                 retry_after = response.headers.get("Retry-After")
                 try:
-                    sleep_s = float(retry_after) if retry_after else backoff * (2 ** attempt)
+                    sleep_s = float(retry_after) if retry_after else backoff * (2**attempt)
                 except ValueError:
-                    sleep_s = backoff * (2 ** attempt)
+                    sleep_s = backoff * (2**attempt)
                 time.sleep(sleep_s)
                 continue
             response.raise_for_status()
@@ -136,7 +138,7 @@ def _openai_chat(prompt: str, max_tokens: int, temperature: float = 0.3) -> str:
         except Exception as exc:
             last_exc = exc
             if attempt < retries:
-                time.sleep(backoff * (2 ** attempt))
+                time.sleep(backoff * (2**attempt))
                 continue
             raise
     if last_exc:
@@ -154,7 +156,9 @@ def _classify_heuristic(title: str) -> str:
         return ComplianceDomain.PAYMENTS.value
     if any(kw in title_lower for kw in ["sanction", "restrictive measure"]):
         return ComplianceDomain.SANCTIONS.value
-    if any(kw in title_lower for kw in ["know your customer", "kyc", "customer due diligence", "cdd"]):
+    if any(
+        kw in title_lower for kw in ["know your customer", "kyc", "customer due diligence", "cdd"]
+    ):
         return ComplianceDomain.KYC.value
     if any(kw in title_lower for kw in ["gdpr", "data protection", "privacy"]):
         return ComplianceDomain.GDPR.value
@@ -163,11 +167,14 @@ def _classify_heuristic(title: str) -> str:
 
 def _risk_heuristic(title: str) -> str:
     title_lower = (title or "").lower()
-    if any(kw in title_lower for kw in ["aml", "money laundering", "sanction", "terrorist financing"]):
+    if any(
+        kw in title_lower for kw in ["aml", "money laundering", "sanction", "terrorist financing"]
+    ):
         return RiskLevel.HIGH.value
     if any(kw in title_lower for kw in ["payment", "crypto", "kyc", "cdd"]):
         return RiskLevel.MEDIUM.value
     return RiskLevel.LOW.value
+
 
 def classify_document(title: str, celex: str) -> Optional[str]:
     """
@@ -197,15 +204,15 @@ Respond with ONLY the category code (e.g., "aml", "crypto", "payments")."""
             message = client.messages.create(
                 model="claude-3-haiku-20240307",  # Fast and cost-effective
                 max_tokens=50,
-                messages=[{"role": "user", "content": prompt}]
+                messages=[{"role": "user", "content": prompt}],
             )
             _mark_llm_usage("anthropic")
-            
+
             result = message.content[0].text.strip().lower()
             # Validate result
             valid_domains = [d.value for d in ComplianceDomain]
             return result if result in valid_domains else ComplianceDomain.OTHER.value
-            
+
         except Exception as e:
             if _is_anthropic_credit_error(e):
                 _disable_anthropic("insufficient_credits")
@@ -271,14 +278,14 @@ Respond with ONLY the risk level (high, medium, or low)."""
             message = client.messages.create(
                 model="claude-3-haiku-20240307",
                 max_tokens=50,
-                messages=[{"role": "user", "content": prompt}]
+                messages=[{"role": "user", "content": prompt}],
             )
             _mark_llm_usage("anthropic")
-            
+
             result = message.content[0].text.strip().lower()
             valid_levels = [r.value for r in RiskLevel]
             return result if result in valid_levels else RiskLevel.UNKNOWN.value
-            
+
         except Exception as e:
             if _is_anthropic_credit_error(e):
                 _disable_anthropic("insufficient_credits")
@@ -600,20 +607,20 @@ If no deadline can be determined, respond with "none".
             message = client.messages.create(
                 model="claude-3-haiku-20240307",
                 max_tokens=100,
-                messages=[{"role": "user", "content": prompt}]
+                messages=[{"role": "user", "content": prompt}],
             )
             _mark_llm_usage("anthropic")
-            
+
             result = message.content[0].text.strip().lower()
             if result == "none":
                 return None
-            
+
             # Try to parse date
             try:
                 return datetime.strptime(result, "%Y-%m-%d")
             except ValueError:
                 return None
-            
+
         except Exception as e:
             if _is_anthropic_credit_error(e):
                 _disable_anthropic("insufficient_credits")
@@ -650,6 +657,7 @@ If no deadline can be determined, respond with "none".
     # Simple heuristic: directives typically have 2-year transposition period
     if publication_date and "directive" in title.lower():
         from dateutil.relativedelta import relativedelta
+
         return publication_date + relativedelta(years=2)
     return None
 
@@ -676,12 +684,12 @@ Keep it under 100 words."""
             message = client.messages.create(
                 model="claude-3-haiku-20240307",
                 max_tokens=200,
-                messages=[{"role": "user", "content": prompt}]
+                messages=[{"role": "user", "content": prompt}],
             )
             _mark_llm_usage("anthropic")
-            
+
             return message.content[0].text.strip()
-            
+
         except Exception as e:
             if _is_anthropic_credit_error(e):
                 _disable_anthropic("insufficient_credits")
@@ -712,10 +720,10 @@ Keep it under 100 words."""
 def analyze_document(doc_data: Dict[str, Any]) -> Dict[str, Any]:
     """
     Perform complete AI analysis on a document.
-    
+
     Args:
         doc_data: Dict with keys: celex, title, publication_date (optional)
-    
+
     Returns:
         Dict with analysis results
     """
@@ -741,7 +749,9 @@ def analyze_document(doc_data: Dict[str, Any]) -> Dict[str, Any]:
 
     providers = _llm_providers_used()
     analysis_provider = (
-        "anthropic" if "anthropic" in providers else "openai" if "openai" in providers else "heuristic"
+        "anthropic"
+        if "anthropic" in providers
+        else "openai" if "openai" in providers else "heuristic"
     )
 
     return {

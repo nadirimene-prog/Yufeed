@@ -41,4 +41,3 @@ YuFeed is a compliance intelligence platform focused on three pillars:
 - Architecture: see `docs/architecture/architecture.md`
 - Product docs: `docs/product/`
 - Regulatory pipeline: `docs/product/regulatory-pipeline-plan.md`
-

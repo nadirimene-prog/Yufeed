@@ -70,10 +70,20 @@ def upgrade() -> None:
 
 
 def downgrade() -> None:
-    op.drop_index("ix_failed_tx_processing_retry_lookup", table_name="failed_transaction_processing_items")
-    op.drop_index("ix_failed_tx_processing_created_at", table_name="failed_transaction_processing_items")
-    op.drop_index("ix_failed_tx_processing_status", table_name="failed_transaction_processing_items")
-    op.drop_index("ix_failed_tx_processing_transaction_db_id", table_name="failed_transaction_processing_items")
-    op.drop_index("ix_failed_tx_processing_tenant_id", table_name="failed_transaction_processing_items")
+    op.drop_index(
+        "ix_failed_tx_processing_retry_lookup", table_name="failed_transaction_processing_items"
+    )
+    op.drop_index(
+        "ix_failed_tx_processing_created_at", table_name="failed_transaction_processing_items"
+    )
+    op.drop_index(
+        "ix_failed_tx_processing_status", table_name="failed_transaction_processing_items"
+    )
+    op.drop_index(
+        "ix_failed_tx_processing_transaction_db_id",
+        table_name="failed_transaction_processing_items",
+    )
+    op.drop_index(
+        "ix_failed_tx_processing_tenant_id", table_name="failed_transaction_processing_items"
+    )
     op.drop_table("failed_transaction_processing_items")
-

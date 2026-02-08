@@ -24,27 +24,21 @@ CELEX_ALIASES = {
     "GDPR": "32016R0679",
     "GENERAL DATA PROTECTION REGULATION": "32016R0679",
     "DATA PROTECTION REGULATION": "32016R0679",
-
     # AI Act
     "AI ACT": "32024R1689",
     "ARTIFICIAL INTELLIGENCE ACT": "32024R1689",
-
     # DMA
     "DMA": "32022R1925",
     "DIGITAL MARKETS ACT": "32022R1925",
-
     # DSA
     "DSA": "32022R2065",
     "DIGITAL SERVICES ACT": "32022R2065",
-
     # ePrivacy Directive
     "EPRIVACY": "32002L0058",
     "EPRIVACY DIRECTIVE": "32002L0058",
-
     # PSD2
     "PSD2": "32015L2366",
     "PAYMENT SERVICES DIRECTIVE": "32015L2366",
-
     # NIS2
     "NIS2": "32022L2555",
     "NIS DIRECTIVE": "32022L2555",
@@ -111,12 +105,12 @@ def normalize_celex(input_str: str, log: bool = True) -> Optional[str]:
         return CELEX_ALIASES[clean]
 
     # Already in standard CELEX format
-    if re.match(r'^[0-9]{1,5}[A-Z]{1,3}[0-9]{1,6}[A-Z0-9]*$', clean):
+    if re.match(r"^[0-9]{1,5}[A-Z]{1,3}[0-9]{1,6}[A-Z0-9]*$", clean):
         # Ensure 4-digit padding on year (e.g., 32016R679 -> 32016R0679)
         return _pad_celex_number(clean)
 
     # Format: "2016/679" or "2016-679"
-    match = re.match(r'^(\d{4})[/-](\d+)$', clean)
+    match = re.match(r"^(\d{4})[/-](\d+)$", clean)
     if match:
         year, number = match.groups()
         # Assume regulation (most common)
@@ -125,7 +119,7 @@ def normalize_celex(input_str: str, log: bool = True) -> Optional[str]:
         return celex
 
     # Format: "Regulation 2016/679", "Directive (EU) 2016/680"
-    match = re.match(r'(REGULATION|DIRECTIVE|DECISION)\s*(?:\(EU\))?\s*(\d{4})[/-](\d+)', clean)
+    match = re.match(r"(REGULATION|DIRECTIVE|DECISION)\s*(?:\(EU\))?\s*(\d{4})[/-](\d+)", clean)
     if match:
         doc_type, year, number = match.groups()
         type_code = DOCUMENT_TYPE_CODES.get(doc_type, "R")
@@ -134,7 +128,9 @@ def normalize_celex(input_str: str, log: bool = True) -> Optional[str]:
         return celex
 
     # Format: "Regulation (EU) No 679/2016"
-    match = re.match(r'(REGULATION|DIRECTIVE|DECISION)\s*(?:\(EU\))?\s*(?:NO\.?\s*)?(\d+)[/-](\d{4})', clean)
+    match = re.match(
+        r"(REGULATION|DIRECTIVE|DECISION)\s*(?:\(EU\))?\s*(?:NO\.?\s*)?(\d+)[/-](\d{4})", clean
+    )
     if match:
         doc_type, number, year = match.groups()
         type_code = DOCUMENT_TYPE_CODES.get(doc_type, "R")
@@ -143,7 +139,7 @@ def normalize_celex(input_str: str, log: bool = True) -> Optional[str]:
         return celex
 
     # Format: "32016R679" (missing leading zeros in number)
-    match = re.match(r'^(\d{1,5})([A-Z]{1,3})(\d{1,6})([A-Z0-9]*)$', clean)
+    match = re.match(r"^(\d{1,5})([A-Z]{1,3})(\d{1,6})([A-Z0-9]*)$", clean)
     if match:
         sector_year, doc_type, number, suffix = match.groups()
         celex = f"{sector_year}{doc_type}{number.zfill(4)}{suffix}"
@@ -161,7 +157,7 @@ def _pad_celex_number(celex: str) -> str:
 
     Example: 32016R679 -> 32016R0679
     """
-    match = re.match(r'^(\d{1,5})([A-Z]{1,3})(\d{1,6})([A-Z0-9]*)$', celex)
+    match = re.match(r"^(\d{1,5})([A-Z]{1,3})(\d{1,6})([A-Z0-9]*)$", celex)
     if not match:
         return celex
 
@@ -200,7 +196,7 @@ def parse_celex(celex: str) -> Optional[Dict[str, str]]:
         return None
 
     # Standard CELEX pattern
-    match = re.match(r'^(\d)(\d{4})([A-Z]{1,3})(\d{4,6})([A-Z0-9]*)$', celex)
+    match = re.match(r"^(\d)(\d{4})([A-Z]{1,3})(\d{4,6})([A-Z0-9]*)$", celex)
     if not match:
         return None
 
@@ -220,7 +216,7 @@ def parse_celex(celex: str) -> Optional[Dict[str, str]]:
         "number": number,
         "suffix": suffix,
         "sector_name": SECTOR_CODES.get(sector, "UNKNOWN"),
-        "type_name": type_name or "UNKNOWN"
+        "type_name": type_name or "UNKNOWN",
     }
 
 
@@ -246,7 +242,10 @@ def generate_celex_variations(celex: str) -> list[str]:
 
     # Add version without leading zeros
     if parsed["number"].startswith("0"):
-        no_zeros = f"{parsed['sector']}{parsed['year']}{parsed['document_type']}{parsed['number'].lstrip('0')}{parsed['suffix']}"
+        no_zeros = (
+            f"{parsed['sector']}{parsed['year']}{parsed['document_type']}"
+            f"{parsed['number'].lstrip('0')}{parsed['suffix']}"
+        )
         variations.append(no_zeros)
 
     # Add year/number format
@@ -297,5 +296,5 @@ def is_valid_celex(celex: str) -> bool:
     """
     if not celex:
         return False
-    pattern = r'^[0-9]{1,5}[A-Z]{1,3}[0-9]{1,6}[A-Z0-9]*$'
+    pattern = r"^[0-9]{1,5}[A-Z]{1,3}[0-9]{1,6}[A-Z0-9]*$"
     return re.match(pattern, celex) is not None

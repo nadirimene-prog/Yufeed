@@ -2,6 +2,7 @@
 Cached query functions for hot endpoints.
 Phase 4A: Task 3.2 & 3.3 - Implement Caching for Hot Endpoints
 """
+
 from typing import List, Optional, Dict, Any
 from sqlalchemy.orm import Session
 from datetime import datetime, timedelta, timezone
@@ -11,6 +12,7 @@ def utc_now() -> datetime:
     """Return current UTC time (timezone-aware)."""
     return datetime.now(timezone.utc)
 
+
 from src.cache.cache_manager import cache_manager, cached, cache_aside
 from src.models.transaction_models import Alert, MonitoringRule, Transaction
 from src.models.models import LegalDocument
@@ -19,6 +21,7 @@ from src.models.models import LegalDocument
 # ============================================================================
 # USER RISK PROFILES (5min TTL)
 # ============================================================================
+
 
 def get_cached_user_risk_profile(db: Session, user_id: str) -> Optional[Dict[str, Any]]:
     """
@@ -35,23 +38,27 @@ def get_cached_user_risk_profile(db: Session, user_id: str) -> Optional[Dict[str
         key=f"user:{user_id}",
         loader=lambda: _compute_user_risk_profile(db, user_id),
         ttl=300,  # 5 minutes
-        cache_type="user_profile"
+        cache_type="user_profile",
     )
 
 
 def _compute_user_risk_profile(db: Session, user_id: str) -> Dict[str, Any]:
     """Compute user risk profile from database."""
     # Get recent transactions
-    recent_txns = db.query(Transaction).filter(
-        Transaction.user_id == user_id,
-        Transaction.timestamp >= utc_now() - timedelta(days=30)
-    ).all()
+    recent_txns = (
+        db.query(Transaction)
+        .filter(
+            Transaction.user_id == user_id, Transaction.timestamp >= utc_now() - timedelta(days=30)
+        )
+        .all()
+    )
 
     # Get alerts
-    alerts = db.query(Alert).filter(
-        Alert.user_id == user_id,
-        Alert.status.in_(["pending", "in_review"])
-    ).all()
+    alerts = (
+        db.query(Alert)
+        .filter(Alert.user_id == user_id, Alert.status.in_(["pending", "in_review"]))
+        .all()
+    )
 
     # Calculate metrics
     total_volume = sum(float(txn.amount) for txn in recent_txns)
@@ -72,7 +79,7 @@ def _compute_user_risk_profile(db: Session, user_id: str) -> Dict[str, Any]:
         "avg_transaction_amount": round(avg_transaction, 2),
         "unique_countries": len(countries),
         "countries": list(countries),
-        "computed_at": utc_now().isoformat()
+        "computed_at": utc_now().isoformat(),
     }
 
 
@@ -85,14 +92,13 @@ def invalidate_user_risk_profile(user_id: str):
 # RULE DEFINITIONS (10min TTL)
 # ============================================================================
 
+
 @cached(namespace="rules", key_prefix="rule", ttl=600, cache_type="rules")
 def get_cached_rule(db: Session, rule_id: str) -> Optional[Dict[str, Any]]:
     """
     Get rule definition with 10-minute cache.
     """
-    rule = db.query(MonitoringRule).filter(
-        MonitoringRule.rule_id == rule_id
-    ).first()
+    rule = db.query(MonitoringRule).filter(MonitoringRule.rule_id == rule_id).first()
 
     if not rule:
         return None
@@ -106,7 +112,7 @@ def get_cached_rule(db: Session, rule_id: str) -> Optional[Dict[str, Any]]:
         "conditions": rule.conditions,
         "thresholds": rule.thresholds,
         "enabled": rule.enabled,
-        "version": rule.version
+        "version": rule.version,
     }
 
 
@@ -119,15 +125,13 @@ def get_cached_active_rules(db: Session) -> List[Dict[str, Any]]:
         key="all_active",
         loader=lambda: _fetch_active_rules(db),
         ttl=600,
-        cache_type="rules"
+        cache_type="rules",
     )
 
 
 def _fetch_active_rules(db: Session) -> List[Dict[str, Any]]:
     """Fetch active rules from database."""
-    rules = db.query(MonitoringRule).filter(
-        MonitoringRule.enabled == True
-    ).all()
+    rules = db.query(MonitoringRule).filter(MonitoringRule.enabled == True).all()
 
     return [
         {
@@ -136,7 +140,7 @@ def _fetch_active_rules(db: Session) -> List[Dict[str, Any]]:
             "category": rule.category,
             "severity": rule.severity,
             "conditions": rule.conditions,
-            "thresholds": rule.thresholds
+            "thresholds": rule.thresholds,
         }
         for rule in rules
     ]
@@ -150,6 +154,7 @@ def invalidate_rules_cache():
 # ============================================================================
 # FEATURE AGGREGATIONS (1min TTL)
 # ============================================================================
+
 
 def get_cached_user_features(db: Session, user_id: str) -> Dict[str, Any]:
     """
@@ -166,7 +171,7 @@ def get_cached_user_features(db: Session, user_id: str) -> Dict[str, Any]:
         key=f"user:{user_id}",
         loader=lambda: _compute_user_features(db, user_id),
         ttl=60,  # 1 minute
-        cache_type="features"
+        cache_type="features",
     )
 
 
@@ -175,20 +180,23 @@ def _compute_user_features(db: Session, user_id: str) -> Dict[str, Any]:
     now = utc_now()
 
     # Get transactions for different windows
-    txns_24h = db.query(Transaction).filter(
-        Transaction.user_id == user_id,
-        Transaction.timestamp >= now - timedelta(hours=24)
-    ).all()
+    txns_24h = (
+        db.query(Transaction)
+        .filter(Transaction.user_id == user_id, Transaction.timestamp >= now - timedelta(hours=24))
+        .all()
+    )
 
-    txns_7d = db.query(Transaction).filter(
-        Transaction.user_id == user_id,
-        Transaction.timestamp >= now - timedelta(days=7)
-    ).all()
+    txns_7d = (
+        db.query(Transaction)
+        .filter(Transaction.user_id == user_id, Transaction.timestamp >= now - timedelta(days=7))
+        .all()
+    )
 
-    txns_30d = db.query(Transaction).filter(
-        Transaction.user_id == user_id,
-        Transaction.timestamp >= now - timedelta(days=30)
-    ).all()
+    txns_30d = (
+        db.query(Transaction)
+        .filter(Transaction.user_id == user_id, Transaction.timestamp >= now - timedelta(days=30))
+        .all()
+    )
 
     return {
         "user_id": user_id,
@@ -196,26 +204,27 @@ def _compute_user_features(db: Session, user_id: str) -> Dict[str, Any]:
         "transaction_count_24h": len(txns_24h),
         "transaction_count_7d": len(txns_7d),
         "transaction_count_30d": len(txns_30d),
-
         # Volume features
         "total_volume_24h": sum(float(t.amount) for t in txns_24h),
         "total_volume_7d": sum(float(t.amount) for t in txns_7d),
         "total_volume_30d": sum(float(t.amount) for t in txns_30d),
-
         # Counterparty features
-        "unique_counterparties_24h": len(set(t.counterparty_id for t in txns_24h if t.counterparty_id)),
-        "unique_counterparties_7d": len(set(t.counterparty_id for t in txns_7d if t.counterparty_id)),
-
+        "unique_counterparties_24h": len(
+            set(t.counterparty_id for t in txns_24h if t.counterparty_id)
+        ),
+        "unique_counterparties_7d": len(
+            set(t.counterparty_id for t in txns_7d if t.counterparty_id)
+        ),
         # Geographic features
         "unique_countries_30d": len(set(t.country_code for t in txns_30d if t.country_code)),
-
-        "computed_at": utc_now().isoformat()
+        "computed_at": utc_now().isoformat(),
     }
 
 
 # ============================================================================
 # SANCTIONS LISTS (1hour TTL)
 # ============================================================================
+
 
 def get_cached_sanctions_list() -> List[str]:
     """
@@ -227,7 +236,7 @@ def get_cached_sanctions_list() -> List[str]:
         key="ofac_sdn_list",
         loader=lambda: _fetch_sanctions_list(),
         ttl=3600,  # 1 hour
-        cache_type="sanctions"
+        cache_type="sanctions",
     )
 
 
@@ -237,16 +246,13 @@ def _fetch_sanctions_list() -> List[str]:
     This is a placeholder - would integrate with actual sanctions API.
     """
     # TODO: Integrate with OFAC SDN API, EU sanctions API, etc.
-    return [
-        "sanctioned_entity_1",
-        "sanctioned_entity_2",
-        "sanctioned_person_1"
-    ]
+    return ["sanctioned_entity_1", "sanctioned_entity_2", "sanctioned_person_1"]
 
 
 # ============================================================================
 # NETWORK GRAPH DATA (15min TTL)
 # ============================================================================
+
 
 def get_cached_transaction_network(db: Session, user_id: str, depth: int = 2) -> Dict[str, Any]:
     """
@@ -259,16 +265,19 @@ def get_cached_transaction_network(db: Session, user_id: str, depth: int = 2) ->
         key=f"user:{user_id}:depth:{depth}",
         loader=lambda: _compute_transaction_network(db, user_id, depth),
         ttl=900,  # 15 minutes
-        cache_type="network"
+        cache_type="network",
     )
 
 
 def _compute_transaction_network(db: Session, user_id: str, depth: int) -> Dict[str, Any]:
     """Compute transaction network graph."""
     # Get all transactions involving the user
-    transactions = db.query(Transaction).filter(
-        (Transaction.user_id == user_id) | (Transaction.counterparty_id == user_id)
-    ).limit(1000).all()
+    transactions = (
+        db.query(Transaction)
+        .filter((Transaction.user_id == user_id) | (Transaction.counterparty_id == user_id))
+        .limit(1000)
+        .all()
+    )
 
     # Build network
     nodes = set()
@@ -280,12 +289,14 @@ def _compute_transaction_network(db: Session, user_id: str, depth: int) -> Dict[
         if txn.counterparty_id:
             nodes.add(txn.counterparty_id)
 
-        edges.append({
-            "from": txn.user_id,
-            "to": txn.counterparty_id,
-            "amount": float(txn.amount),
-            "timestamp": txn.timestamp.isoformat() if txn.timestamp else None
-        })
+        edges.append(
+            {
+                "from": txn.user_id,
+                "to": txn.counterparty_id,
+                "amount": float(txn.amount),
+                "timestamp": txn.timestamp.isoformat() if txn.timestamp else None,
+            }
+        )
 
     return {
         "center_user": user_id,
@@ -294,13 +305,14 @@ def _compute_transaction_network(db: Session, user_id: str, depth: int) -> Dict[
         "edge_count": len(edges),
         "nodes": list(nodes),
         "edges": edges[:100],  # Limit for performance
-        "computed_at": utc_now().isoformat()
+        "computed_at": utc_now().isoformat(),
     }
 
 
 # ============================================================================
 # DASHBOARD STATISTICS (30sec TTL)
 # ============================================================================
+
 
 def get_cached_dashboard_stats(db: Session) -> Dict[str, Any]:
     """
@@ -313,7 +325,7 @@ def get_cached_dashboard_stats(db: Session) -> Dict[str, Any]:
         key="stats",
         loader=lambda: _compute_dashboard_stats(db),
         ttl=30,  # 30 seconds
-        cache_type="dashboard"
+        cache_type="dashboard",
     )
 
 
@@ -328,15 +340,19 @@ def _compute_dashboard_stats(db: Session) -> Dict[str, Any]:
 
     # Transaction counts
     total_transactions = db.query(Transaction).count()
-    transactions_24h = db.query(Transaction).filter(
-        Transaction.timestamp >= now - timedelta(hours=24)
-    ).count()
+    transactions_24h = (
+        db.query(Transaction).filter(Transaction.timestamp >= now - timedelta(hours=24)).count()
+    )
 
     # High-risk users
-    high_risk_users = db.query(Alert.user_id).filter(
-        Alert.severity.in_(["high", "critical"]),
-        Alert.status.in_(["pending", "in_review"])
-    ).distinct().count()
+    high_risk_users = (
+        db.query(Alert.user_id)
+        .filter(
+            Alert.severity.in_(["high", "critical"]), Alert.status.in_(["pending", "in_review"])
+        )
+        .distinct()
+        .count()
+    )
 
     return {
         "total_alerts": total_alerts,
@@ -345,7 +361,7 @@ def _compute_dashboard_stats(db: Session) -> Dict[str, Any]:
         "total_transactions": total_transactions,
         "transactions_24h": transactions_24h,
         "high_risk_users": high_risk_users,
-        "computed_at": now.isoformat()
+        "computed_at": now.isoformat(),
     }
 
 
@@ -353,11 +369,9 @@ def _compute_dashboard_stats(db: Session) -> Dict[str, Any]:
 # SEARCH RESULTS CACHING
 # ============================================================================
 
+
 def get_cached_search_results(
-    query: str,
-    filters: Dict[str, Any],
-    page: int = 1,
-    page_size: int = 20
+    query: str, filters: Dict[str, Any], page: int = 1, page_size: int = 20
 ) -> Optional[Dict[str, Any]]:
     """
     Cache search results with pagination.
@@ -386,7 +400,7 @@ def cache_search_results(
     page: int,
     page_size: int,
     results: Dict[str, Any],
-    ttl: int = 300
+    ttl: int = 300,
 ):
     """
     Cache search results.

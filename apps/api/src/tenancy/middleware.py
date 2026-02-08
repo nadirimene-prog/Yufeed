@@ -10,13 +10,14 @@ Tenant extraction order:
 3. Custom header (X-Tenant-ID)
 4. Query parameter (?tenant_id=xxx)
 """
+
 import logging
 import os
 import asyncio
 from concurrent.futures import ThreadPoolExecutor
 from functools import partial
 from typing import Optional
-from fastapi import Request, Response, HTTPException
+from fastapi import Request, HTTPException
 from fastapi.responses import JSONResponse
 from starlette.middleware.base import BaseHTTPMiddleware
 from starlette.types import ASGIApp
@@ -74,7 +75,7 @@ class TenantMiddleware(BaseHTTPMiddleware):
                 if self._requires_tenant(request):
                     raise HTTPException(
                         status_code=401,
-                        detail="No tenant context found. Provide X-API-Key or X-Tenant-ID header."
+                        detail="No tenant context found. Provide X-API-Key or X-Tenant-ID header.",
                     )
 
             # Process request
@@ -133,9 +134,13 @@ class TenantMiddleware(BaseHTTPMiddleware):
                 if tenant_id:
                     return tenant_id
                 if allow_legacy_tenant_headers:
-                    logger.warning("JWT missing tenant_id; allowing legacy tenant header in dev/test")
+                    logger.warning(
+                        "JWT missing tenant_id; allowing legacy tenant header in dev/test"
+                    )
                 else:
-                    logger.warning("JWT missing tenant_id; tenant context will be required by route")
+                    logger.warning(
+                        "JWT missing tenant_id; tenant context will be required by route"
+                    )
             except JWTError:
                 raise HTTPException(status_code=401, detail="Invalid token")
 
@@ -179,8 +184,7 @@ class TenantMiddleware(BaseHTTPMiddleware):
             # Run sync DB operation in thread pool to avoid blocking event loop
             loop = asyncio.get_event_loop()
             return await loop.run_in_executor(
-                _db_executor,
-                partial(self._resolve_api_key_sync, api_key)
+                _db_executor, partial(self._resolve_api_key_sync, api_key)
             )
 
         except Exception as e:
@@ -220,18 +224,21 @@ class TenantMiddleware(BaseHTTPMiddleware):
         # Run sync DB operation in thread pool to avoid blocking event loop
         loop = asyncio.get_event_loop()
         return await loop.run_in_executor(
-            _db_executor,
-            partial(self._validate_tenant_sync, tenant_id)
+            _db_executor, partial(self._validate_tenant_sync, tenant_id)
         )
 
     def _validate_tenant_sync(self, tenant_id: str) -> bool:
         """Sync helper to validate tenant in database."""
         db = SessionLocal()
         try:
-            tenant = db.query(Tenant).filter(
-                Tenant.tenant_id == tenant_id,
-                Tenant.is_active == True,
-            ).first()
+            tenant = (
+                db.query(Tenant)
+                .filter(
+                    Tenant.tenant_id == tenant_id,
+                    Tenant.is_active.is_(True),
+                )
+                .first()
+            )
 
             return tenant is not None
         finally:

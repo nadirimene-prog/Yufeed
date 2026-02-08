@@ -1,6 +1,7 @@
 """
 Backfill scope_tags for LegalDocument and RegulatoryObligation.
 """
+
 from __future__ import annotations
 
 import os
@@ -34,17 +35,21 @@ def backfill_scope_tags() -> None:
                 db.add(doc)
                 doc_updates += 1
 
-            obligations = db.query(RegulatoryObligation).filter(
-                RegulatoryObligation.doc_id == doc.id
-            ).all()
+            obligations = (
+                db.query(RegulatoryObligation).filter(RegulatoryObligation.doc_id == doc.id).all()
+            )
             for obligation in obligations:
-                obligation_scope_tags = obligation.scope_tags or infer_scope_tags(
-                    doc.title,
-                    doc.full_text,
-                    doc.ai_summary,
-                    obligation.obligation_text,
-                    obligation.applicability,
-                ) or doc_scope_tags
+                obligation_scope_tags = (
+                    obligation.scope_tags
+                    or infer_scope_tags(
+                        doc.title,
+                        doc.full_text,
+                        doc.ai_summary,
+                        obligation.obligation_text,
+                        obligation.applicability,
+                    )
+                    or doc_scope_tags
+                )
                 if obligation_scope_tags and obligation.scope_tags != obligation_scope_tags:
                     obligation.scope_tags = obligation_scope_tags
                     db.add(obligation)

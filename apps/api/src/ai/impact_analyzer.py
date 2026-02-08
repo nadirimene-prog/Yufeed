@@ -2,6 +2,7 @@
 AI-powered impact analysis for regulatory documents.
 Uses Claude to assess how regulations affect bank operations.
 """
+
 import logging
 import os
 from typing import Dict, List, Any, Optional
@@ -53,10 +54,7 @@ class ImpactAnalyzer:
                 model="claude-sonnet-4-20250514",
                 max_tokens=4000,
                 temperature=0.3,
-                messages=[{
-                    "role": "user",
-                    "content": prompt
-                }]
+                messages=[{"role": "user", "content": prompt}],
             )
 
             # Parse response
@@ -72,12 +70,12 @@ class ImpactAnalyzer:
 
     def _build_impact_prompt(self, document: Dict[str, Any]) -> str:
         """Build prompt for impact analysis."""
-        celex = document.get('celex', 'Unknown')
-        title = document.get('title', 'Unknown')
-        doc_type = document.get('type', 'Unknown')
-        compliance_domain = document.get('compliance_domain', 'Unknown')
-        pub_date = document.get('publication_date', 'Unknown')
-        deadline = document.get('implementation_deadline')
+        celex = document.get("celex", "Unknown")
+        title = document.get("title", "Unknown")
+        doc_type = document.get("type", "Unknown")
+        compliance_domain = document.get("compliance_domain", "Unknown")
+        pub_date = document.get("publication_date", "Unknown")
+        deadline = document.get("implementation_deadline")
 
         prompt = f"""You are an expert AML/CFT compliance analyst for a European bank. Analyze this EU regulation for operational impact.
 
@@ -92,7 +90,7 @@ class ImpactAnalyzer:
         if deadline:
             prompt += f"- Implementation Deadline: {deadline}\n"
 
-        if document.get('ai_summary'):
+        if document.get("ai_summary"):
             prompt += f"\n**Summary:** {document['ai_summary']}\n"
 
         prompt += """
@@ -173,8 +171,8 @@ Provide only the JSON response, no additional text.
         """Parse Claude's JSON response."""
         try:
             # Extract JSON from response (handle markdown code blocks)
-            json_start = response_text.find('{')
-            json_end = response_text.rfind('}') + 1
+            json_start = response_text.find("{")
+            json_end = response_text.rfind("}") + 1
 
             if json_start == -1 or json_end == 0:
                 raise ValueError("No JSON found in response")
@@ -190,7 +188,7 @@ Provide only the JSON response, no additional text.
                 "key_changes": parsed.get("key_changes", []),
                 "action_items": parsed.get("action_items", []),
                 "gaps": parsed.get("gaps", []),
-                "resource_estimates": parsed.get("resource_estimates", {})
+                "resource_estimates": parsed.get("resource_estimates", {}),
             }
 
         except json.JSONDecodeError as e:
@@ -203,33 +201,32 @@ Provide only the JSON response, no additional text.
         logger.info("Using fallback impact analysis (no AI)")
 
         # Basic heuristic-based analysis
-        domain = document.get('compliance_domain', 'other')
-        risk_level = document.get('risk_level', 'medium')
+        domain = document.get("compliance_domain", "other")
+        risk_level = document.get("risk_level", "medium")
 
         # Map risk to impact
-        impact_map = {
-            'high': 'high',
-            'medium': 'medium',
-            'low': 'low'
-        }
-        impact_level = impact_map.get(risk_level, 'medium')
+        impact_map = {"high": "high", "medium": "medium", "low": "low"}
+        impact_level = impact_map.get(risk_level, "medium")
 
         # Domain-based affected areas
         area_map = {
-            'aml': ['transaction_monitoring', 'screening', 'reporting', 'due_diligence'],
-            'kyc': ['onboarding', 'due_diligence', 'risk_assessment'],
-            'sanctions': ['screening', 'transaction_monitoring'],
-            'cdd': ['due_diligence', 'onboarding', 'record_keeping'],
-            'payments': ['transaction_monitoring', 'reporting'],
-            'crypto': ['onboarding', 'transaction_monitoring', 'risk_assessment']
+            "aml": ["transaction_monitoring", "screening", "reporting", "due_diligence"],
+            "kyc": ["onboarding", "due_diligence", "risk_assessment"],
+            "sanctions": ["screening", "transaction_monitoring"],
+            "cdd": ["due_diligence", "onboarding", "record_keeping"],
+            "payments": ["transaction_monitoring", "reporting"],
+            "crypto": ["onboarding", "transaction_monitoring", "risk_assessment"],
         }
-        affected_areas = area_map.get(domain, ['compliance_function'])
+        affected_areas = area_map.get(domain, ["compliance_function"])
 
         return {
             "overall_impact_level": impact_level,
             "executive_summary": f"This {domain.upper()} regulation requires review and potential updates to compliance procedures.",
             "affected_areas": affected_areas,
-            "key_changes": ["Regulatory requirements updated", "Compliance procedures may need revision"],
+            "key_changes": [
+                "Regulatory requirements updated",
+                "Compliance procedures may need revision",
+            ],
             "action_items": [
                 {
                     "title": "Review regulation requirements",
@@ -237,7 +234,7 @@ Provide only the JSON response, no additional text.
                     "business_area": affected_areas[0] if affected_areas else "compliance_function",
                     "priority": 2,
                     "estimated_hours": 16,
-                    "complexity": "moderate"
+                    "complexity": "moderate",
                 }
             ],
             "gaps": [],
@@ -246,8 +243,8 @@ Provide only the JSON response, no additional text.
                 "total_cost_eur": 20000,
                 "requires_system_changes": False,
                 "requires_process_changes": True,
-                "requires_policy_updates": True
-            }
+                "requires_policy_updates": True,
+            },
         }
 
     def _fallback_analysis_structure(self) -> Dict[str, Any]:
@@ -264,6 +261,6 @@ Provide only the JSON response, no additional text.
                 "total_cost_eur": 0,
                 "requires_system_changes": False,
                 "requires_process_changes": False,
-                "requires_policy_updates": False
-            }
+                "requires_policy_updates": False,
+            },
         }

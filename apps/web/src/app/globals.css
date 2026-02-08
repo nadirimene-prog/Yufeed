@@ -84,27 +84,45 @@
     -webkit-tap-highlight-color: transparent;
   }
 
-
   body {
     @apply bg-background text-foreground;
     font-family: var(--font-sans);
-    font-feature-settings: "rlig" 1, "calt" 1;
+    font-feature-settings:
+      "rlig" 1,
+      "calt" 1;
   }
 
   /* Typography Hierarchy */
-  h1, h2, h3, h4, h5, h6 {
+  h1,
+  h2,
+  h3,
+  h4,
+  h5,
+  h6 {
     @apply font-semibold text-foreground;
     font-family: var(--font-display);
     line-height: var(--leading-tight);
     letter-spacing: var(--tracking-tight);
   }
 
-  h1 { font-size: var(--text-4xl); }
-  h2 { font-size: var(--text-3xl); }
-  h3 { font-size: var(--text-2xl); }
-  h4 { font-size: var(--text-xl); }
-  h5 { font-size: var(--text-lg); }
-  h6 { font-size: var(--text-base); }
+  h1 {
+    font-size: var(--text-4xl);
+  }
+  h2 {
+    font-size: var(--text-3xl);
+  }
+  h3 {
+    font-size: var(--text-2xl);
+  }
+  h4 {
+    font-size: var(--text-xl);
+  }
+  h5 {
+    font-size: var(--text-lg);
+  }
+  h6 {
+    font-size: var(--text-base);
+  }
 
   /* Selection */
   ::selection {
@@ -154,9 +172,21 @@
     inset: 0;
     z-index: var(--z-behind);
     background:
-      radial-gradient(ellipse at 20% 0%, rgba(109, 90, 205, 0.12) 0%, transparent 50%),
-      radial-gradient(ellipse at 80% 100%, rgba(0, 212, 255, 0.08) 0%, transparent 50%),
-      radial-gradient(ellipse at 50% 50%, rgba(74, 63, 107, 0.05) 0%, transparent 40%),
+      radial-gradient(
+        ellipse at 20% 0%,
+        rgba(109, 90, 205, 0.12) 0%,
+        transparent 50%
+      ),
+      radial-gradient(
+        ellipse at 80% 100%,
+        rgba(0, 212, 255, 0.08) 0%,
+        transparent 50%
+      ),
+      radial-gradient(
+        ellipse at 50% 50%,
+        rgba(74, 63, 107, 0.05) 0%,
+        transparent 40%
+      ),
       var(--background);
     animation: ambient-drift 60s ease-in-out infinite;
     pointer-events: none;
@@ -172,7 +202,8 @@
   }
 
   @keyframes ambient-drift {
-    0%, 100% {
+    0%,
+    100% {
       filter: hue-rotate(0deg) brightness(1);
     }
     33% {
@@ -189,18 +220,43 @@
   }
 
   @keyframes ambient-alert {
-    0%, 100% {
+    0%,
+    100% {
       background:
-        radial-gradient(ellipse at 20% 0%, rgba(109, 90, 205, 0.12) 0%, transparent 50%),
-        radial-gradient(ellipse at 80% 100%, rgba(0, 212, 255, 0.08) 0%, transparent 50%),
-        radial-gradient(ellipse at 50% 50%, rgba(74, 63, 107, 0.05) 0%, transparent 40%),
+        radial-gradient(
+          ellipse at 20% 0%,
+          rgba(109, 90, 205, 0.12) 0%,
+          transparent 50%
+        ),
+        radial-gradient(
+          ellipse at 80% 100%,
+          rgba(0, 212, 255, 0.08) 0%,
+          transparent 50%
+        ),
+        radial-gradient(
+          ellipse at 50% 50%,
+          rgba(74, 63, 107, 0.05) 0%,
+          transparent 40%
+        ),
         var(--background);
     }
     50% {
       background:
-        radial-gradient(ellipse at 20% 0%, rgba(255, 51, 102, 0.08) 0%, transparent 50%),
-        radial-gradient(ellipse at 80% 100%, rgba(255, 140, 66, 0.06) 0%, transparent 50%),
-        radial-gradient(ellipse at 50% 50%, rgba(74, 63, 107, 0.05) 0%, transparent 40%),
+        radial-gradient(
+          ellipse at 20% 0%,
+          rgba(255, 51, 102, 0.08) 0%,
+          transparent 50%
+        ),
+        radial-gradient(
+          ellipse at 80% 100%,
+          rgba(255, 140, 66, 0.06) 0%,
+          transparent 50%
+        ),
+        radial-gradient(
+          ellipse at 50% 50%,
+          rgba(74, 63, 107, 0.05) 0%,
+          transparent 40%
+        ),
         var(--background);
     }
   }
@@ -247,9 +303,7 @@
     backdrop-filter: blur(var(--glass-blur-xl)) saturate(180%);
     -webkit-backdrop-filter: blur(var(--glass-blur-xl)) saturate(180%);
     border: 1px solid var(--glass-border-medium);
-    box-shadow:
-      var(--shadow-glass-inset),
-      var(--shadow-glass-lg);
+    box-shadow: var(--shadow-glass-inset), var(--shadow-glass-lg);
   }
 
   /* Glass Card - Specific card styling */
@@ -259,9 +313,7 @@
     -webkit-backdrop-filter: blur(var(--glass-blur-md)) saturate(150%);
     border: 1px solid var(--glass-border-subtle);
     border-radius: var(--radius-glass);
-    box-shadow:
-      var(--shadow-glass-inset),
-      var(--shadow-glass);
+    box-shadow: var(--shadow-glass-inset), var(--shadow-glass);
   }
 
   /* Glass Header - For sticky headers */
@@ -446,7 +498,8 @@
 
   /* Pulse Glow - Critical */
   @keyframes pulse-glow-critical {
-    0%, 100% {
+    0%,
+    100% {
       box-shadow:
         0 0 20px rgba(255, 51, 102, 0.4),
         0 0 40px rgba(255, 51, 102, 0.2);
@@ -465,7 +518,8 @@
   }
 
   @keyframes pulse-glow-primary {
-    0%, 100% {
+    0%,
+    100% {
       box-shadow:
         0 0 15px rgba(109, 90, 205, 0.3),
         0 0 30px rgba(109, 90, 205, 0.1);
@@ -483,7 +537,8 @@
   }
 
   @keyframes status-pulse {
-    0%, 100% {
+    0%,
+    100% {
       opacity: 1;
       transform: scale(1);
     }
@@ -536,7 +591,15 @@
       clip-path: polygon(50% 50%, 50% 0%, 50% 0%, 50% 50%);
     }
     to {
-      clip-path: polygon(50% 50%, 50% 0%, 100% 0%, 100% 100%, 0% 100%, 0% 0%, 50% 0%);
+      clip-path: polygon(
+        50% 50%,
+        50% 0%,
+        100% 0%,
+        100% 100%,
+        0% 100%,
+        0% 0%,
+        50% 0%
+      );
     }
   }
 
@@ -689,8 +752,16 @@
     animation: none !important;
     /* Keep static alert indication */
     background:
-      radial-gradient(ellipse at 20% 0%, rgba(255, 51, 102, 0.08) 0%, transparent 50%),
-      radial-gradient(ellipse at 80% 100%, rgba(255, 140, 66, 0.06) 0%, transparent 50%),
+      radial-gradient(
+        ellipse at 20% 0%,
+        rgba(255, 51, 102, 0.08) 0%,
+        transparent 50%
+      ),
+      radial-gradient(
+        ellipse at 80% 100%,
+        rgba(255, 140, 66, 0.06) 0%,
+        transparent 50%
+      ),
       var(--background) !important;
   }
 
@@ -785,8 +856,16 @@
 .light {
   .ambient-canvas {
     background:
-      radial-gradient(ellipse at 20% 0%, rgba(109, 90, 205, 0.06) 0%, transparent 50%),
-      radial-gradient(ellipse at 80% 100%, rgba(0, 212, 255, 0.04) 0%, transparent 50%),
+      radial-gradient(
+        ellipse at 20% 0%,
+        rgba(109, 90, 205, 0.06) 0%,
+        transparent 50%
+      ),
+      radial-gradient(
+        ellipse at 80% 100%,
+        rgba(0, 212, 255, 0.04) 0%,
+        transparent 50%
+      ),
       var(--background);
   }
 

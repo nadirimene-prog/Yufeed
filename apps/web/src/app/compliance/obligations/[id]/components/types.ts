@@ -1,1 +1,4 @@
-export type { InternalRule, InternalRuleMapping } from "@/types/compliance-workflow";
+export type {
+  InternalRule,
+  InternalRuleMapping,
+} from "@/types/compliance-workflow";

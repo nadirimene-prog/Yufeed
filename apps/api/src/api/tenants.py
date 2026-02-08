@@ -4,6 +4,7 @@ Phase 4C: Task 7.3 & 7.4 - Tenant Configuration & API Key Management
 
 Handles tenant CRUD, API key management, and tenant configuration.
 """
+
 from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.orm import Session
 from sqlalchemy import func
@@ -14,6 +15,8 @@ from datetime import datetime, timedelta, timezone
 def utc_now() -> datetime:
     """Return current UTC time (timezone-aware)."""
     return datetime.now(timezone.utc)
+
+
 import secrets
 import hashlib
 import logging
@@ -26,10 +29,18 @@ from src.auth.dependencies import (
 from src.models.tenant_models import Tenant, TenantAPIKey, TenantUser, TenantAuditLog
 from src.models.transaction_models import Transaction, Alert, Case
 from src.schemas.tenant_schemas import (
-    TenantCreate, TenantUpdate, TenantResponse, TenantStats,
-    APIKeyCreate, APIKeyCreateResponse, APIKeyResponse, APIKeyUpdate,
+    TenantCreate,
+    TenantUpdate,
+    TenantResponse,
+    TenantStats,
+    APIKeyCreate,
+    APIKeyCreateResponse,
+    APIKeyResponse,
+    APIKeyUpdate,
     APIKeyRotateResponse,
-    TenantUserCreate, TenantUserUpdate, TenantUserResponse,
+    TenantUserCreate,
+    TenantUserUpdate,
+    TenantUserResponse,
     TenantConfigUpdate,
 )
 
@@ -42,11 +53,12 @@ router = APIRouter(prefix="/api/tenants", tags=["tenants"])
 # TENANT MANAGEMENT
 # ============================================================================
 
+
 @router.post("/", response_model=TenantResponse, status_code=201)
 def create_tenant(
     tenant: TenantCreate,
     db: Session = Depends(get_db),
-    current_user: CurrentUser = Depends(require_superuser())
+    current_user: CurrentUser = Depends(require_superuser()),
 ):
     """
     Create a new tenant.
@@ -71,7 +83,7 @@ def create_tenant(
             "ml_auto_triage": True,
             "websocket_notifications": True,
             "graphql_api": False,
-        }
+        },
     )
 
     db.add(db_tenant)
@@ -83,7 +95,7 @@ def create_tenant(
         action_type="tenant.created",
         actor_user_id=current_user.user_id,
         description=f"Tenant '{tenant.name}' created",
-        details={"tenant_id": tenant.tenant_id}
+        details={"tenant_id": tenant.tenant_id},
     )
     db.add(audit)
 
@@ -101,7 +113,7 @@ def list_tenants(
     is_active: Optional[bool] = None,
     tier: Optional[str] = None,
     db: Session = Depends(get_db),
-    current_user: CurrentUser = Depends(require_superuser())
+    current_user: CurrentUser = Depends(require_superuser()),
 ):
     """
     List all tenants.
@@ -127,15 +139,14 @@ def list_tenants(
 def get_tenant(
     tenant_id: str,
     db: Session = Depends(get_db),
-    current_user: CurrentUser = Depends(require_superuser())
+    current_user: CurrentUser = Depends(require_superuser()),
 ):
     """
     Get a specific tenant by ID.
     """
-    tenant = db.query(Tenant).filter(
-        Tenant.tenant_id == tenant_id,
-        Tenant.deleted_at.is_(None)
-    ).first()
+    tenant = (
+        db.query(Tenant).filter(Tenant.tenant_id == tenant_id, Tenant.deleted_at.is_(None)).first()
+    )
 
     if not tenant:
         raise HTTPException(status_code=404, detail="Tenant not found")
@@ -148,17 +159,16 @@ def update_tenant(
     tenant_id: str,
     update_data: TenantUpdate,
     db: Session = Depends(get_db),
-    current_user: CurrentUser = Depends(require_superuser())
+    current_user: CurrentUser = Depends(require_superuser()),
 ):
     """
     Update a tenant.
 
     Requires admin privileges for the tenant.
     """
-    tenant = db.query(Tenant).filter(
-        Tenant.tenant_id == tenant_id,
-        Tenant.deleted_at.is_(None)
-    ).first()
+    tenant = (
+        db.query(Tenant).filter(Tenant.tenant_id == tenant_id, Tenant.deleted_at.is_(None)).first()
+    )
 
     if not tenant:
         raise HTTPException(status_code=404, detail="Tenant not found")
@@ -176,7 +186,7 @@ def update_tenant(
         action_type="tenant.updated",
         actor_user_id=current_user.user_id,
         description=f"Tenant '{tenant.name}' updated",
-        details={"changes": update_dict}
+        details={"changes": update_dict},
     )
     db.add(audit)
 
@@ -192,7 +202,7 @@ def delete_tenant(
     tenant_id: str,
     hard_delete: bool = Query(False, description="Permanently delete (cannot be undone)"),
     db: Session = Depends(get_db),
-    current_user: CurrentUser = Depends(require_superuser())
+    current_user: CurrentUser = Depends(require_superuser()),
 ):
     """
     Delete a tenant (soft delete by default).
@@ -219,7 +229,7 @@ def delete_tenant(
         tenant_id=tenant.id,
         action_type=action,
         actor_user_id=current_user.user_id,
-        description=f"Tenant '{tenant.name}' deleted (hard={hard_delete})"
+        description=f"Tenant '{tenant.name}' deleted (hard={hard_delete})",
     )
     db.add(audit)
 
@@ -231,49 +241,54 @@ def delete_tenant(
 def get_tenant_stats(
     tenant_id: str,
     db: Session = Depends(get_db),
-    current_user: CurrentUser = Depends(require_superuser())
+    current_user: CurrentUser = Depends(require_superuser()),
 ):
     """
     Get statistics for a tenant.
     """
-    tenant = db.query(Tenant).filter(
-        Tenant.tenant_id == tenant_id,
-        Tenant.is_active == True
-    ).first()
+    tenant = (
+        db.query(Tenant).filter(Tenant.tenant_id == tenant_id, Tenant.is_active == True).first()
+    )
 
     if not tenant:
         raise HTTPException(status_code=404, detail="Tenant not found")
 
     # Count resources
-    total_transactions = db.query(func.count(Transaction.id)).filter(
-        Transaction.tenant_id == tenant_id
-    ).scalar() or 0
+    total_transactions = (
+        db.query(func.count(Transaction.id)).filter(Transaction.tenant_id == tenant_id).scalar()
+        or 0
+    )
 
-    total_alerts = db.query(func.count(Alert.id)).filter(
-        Alert.tenant_id == tenant_id
-    ).scalar() or 0
+    total_alerts = db.query(func.count(Alert.id)).filter(Alert.tenant_id == tenant_id).scalar() or 0
 
-    total_cases = db.query(func.count(Case.id)).filter(
-        Case.tenant_id == tenant_id
-    ).scalar() or 0
+    total_cases = db.query(func.count(Case.id)).filter(Case.tenant_id == tenant_id).scalar() or 0
 
-    total_users = db.query(func.count(TenantUser.id)).filter(
-        TenantUser.tenant_id == tenant.id,
-        TenantUser.is_active == True
-    ).scalar() or 0
+    total_users = (
+        db.query(func.count(TenantUser.id))
+        .filter(TenantUser.tenant_id == tenant.id, TenantUser.is_active == True)
+        .scalar()
+        or 0
+    )
 
-    active_api_keys = db.query(func.count(TenantAPIKey.id)).filter(
-        TenantAPIKey.tenant_id == tenant.id,
-        TenantAPIKey.is_active == True,
-        TenantAPIKey.revoked_at.is_(None)
-    ).scalar() or 0
+    active_api_keys = (
+        db.query(func.count(TenantAPIKey.id))
+        .filter(
+            TenantAPIKey.tenant_id == tenant.id,
+            TenantAPIKey.is_active == True,
+            TenantAPIKey.revoked_at.is_(None),
+        )
+        .scalar()
+        or 0
+    )
 
     # API calls today (from API key usage)
     today_start = utc_now().replace(hour=0, minute=0, second=0, microsecond=0)
-    api_calls_today = db.query(func.sum(TenantAPIKey.usage_count)).filter(
-        TenantAPIKey.tenant_id == tenant.id,
-        TenantAPIKey.last_used_at >= today_start
-    ).scalar() or 0
+    api_calls_today = (
+        db.query(func.sum(TenantAPIKey.usage_count))
+        .filter(TenantAPIKey.tenant_id == tenant.id, TenantAPIKey.last_used_at >= today_start)
+        .scalar()
+        or 0
+    )
 
     return TenantStats(
         tenant_id=tenant_id,
@@ -283,7 +298,7 @@ def get_tenant_stats(
         total_users=total_users,
         active_api_keys=active_api_keys,
         api_calls_today=api_calls_today,
-        storage_used_mb=0.0  # TODO: Calculate actual storage
+        storage_used_mb=0.0,  # TODO: Calculate actual storage
     )
 
 
@@ -292,15 +307,14 @@ def update_tenant_config(
     tenant_id: str,
     config: TenantConfigUpdate,
     db: Session = Depends(get_db),
-    current_user: CurrentUser = Depends(require_superuser())
+    current_user: CurrentUser = Depends(require_superuser()),
 ):
     """
     Update tenant configuration (settings, rate limits, feature flags).
     """
-    tenant = db.query(Tenant).filter(
-        Tenant.tenant_id == tenant_id,
-        Tenant.is_active == True
-    ).first()
+    tenant = (
+        db.query(Tenant).filter(Tenant.tenant_id == tenant_id, Tenant.is_active == True).first()
+    )
 
     if not tenant:
         raise HTTPException(status_code=404, detail="Tenant not found")
@@ -323,7 +337,7 @@ def update_tenant_config(
         action_type="tenant.config_updated",
         actor_user_id=current_user.user_id,
         description="Tenant configuration updated",
-        details=config.dict(exclude_unset=True)
+        details=config.dict(exclude_unset=True),
     )
     db.add(audit)
 
@@ -338,12 +352,13 @@ def update_tenant_config(
 # API KEY MANAGEMENT
 # ============================================================================
 
+
 @router.post("/{tenant_id}/api-keys", response_model=APIKeyCreateResponse, status_code=201)
 def create_api_key(
     tenant_id: str,
     api_key_data: APIKeyCreate,
     db: Session = Depends(get_db),
-    current_user: CurrentUser = Depends(require_superuser())
+    current_user: CurrentUser = Depends(require_superuser()),
 ):
     """
     Generate a new API key for a tenant.
@@ -351,10 +366,9 @@ def create_api_key(
     **IMPORTANT:** The full API key is only shown once at creation.
     Save it securely - it cannot be retrieved later.
     """
-    tenant = db.query(Tenant).filter(
-        Tenant.tenant_id == tenant_id,
-        Tenant.is_active == True
-    ).first()
+    tenant = (
+        db.query(Tenant).filter(Tenant.tenant_id == tenant_id, Tenant.is_active == True).first()
+    )
 
     if not tenant:
         raise HTTPException(status_code=404, detail="Tenant not found")
@@ -389,7 +403,7 @@ def create_api_key(
         action_type="api_key.created",
         actor_user_id=current_user.user_id,
         description=f"API key '{api_key_data.name}' created",
-        details={"key_prefix": key_prefix, "scopes": api_key_data.scopes or []}
+        details={"key_prefix": key_prefix, "scopes": api_key_data.scopes or []},
     )
     db.add(audit)
 
@@ -400,8 +414,7 @@ def create_api_key(
 
     # Return response with full API key (only time it's shown)
     response = APIKeyCreateResponse(
-        **db_api_key.__dict__,
-        api_key=api_key  # Full key - only shown once!
+        **db_api_key.__dict__, api_key=api_key  # Full key - only shown once!
     )
 
     return response
@@ -412,7 +425,7 @@ def list_api_keys(
     tenant_id: str,
     include_revoked: bool = Query(False, description="Include revoked keys"),
     db: Session = Depends(get_db),
-    current_user: CurrentUser = Depends(require_superuser())
+    current_user: CurrentUser = Depends(require_superuser()),
 ):
     """
     List all API keys for a tenant.
@@ -440,7 +453,7 @@ def update_api_key(
     key_id: int,
     update_data: APIKeyUpdate,
     db: Session = Depends(get_db),
-    current_user: CurrentUser = Depends(require_superuser())
+    current_user: CurrentUser = Depends(require_superuser()),
 ):
     """
     Update an API key (name, scopes, status).
@@ -449,10 +462,11 @@ def update_api_key(
     if not tenant:
         raise HTTPException(status_code=404, detail="Tenant not found")
 
-    api_key = db.query(TenantAPIKey).filter(
-        TenantAPIKey.id == key_id,
-        TenantAPIKey.tenant_id == tenant.id
-    ).first()
+    api_key = (
+        db.query(TenantAPIKey)
+        .filter(TenantAPIKey.id == key_id, TenantAPIKey.tenant_id == tenant.id)
+        .first()
+    )
 
     if not api_key:
         raise HTTPException(status_code=404, detail="API key not found")
@@ -470,7 +484,7 @@ def update_api_key(
         action_type="api_key.updated",
         actor_user_id=current_user.user_id,
         description=f"API key '{api_key.name}' updated",
-        details={"key_prefix": api_key.key_prefix, "changes": update_dict}
+        details={"key_prefix": api_key.key_prefix, "changes": update_dict},
     )
     db.add(audit)
 
@@ -485,7 +499,7 @@ def revoke_api_key(
     tenant_id: str,
     key_id: int,
     db: Session = Depends(get_db),
-    current_user: CurrentUser = Depends(require_superuser())
+    current_user: CurrentUser = Depends(require_superuser()),
 ):
     """
     Revoke an API key (cannot be undone).
@@ -494,10 +508,11 @@ def revoke_api_key(
     if not tenant:
         raise HTTPException(status_code=404, detail="Tenant not found")
 
-    api_key = db.query(TenantAPIKey).filter(
-        TenantAPIKey.id == key_id,
-        TenantAPIKey.tenant_id == tenant.id
-    ).first()
+    api_key = (
+        db.query(TenantAPIKey)
+        .filter(TenantAPIKey.id == key_id, TenantAPIKey.tenant_id == tenant.id)
+        .first()
+    )
 
     if not api_key:
         raise HTTPException(status_code=404, detail="API key not found")
@@ -512,7 +527,7 @@ def revoke_api_key(
         action_type="api_key.revoked",
         actor_user_id=current_user.user_id,
         description=f"API key '{api_key.name}' revoked",
-        details={"key_prefix": api_key.key_prefix}
+        details={"key_prefix": api_key.key_prefix},
     )
     db.add(audit)
 
@@ -526,7 +541,7 @@ def rotate_api_key(
     tenant_id: str,
     key_id: int,
     db: Session = Depends(get_db),
-    current_user: CurrentUser = Depends(require_superuser())
+    current_user: CurrentUser = Depends(require_superuser()),
 ):
     """
     Rotate an API key (revoke old, create new).
@@ -537,10 +552,11 @@ def rotate_api_key(
     if not tenant:
         raise HTTPException(status_code=404, detail="Tenant not found")
 
-    old_key = db.query(TenantAPIKey).filter(
-        TenantAPIKey.id == key_id,
-        TenantAPIKey.tenant_id == tenant.id
-    ).first()
+    old_key = (
+        db.query(TenantAPIKey)
+        .filter(TenantAPIKey.id == key_id, TenantAPIKey.tenant_id == tenant.id)
+        .first()
+    )
 
     if not old_key:
         raise HTTPException(status_code=404, detail="API key not found")
@@ -575,10 +591,7 @@ def rotate_api_key(
         action_type="api_key.rotated",
         actor_user_id=current_user.user_id,
         description=f"API key '{old_key.name}' rotated",
-        details={
-            "old_key_prefix": old_key.key_prefix,
-            "new_key_prefix": new_key_prefix
-        }
+        details={"old_key_prefix": old_key.key_prefix, "new_key_prefix": new_key_prefix},
     )
     db.add(audit)
 
@@ -590,7 +603,7 @@ def rotate_api_key(
     return APIKeyRotateResponse(
         old_key_id=old_key.id,
         new_key=APIKeyCreateResponse(**db_new_key.__dict__, api_key=new_api_key),
-        message="API key rotated successfully. Old key is revoked."
+        message="API key rotated successfully. Old key is revoked.",
     )
 
 
@@ -598,12 +611,13 @@ def rotate_api_key(
 # TENANT USERS
 # ============================================================================
 
+
 @router.post("/{tenant_id}/users", response_model=TenantUserResponse, status_code=201)
 def add_user_to_tenant(
     tenant_id: str,
     user_data: TenantUserCreate,
     db: Session = Depends(get_db),
-    current_user: CurrentUser = Depends(require_superuser())
+    current_user: CurrentUser = Depends(require_superuser()),
 ):
     """
     Add a user to a tenant with a specific role.
@@ -613,19 +627,17 @@ def add_user_to_tenant(
         raise HTTPException(status_code=404, detail="Tenant not found")
 
     # Check if user already exists for this tenant
-    existing = db.query(TenantUser).filter(
-        TenantUser.tenant_id == tenant.id,
-        TenantUser.user_id == user_data.user_id
-    ).first()
+    existing = (
+        db.query(TenantUser)
+        .filter(TenantUser.tenant_id == tenant.id, TenantUser.user_id == user_data.user_id)
+        .first()
+    )
 
     if existing:
         raise HTTPException(status_code=409, detail="User already exists in this tenant")
 
     # Create tenant user
-    db_user = TenantUser(
-        tenant_id=tenant.id,
-        **user_data.dict()
-    )
+    db_user = TenantUser(tenant_id=tenant.id, **user_data.dict())
 
     db.add(db_user)
 
@@ -635,7 +647,7 @@ def add_user_to_tenant(
         action_type="tenant_user.added",
         actor_user_id=current_user.user_id,
         description=f"User '{user_data.user_id}' added with role '{user_data.role}'",
-        details={"user_id": user_data.user_id, "role": user_data.role}
+        details={"user_id": user_data.user_id, "role": user_data.role},
     )
     db.add(audit)
 
@@ -650,7 +662,7 @@ def list_tenant_users(
     tenant_id: str,
     is_active: Optional[bool] = None,
     db: Session = Depends(get_db),
-    current_user: CurrentUser = Depends(require_superuser())
+    current_user: CurrentUser = Depends(require_superuser()),
 ):
     """
     List all users in a tenant.
@@ -673,7 +685,7 @@ def remove_user_from_tenant(
     tenant_id: str,
     user_id: str,
     db: Session = Depends(get_db),
-    current_user: CurrentUser = Depends(require_superuser())
+    current_user: CurrentUser = Depends(require_superuser()),
 ):
     """
     Remove a user from a tenant.
@@ -682,10 +694,11 @@ def remove_user_from_tenant(
     if not tenant:
         raise HTTPException(status_code=404, detail="Tenant not found")
 
-    tenant_user = db.query(TenantUser).filter(
-        TenantUser.tenant_id == tenant.id,
-        TenantUser.user_id == user_id
-    ).first()
+    tenant_user = (
+        db.query(TenantUser)
+        .filter(TenantUser.tenant_id == tenant.id, TenantUser.user_id == user_id)
+        .first()
+    )
 
     if not tenant_user:
         raise HTTPException(status_code=404, detail="User not found in tenant")
@@ -697,7 +710,7 @@ def remove_user_from_tenant(
         tenant_id=tenant.id,
         action_type="tenant_user.removed",
         actor_user_id=current_user.user_id,
-        description=f"User '{user_id}' removed from tenant"
+        description=f"User '{user_id}' removed from tenant",
     )
     db.add(audit)
 

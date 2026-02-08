@@ -5,6 +5,7 @@ Evaluates transactions against monitoring rules and generates alerts.
 This is Yufeed's innovation: rules are linked to specific EU regulations,
 providing regulatory context for every alert.
 """
+
 from typing import List, Dict, Any, Optional
 from sqlalchemy.orm import Session
 from datetime import datetime, timedelta, timezone
@@ -18,9 +19,8 @@ def utc_now() -> datetime:
     """Return current UTC time (timezone-aware)."""
     return datetime.now(timezone.utc)
 
-from src.models.transaction_models import (
-    Transaction, Alert, MonitoringRule, UserRiskProfile
-)
+
+from src.models.transaction_models import Transaction, Alert, MonitoringRule, UserRiskProfile
 from src.models.models import LegalDocument
 from src.audit.recorders import record_event, record_decision
 from src.tenancy.context import get_current_tenant
@@ -60,11 +60,7 @@ class RulesEngine:
 
         Returns list of alerts generated.
         """
-        transaction = (
-            self.db.query(Transaction)
-            .filter(Transaction.id == transaction_id)
-            .first()
-        )
+        transaction = self.db.query(Transaction).filter(Transaction.id == transaction_id).first()
 
         if not transaction:
             logger.error(f"Transaction {transaction_id} not found")
@@ -74,7 +70,7 @@ class RulesEngine:
         rules = (
             self.db.query(MonitoringRule)
             .filter(
-                MonitoringRule.enabled == True,
+                MonitoringRule.enabled.is_(True),
                 MonitoringRule.tenant_id == transaction.tenant_id,
             )
             .all()
@@ -260,6 +256,7 @@ class RulesEngine:
         """
         Build a lightweight transaction-like object for simulation.
         """
+
         class TransactionLike:
             pass
 
@@ -277,10 +274,12 @@ class RulesEngine:
 
         results = []
         for condition in conditions:
-            results.append({
-                "condition": condition,
-                "passed": self._evaluate_condition(transaction, condition, rule=rule)
-            })
+            results.append(
+                {
+                    "condition": condition,
+                    "passed": self._evaluate_condition(transaction, condition, rule=rule),
+                }
+            )
 
         if not conditions:
             return False, results, logic
@@ -319,7 +318,7 @@ class RulesEngine:
             "transaction_amount": float(transaction.amount),
             "transaction_type": transaction.transaction_type,
             "country_code": transaction.country_code,
-            "triggered_at": utc_now().isoformat()
+            "triggered_at": utc_now().isoformat(),
         }
 
         # Get regulatory context
@@ -327,32 +326,32 @@ class RulesEngine:
         related_regulations = []
 
         if rule.regulatory_source_id:
-            legal_doc = self.db.query(LegalDocument).filter(
-                LegalDocument.id == rule.regulatory_source_id
-            ).first()
+            legal_doc = (
+                self.db.query(LegalDocument)
+                .filter(LegalDocument.id == rule.regulatory_source_id)
+                .first()
+            )
 
             if legal_doc:
                 related_regulations = [legal_doc.id]
-                regulation_context = self._generate_regulatory_context(
-                    transaction, rule, legal_doc
-                )
+                regulation_context = self._generate_regulatory_context(transaction, rule, legal_doc)
 
         # Create alert
         alert = Alert(
             tenant_id=transaction.tenant_id,
             alert_id=alert_id,
-            alert_type=rule.category or 'compliance_violation',
+            alert_type=rule.category or "compliance_violation",
             severity=rule.severity,
             transaction_id=transaction.id,
             user_id=transaction.user_id,
-            status='pending',
+            status="pending",
             priority=self._calculate_priority(rule.severity),
             description=f"Rule triggered: {rule.name}",
             risk_score=transaction.risk_score,
             matched_rules_data={rule.rule_id: rule.name},
             evidence=evidence,
             related_regulations=related_regulations,
-            regulation_context=regulation_context
+            regulation_context=regulation_context,
         )
 
         self.db.add(alert)
@@ -381,18 +380,15 @@ class RulesEngine:
         )
 
         # Update transaction status
-        if rule.severity in ['critical', 'high']:
-            transaction.status = 'flagged'
+        if rule.severity in ["critical", "high"]:
+            transaction.status = "flagged"
 
         logger.info(f"Alert {alert_id} created for transaction {transaction.transaction_id}")
 
         return alert
 
     def _generate_regulatory_context(
-        self,
-        transaction: Transaction,
-        rule: MonitoringRule,
-        legal_doc: LegalDocument
+        self, transaction: Transaction, rule: MonitoringRule, legal_doc: LegalDocument
     ) -> str:
         """
         Generate AI-powered regulatory context explanation.
@@ -428,12 +424,7 @@ Article Reference: {rule.regulation_article or 'General compliance'}
 
         Returns 1 (highest) to 5 (lowest).
         """
-        severity_map = {
-            'critical': 1,
-            'high': 2,
-            'medium': 3,
-            'low': 4
-        }
+        severity_map = {"critical": 1, "high": 2, "medium": 3, "low": 4}
         return severity_map.get(severity, 3)
 
     def evaluate_velocity_rules(self, user_id: str, tenant_id: Optional[str] = None) -> List[Alert]:
@@ -453,21 +444,30 @@ Article Reference: {rule.regulation_article or 'General compliance'}
         # Get user's recent transactions
         start_time = utc_now() - timedelta(hours=24)
 
-        transactions = self.db.query(Transaction).filter(
-            Transaction.tenant_id == tenant_id,
-            Transaction.user_id == user_id,
-            Transaction.timestamp >= start_time,
-        ).order_by(Transaction.timestamp.desc()).all()
+        transactions = (
+            self.db.query(Transaction)
+            .filter(
+                Transaction.tenant_id == tenant_id,
+                Transaction.user_id == user_id,
+                Transaction.timestamp >= start_time,
+            )
+            .order_by(Transaction.timestamp.desc())
+            .all()
+        )
 
         if not transactions:
             return []
 
         # Get velocity rules
-        velocity_rules = self.db.query(MonitoringRule).filter(
-            MonitoringRule.tenant_id == tenant_id,
-            MonitoringRule.enabled == True,
-            MonitoringRule.category == 'velocity',
-        ).all()
+        velocity_rules = (
+            self.db.query(MonitoringRule)
+            .filter(
+                MonitoringRule.tenant_id == tenant_id,
+                MonitoringRule.enabled.is_(True),
+                MonitoringRule.category == "velocity",
+            )
+            .all()
+        )
 
         alerts = []
 
@@ -482,10 +482,7 @@ Article Reference: {rule.regulation_article or 'General compliance'}
         return alerts
 
     def _evaluate_velocity_rule(
-        self,
-        transactions: List[Transaction],
-        rule: MonitoringRule,
-        user_id: str
+        self, transactions: List[Transaction], rule: MonitoringRule, user_id: str
     ) -> bool:
         """
         Evaluate a velocity rule against a set of transactions.
@@ -516,10 +513,14 @@ Article Reference: {rule.regulation_article or 'General compliance'}
 
         # Average amount deviation
         if "average_deviation_percent" in thresholds:
-            user_profile = self.db.query(UserRiskProfile).filter(
-                UserRiskProfile.tenant_id == transactions[0].tenant_id,
-                UserRiskProfile.user_id == user_id,
-            ).first()
+            user_profile = (
+                self.db.query(UserRiskProfile)
+                .filter(
+                    UserRiskProfile.tenant_id == transactions[0].tenant_id,
+                    UserRiskProfile.user_id == user_id,
+                )
+                .first()
+            )
 
             if user_profile and user_profile.average_transaction_amount:
                 avg_threshold = thresholds["average_deviation_percent"]
@@ -533,10 +534,7 @@ Article Reference: {rule.regulation_article or 'General compliance'}
         return False
 
     def _create_velocity_alert(
-        self,
-        transactions: List[Transaction],
-        rule: MonitoringRule,
-        user_id: str
+        self, transactions: List[Transaction], rule: MonitoringRule, user_id: str
     ) -> Alert:
         """
         Create an alert for velocity rule violation.
@@ -553,7 +551,7 @@ Article Reference: {rule.regulation_article or 'General compliance'}
             "transaction_count": transaction_count,
             "total_amount": float(total_amount),
             "time_window": "24 hours",
-            "transactions": [tx.transaction_id for tx in transactions[:10]]  # First 10
+            "transactions": [tx.transaction_id for tx in transactions[:10]],  # First 10
         }
 
         # Get regulatory context if available
@@ -561,29 +559,37 @@ Article Reference: {rule.regulation_article or 'General compliance'}
         related_regulations = []
 
         if rule.regulatory_source_id:
-            legal_doc = self.db.query(LegalDocument).filter(
-                LegalDocument.id == rule.regulatory_source_id
-            ).first()
+            legal_doc = (
+                self.db.query(LegalDocument)
+                .filter(LegalDocument.id == rule.regulatory_source_id)
+                .first()
+            )
 
             if legal_doc:
                 related_regulations = [legal_doc.id]
-                regulation_context = f"Velocity monitoring required by {legal_doc.celex}: {rule.regulatory_requirement}"
+                regulation_context = (
+                    f"Velocity monitoring required by {legal_doc.celex}: "
+                    f"{rule.regulatory_requirement}"
+                )
 
         alert = Alert(
             tenant_id=transactions[0].tenant_id,
             alert_id=alert_id,
-            alert_type='velocity',
+            alert_type="velocity",
             severity=rule.severity,
             transaction_id=None,  # Multiple transactions
             user_id=user_id,
-            status='pending',
+            status="pending",
             priority=self._calculate_priority(rule.severity),
-            description=f"Velocity rule triggered: {rule.name} - {transaction_count} transactions totaling {total_amount}",
+            description=(
+                f"Velocity rule triggered: {rule.name} - "
+                f"{transaction_count} transactions totaling {total_amount}"
+            ),
             risk_score=min(100, transaction_count * 5),  # Simple scoring
             matched_rules_data={rule.rule_id: rule.name},
             evidence=evidence,
             related_regulations=related_regulations,
-            regulation_context=regulation_context
+            regulation_context=regulation_context,
         )
 
         self.db.add(alert)
@@ -608,7 +614,7 @@ class RuleBuilder:
         regulatory_source_id: Optional[int] = None,
         regulation_article: Optional[str] = None,
         regulatory_requirement: Optional[str] = None,
-        severity: str = "medium"
+        severity: str = "medium",
     ) -> Dict[str, Any]:
         """
         Create a rule for transaction amount limits.
@@ -621,22 +627,14 @@ class RuleBuilder:
             "severity": severity,
             "conditions": {
                 "conditions": [
-                    {
-                        "field": "amount",
-                        "operator": "greater_than",
-                        "value": float(amount_limit)
-                    },
-                    {
-                        "field": "currency",
-                        "operator": "equals",
-                        "value": currency
-                    }
+                    {"field": "amount", "operator": "greater_than", "value": float(amount_limit)},
+                    {"field": "currency", "operator": "equals", "value": currency},
                 ],
-                "logic": "AND"
+                "logic": "AND",
             },
             "regulatory_source_id": regulatory_source_id,
             "regulation_article": regulation_article,
-            "regulatory_requirement": regulatory_requirement
+            "regulatory_requirement": regulatory_requirement,
         }
 
     @staticmethod
@@ -645,7 +643,7 @@ class RuleBuilder:
         country_codes: List[str],
         regulatory_source_id: Optional[int] = None,
         regulation_article: Optional[str] = None,
-        severity: str = "high"
+        severity: str = "high",
     ) -> Dict[str, Any]:
         """
         Create a rule for high-risk jurisdiction transactions.
@@ -657,18 +655,12 @@ class RuleBuilder:
             "category": "sanctions",
             "severity": severity,
             "conditions": {
-                "conditions": [
-                    {
-                        "field": "country_code",
-                        "operator": "in",
-                        "value": country_codes
-                    }
-                ],
-                "logic": "AND"
+                "conditions": [{"field": "country_code", "operator": "in", "value": country_codes}],
+                "logic": "AND",
             },
             "regulatory_source_id": regulatory_source_id,
             "regulation_article": regulation_article,
-            "regulatory_requirement": "OFAC/EU sanctions compliance"
+            "regulatory_requirement": "OFAC/EU sanctions compliance",
         }
 
     @staticmethod
@@ -677,7 +669,7 @@ class RuleBuilder:
         max_transactions: int,
         time_window_hours: int = 24,
         regulatory_source_id: Optional[int] = None,
-        severity: str = "medium"
+        severity: str = "medium",
     ) -> Dict[str, Any]:
         """
         Create a velocity rule for transaction frequency.
@@ -688,14 +680,11 @@ class RuleBuilder:
             "name": name,
             "category": "velocity",
             "severity": severity,
-            "conditions": {
-                "conditions": [],  # Evaluated differently
-                "logic": "AND"
-            },
+            "conditions": {"conditions": [], "logic": "AND"},  # Evaluated differently
             "thresholds": {
                 "transaction_count": max_transactions,
-                "time_window_hours": time_window_hours
+                "time_window_hours": time_window_hours,
             },
             "regulatory_source_id": regulatory_source_id,
-            "regulatory_requirement": "AML transaction monitoring"
+            "regulatory_requirement": "AML transaction monitoring",
         }

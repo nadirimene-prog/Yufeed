@@ -28,7 +28,7 @@ export default function SearchPage() {
   const handleSearch = async () => {
     setIsLoading(true);
     setError(null);
-    
+
     try {
       const response = await searchDocuments({
         q: query || undefined,
@@ -72,10 +72,10 @@ export default function SearchPage() {
           </p>
         )}
       </div>
-      
-      <SearchBar 
-        value={query} 
-        onChange={setQuery} 
+
+      <SearchBar
+        value={query}
+        onChange={setQuery}
         onSearch={handleSearch}
         className="mb-8"
       />

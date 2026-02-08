@@ -2,6 +2,7 @@
 Transaction Monitoring Pydantic Schemas
 API request/response models for transaction monitoring system.
 """
+
 from typing import Optional, List, Dict, Any
 from pydantic import BaseModel, Field, validator
 from datetime import datetime
@@ -12,8 +13,10 @@ from decimal import Decimal
 # TRANSACTION SCHEMAS
 # ============================================================================
 
+
 class TransactionBase(BaseModel):
     """Base transaction schema with common fields."""
+
     transaction_id: str = Field(..., max_length=255)
     user_id: str = Field(..., max_length=255)
     amount: Decimal = Field(..., decimal_places=2)
@@ -22,7 +25,7 @@ class TransactionBase(BaseModel):
     counterparty_id: Optional[str] = Field(None, max_length=255)
     counterparty_name: Optional[str] = Field(None, max_length=500)
     timestamp: datetime = Field(default_factory=datetime.utcnow)
-    status: str = Field(default='completed', max_length=50)
+    status: str = Field(default="completed", max_length=50)
 
     # Geographic data
     ip_address: Optional[str] = None
@@ -35,24 +38,26 @@ class TransactionBase(BaseModel):
     transaction_metadata: Optional[Dict[str, Any]] = None
     description: Optional[str] = None
 
-    @validator('amount')
+    @validator("amount")
     def amount_must_be_positive(cls, v):
         if v <= 0:
-            raise ValueError('Amount must be positive')
+            raise ValueError("Amount must be positive")
         return v
 
-    @validator('currency')
+    @validator("currency")
     def currency_must_be_uppercase(cls, v):
         return v.upper()
 
 
 class TransactionCreate(TransactionBase):
     """Schema for creating a new transaction."""
+
     pass
 
 
 class TransactionUpdate(BaseModel):
     """Schema for updating transaction fields."""
+
     status: Optional[str] = None
     risk_score: Optional[Decimal] = None
     risk_level: Optional[str] = None
@@ -61,6 +66,7 @@ class TransactionUpdate(BaseModel):
 
 class TransactionResponse(TransactionBase):
     """Schema for transaction API response."""
+
     id: int
     risk_score: Optional[Decimal] = None
     risk_level: Optional[str] = None
@@ -76,8 +82,10 @@ class TransactionResponse(TransactionBase):
 # ALERT SCHEMAS
 # ============================================================================
 
+
 class AlertBase(BaseModel):
     """Base alert schema."""
+
     alert_type: str = Field(..., max_length=100)
     severity: str = Field(..., max_length=20)
     user_id: str = Field(..., max_length=255)
@@ -88,6 +96,7 @@ class AlertBase(BaseModel):
 
 class AlertCreate(AlertBase):
     """Schema for creating a new alert."""
+
     transaction_id: Optional[int] = None
     risk_score: Optional[Decimal] = None
     matched_rules: Optional[Dict[str, Any]] = None
@@ -98,6 +107,7 @@ class AlertCreate(AlertBase):
 
 class AlertUpdate(BaseModel):
     """Schema for updating alert fields."""
+
     status: Optional[str] = None
     assigned_to: Optional[str] = None
     priority: Optional[int] = Field(None, ge=1, le=5)
@@ -107,6 +117,7 @@ class AlertUpdate(BaseModel):
 
 class AlertResponse(AlertBase):
     """Schema for alert API response."""
+
     id: int
     alert_id: str
     transaction_id: Optional[int] = None
@@ -139,12 +150,14 @@ class AlertResponse(AlertBase):
 # CASE SCHEMAS
 # ============================================================================
 
+
 class CaseBase(BaseModel):
     """Base case schema."""
+
     case_type: Optional[str] = Field(None, max_length=100)
     subject_type: Optional[str] = Field(None, max_length=50)
     subject_id: Optional[str] = Field(None, max_length=255)
-    priority: str = Field(default='medium', max_length=20)
+    priority: str = Field(default="medium", max_length=20)
     title: Optional[str] = Field(None, max_length=500)
     description: Optional[str] = None
     team: Optional[str] = Field(None, max_length=100)
@@ -152,6 +165,7 @@ class CaseBase(BaseModel):
 
 class CaseCreate(CaseBase):
     """Schema for creating a new case."""
+
     related_alert_ids: Optional[List[int]] = None
     related_transaction_ids: Optional[List[int]] = None
     related_users: Optional[List[str]] = None
@@ -160,6 +174,7 @@ class CaseCreate(CaseBase):
 
 class CaseUpdate(BaseModel):
     """Schema for updating case fields."""
+
     status: Optional[str] = None
     priority: Optional[str] = None
     assigned_to: Optional[str] = None
@@ -171,6 +186,7 @@ class CaseUpdate(BaseModel):
 
 class CaseResponse(CaseBase):
     """Schema for case API response."""
+
     id: int
     case_id: str
     status: str
@@ -198,18 +214,21 @@ class CaseResponse(CaseBase):
 # MONITORING RULE SCHEMAS
 # ============================================================================
 
+
 class MonitoringRuleBase(BaseModel):
     """Base monitoring rule schema."""
+
     name: str = Field(..., max_length=500)
     description: Optional[str] = None
     category: Optional[str] = Field(None, max_length=100)
-    severity: str = Field(default='medium', max_length=20)
+    severity: str = Field(default="medium", max_length=20)
     conditions: Dict[str, Any] = Field(..., description="JSON-based rule DSL")
     thresholds: Optional[Dict[str, Any]] = None
 
 
 class MonitoringRuleCreate(MonitoringRuleBase):
     """Schema for creating a new monitoring rule."""
+
     regulatory_source_id: Optional[int] = None
     regulation_article: Optional[str] = Field(None, max_length=255)
     regulatory_requirement: Optional[str] = None
@@ -218,6 +237,7 @@ class MonitoringRuleCreate(MonitoringRuleBase):
 
 class MonitoringRuleUpdate(BaseModel):
     """Schema for updating monitoring rule fields."""
+
     name: Optional[str] = None
     description: Optional[str] = None
     conditions: Optional[Dict[str, Any]] = None
@@ -228,6 +248,7 @@ class MonitoringRuleUpdate(BaseModel):
 
 class MonitoringRuleResponse(MonitoringRuleBase):
     """Schema for monitoring rule API response."""
+
     id: int
     rule_id: str
     regulatory_source_id: Optional[int] = None
@@ -250,8 +271,10 @@ class MonitoringRuleResponse(MonitoringRuleBase):
 # RULE VERSIONING SCHEMAS
 # ============================================================================
 
+
 class RuleVersionCreate(BaseModel):
     """Schema for creating a pending rule version."""
+
     name: Optional[str] = None
     description: Optional[str] = None
     category: Optional[str] = None
@@ -264,6 +287,7 @@ class RuleVersionCreate(BaseModel):
 
 class RuleVersionResponse(BaseModel):
     """Schema for rule version response."""
+
     id: int
     rule_id: int
     version_number: int
@@ -290,14 +314,17 @@ class RuleVersionResponse(BaseModel):
 # RULE SIMULATION & BACKTEST SCHEMAS
 # ============================================================================
 
+
 class RuleSimulationRequest(BaseModel):
     """Schema for simulating a rule against a payload or transaction."""
+
     transaction_id: Optional[int] = None
     payload: Dict[str, Any] = Field(default_factory=dict)
 
 
 class RuleSimulationResponse(BaseModel):
     """Schema for rule simulation response."""
+
     rule_id: str
     transaction_id: Optional[str] = None
     would_trigger: bool
@@ -308,6 +335,7 @@ class RuleSimulationResponse(BaseModel):
 
 class RuleBacktestRequest(BaseModel):
     """Schema for rule backtest parameters."""
+
     start_date: Optional[datetime] = None
     end_date: Optional[datetime] = None
     limit: int = Field(500, ge=1, le=5000)
@@ -316,6 +344,7 @@ class RuleBacktestRequest(BaseModel):
 
 class RuleBacktestSample(BaseModel):
     """Schema for backtest sample rows."""
+
     transaction_id: str
     amount: Decimal
     currency: str
@@ -327,6 +356,7 @@ class RuleBacktestSample(BaseModel):
 
 class RuleBacktestResponse(BaseModel):
     """Schema for rule backtest response."""
+
     rule_id: str
     total_transactions: int
     matches: int
@@ -340,13 +370,16 @@ class RuleBacktestResponse(BaseModel):
 # USER RISK PROFILE SCHEMAS
 # ============================================================================
 
+
 class UserRiskProfileBase(BaseModel):
     """Base user risk profile schema."""
+
     user_id: str = Field(..., max_length=255)
 
 
 class UserRiskProfileUpdate(BaseModel):
     """Schema for updating user risk profile."""
+
     overall_risk_score: Optional[Decimal] = None
     risk_level: Optional[str] = None
     risk_factors: Optional[Dict[str, Any]] = None
@@ -361,6 +394,7 @@ class UserRiskProfileUpdate(BaseModel):
 
 class UserRiskProfileResponse(UserRiskProfileBase):
     """Schema for user risk profile API response."""
+
     id: int
     overall_risk_score: Optional[Decimal] = None
     risk_level: Optional[str] = None
@@ -394,8 +428,10 @@ class UserRiskProfileResponse(UserRiskProfileBase):
 # FEATURE VALUE SCHEMAS
 # ============================================================================
 
+
 class FeatureValueBase(BaseModel):
     """Base feature value schema."""
+
     entity_type: str = Field(..., max_length=50)
     entity_id: str = Field(..., max_length=255)
     feature_name: str = Field(..., max_length=255)
@@ -405,12 +441,14 @@ class FeatureValueBase(BaseModel):
 
 class FeatureValueCreate(FeatureValueBase):
     """Schema for creating a new feature value."""
+
     calculated_at: datetime
     version: int = 1
 
 
 class FeatureValueResponse(FeatureValueBase):
     """Schema for feature value API response."""
+
     id: int
     calculated_at: datetime
     version: int
@@ -424,8 +462,10 @@ class FeatureValueResponse(FeatureValueBase):
 # MONITORING DASHBOARD SCHEMAS
 # ============================================================================
 
+
 class AlertStatistics(BaseModel):
     """Alert statistics for dashboard."""
+
     total_alerts: int
     pending_alerts: int
     in_review_alerts: int
@@ -441,6 +481,7 @@ class AlertStatistics(BaseModel):
 
 class TransactionStatistics(BaseModel):
     """Transaction statistics for dashboard."""
+
     total_transactions: int
     total_volume: Decimal
     flagged_transactions: int
@@ -453,6 +494,7 @@ class TransactionStatistics(BaseModel):
 
 class MonitoringDashboard(BaseModel):
     """Complete monitoring dashboard data."""
+
     alert_stats: AlertStatistics
     transaction_stats: TransactionStatistics
     top_risk_users: List[UserRiskProfileResponse]

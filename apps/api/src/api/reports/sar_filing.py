@@ -2,6 +2,7 @@
 SAR/UAR Filing API
 Endpoints for Suspicious Activity Reports and Unusual Activity Reports.
 """
+
 from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.orm import Session
 
@@ -19,7 +20,7 @@ router = APIRouter(prefix="/api/reporting", tags=["sar-filing"])
 def prepare_sar(
     case_id: str,
     db: Session = Depends(get_db),
-    _: CurrentUser = Depends(require_any_role(["admin", "compliance", "analyst", "aml_officer"]))
+    _: CurrentUser = Depends(require_any_role(["admin", "compliance", "analyst", "aml_officer"])),
 ):
     """
     Prepare Suspicious Activity Report from a case.
@@ -54,7 +55,7 @@ def file_sar(
     jurisdiction: str = Query("EU", pattern="^(US|EU|INTL)$"),
     dry_run: bool = Query(True),
     db: Session = Depends(get_db),
-    _: CurrentUser = Depends(require_any_role(["admin", "compliance", "aml_officer"]))
+    _: CurrentUser = Depends(require_any_role(["admin", "compliance", "aml_officer"])),
 ):
     """
     File SAR with regulatory authority.
@@ -75,7 +76,7 @@ def file_sar(
         if not dry_run:
             case = db.query(Case).filter(Case.case_id == case_id).first()
             if case:
-                case.outcome = 'sar_filed'
+                case.outcome = "sar_filed"
                 case.outcome_notes = f"SAR filed: {result['filing_reference']}"
                 db.commit()
 
@@ -104,7 +105,7 @@ def file_sar(
 def prepare_uar(
     alert_id: int,
     db: Session = Depends(get_db),
-    _: CurrentUser = Depends(require_any_role(["admin", "compliance", "analyst", "aml_officer"]))
+    _: CurrentUser = Depends(require_any_role(["admin", "compliance", "analyst", "aml_officer"])),
 ):
     """
     Prepare Unusual Activity Report from an alert.

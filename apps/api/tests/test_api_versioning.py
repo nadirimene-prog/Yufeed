@@ -6,6 +6,7 @@ Verifies that:
 - /api/v1/* endpoints work (explicit version)
 - Both paths return identical responses
 """
+
 import pytest
 from fastapi.testclient import TestClient
 
@@ -72,13 +73,16 @@ def test_openapi_schema_includes_versions(client: TestClient):
     assert len(v1_paths) > 0, "No /api/v1/ paths found"
 
 
-@pytest.mark.parametrize("endpoint", [
-    "/api/transactions",
-    "/api/alerts",
-    "/api/cases",
-    "/api/monitoring_rules",
-    "/api/compliance/obligations",
-])
+@pytest.mark.parametrize(
+    "endpoint",
+    [
+        "/api/transactions",
+        "/api/alerts",
+        "/api/cases",
+        "/api/monitoring_rules",
+        "/api/compliance/obligations",
+    ],
+)
 def test_critical_endpoints_available_in_both_versions(client: TestClient, endpoint: str):
     """Test that critical endpoints are available at both /api and /api/v1."""
     unversioned = client.get(endpoint)

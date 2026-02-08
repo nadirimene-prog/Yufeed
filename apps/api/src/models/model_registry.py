@@ -13,6 +13,7 @@ def utc_now() -> datetime:
 
 class ModelRegistry(Base):
     """Top-level model registry entry."""
+
     __tablename__ = "model_registry"
 
     id = Column(Integer, primary_key=True)
@@ -31,6 +32,7 @@ class ModelRegistry(Base):
 
 class ModelVersion(Base):
     """Model version entry with metrics and artifacts."""
+
     __tablename__ = "model_versions"
 
     id = Column(Integer, primary_key=True)
@@ -45,11 +47,14 @@ class ModelVersion(Base):
     promoted_at = Column(DateTime)
 
     model = relationship("ModelRegistry", back_populates="versions")
-    drift_reports = relationship("ModelDriftReport", back_populates="version", cascade="all, delete-orphan")
+    drift_reports = relationship(
+        "ModelDriftReport", back_populates="version", cascade="all, delete-orphan"
+    )
 
 
 class ModelDriftReport(Base):
     """Drift monitoring snapshots for a model version."""
+
     __tablename__ = "model_drift_reports"
 
     id = Column(Integer, primary_key=True)

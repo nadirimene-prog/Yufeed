@@ -13,7 +13,14 @@ import {
   getSortedRowModel,
   useReactTable,
 } from "@tanstack/react-table";
-import { ChevronDown, ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight, Search } from "lucide-react";
+import {
+  ChevronDown,
+  ChevronLeft,
+  ChevronRight,
+  ChevronsLeft,
+  ChevronsRight,
+  Search,
+} from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 
 import { Button } from "@/components/ui/button";
@@ -77,8 +84,11 @@ export function DataTable<TData, TValue>({
   className,
 }: DataTableProps<TData, TValue>) {
   const [sorting, setSorting] = React.useState<SortingState>([]);
-  const [columnFilters, setColumnFilters] = React.useState<ColumnFiltersState>([]);
-  const [columnVisibility, setColumnVisibility] = React.useState<VisibilityState>({});
+  const [columnFilters, setColumnFilters] = React.useState<ColumnFiltersState>(
+    [],
+  );
+  const [columnVisibility, setColumnVisibility] =
+    React.useState<VisibilityState>({});
   const [rowSelection, setRowSelection] = React.useState({});
   const [globalFilter, setGlobalFilter] = React.useState("");
 
@@ -120,16 +130,24 @@ export function DataTable<TData, TValue>({
                 <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-white/30" />
                 <Input
                   placeholder={searchPlaceholder}
-                  value={(table.getColumn(searchColumn)?.getFilterValue() as string) ?? ""}
+                  value={
+                    (table
+                      .getColumn(searchColumn)
+                      ?.getFilterValue() as string) ?? ""
+                  }
                   onChange={(event) =>
-                    table.getColumn(searchColumn)?.setFilterValue(event.target.value)
+                    table
+                      .getColumn(searchColumn)
+                      ?.setFilterValue(event.target.value)
                   }
                   className="pl-10 w-[250px]"
                 />
               </div>
             )}
           </div>
-          {toolbarContent && <div className="flex items-center gap-2">{toolbarContent}</div>}
+          {toolbarContent && (
+            <div className="flex items-center gap-2">{toolbarContent}</div>
+          )}
         </TableToolbar>
       )}
 
@@ -142,19 +160,23 @@ export function DataTable<TData, TValue>({
                 <TableHead
                   key={header.id}
                   className={cn(
-                    header.column.getCanSort() && "cursor-pointer select-none hover:text-white/60"
+                    header.column.getCanSort() &&
+                      "cursor-pointer select-none hover:text-white/60",
                   )}
                   onClick={header.column.getToggleSortingHandler()}
                 >
                   <div className="flex items-center gap-2">
                     {header.isPlaceholder
                       ? null
-                      : flexRender(header.column.columnDef.header, header.getContext())}
+                      : flexRender(
+                          header.column.columnDef.header,
+                          header.getContext(),
+                        )}
                     {header.column.getIsSorted() && (
                       <ChevronDown
                         className={cn(
                           "h-4 w-4 transition-transform",
-                          header.column.getIsSorted() === "asc" && "rotate-180"
+                          header.column.getIsSorted() === "asc" && "rotate-180",
                         )}
                       />
                     )}
@@ -190,14 +212,17 @@ export function DataTable<TData, TValue>({
                     "border-b border-white/[0.04] transition-colors",
                     "hover:bg-white/[0.03]",
                     "data-[state=selected]:bg-[#6d5acd]/10",
-                    onRowClick && "cursor-pointer"
+                    onRowClick && "cursor-pointer",
                   )}
                   onClick={() => onRowClick?.(row.original)}
                   data-state={row.getIsSelected() && "selected"}
                 >
                   {row.getVisibleCells().map((cell) => (
                     <TableCell key={cell.id}>
-                      {flexRender(cell.column.columnDef.cell, cell.getContext())}
+                      {flexRender(
+                        cell.column.columnDef.cell,
+                        cell.getContext(),
+                      )}
                     </TableCell>
                   ))}
                 </motion.tr>
@@ -248,8 +273,8 @@ export function DataTable<TData, TValue>({
 
           <div className="flex items-center gap-2">
             <span className="text-xs">
-              {pageIndex * pageSize + 1}-{Math.min((pageIndex + 1) * pageSize, totalRows)} of{" "}
-              {totalRows}
+              {pageIndex * pageSize + 1}-
+              {Math.min((pageIndex + 1) * pageSize, totalRows)} of {totalRows}
             </span>
 
             <div className="flex items-center gap-1">
@@ -301,8 +326,10 @@ export function DataTable<TData, TValue>({
 /**
  * Column Header Helper - Sortable header with icon
  */
-interface DataTableColumnHeaderProps<TData, TValue>
-  extends React.HTMLAttributes<HTMLDivElement> {
+interface DataTableColumnHeaderProps<
+  TData,
+  TValue,
+> extends React.HTMLAttributes<HTMLDivElement> {
   column: import("@tanstack/react-table").Column<TData, TValue>;
   title: string;
 }
@@ -318,7 +345,10 @@ export function DataTableColumnHeader<TData, TValue>({
 
   return (
     <div
-      className={cn("flex items-center gap-2 cursor-pointer select-none", className)}
+      className={cn(
+        "flex items-center gap-2 cursor-pointer select-none",
+        className,
+      )}
       onClick={column.getToggleSortingHandler()}
     >
       <span>{title}</span>
@@ -327,7 +357,7 @@ export function DataTableColumnHeader<TData, TValue>({
           "h-4 w-4 transition-transform text-white/30",
           column.getIsSorted() === "desc" && "rotate-0",
           column.getIsSorted() === "asc" && "rotate-180",
-          !column.getIsSorted() && "opacity-0 group-hover:opacity-50"
+          !column.getIsSorted() && "opacity-0 group-hover:opacity-50",
         )}
       />
     </div>

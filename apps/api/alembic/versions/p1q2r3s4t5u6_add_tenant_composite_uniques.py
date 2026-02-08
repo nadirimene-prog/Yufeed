@@ -50,7 +50,9 @@ def upgrade() -> None:
     if "user_risk_profiles" in tables:
         _drop_single_column_unique(inspector, "user_risk_profiles", "user_id")
 
-        unique_constraints = {c["name"] for c in inspector.get_unique_constraints("user_risk_profiles")}
+        unique_constraints = {
+            c["name"] for c in inspector.get_unique_constraints("user_risk_profiles")
+        }
         if USER_RISK_TENANT_UNIQUE not in unique_constraints:
             op.create_unique_constraint(
                 USER_RISK_TENANT_UNIQUE,
@@ -76,7 +78,9 @@ def downgrade() -> None:
         )
 
     if "user_risk_profiles" in tables:
-        unique_constraints = {c["name"] for c in inspector.get_unique_constraints("user_risk_profiles")}
+        unique_constraints = {
+            c["name"] for c in inspector.get_unique_constraints("user_risk_profiles")
+        }
         if USER_RISK_TENANT_UNIQUE in unique_constraints:
             op.drop_constraint(USER_RISK_TENANT_UNIQUE, "user_risk_profiles", type_="unique")
 
@@ -85,4 +89,3 @@ def downgrade() -> None:
             "user_risk_profiles",
             ["user_id"],
         )
-

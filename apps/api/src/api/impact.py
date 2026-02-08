@@ -1,6 +1,7 @@
 """
 API endpoints for Impact Assessment functionality.
 """
+
 from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.orm import Session
 from typing import List, Optional
@@ -10,19 +11,26 @@ from datetime import datetime, timezone
 def utc_now() -> datetime:
     """Return current UTC time (timezone-aware)."""
     return datetime.now(timezone.utc)
+
+
 from pydantic import BaseModel
 
 from src.database import get_db
 from src import models
 from src.models.impact_assessment import (
-    ImpactAssessment, ActionItem, GapAnalysis,
-    ImpactLevel, BusinessArea, ActionStatus
+    ImpactAssessment,
+    ActionItem,
+    GapAnalysis,
+    ImpactLevel,
+    BusinessArea,
+    ActionStatus,
 )
 from src.ai.impact_analyzer import ImpactAnalyzer
 
 router = APIRouter(prefix="/impact", tags=["impact-assessment"])
 
 # Pydantic models for requests/responses
+
 
 class ActionItemCreate(BaseModel):
     title: str
@@ -89,9 +97,7 @@ class AnalyzeRequest(BaseModel):
 
 @router.post("/documents/{celex}/analyze")
 def create_impact_assessment(
-    celex: str,
-    request: AnalyzeRequest = AnalyzeRequest(),
-    db: Session = Depends(get_db)
+    celex: str, request: AnalyzeRequest = AnalyzeRequest(), db: Session = Depends(get_db)
 ):
     """
     Generate AI-powered impact assessment for a document.
@@ -107,7 +113,7 @@ def create_impact_assessment(
         return {
             "message": "Impact assessment already exists",
             "assessment_id": existing.id,
-            "use_force": "Set force=true to regenerate"
+            "use_force": "Set force=true to regenerate",
         }
 
     # Prepare document data for analysis
@@ -118,8 +124,10 @@ def create_impact_assessment(
         "publication_date": doc.publication_date.isoformat() if doc.publication_date else None,
         "compliance_domain": doc.compliance_domain,
         "risk_level": doc.risk_level,
-        "implementation_deadline": doc.implementation_deadline.isoformat() if doc.implementation_deadline else None,
-        "ai_summary": doc.ai_summary
+        "implementation_deadline": (
+            doc.implementation_deadline.isoformat() if doc.implementation_deadline else None
+        ),
+        "ai_summary": doc.ai_summary,
     }
 
     # Run AI analysis
@@ -141,10 +149,16 @@ def create_impact_assessment(
         new_obligations=analysis.get("resource_estimates", {}),
         estimated_effort_hours=analysis.get("resource_estimates", {}).get("total_hours"),
         estimated_cost=analysis.get("resource_estimates", {}).get("total_cost_eur"),
-        requires_system_changes=analysis.get("resource_estimates", {}).get("requires_system_changes", False),
-        requires_process_changes=analysis.get("resource_estimates", {}).get("requires_process_changes", False),
-        requires_policy_updates=analysis.get("resource_estimates", {}).get("requires_policy_updates", False),
-        assessed_at=utc_now()
+        requires_system_changes=analysis.get("resource_estimates", {}).get(
+            "requires_system_changes", False
+        ),
+        requires_process_changes=analysis.get("resource_estimates", {}).get(
+            "requires_process_changes", False
+        ),
+        requires_policy_updates=analysis.get("resource_estimates", {}).get(
+            "requires_policy_updates", False
+        ),
+        assessed_at=utc_now(),
     )
 
     db.add(assessment)
@@ -160,7 +174,7 @@ def create_impact_assessment(
             priority=item_data.get("priority", 3),
             estimated_hours=item_data.get("estimated_hours"),
             complexity=item_data.get("complexity"),
-            status=ActionStatus.NOT_STARTED
+            status=ActionStatus.NOT_STARTED,
         )
         db.add(action)
 
@@ -176,7 +190,7 @@ def create_impact_assessment(
             business_area=gap_data.get("business_area", "compliance_function"),
             remediation_approach=gap_data.get("remediation_approach"),
             estimated_cost=gap_data.get("estimated_cost"),
-            estimated_timeline_days=gap_data.get("estimated_timeline_days")
+            estimated_timeline_days=gap_data.get("estimated_timeline_days"),
         )
         db.add(gap)
 
@@ -188,7 +202,7 @@ def create_impact_assessment(
         "assessment_id": assessment.id,
         "overall_impact": assessment.overall_impact_level,
         "action_items_count": len(analysis.get("action_items", [])),
-        "gaps_count": len(analysis.get("gaps", []))
+        "gaps_count": len(analysis.get("gaps", [])),
     }
 
 
@@ -225,11 +239,7 @@ def get_action_items(celex: str, db: Session = Depends(get_db)):
 
 
 @router.put("/actions/{action_id}", response_model=ActionItemResponse)
-def update_action_item(
-    action_id: int,
-    update: ActionItemUpdate,
-    db: Session = Depends(get_db)
-):
+def update_action_item(action_id: int, update: ActionItemUpdate, db: Session = Depends(get_db)):
     """
     Update an action item (status, assignment, progress, etc.).
     """
@@ -268,7 +278,7 @@ def get_all_action_items(
     status: Optional[str] = None,
     business_area: Optional[str] = None,
     assigned_to: Optional[str] = None,
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
 ):
     """
     Get all action items across all assessments with filters.
@@ -285,9 +295,11 @@ def get_all_action_items(
     # Use eager loading to avoid N+1 query problem
     from sqlalchemy.orm import joinedload
 
-    actions = query.options(
-        joinedload(ActionItem.assessment).joinedload(ImpactAssessment.document)
-    ).order_by(ActionItem.priority.asc(), ActionItem.target_date.asc()).all()
+    actions = (
+        query.options(joinedload(ActionItem.assessment).joinedload(ImpactAssessment.document))
+        .order_by(ActionItem.priority.asc(), ActionItem.target_date.asc())
+        .all()
+    )
 
     # Build response with pre-loaded relationships
     results = []
@@ -298,8 +310,8 @@ def get_all_action_items(
                 **ActionItemResponse.from_orm(action).dict(),
                 "document": {
                     "celex": assessment.document.celex,
-                    "title": assessment.document.title
-                }
+                    "title": assessment.document.title,
+                },
             }
             results.append(result)
 
@@ -313,20 +325,26 @@ def get_impact_dashboard_stats(db: Session = Depends(get_db)):
     """
     total_assessments = db.query(ImpactAssessment).count()
 
-    critical_high = db.query(ImpactAssessment).filter(
-        ImpactAssessment.overall_impact_level.in_([ImpactLevel.CRITICAL, ImpactLevel.HIGH])
-    ).count()
+    critical_high = (
+        db.query(ImpactAssessment)
+        .filter(ImpactAssessment.overall_impact_level.in_([ImpactLevel.CRITICAL, ImpactLevel.HIGH]))
+        .count()
+    )
 
     total_actions = db.query(ActionItem).count()
-    completed_actions = db.query(ActionItem).filter(ActionItem.status == ActionStatus.COMPLETED).count()
+    completed_actions = (
+        db.query(ActionItem).filter(ActionItem.status == ActionStatus.COMPLETED).count()
+    )
     blocked_actions = db.query(ActionItem).filter(ActionItem.status == ActionStatus.BLOCKED).count()
 
     # Actions by business area
     from sqlalchemy import func
-    actions_by_area = db.query(
-        ActionItem.business_area,
-        func.count(ActionItem.id)
-    ).group_by(ActionItem.business_area).all()
+
+    actions_by_area = (
+        db.query(ActionItem.business_area, func.count(ActionItem.id))
+        .group_by(ActionItem.business_area)
+        .all()
+    )
 
     # Total estimated effort
     total_effort = db.query(func.sum(ImpactAssessment.estimated_effort_hours)).scalar() or 0
@@ -341,5 +359,5 @@ def get_impact_dashboard_stats(db: Session = Depends(get_db)):
         "completion_rate": (completed_actions / total_actions * 100) if total_actions > 0 else 0,
         "actions_by_business_area": {area: count for area, count in actions_by_area},
         "total_estimated_effort_hours": total_effort,
-        "total_estimated_cost_eur": total_cost
+        "total_estimated_cost_eur": total_cost,
     }

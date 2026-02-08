@@ -1,4 +1,5 @@
 """Unit tests for OJ act-by-act identifier mapping."""
+
 import pytest
 
 from src.ingestion.oj_mapping import extract_oj_act_identifier, extract_oj_series

@@ -31,7 +31,7 @@ from .base import (
     ActionRecommendation,
     ConfidenceLevel,
     Citation,
-    ReasoningStep
+    ReasoningStep,
 )
 
 logger = logging.getLogger(__name__)
@@ -203,6 +203,7 @@ Maintain the highest standards of accuracy and professionalism."""
             AgentResult with comprehensive investigation findings
         """
         import time
+
         start_time = time.time()
 
         try:
@@ -211,9 +212,7 @@ Maintain the highest standards of accuracy and professionalism."""
 
             # Call Claude for analysis
             response = await self.call_claude(
-                user_prompt=user_prompt,
-                context=context,
-                json_mode=True
+                user_prompt=user_prompt, context=context, json_mode=True
             )
 
             # Parse and structure the response
@@ -255,7 +254,9 @@ Maintain the highest standards of accuracy and professionalism."""
         if context.applicable_regulations:
             prompt_parts.append("\n## APPLICABLE REGULATIONS")
             for reg in context.applicable_regulations[:5]:  # Limit to 5
-                prompt_parts.append(f"- {reg.get('title', 'Unknown')} (CELEX: {reg.get('celex_id', 'N/A')})")
+                prompt_parts.append(
+                    f"- {reg.get('title', 'Unknown')} (CELEX: {reg.get('celex_id', 'N/A')})"
+                )
 
         # Previous agent results (for multi-agent workflows)
         if context.previous_agent_results:
@@ -267,7 +268,9 @@ Maintain the highest standards of accuracy and professionalism."""
                     prompt_parts.append(f"  Red Flags: {', '.join(prev.red_flags)}")
 
         prompt_parts.append("\n## TASK")
-        prompt_parts.append("Conduct a comprehensive investigation of this alert and provide your analysis in the required JSON format.")
+        prompt_parts.append(
+            "Conduct a comprehensive investigation of this alert and provide your analysis in the required JSON format."
+        )
 
         return "\n".join(prompt_parts)
 
@@ -285,11 +288,7 @@ Maintain the highest standards of accuracy and professionalism."""
                 lines.append(f"- **{key}**: {value}")
         return "\n".join(lines)
 
-    def _parse_response(
-        self,
-        response: Dict[str, Any],
-        context: AgentContext
-    ) -> AgentResult:
+    def _parse_response(self, response: Dict[str, Any], context: AgentContext) -> AgentResult:
         """Parse Claude's response into AgentResult."""
 
         # Handle raw content fallback
@@ -298,7 +297,7 @@ Maintain the highest standards of accuracy and professionalism."""
                 agent_type=self.agent_type,
                 success=False,
                 error_message="Failed to parse AI response",
-                summary=response.get("raw_content", "")[:500]
+                summary=response.get("raw_content", "")[:500],
             )
 
         # Extract recommendation
@@ -313,14 +312,10 @@ Maintain the highest standards of accuracy and professionalism."""
         confidence_level = self.calculate_confidence_level(confidence)
 
         # Build reasoning chain
-        reasoning_chain = self.build_reasoning_chain(
-            response.get("reasoning_chain", [])
-        )
+        reasoning_chain = self.build_reasoning_chain(response.get("reasoning_chain", []))
 
         # Build citations
-        citations = self.build_citations(
-            response.get("citations", [])
-        )
+        citations = self.build_citations(response.get("citations", []))
 
         return AgentResult(
             agent_type=self.agent_type,
@@ -340,7 +335,7 @@ Maintain the highest standards of accuracy and professionalism."""
             red_flags=response.get("red_flags", []),
             next_steps=response.get("next_steps", []),
             sar_likelihood=response.get("sar_likelihood"),
-            required_actions=self._build_required_actions(response)
+            required_actions=self._build_required_actions(response),
         )
 
     def _build_regulatory_context(self, citations: List[Citation]) -> str:
@@ -357,30 +352,31 @@ Maintain the highest standards of accuracy and professionalism."""
 
         return " | ".join(context_parts)
 
-    def _build_required_actions(
-        self,
-        response: Dict[str, Any]
-    ) -> List[Dict[str, Any]]:
+    def _build_required_actions(self, response: Dict[str, Any]) -> List[Dict[str, Any]]:
         """Build required actions from response."""
         actions = []
 
         # Convert next steps to actions
         for step in response.get("next_steps", []):
-            actions.append({
-                "action": step,
-                "priority": "high" if "immediate" in step.lower() else "medium",
-                "assignee": None,
-                "due_date": None
-            })
+            actions.append(
+                {
+                    "action": step,
+                    "priority": "high" if "immediate" in step.lower() else "medium",
+                    "assignee": None,
+                    "due_date": None,
+                }
+            )
 
         # Add SAR action if likelihood is high
         sar_likelihood = response.get("sar_likelihood", 0)
         if sar_likelihood and sar_likelihood >= 0.7:
-            actions.append({
-                "action": "Prepare SAR filing",
-                "priority": "high",
-                "assignee": None,
-                "due_date": None
-            })
+            actions.append(
+                {
+                    "action": "Prepare SAR filing",
+                    "priority": "high",
+                    "assignee": None,
+                    "due_date": None,
+                }
+            )
 
         return actions

@@ -52,7 +52,11 @@ class FeatureStore:
         tenant_id: Optional[str] = None,
     ) -> Dict[str, Any]:
         import time
-        from src.monitoring.metrics import feature_extraction_duration_seconds, feature_cache_hits_total, feature_cache_misses_total
+        from src.monitoring.metrics import (
+            feature_extraction_duration_seconds,
+            feature_cache_hits_total,
+            feature_cache_misses_total,
+        )
 
         start_time = time.time()
 
@@ -100,75 +104,66 @@ class FeatureStore:
                 return executed
 
             # Velocity windows (COUNT + SUM).
-            stmt_1h = (
-                select(
-                    func.count(Transaction.id),
-                    func.coalesce(func.sum(Transaction.amount), 0),
-                )
-                .where(
-                    Transaction.tenant_id == resolved_tenant_id,
-                    Transaction.user_id == user_id,
-                    Transaction.timestamp >= one_hour_ago,
-                )
+            stmt_1h = select(
+                func.count(Transaction.id),
+                func.coalesce(func.sum(Transaction.amount), 0),
+            ).where(
+                Transaction.tenant_id == resolved_tenant_id,
+                Transaction.user_id == user_id,
+                Transaction.timestamp >= one_hour_ago,
             )
             count_1h, total_1h = (await _exec(stmt_1h)).one()
             result["velocity_1h_count"] = int(count_1h or 0)
             result["velocity_1h_total"] = float(total_1h or 0)
 
-            stmt_24h = (
-                select(
-                    func.count(Transaction.id),
-                    func.coalesce(func.sum(Transaction.amount), 0),
-                )
-                .where(
-                    Transaction.tenant_id == resolved_tenant_id,
-                    Transaction.user_id == user_id,
-                    Transaction.timestamp >= twenty_four_hours_ago,
-                )
+            stmt_24h = select(
+                func.count(Transaction.id),
+                func.coalesce(func.sum(Transaction.amount), 0),
+            ).where(
+                Transaction.tenant_id == resolved_tenant_id,
+                Transaction.user_id == user_id,
+                Transaction.timestamp >= twenty_four_hours_ago,
             )
             count_24h, total_24h = (await _exec(stmt_24h)).one()
             result["velocity_24h_count"] = int(count_24h or 0)
             result["velocity_24h_total"] = float(total_24h or 0)
 
             # Distinct counts.
-            stmt_countries = (
-                select(func.count(func.distinct(Transaction.country_code)))
-                .where(
-                    Transaction.tenant_id == resolved_tenant_id,
-                    Transaction.user_id == user_id,
-                    Transaction.timestamp >= seven_days_ago,
-                    Transaction.country_code.is_not(None),
-                )
+            stmt_countries = select(func.count(func.distinct(Transaction.country_code))).where(
+                Transaction.tenant_id == resolved_tenant_id,
+                Transaction.user_id == user_id,
+                Transaction.timestamp >= seven_days_ago,
+                Transaction.country_code.is_not(None),
             )
             countries = (await _exec(stmt_countries)).scalar_one_or_none()
             result["unique_countries_7d"] = int(countries or 0)
 
-            stmt_counterparties = (
-                select(func.count(func.distinct(Transaction.counterparty_id)))
-                .where(
-                    Transaction.tenant_id == resolved_tenant_id,
-                    Transaction.user_id == user_id,
-                    Transaction.timestamp >= thirty_days_ago,
-                    Transaction.counterparty_id.is_not(None),
-                )
+            stmt_counterparties = select(
+                func.count(func.distinct(Transaction.counterparty_id))
+            ).where(
+                Transaction.tenant_id == resolved_tenant_id,
+                Transaction.user_id == user_id,
+                Transaction.timestamp >= thirty_days_ago,
+                Transaction.counterparty_id.is_not(None),
             )
             counterparties = (await _exec(stmt_counterparties)).scalar_one_or_none()
             result["unique_counterparties_30d"] = int(counterparties or 0)
 
-            stmt_max = (
-                select(func.max(Transaction.amount))
-                .where(
-                    Transaction.tenant_id == resolved_tenant_id,
-                    Transaction.user_id == user_id,
-                    Transaction.timestamp >= thirty_days_ago,
-                )
+            stmt_max = select(func.max(Transaction.amount)).where(
+                Transaction.tenant_id == resolved_tenant_id,
+                Transaction.user_id == user_id,
+                Transaction.timestamp >= thirty_days_ago,
             )
             max_amount = (await _exec(stmt_max)).scalar_one_or_none()
             result["max_amount_30d"] = float(max_amount or 0)
 
             # Risk profile-derived features.
             stmt_profile = (
-                select(UserRiskProfile.kyc_status, UserRiskProfile.risk_level, UserRiskProfile.account_created_at)
+                select(
+                    UserRiskProfile.kyc_status,
+                    UserRiskProfile.risk_level,
+                    UserRiskProfile.account_created_at,
+                )
                 .where(
                     UserRiskProfile.tenant_id == resolved_tenant_id,
                     UserRiskProfile.user_id == user_id,
@@ -184,10 +179,15 @@ class FeatureStore:
                     result["risk_level"] = risk_level
                 if account_created_at:
                     now_for_math = now
-                    if getattr(account_created_at, "tzinfo", None) is None and now_for_math.tzinfo is not None:
+                    if (
+                        getattr(account_created_at, "tzinfo", None) is None
+                        and now_for_math.tzinfo is not None
+                    ):
                         now_for_math = now_for_math.replace(tzinfo=None)
                     try:
-                        result["account_age_days"] = max(0, int((now_for_math - account_created_at).days))
+                        result["account_age_days"] = max(
+                            0, int((now_for_math - account_created_at).days)
+                        )
                     except Exception:
                         result["account_age_days"] = 0
 
@@ -309,7 +309,9 @@ class FeatureStoreService:
 
         # Invalidate cached feature sets for touched versions (cache-aside).
         for version in touched_versions:
-            self.cache.delete(self._CACHE_NAMESPACE, self._cache_key(tenant_id, entity_type, entity_id, version))
+            self.cache.delete(
+                self._CACHE_NAMESPACE, self._cache_key(tenant_id, entity_type, entity_id, version)
+            )
 
         return out
 
@@ -335,15 +337,12 @@ class FeatureStoreService:
                 return {k: v for k, v in cached.items() if k in name_set}
             return cached
 
-        query = (
-            self.db.query(FeatureValue)
-            .filter(
-                and_(
-                    FeatureValue.tenant_id == tenant_id,
-                    FeatureValue.entity_type == entity_type,
-                    FeatureValue.entity_id == entity_id,
-                    FeatureValue.version == version,
-                )
+        query = self.db.query(FeatureValue).filter(
+            and_(
+                FeatureValue.tenant_id == tenant_id,
+                FeatureValue.entity_type == entity_type,
+                FeatureValue.entity_id == entity_id,
+                FeatureValue.version == version,
             )
         )
         if names:
@@ -402,7 +401,9 @@ class FeatureStoreService:
     ) -> None:
         tenant_id = self._resolve_tenant_id(tenant_id)
         if not entity_type or not entity_id or not feature_name:
-            raise HTTPException(status_code=400, detail="entity_type, entity_id, and feature_name are required")
+            raise HTTPException(
+                status_code=400, detail="entity_type, entity_id, and feature_name are required"
+            )
 
         query = self.db.query(FeatureValue).filter(
             and_(

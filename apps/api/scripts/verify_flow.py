@@ -12,9 +12,12 @@ sys.path.append(os.getcwd())
 
 API_URL = "http://localhost:8000"
 
+
 def test_api_flow():
-    print("WARNING: Ideally run this with backend running: `uvicorn src.main:app --host 0.0.0.0 --port 8000`")
-    
+    print(
+        "WARNING: Ideally run this with backend running: `uvicorn src.main:app --host 0.0.0.0 --port 8000`"
+    )
+
     # 1. Setup DB Data
     db = SessionLocal()
     # clean up
@@ -31,7 +34,7 @@ def test_api_flow():
         title="Regulation (EU) 2016/679 (GDPR)",
         type="regulation",
         publication_date=datetime(2016, 5, 4),
-        status="active"
+        status="active",
     )
     db.add(doc)
     db.commit()
@@ -49,25 +52,27 @@ def test_api_flow():
             "content": "Full text of General Data Protection Regulation...",
             "publication_date": "2016-05-04",
             "type": "regulation",
-            "status": "active"
+            "status": "active",
         },
-        refresh=True
+        refresh=True,
     )
     print(" Document indexed")
 
     # 3. Test Search API
     print(" Testing /search endpoint...")
     try:
-        r = requests.get(f"{API_URL}/search", params={"q": "General Data Protection", "type": "regulation"})
+        r = requests.get(
+            f"{API_URL}/search", params={"q": "General Data Protection", "type": "regulation"}
+        )
         if r.status_code == 200:
             data = r.json()
             print(f" Search results: {data['total']} hits")
-            assert data['total'] > 0
+            assert data["total"] > 0
             print(" Search test PASSED")
         else:
             print(f" Search test FAILED: {r.status_code} - {r.text}")
     except Exception as e:
-         print(f" Search test FAILED (connection error? is backend running?): {e}")
+        print(f" Search test FAILED (connection error? is backend running?): {e}")
 
     # 4. Test Watchlists
     print(" Testing POST /watchlists...")
@@ -76,13 +81,13 @@ def test_api_flow():
             "name": "GDPR Watch",
             "mode": "email",
             "query_json": {"q": "GDPR"},
-            "schedule": "daily"
+            "schedule": "daily",
         }
         r = requests.post(f"{API_URL}/watchlists", json=payload)
         if r.status_code == 200:
             wl = r.json()
             print(f" Watchlist created: {wl['id']}")
-            
+
             # Test GET /watchlists
             r2 = requests.get(f"{API_URL}/watchlists")
             print(f" Watchlists count: {len(r2.json())}")
@@ -91,9 +96,10 @@ def test_api_flow():
             print(f" Watchlist test FAILED: {r.status_code} - {r.text}")
 
     except Exception as e:
-         print(f" Watchlist test FAILED: {e}")
+        print(f" Watchlist test FAILED: {e}")
 
     db.close()
+
 
 if __name__ == "__main__":
     test_api_flow()

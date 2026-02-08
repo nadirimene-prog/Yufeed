@@ -19,7 +19,13 @@ import { criticalPulse } from "@/lib/motion";
  * ═══════════════════════════════════════════════════════════════════
  */
 
-export type RiskLevel = "critical" | "high" | "medium" | "low" | "clear" | "unknown";
+export type RiskLevel =
+  | "critical"
+  | "high"
+  | "medium"
+  | "low"
+  | "clear"
+  | "unknown";
 export type BadgeSize = "sm" | "md" | "lg";
 export type GlowIntensity = "none" | "subtle" | "strong";
 
@@ -170,19 +176,18 @@ export function RiskBadge({
 
   // Determine glow class
   const glowClass =
-    glow === "strong" ? config.glowStrong : glow === "subtle" ? config.glow : "";
+    glow === "strong"
+      ? config.glowStrong
+      : glow === "subtle"
+        ? config.glow
+        : "";
 
   const Icon = config.icon;
 
   const badgeContent = (
     <>
       {showIcon && (
-        <Icon
-          className={cn(
-            sizes.icon,
-            shouldPulse && "animate-pulse"
-          )}
-        />
+        <Icon className={cn(sizes.icon, shouldPulse && "animate-pulse")} />
       )}
       <span className="font-semibold tracking-wide">
         {label || config.label}
@@ -191,7 +196,10 @@ export function RiskBadge({
   );
 
   // Use motion for critical/high with pulse
-  if (shouldPulse && (normalizedLevel === "critical" || normalizedLevel === "high")) {
+  if (
+    shouldPulse &&
+    (normalizedLevel === "critical" || normalizedLevel === "high")
+  ) {
     return (
       <motion.span
         animate={normalizedLevel === "critical" ? criticalPulse : undefined}
@@ -204,7 +212,7 @@ export function RiskBadge({
           config.border,
           config.text,
           glowClass,
-          className
+          className,
         )}
         title={`Risk Level: ${config.label}`}
       >
@@ -225,7 +233,7 @@ export function RiskBadge({
         config.border,
         config.text,
         glowClass,
-        className
+        className,
       )}
       title={`Risk Level: ${config.label}`}
     >
@@ -256,10 +264,15 @@ export function RiskScoreBadge({
 }: RiskScoreBadgeProps) {
   // Map score to risk level
   const level: RiskLevel =
-    score >= 80 ? "critical" :
-    score >= 60 ? "high" :
-    score >= 40 ? "medium" :
-    score >= 20 ? "low" : "clear";
+    score >= 80
+      ? "critical"
+      : score >= 60
+        ? "high"
+        : score >= 40
+          ? "medium"
+          : score >= 20
+            ? "low"
+            : "clear";
 
   const config = riskConfig[level];
 
@@ -273,14 +286,12 @@ export function RiskScoreBadge({
           config.glow,
           size === "sm" && "h-8 w-8 text-sm",
           size === "md" && "h-10 w-10 text-base",
-          size === "lg" && "h-12 w-12 text-lg"
+          size === "lg" && "h-12 w-12 text-lg",
         )}
       >
         {score}
       </span>
-      {showLabel && (
-        <RiskBadge level={level} size={size} showIcon={false} />
-      )}
+      {showLabel && <RiskBadge level={level} size={size} showIcon={false} />}
     </div>
   );
 }
@@ -327,7 +338,7 @@ export function RiskIndicator({
         sizeClasses[size],
         bgColors[normalizedLevel],
         shouldPulse && "animate-status-pulse",
-        className
+        className,
       )}
       title={config.label}
     />

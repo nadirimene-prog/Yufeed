@@ -2,13 +2,14 @@
 Generate Sample Transaction Data
 Creates realistic test data for transaction monitoring system.
 """
+
 import sys
 import os
 import random
 from datetime import datetime, timedelta
 from decimal import Decimal
 
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), 'src'))
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), "src"))
 
 from src.database import SessionLocal
 from src.models.transaction_models import Transaction
@@ -16,10 +17,10 @@ from src.services.rules_engine import RulesEngine
 from src.services.risk_scoring import RiskScoringService
 
 # Sample data
-CURRENCIES = ['EUR', 'USD', 'GBP', 'CHF']
-TRANSACTION_TYPES = ['deposit', 'withdrawal', 'transfer', 'wire_transfer', 'payment']
-COUNTRIES = ['FR', 'DE', 'IT', 'ES', 'NL', 'BE', 'CH', 'AT', 'PL', 'SE', 'NO', 'DK']
-HIGH_RISK_COUNTRIES = ['IR', 'KP', 'SY', 'MM', 'AF']
+CURRENCIES = ["EUR", "USD", "GBP", "CHF"]
+TRANSACTION_TYPES = ["deposit", "withdrawal", "transfer", "wire_transfer", "payment"]
+COUNTRIES = ["FR", "DE", "IT", "ES", "NL", "BE", "CH", "AT", "PL", "SE", "NO", "DK"]
+HIGH_RISK_COUNTRIES = ["IR", "KP", "SY", "MM", "AF"]
 
 # User pools
 NORMAL_USERS = [f"USER{i:04d}" for i in range(1, 51)]  # 50 normal users
@@ -35,17 +36,16 @@ def generate_normal_transaction(user_id: str, tx_count: int) -> dict:
         "transaction_id": f"TX-NORM-{tx_count:08d}",
         "user_id": user_id,
         "amount": Decimal(str(round(amount, 2))),
-        "currency": random.choice(['EUR', 'USD', 'GBP']),
-        "transaction_type": random.choice(['deposit', 'payment', 'transfer']),
+        "currency": random.choice(["EUR", "USD", "GBP"]),
+        "transaction_type": random.choice(["deposit", "payment", "transfer"]),
         "counterparty_id": random.choice(NORMAL_USERS),
-        "timestamp": datetime.utcnow() - timedelta(
-            days=random.randint(0, 90),
-            hours=random.randint(0, 23),
-            minutes=random.randint(0, 59)
+        "timestamp": datetime.utcnow()
+        - timedelta(
+            days=random.randint(0, 90), hours=random.randint(0, 23), minutes=random.randint(0, 59)
         ),
         "country_code": random.choice(COUNTRIES),
         "ip_address": f"192.168.{random.randint(1, 255)}.{random.randint(1, 255)}",
-        "status": 'completed'
+        "status": "completed",
     }
 
 
@@ -57,16 +57,14 @@ def generate_high_value_transaction(user_id: str, tx_count: int) -> dict:
         "transaction_id": f"TX-HIGH-{tx_count:08d}",
         "user_id": user_id,
         "amount": Decimal(str(round(amount, 2))),
-        "currency": 'EUR',
-        "transaction_type": random.choice(['wire_transfer', 'transfer']),
+        "currency": "EUR",
+        "transaction_type": random.choice(["wire_transfer", "transfer"]),
         "counterparty_id": random.choice(NORMAL_USERS + HIGH_RISK_USERS),
-        "timestamp": datetime.utcnow() - timedelta(
-            days=random.randint(0, 30),
-            hours=random.randint(0, 23)
-        ),
+        "timestamp": datetime.utcnow()
+        - timedelta(days=random.randint(0, 30), hours=random.randint(0, 23)),
         "country_code": random.choice(COUNTRIES),
         "ip_address": f"10.0.{random.randint(1, 255)}.{random.randint(1, 255)}",
-        "status": 'completed'
+        "status": "completed",
     }
 
 
@@ -78,16 +76,14 @@ def generate_structuring_transaction(user_id: str, tx_count: int) -> dict:
         "transaction_id": f"TX-STRUCT-{tx_count:08d}",
         "user_id": user_id,
         "amount": Decimal(str(round(amount, 2))),
-        "currency": 'EUR',
-        "transaction_type": 'withdrawal',
+        "currency": "EUR",
+        "transaction_type": "withdrawal",
         "counterparty_id": None,
-        "timestamp": datetime.utcnow() - timedelta(
-            days=random.randint(0, 7),
-            hours=random.randint(0, 23)
-        ),
-        "country_code": 'FR',
+        "timestamp": datetime.utcnow()
+        - timedelta(days=random.randint(0, 7), hours=random.randint(0, 23)),
+        "country_code": "FR",
         "ip_address": f"172.16.{random.randint(1, 255)}.{random.randint(1, 255)}",
-        "status": 'completed'
+        "status": "completed",
     }
 
 
@@ -99,15 +95,13 @@ def generate_sanctions_transaction(user_id: str, tx_count: int) -> dict:
         "transaction_id": f"TX-SANC-{tx_count:08d}",
         "user_id": user_id,
         "amount": Decimal(str(round(amount, 2))),
-        "currency": 'USD',
-        "transaction_type": 'wire_transfer',
+        "currency": "USD",
+        "transaction_type": "wire_transfer",
         "counterparty_id": f"SANC{random.randint(1, 10):04d}",
-        "timestamp": datetime.utcnow() - timedelta(
-            days=random.randint(0, 30)
-        ),
+        "timestamp": datetime.utcnow() - timedelta(days=random.randint(0, 30)),
         "country_code": random.choice(HIGH_RISK_COUNTRIES),
         "ip_address": f"185.{random.randint(1, 255)}.{random.randint(1, 255)}.{random.randint(1, 255)}",
-        "status": 'completed'
+        "status": "completed",
     }
 
 
@@ -119,17 +113,15 @@ def generate_fraud_ring_transaction(user_id: str, tx_count: int, counterparty_po
         "transaction_id": f"TX-FRAUD-{tx_count:08d}",
         "user_id": user_id,
         "amount": Decimal(str(round(amount, 2))),
-        "currency": 'EUR',
-        "transaction_type": 'transfer',
+        "currency": "EUR",
+        "transaction_type": "transfer",
         "counterparty_id": random.choice([u for u in counterparty_pool if u != user_id]),
-        "timestamp": datetime.utcnow() - timedelta(
-            days=random.randint(0, 60),
-            hours=random.randint(0, 23)
-        ),
+        "timestamp": datetime.utcnow()
+        - timedelta(days=random.randint(0, 60), hours=random.randint(0, 23)),
         "country_code": random.choice(COUNTRIES),
         "ip_address": "10.20.30.40",  # Shared IP (suspicious!)
         "device_fingerprint": "DEVICE-FRAUD-001",  # Shared device
-        "status": 'completed'
+        "status": "completed",
     }
 
 
@@ -139,18 +131,20 @@ def generate_velocity_pattern(user_id: str, start_count: int) -> list:
     base_time = datetime.utcnow() - timedelta(hours=random.randint(1, 12))
 
     for i in range(15):  # 15 transactions in short time
-        transactions.append({
-            "transaction_id": f"TX-VEL-{start_count + i:08d}",
-            "user_id": user_id,
-            "amount": Decimal(str(round(random.uniform(100, 1000), 2))),
-            "currency": 'EUR',
-            "transaction_type": 'transfer',
-            "counterparty_id": random.choice(NORMAL_USERS),
-            "timestamp": base_time + timedelta(minutes=i * 30),
-            "country_code": 'DE',
-            "ip_address": f"192.168.100.{random.randint(1, 255)}",
-            "status": 'completed'
-        })
+        transactions.append(
+            {
+                "transaction_id": f"TX-VEL-{start_count + i:08d}",
+                "user_id": user_id,
+                "amount": Decimal(str(round(random.uniform(100, 1000), 2))),
+                "currency": "EUR",
+                "transaction_type": "transfer",
+                "counterparty_id": random.choice(NORMAL_USERS),
+                "timestamp": base_time + timedelta(minutes=i * 30),
+                "country_code": "DE",
+                "ip_address": f"192.168.100.{random.randint(1, 255)}",
+                "status": "completed",
+            }
+        )
 
     return transactions
 

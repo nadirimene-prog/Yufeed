@@ -72,6 +72,7 @@ async def test_policy_crud_and_sections(db_session, monkeypatch):
 
     # Attach obligation for list_policy_obligations
     from src.models.models import LegalDocument
+
     doc = LegalDocument(
         celex="32024R8888",
         title="Policy doc",

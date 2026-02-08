@@ -1,6 +1,7 @@
 """
 Chunking utilities for legal documents.
 """
+
 from typing import Dict, Iterable, List, Optional
 import re
 
@@ -109,4 +110,3 @@ def chunk_document(
                 "text": part,
             }
             chunk_index += 1
-

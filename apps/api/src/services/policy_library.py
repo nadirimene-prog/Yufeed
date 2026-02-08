@@ -20,7 +20,9 @@ def _sort_key_policy(policy: PolicyDocument) -> datetime:
     return policy.updated_at or policy.created_at or datetime.min.replace(tzinfo=timezone.utc)
 
 
-def _merge_master_metadata(template: PolicyTemplate, existing: Optional[Dict[str, Any]]) -> Dict[str, Any]:
+def _merge_master_metadata(
+    template: PolicyTemplate, existing: Optional[Dict[str, Any]]
+) -> Dict[str, Any]:
     metadata: Dict[str, Any] = dict(existing or {})
     metadata.update(
         {
@@ -108,7 +110,11 @@ def ensure_master_policy_for_template(
         else:
             logger.warning(
                 "Cannot set canonical policy_id to template_id due to conflict",
-                extra={"template_id": template_id, "canonical_id": canonical.id, "conflict_id": conflict.id},
+                extra={
+                    "template_id": template_id,
+                    "canonical_id": canonical.id,
+                    "conflict_id": conflict.id,
+                },
             )
 
     if not (canonical.owner or "").strip() and (template.owner or "").strip():
@@ -156,9 +162,9 @@ def ensure_master_policy_for_template(
             stats["duplicates_retired"] += 1
 
         # If any obligations were linked to the duplicate policy, relink to canonical.
-        db.query(RegulatoryObligation).filter(RegulatoryObligation.linked_policy_id == other.id).update(
-            {"linked_policy_id": canonical.id, "updated_at": utc_now()}
-        )
+        db.query(RegulatoryObligation).filter(
+            RegulatoryObligation.linked_policy_id == other.id
+        ).update({"linked_policy_id": canonical.id, "updated_at": utc_now()})
 
     return canonical, stats
 

@@ -41,7 +41,9 @@ export default function ObligationReview({
       </p>
 
       <div className="mt-4">
-        <div className="text-xs font-semibold text-gray-600 dark:text-gray-300">Review notes</div>
+        <div className="text-xs font-semibold text-gray-600 dark:text-gray-300">
+          Review notes
+        </div>
         {reviewNotes ? (
           <div className="mt-2 rounded-md border border-gray-200 bg-gray-50 px-3 py-2 text-xs text-gray-600 whitespace-pre-wrap dark:border-slate-800 dark:bg-slate-800/40 dark:text-gray-300">
             {reviewNotes}
@@ -94,4 +96,3 @@ export default function ObligationReview({
     </div>
   );
 }
-

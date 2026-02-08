@@ -19,7 +19,8 @@ export default function ReplayComparison({
       {canCompare ? (
         <div className="space-y-2 text-xs">
           {diffRows.map((row) => {
-            const match = String(row.original ?? "") === String(row.replay ?? "");
+            const match =
+              String(row.original ?? "") === String(row.replay ?? "");
             return (
               <div
                 key={row.label}
@@ -29,7 +30,9 @@ export default function ReplayComparison({
                     : "border-amber-200 bg-amber-50/60 text-amber-700 dark:border-amber-900/40 dark:bg-amber-900/20 dark:text-amber-200"
                 }`}
               >
-                <div className="text-[10px] uppercase tracking-wider">{row.label}</div>
+                <div className="text-[10px] uppercase tracking-wider">
+                  {row.label}
+                </div>
                 <div className="mt-1 grid grid-cols-1 md:grid-cols-2 gap-2">
                   <div>
                     <div className="text-[10px] text-gray-500">Original</div>
@@ -45,9 +48,10 @@ export default function ReplayComparison({
           })}
         </div>
       ) : (
-        <div className="text-xs text-gray-500">Replay a decision to compare outcomes.</div>
+        <div className="text-xs text-gray-500">
+          Replay a decision to compare outcomes.
+        </div>
       )}
     </div>
   );
 }
-

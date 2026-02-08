@@ -89,7 +89,9 @@ def test_email_service_send(monkeypatch):
     monkeypatch.setattr(email_service.settings, "SMTP_TLS", True, raising=False)
     monkeypatch.setattr(email_service.settings, "SMTP_USER", "user", raising=False)
     monkeypatch.setattr(email_service.settings, "SMTP_PASSWORD", "pass", raising=False)
-    monkeypatch.setattr(email_service.settings, "EMAILS_FROM_EMAIL", "from@example.com", raising=False)
+    monkeypatch.setattr(
+        email_service.settings, "EMAILS_FROM_EMAIL", "from@example.com", raising=False
+    )
 
     ok = email_service.send_email("to@example.com", "Subject", "<b>Hello</b>")
     assert ok is True

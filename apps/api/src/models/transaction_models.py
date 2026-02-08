@@ -2,9 +2,20 @@
 Transaction Monitoring Models
 Phase 1: Foundation for transaction monitoring, alerts, and case management.
 """
+
 from sqlalchemy import (
-    Column, Integer, String, Text, DateTime, Numeric, Boolean,
-    ForeignKey, ARRAY, JSON, UniqueConstraint, Index
+    Column,
+    Integer,
+    String,
+    Text,
+    DateTime,
+    Numeric,
+    Boolean,
+    ForeignKey,
+    ARRAY,
+    JSON,
+    UniqueConstraint,
+    Index,
 )
 from sqlalchemy.dialects.postgresql import INET, JSONB
 from sqlalchemy.orm import relationship
@@ -20,9 +31,12 @@ def utc_now() -> datetime:
 
 class Transaction(Base):
     """Transaction data model with risk scoring and geographic information."""
+
     __tablename__ = "transactions"
     __table_args__ = (
-        UniqueConstraint("tenant_id", "transaction_id", name="uq_transactions_tenant_transaction_id"),
+        UniqueConstraint(
+            "tenant_id", "transaction_id", name="uq_transactions_tenant_transaction_id"
+        ),
         Index("ix_transactions_tenant_user_timestamp", "tenant_id", "user_id", "timestamp"),
         Index("ix_transactions_tenant_timestamp", "tenant_id", "timestamp"),
     )
@@ -37,7 +51,7 @@ class Transaction(Base):
     counterparty_id = Column(String(255))
     counterparty_name = Column(String(500))
     timestamp = Column(DateTime, nullable=False, index=True)
-    status = Column(String(50), default='completed')  # 'pending', 'completed', 'flagged', 'blocked'
+    status = Column(String(50), default="completed")  # 'pending', 'completed', 'flagged', 'blocked'
 
     # Geographic data
     ip_address = Column(String(45).with_variant(INET(), "postgresql"))
@@ -64,20 +78,25 @@ class Transaction(Base):
 
 class Alert(Base):
     """Alert model with regulatory context and case management integration."""
+
     __tablename__ = "alerts"
 
     id = Column(Integer, primary_key=True)
     tenant_id = Column(String(255), nullable=False, index=True)  # Multi-tenancy support
     alert_id = Column(String(255), unique=True, nullable=False, index=True)
-    alert_type = Column(String(100), nullable=False)  # 'velocity', 'structuring', 'unusual_pattern', etc.
+    alert_type = Column(
+        String(100), nullable=False
+    )  # 'velocity', 'structuring', 'unusual_pattern', etc.
     severity = Column(String(20), nullable=False)  # 'low', 'medium', 'high', 'critical'
 
     # Triggered by
-    transaction_id = Column(Integer, ForeignKey('transactions.id'), nullable=True, index=True)  # Indexed for joins
+    transaction_id = Column(
+        Integer, ForeignKey("transactions.id"), nullable=True, index=True
+    )  # Indexed for joins
     user_id = Column(String(255), index=True)
 
     # Status workflow
-    status = Column(String(50), default='pending', index=True)  # Indexed for status filtering
+    status = Column(String(50), default="pending", index=True)  # Indexed for status filtering
     assigned_to = Column(String(255), index=True)  # Indexed for assignment queries
     priority = Column(Integer, default=3)  # 1 (highest) to 5 (lowest)
 
@@ -88,7 +107,9 @@ class Alert(Base):
     evidence = Column(JSON().with_variant(JSONB(), "postgresql"))
 
     # REGULATORY CONTEXT (Yufeed Innovation)
-    related_regulations = Column(JSON().with_variant(JSONB(), "postgresql"))  # Array of LegalDocument IDs
+    related_regulations = Column(
+        JSON().with_variant(JSONB(), "postgresql")
+    )  # Array of LegalDocument IDs
     regulation_context = Column(Text)  # AI-generated explanation
 
     # Resolution
@@ -106,7 +127,9 @@ class Alert(Base):
     ml_prediction = Column(String(50))  # 'false_positive', 'true_positive', 'uncertain'
     ml_confidence = Column(Numeric(5, 4))  # 0.0000 to 1.0000
     ml_model_version = Column(String(50))  # Model version identifier
-    ml_features_snapshot = Column(JSON().with_variant(JSONB(), "postgresql"))  # Features used for prediction
+    ml_features_snapshot = Column(
+        JSON().with_variant(JSONB(), "postgresql")
+    )  # Features used for prediction
 
     created_at = Column(DateTime, default=utc_now, index=True)  # Indexed for date range queries
     updated_at = Column(DateTime, default=utc_now, onupdate=utc_now)
@@ -118,6 +141,7 @@ class Alert(Base):
 
 class Case(Base):
     """Investigation case model with regulatory linkage."""
+
     __tablename__ = "cases"
 
     id = Column(Integer, primary_key=True)
@@ -128,8 +152,8 @@ class Case(Base):
     subject_id = Column(String(255), index=True)
 
     # Status
-    status = Column(String(50), default='open', index=True)  # Indexed for status filtering
-    priority = Column(String(20), default='medium', index=True)  # Indexed for priority sorting
+    status = Column(String(50), default="open", index=True)  # Indexed for status filtering
+    priority = Column(String(20), default="medium", index=True)  # Indexed for priority sorting
 
     # Assignment
     assigned_to = Column(String(255), index=True)  # Indexed for assignment queries
@@ -146,7 +170,9 @@ class Case(Base):
     related_users = Column(JSON().with_variant(ARRAY(String(255)), "postgresql"))
 
     # REGULATORY LINKAGE (Yufeed Innovation)
-    applicable_regulation_ids = Column(JSON().with_variant(ARRAY(Integer), "postgresql"))  # LegalDocument IDs
+    applicable_regulation_ids = Column(
+        JSON().with_variant(ARRAY(Integer), "postgresql")
+    )  # LegalDocument IDs
     regulatory_violations = Column(JSON().with_variant(JSONB(), "postgresql"))
 
     # Evidence
@@ -167,6 +193,7 @@ class Case(Base):
 
 class MonitoringRule(Base):
     """Monitoring rule model with advanced logic and regulatory basis."""
+
     __tablename__ = "monitoring_rules"
 
     id = Column(Integer, primary_key=True)
@@ -177,19 +204,19 @@ class MonitoringRule(Base):
 
     # Rule type and priority
     category = Column(String(100))  # 'velocity', 'structuring', 'unusual_behavior', 'sanctions'
-    severity = Column(String(20), default='medium')
+    severity = Column(String(20), default="medium")
     priority = Column(Integer, default=3)
 
     # Rule logic - Sardine-inspired nested logic
     # Schema: { "logic": "AND", "conditions": [ { "field": "amount", "operator": ">", "value": 1000 }, ... ] }
     conditions = Column("conditions", JSON().with_variant(JSONB(), "postgresql"), nullable=False)
-    
+
     # Aggregation requirements (e.g., lookback periods)
     # Schema: { "window_size": "24h", "metric": "sum", "field": "amount" }
     thresholds = Column("thresholds", JSON().with_variant(JSONB(), "postgresql"))
 
     # Regulatory basis (YUFEED INNOVATION)
-    regulatory_source_id = Column(Integer, ForeignKey('legal_documents.id'), nullable=True)
+    regulatory_source_id = Column(Integer, ForeignKey("legal_documents.id"), nullable=True)
     regulation_article = Column(String(255))
     regulatory_requirement = Column(Text)
 
@@ -215,6 +242,7 @@ class MonitoringRule(Base):
 
 class RuleVersion(Base):
     """Immutable version snapshots for monitoring rules."""
+
     __tablename__ = "rule_versions"
 
     id = Column(Integer, primary_key=True)
@@ -241,20 +269,20 @@ class RuleVersion(Base):
     rule = relationship("MonitoringRule", back_populates="versions")
 
 
-
 class RuleHit(Base):
     """Records specific rule hits for an alert/transaction."""
+
     __tablename__ = "rule_hits"
 
     id = Column(Integer, primary_key=True)
     tenant_id = Column(String(255), nullable=False, index=True)  # Multi-tenancy support
-    alert_id = Column(Integer, ForeignKey('alerts.id'), nullable=False)
-    rule_id = Column(Integer, ForeignKey('monitoring_rules.id'), nullable=False)
-    
+    alert_id = Column(Integer, ForeignKey("alerts.id"), nullable=False)
+    rule_id = Column(Integer, ForeignKey("monitoring_rules.id"), nullable=False)
+
     # Captured data at time of hit
-    trigger_values = Column(JSON().with_variant(JSONB(), "postgresql")) 
+    trigger_values = Column(JSON().with_variant(JSONB(), "postgresql"))
     matched_conditions = Column(JSON().with_variant(JSONB(), "postgresql"))
-    
+
     hit_at = Column(DateTime, default=utc_now)
 
     # Relationships
@@ -264,6 +292,7 @@ class RuleHit(Base):
 
 class UserRiskProfile(Base):
     """User risk profile model with behavioral patterns and KYC status."""
+
     __tablename__ = "user_risk_profiles"
     __table_args__ = (
         UniqueConstraint("tenant_id", "user_id", name="uq_user_risk_profiles_tenant_user_id"),
@@ -314,6 +343,7 @@ class UserRiskProfile(Base):
 
 class FeatureValue(Base):
     """Feature store model for ML features and risk scoring."""
+
     __tablename__ = "feature_values"
     __table_args__ = (
         UniqueConstraint(
@@ -346,6 +376,7 @@ class FeatureValue(Base):
 
 class FailedTransactionProcessingItem(Base):
     """Dead Letter Queue items for transaction processing failures."""
+
     __tablename__ = "failed_transaction_processing_items"
 
     id = Column(Integer, primary_key=True)

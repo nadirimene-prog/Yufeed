@@ -18,7 +18,16 @@ import { staggerItem, transitions } from "@/lib/motion";
 export type MetricCardSize = "sm" | "md" | "lg";
 export type MetricCardVariant = "default" | "hero" | "compact";
 export type TrendDirection = "up" | "down" | "neutral";
-export type MetricColor = "aurora" | "cyan" | "green" | "yellow" | "orange" | "red" | "purple" | "gray" | "blue";
+export type MetricColor =
+  | "aurora"
+  | "cyan"
+  | "green"
+  | "yellow"
+  | "orange"
+  | "red"
+  | "purple"
+  | "gray"
+  | "blue";
 export type StatusType = "live" | "stale" | "error";
 
 interface MetricCardProps {
@@ -56,12 +65,15 @@ interface MetricCardProps {
   loading?: boolean;
 }
 
-const colorConfig: Record<MetricColor, {
-  icon: string;
-  glow: string;
-  progress: string;
-  sparkline: string;
-}> = {
+const colorConfig: Record<
+  MetricColor,
+  {
+    icon: string;
+    glow: string;
+    progress: string;
+    sparkline: string;
+  }
+> = {
   aurora: {
     icon: "text-[#6d5acd] bg-[#6d5acd]/10",
     glow: "shadow-[0_0_20px_rgba(109,90,205,0.3)]",
@@ -186,10 +198,17 @@ export function MetricCard({
         : "text-gray-400";
 
   // Parse value for animation
-  const numericValue = typeof value === "number" ? value : parseFloat(String(value).replace(/[^0-9.-]/g, ""));
+  const numericValue =
+    typeof value === "number"
+      ? value
+      : parseFloat(String(value).replace(/[^0-9.-]/g, ""));
   const isPercentage = String(value).includes("%");
   const hasDecimal = String(value).includes(".");
-  const decimals = hasDecimal ? String(value).split(".")[1]?.replace(/[^0-9]/g, "").length || 1 : 0;
+  const decimals = hasDecimal
+    ? String(value)
+        .split(".")[1]
+        ?.replace(/[^0-9]/g, "").length || 1
+    : 0;
 
   // Render the value
   const renderValue = () => {
@@ -199,10 +218,7 @@ export function MetricCard({
           value={numericValue}
           format={isPercentage ? "percentage" : "number"}
           decimals={isPercentage ? 1 : decimals}
-          className={cn(
-            "font-bold tracking-tight",
-            sizes.value
-          )}
+          className={cn("font-bold tracking-tight", sizes.value)}
         />
       );
     }
@@ -225,14 +241,15 @@ export function MetricCard({
         sizes.container,
         variant === "hero" && "col-span-2 row-span-2",
         variant === "compact" && "flex items-center gap-4",
-        className
+        className,
       )}
     >
       {/* Subtle top gradient highlight */}
       <div
         className="absolute inset-x-0 top-0 h-px"
         style={{
-          background: "linear-gradient(90deg, transparent, rgba(255,255,255,0.1), transparent)",
+          background:
+            "linear-gradient(90deg, transparent, rgba(255,255,255,0.1), transparent)",
         }}
       />
 
@@ -243,7 +260,7 @@ export function MetricCard({
             className={cn(
               "h-2 w-2 rounded-full",
               statusColors[status],
-              status === "live" && "animate-status-pulse"
+              status === "live" && "animate-status-pulse",
             )}
           />
           <span className="text-[10px] uppercase tracking-widest text-muted-foreground">
@@ -252,18 +269,15 @@ export function MetricCard({
         </div>
       )}
 
-      <div className={cn(
-        "flex items-start justify-between",
-        variant === "compact" && "flex-1"
-      )}>
+      <div
+        className={cn(
+          "flex items-start justify-between",
+          variant === "compact" && "flex-1",
+        )}
+      >
         <div className="flex-1 min-w-0">
           {/* Label */}
-          <p
-            className={cn(
-              "text-label text-muted-foreground",
-              sizes.title
-            )}
-          >
+          <p className={cn("text-label text-muted-foreground", sizes.title)}>
             {title}
           </p>
 
@@ -287,7 +301,10 @@ export function MetricCard({
           {typeof progress === "number" && (
             <div className="mt-3 h-1.5 w-full rounded-full bg-white/5 overflow-hidden">
               <motion.div
-                className={cn("h-full rounded-full bg-gradient-to-r", colors.progress)}
+                className={cn(
+                  "h-full rounded-full bg-gradient-to-r",
+                  colors.progress,
+                )}
                 initial={{ width: 0 }}
                 animate={{ width: `${Math.min(100, Math.max(0, progress))}%` }}
                 transition={transitions.slow}
@@ -299,7 +316,9 @@ export function MetricCard({
           {trend && (
             <div className={cn("flex items-center gap-1.5 mt-2", trendColor)}>
               <TrendIcon className="h-3.5 w-3.5" />
-              <span className="text-sm font-medium font-mono">{trend.value}</span>
+              <span className="text-sm font-medium font-mono">
+                {trend.value}
+              </span>
               {trend.label && (
                 <span className="text-xs text-muted-foreground ml-1">
                   {trend.label}
@@ -311,7 +330,9 @@ export function MetricCard({
 
         {/* Icon */}
         {icon && variant !== "compact" && (
-          <div className={cn("rounded-lg flex-shrink-0", colors.icon, sizes.icon)}>
+          <div
+            className={cn("rounded-lg flex-shrink-0", colors.icon, sizes.icon)}
+          >
             <div className={sizes.iconSize}>{icon}</div>
           </div>
         )}
@@ -319,7 +340,9 @@ export function MetricCard({
 
       {/* Compact variant icon */}
       {icon && variant === "compact" && (
-        <div className={cn("rounded-lg flex-shrink-0", colors.icon, sizes.icon)}>
+        <div
+          className={cn("rounded-lg flex-shrink-0", colors.icon, sizes.icon)}
+        >
           <div className={sizes.iconSize}>{icon}</div>
         </div>
       )}
@@ -344,7 +367,7 @@ function MetricCardSkeleton({
       className={cn(
         "relative overflow-hidden rounded-xl glass-surface",
         sizes.container,
-        className
+        className,
       )}
     >
       <div className="flex items-start justify-between">
@@ -354,10 +377,7 @@ function MetricCardSkeleton({
           <div className="h-3 w-16 rounded bg-white/5 animate-shimmer" />
         </div>
         <div
-          className={cn(
-            "rounded-lg bg-white/5 animate-shimmer",
-            sizes.icon
-          )}
+          className={cn("rounded-lg bg-white/5 animate-shimmer", sizes.icon)}
         />
       </div>
     </div>

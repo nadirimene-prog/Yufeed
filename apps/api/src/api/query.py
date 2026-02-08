@@ -18,14 +18,22 @@ router = APIRouter(prefix="/query", tags=["Natural Language Query"])
 # Request/Response Models
 class QueryRequest(BaseModel):
     """Natural language query request."""
+
     query: str = Field(..., description="User's question in natural language")
-    compliance_domain: Optional[str] = Field(None, description="Filter by compliance domain (aml, kyc, sanctions, etc.)")
-    risk_level: Optional[str] = Field(None, description="Filter by risk level (critical, high, medium, low)")
-    max_documents: Optional[int] = Field(5, description="Maximum documents to retrieve (1-10)", ge=1, le=10)
+    compliance_domain: Optional[str] = Field(
+        None, description="Filter by compliance domain (aml, kyc, sanctions, etc.)"
+    )
+    risk_level: Optional[str] = Field(
+        None, description="Filter by risk level (critical, high, medium, low)"
+    )
+    max_documents: Optional[int] = Field(
+        5, description="Maximum documents to retrieve (1-10)", ge=1, le=10
+    )
 
 
 class SourceDocument(BaseModel):
     """Source document reference."""
+
     celex: str
     title: str
     relevance_score: float
@@ -40,6 +48,7 @@ class SourceDocument(BaseModel):
 
 class QueryResponse(BaseModel):
     """Natural language query response."""
+
     query: str
     answer: str
     confidence: str  # high, medium, low
@@ -51,6 +60,7 @@ class QueryResponse(BaseModel):
 
 class ConversationRequest(BaseModel):
     """Multi-turn conversation request."""
+
     query: str
     conversation_id: Optional[str] = None
     filters: Optional[Dict[str, Any]] = None
@@ -61,10 +71,7 @@ conversations: Dict[str, ConversationManager] = {}
 
 
 @router.post("/ask", response_model=QueryResponse)
-async def ask_question(
-    request: QueryRequest,
-    db: Session = Depends(get_db)
-):
+async def ask_question(request: QueryRequest, db: Session = Depends(get_db)):
     """
     Ask a natural language question about EU regulations.
 
@@ -95,38 +102,24 @@ async def ask_question(
 
     try:
         result = await rag_service.answer_query(
-            query=request.query,
-            db=db,
-            max_documents=request.max_documents,
-            filters=filters
+            query=request.query, db=db, max_documents=request.max_documents, filters=filters
         )
 
         # Add follow-up suggestions
         result["followup_questions"] = rag_service.suggest_followup_questions(
-            query=request.query,
-            answer=result["answer"],
-            documents=result.get("sources", [])
+            query=request.query, answer=result["answer"], documents=result.get("sources", [])
         )
 
-        return QueryResponse(
-            query=request.query,
-            **result
-        )
+        return QueryResponse(query=request.query, **result)
 
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))
     except Exception as e:
-        raise HTTPException(
-            status_code=500,
-            detail=f"Query processing failed: {str(e)}"
-        )
+        raise HTTPException(status_code=500, detail=f"Query processing failed: {str(e)}")
 
 
 @router.post("/conversation", response_model=QueryResponse)
-async def conversation_turn(
-    request: ConversationRequest,
-    db: Session = Depends(get_db)
-):
+async def conversation_turn(request: ConversationRequest, db: Session = Depends(get_db)):
     """
     Multi-turn conversation with context retention.
 
@@ -160,23 +153,14 @@ async def conversation_turn(
     conv_manager = conversations[conv_id]
 
     try:
-        result = await conv_manager.ask(
-            query=request.query,
-            filters=request.filters
-        )
+        result = await conv_manager.ask(query=request.query, filters=request.filters)
 
-        return QueryResponse(
-            query=request.query,
-            **result
-        )
+        return QueryResponse(query=request.query, **result)
 
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))
     except Exception as e:
-        raise HTTPException(
-            status_code=500,
-            detail=f"Conversation processing failed: {str(e)}"
-        )
+        raise HTTPException(status_code=500, detail=f"Conversation processing failed: {str(e)}")
 
 
 @router.delete("/conversation/{conversation_id}")
@@ -197,7 +181,7 @@ def clear_conversation(conversation_id: str):
 @router.get("/suggestions")
 def get_query_suggestions(
     domain: Optional[str] = Query(None, description="Compliance domain filter"),
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
 ):
     """
     Get suggested questions users can ask.
@@ -234,19 +218,13 @@ def get_query_suggestions(
             "What are the CTR thresholds?",
             "What are the regulatory reporting deadlines?",
             "What information must be included in SARs?",
-        ]
+        ],
     }
 
     if domain and domain in suggestions:
-        return {
-            "domain": domain,
-            "suggestions": suggestions[domain]
-        }
+        return {"domain": domain, "suggestions": suggestions[domain]}
     else:
-        return {
-            "domain": "all",
-            "suggestions": suggestions
-        }
+        return {"domain": "all", "suggestions": suggestions}
 
 
 @router.get("/health")
@@ -261,5 +239,5 @@ def query_health_check():
     return {
         "status": "ok",
         "ai_available": rag_service.client is not None,
-        "active_conversations": len(conversations)
+        "active_conversations": len(conversations),
     }

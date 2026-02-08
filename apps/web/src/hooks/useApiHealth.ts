@@ -7,7 +7,10 @@ export type ApiHealthStatus = "checking" | "ok" | "down";
 const DEFAULT_API_URL = "http://localhost:8000";
 
 function resolveHealthUrl(): string | null {
-  const base = (process.env.NEXT_PUBLIC_API_URL || DEFAULT_API_URL).replace(/\/$/, "");
+  const base = (process.env.NEXT_PUBLIC_API_URL || DEFAULT_API_URL).replace(
+    /\/$/,
+    "",
+  );
   if (!base) return null;
   return `${base}/healthz`;
 }

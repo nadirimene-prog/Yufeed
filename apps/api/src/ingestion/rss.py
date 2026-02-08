@@ -49,8 +49,10 @@ def _retry_request(
                 logger.error(f"Request failed after {max_retries + 1} attempts: {e}")
                 raise
 
-            delay = min(base_delay * (2 ** attempt), max_delay)
-            logger.warning(f"Request attempt {attempt + 1} failed: {e}. Retrying in {delay:.1f}s...")
+            delay = min(base_delay * (2**attempt), max_delay)
+            logger.warning(
+                f"Request attempt {attempt + 1} failed: {e}. Retrying in {delay:.1f}s..."
+            )
             time.sleep(delay)
 
     raise last_exception
@@ -164,7 +166,11 @@ class RSSFetcher:
             params["endDate"] = end_date.isoformat()
         params["wemiClasses"] = "work"
 
-        url = f"{self.CELLAR_INGESTION_URL}?{urlencode(params)}" if params else self.CELLAR_INGESTION_URL
+        url = (
+            f"{self.CELLAR_INGESTION_URL}?{urlencode(params)}"
+            if params
+            else self.CELLAR_INGESTION_URL
+        )
         logger.info(f"Fetching CELLAR ingestion feed: {url}")
 
         try:
@@ -204,7 +210,7 @@ class RSSFetcher:
         if "lang=" in url:
             return re.sub(r"lang=[a-z]+", f"lang={language}", url, flags=re.IGNORECASE)
         return url
-        
+
     def _normalize_entry(self, entry: Any, language: str = "en") -> Dict[str, Any]:
         """
         Extract relevant fields and attempt to find identifiers.
@@ -213,11 +219,11 @@ class RSSFetcher:
         title = getattr(entry, "title", "No Title")
         description = getattr(entry, "description", "")
         published = getattr(entry, "published", None)
-        
+
         # extraction logic
         celex = self._extract_celex(link) or self._extract_celex(description)
         eli = self._extract_eli(link) or self._extract_eli(description)
-        
+
         return {
             "title": title,
             "link": link,
@@ -229,7 +235,7 @@ class RSSFetcher:
             "source_system": "eur-lex",
             "jurisdiction": "EU",
             "source_reference": link,
-            "raw_entry": entry
+            "raw_entry": entry,
         }
 
     def _parse_rss_fallback(self, content: str, language: str = "en") -> List[Dict[str, Any]]:
@@ -295,11 +301,15 @@ class RSSFetcher:
             root = ElementTree.fromstring(content)
             return self._parse_cellar_from_xml(root, language=language)
         except Exception as exc:
-            logger.warning(f"XML parsing failed for CELLAR feed: {exc}; falling back to HTML parser")
+            logger.warning(
+                f"XML parsing failed for CELLAR feed: {exc}; falling back to HTML parser"
+            )
             soup = BeautifulSoup(content, "html.parser")
             return self._parse_cellar_from_soup(soup, language=language)
 
-    def _parse_cellar_from_xml(self, root: ElementTree.Element, language: str) -> List[Dict[str, Any]]:
+    def _parse_cellar_from_xml(
+        self, root: ElementTree.Element, language: str
+    ) -> List[Dict[str, Any]]:
         entries: List[Dict[str, Any]] = []
 
         for elem in root.iter():
@@ -322,7 +332,10 @@ class RSSFetcher:
             )
             published = self._find_xml_text(elem, ["pubdate", "published", "updated", "date"])
 
-            link = self._find_xml_link(elem) or f"https://eur-lex.europa.eu/legal-content/{language.upper()}/TXT/?uri=CELEX:{celex}"
+            link = (
+                self._find_xml_link(elem)
+                or f"https://eur-lex.europa.eu/legal-content/{language.upper()}/TXT/?uri=CELEX:{celex}"
+            )
 
             entries.append(
                 {
@@ -367,8 +380,10 @@ class RSSFetcher:
             if link_tag:
                 link = link_tag.get("href") or (link_tag.text or "").strip()
 
-            title = (title_tag.text or "").strip() if title_tag else (
-                f"Official Journal {oj_ref}" if oj_ref else f"EU publication {celex}"
+            title = (
+                (title_tag.text or "").strip()
+                if title_tag
+                else (f"Official Journal {oj_ref}" if oj_ref else f"EU publication {celex}")
             )
             published = (pub_tag.text or "").strip() if pub_tag else None
 
@@ -452,7 +467,7 @@ class RSSFetcher:
         if match:
             return match.group(1)
         return None
-    
+
     def _extract_celex(self, text: str) -> str:
         """
         Attempt to extract CELEX number from URL or text.

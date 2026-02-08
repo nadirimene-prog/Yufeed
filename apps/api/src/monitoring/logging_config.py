@@ -2,11 +2,14 @@
 Structured logging configuration using structlog.
 Phase 4A: Task 2.2 - Structured Logging
 """
+
 import logging
 import sys
 from typing import Any, Dict
+
 try:
     import structlog
+
     STRUCTLOG_AVAILABLE = True
 except ImportError:
     structlog = None
@@ -14,6 +17,7 @@ except ImportError:
 
 try:
     from pythonjsonlogger import jsonlogger
+
     JSON_LOGGER_AVAILABLE = True
 except ImportError:
     jsonlogger = None
@@ -26,6 +30,7 @@ def utc_now() -> datetime:
     """Return current UTC time (timezone-aware)."""
     return datetime.now(timezone.utc)
 
+
 # Context variables for correlation IDs
 request_id_ctx: ContextVar[str] = ContextVar("request_id", default="")
 correlation_id_ctx: ContextVar[str] = ContextVar("correlation_id", default="")
@@ -35,6 +40,7 @@ user_id_ctx: ContextVar[str] = ContextVar("user_id", default="")
 # ============================================================================
 # STRUCTLOG CONFIGURATION
 # ============================================================================
+
 
 def add_app_context(
     logger: logging.Logger, method_name: str, event_dict: Dict[str, Any]
@@ -90,6 +96,7 @@ def get_environment() -> str:
     Get current environment from settings or environment variable.
     """
     import os
+
     return os.getenv("ENVIRONMENT", "development")
 
 
@@ -160,16 +167,11 @@ def configure_stdlib_logging():
     if environment == "production" and JSON_LOGGER_AVAILABLE:
         formatter = jsonlogger.JsonFormatter(
             fmt="%(timestamp)s %(level)s %(name)s %(message)s",
-            rename_fields={
-                "levelname": "level",
-                "name": "logger",
-                "asctime": "timestamp"
-            }
+            rename_fields={"levelname": "level", "name": "logger", "asctime": "timestamp"},
         )
     else:
         formatter = logging.Formatter(
-            fmt="%(asctime)s [%(levelname)s] %(name)s: %(message)s",
-            datefmt="%Y-%m-%d %H:%M:%S"
+            fmt="%(asctime)s [%(levelname)s] %(name)s: %(message)s", datefmt="%Y-%m-%d %H:%M:%S"
         )
 
     handler.setFormatter(formatter)
@@ -202,7 +204,9 @@ def _patch_logger_for_kwargs():
 
     original_log = logging.Logger._log
 
-    def _log(self, level, msg, args, exc_info=None, extra=None, stack_info=False, stacklevel=1, **kwargs):
+    def _log(
+        self, level, msg, args, exc_info=None, extra=None, stack_info=False, stacklevel=1, **kwargs
+    ):
         if kwargs:
             msg = f"{msg} | {kwargs}"
         return original_log(
@@ -223,6 +227,7 @@ def _patch_logger_for_kwargs():
 # ============================================================================
 # LOGGING HELPERS
 # ============================================================================
+
 
 class _FallbackLogger:
     def __init__(self, name: str):

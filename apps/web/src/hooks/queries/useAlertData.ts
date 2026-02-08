@@ -15,9 +15,9 @@
  * - Loading states
  */
 
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { monitoringKeys } from '@/lib/queryKeys';
-import { getAlerts, getAlert, updateAlert } from '@/lib/api';
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { monitoringKeys } from "@/lib/queryKeys";
+import { getAlerts, getAlert, updateAlert } from "@/lib/api";
 
 /**
  * Fetch alerts with optional filters
@@ -53,10 +53,14 @@ export function useUpdateAlert() {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: ({ id, data }: { id: string; data: any }) => updateAlert(id, data),
+    mutationFn: ({ id, data }: { id: string; data: any }) =>
+      updateAlert(id, data),
     onSuccess: (updated, variables) => {
       // Update detail cache
-      queryClient.setQueryData(monitoringKeys.alertDetail(variables.id), updated);
+      queryClient.setQueryData(
+        monitoringKeys.alertDetail(variables.id),
+        updated,
+      );
 
       // Invalidate lists
       queryClient.invalidateQueries({ queryKey: monitoringKeys.alerts() });
@@ -72,9 +76,12 @@ export function useAssignAlert() {
 
   return useMutation({
     mutationFn: ({ id, assigned_to }: { id: string; assigned_to: string }) =>
-      updateAlert(id, { assigned_to, status: 'in_review' }),
+      updateAlert(id, { assigned_to, status: "in_review" }),
     onSuccess: (updated, variables) => {
-      queryClient.setQueryData(monitoringKeys.alertDetail(variables.id), updated);
+      queryClient.setQueryData(
+        monitoringKeys.alertDetail(variables.id),
+        updated,
+      );
       queryClient.invalidateQueries({ queryKey: monitoringKeys.alerts() });
     },
   });
@@ -93,16 +100,19 @@ export function useResolveAlert() {
       resolution_notes,
     }: {
       id: string;
-      resolution_status: 'confirmed' | 'false_positive' | 'no_action';
+      resolution_status: "confirmed" | "false_positive" | "no_action";
       resolution_notes?: string;
     }) =>
       updateAlert(id, {
-        status: 'resolved',
+        status: "resolved",
         resolution_status,
         resolution_notes,
       }),
     onSuccess: (updated, variables) => {
-      queryClient.setQueryData(monitoringKeys.alertDetail(variables.id), updated);
+      queryClient.setQueryData(
+        monitoringKeys.alertDetail(variables.id),
+        updated,
+      );
       queryClient.invalidateQueries({ queryKey: monitoringKeys.alerts() });
     },
   });
@@ -115,13 +125,7 @@ export function useBulkUpdateAlerts() {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: async ({
-      ids,
-      data,
-    }: {
-      ids: string[];
-      data: any;
-    }) => {
+    mutationFn: async ({ ids, data }: { ids: string[]; data: any }) => {
       // Execute updates in parallel
       return Promise.all(ids.map((id) => updateAlert(id, data)));
     },

@@ -4,6 +4,7 @@ Phase 4C: Task 7.3 & 7.4 - Tenant Management API
 
 Request/response schemas for tenant and API key management.
 """
+
 from typing import Optional, List, Dict, Any
 from pydantic import BaseModel, Field, validator
 from datetime import datetime
@@ -13,28 +14,30 @@ from datetime import datetime
 # TENANT SCHEMAS
 # ============================================================================
 
+
 class TenantBase(BaseModel):
     """Base tenant schema with common fields."""
+
     name: str = Field(..., min_length=1, max_length=255)
     display_name: Optional[str] = Field(None, max_length=255)
     contact_email: Optional[str] = Field(None, max_length=255)
     contact_name: Optional[str] = Field(None, max_length=255)
-    tier: str = Field(default='standard', max_length=50)
+    tier: str = Field(default="standard", max_length=50)
     primary_color: Optional[str] = Field(None, max_length=7)
     secondary_color: Optional[str] = Field(None, max_length=7)
     logo_url: Optional[str] = Field(None, max_length=500)
 
-    @validator('primary_color', 'secondary_color')
+    @validator("primary_color", "secondary_color")
     def validate_hex_color(cls, v):
-        if v and not v.startswith('#'):
-            raise ValueError('Color must be a hex code starting with #')
+        if v and not v.startswith("#"):
+            raise ValueError("Color must be a hex code starting with #")
         if v and len(v) != 7:
-            raise ValueError('Color must be 7 characters (#RRGGBB)')
+            raise ValueError("Color must be 7 characters (#RRGGBB)")
         return v
 
-    @validator('tier')
+    @validator("tier")
     def validate_tier(cls, v):
-        allowed_tiers = ['free', 'standard', 'enterprise']
+        allowed_tiers = ["free", "standard", "enterprise"]
         if v not in allowed_tiers:
             raise ValueError(f'Tier must be one of: {", ".join(allowed_tiers)}')
         return v
@@ -42,12 +45,13 @@ class TenantBase(BaseModel):
 
 class TenantCreate(TenantBase):
     """Schema for creating a new tenant."""
-    tenant_id: str = Field(..., min_length=3, max_length=255, pattern=r'^[a-z0-9_]+$')
 
-    @validator('tenant_id')
+    tenant_id: str = Field(..., min_length=3, max_length=255, pattern=r"^[a-z0-9_]+$")
+
+    @validator("tenant_id")
     def validate_tenant_id(cls, v):
         # Reserved tenant IDs
-        reserved = ['default', 'admin', 'system', 'api', 'public']
+        reserved = ["default", "admin", "system", "api", "public"]
         if v in reserved:
             raise ValueError(f'Tenant ID "{v}" is reserved')
         return v
@@ -55,6 +59,7 @@ class TenantCreate(TenantBase):
 
 class TenantUpdate(BaseModel):
     """Schema for updating a tenant."""
+
     name: Optional[str] = Field(None, min_length=1, max_length=255)
     display_name: Optional[str] = Field(None, max_length=255)
     contact_email: Optional[str] = Field(None, max_length=255)
@@ -71,6 +76,7 @@ class TenantUpdate(BaseModel):
 
 class TenantResponse(TenantBase):
     """Schema for tenant API response."""
+
     id: int
     tenant_id: str
     is_active: bool
@@ -88,6 +94,7 @@ class TenantResponse(TenantBase):
 
 class TenantStats(BaseModel):
     """Schema for tenant statistics."""
+
     tenant_id: str
     total_transactions: int
     total_alerts: int
@@ -102,8 +109,10 @@ class TenantStats(BaseModel):
 # API KEY SCHEMAS
 # ============================================================================
 
+
 class APIKeyBase(BaseModel):
     """Base API key schema."""
+
     name: str = Field(..., min_length=1, max_length=255)
     description: Optional[str] = None
     scopes: Optional[List[str]] = None
@@ -112,11 +121,13 @@ class APIKeyBase(BaseModel):
 
 class APIKeyCreate(APIKeyBase):
     """Schema for creating a new API key."""
+
     pass
 
 
 class APIKeyUpdate(BaseModel):
     """Schema for updating an API key."""
+
     name: Optional[str] = Field(None, min_length=1, max_length=255)
     description: Optional[str] = None
     is_active: Optional[bool] = None
@@ -125,6 +136,7 @@ class APIKeyUpdate(BaseModel):
 
 class APIKeyResponse(APIKeyBase):
     """Schema for API key response (without the actual key)."""
+
     id: int
     tenant_id: int
     key_prefix: str  # First few characters for identification
@@ -141,11 +153,13 @@ class APIKeyResponse(APIKeyBase):
 
 class APIKeyCreateResponse(APIKeyResponse):
     """Schema for API key creation response (includes the actual key)."""
+
     api_key: str  # Full API key - only shown once at creation
 
 
 class APIKeyRotateResponse(BaseModel):
     """Schema for API key rotation response."""
+
     old_key_id: int
     new_key: APIKeyCreateResponse
     message: str
@@ -155,15 +169,17 @@ class APIKeyRotateResponse(BaseModel):
 # TENANT USER SCHEMAS
 # ============================================================================
 
+
 class TenantUserBase(BaseModel):
     """Base tenant user schema."""
+
     user_id: str = Field(..., max_length=255)
-    role: str = Field(default='viewer', max_length=50)
+    role: str = Field(default="viewer", max_length=50)
     permissions: Optional[Dict[str, Any]] = None
 
-    @validator('role')
+    @validator("role")
     def validate_role(cls, v):
-        allowed_roles = ['admin', 'analyst', 'viewer']
+        allowed_roles = ["admin", "analyst", "viewer"]
         if v not in allowed_roles:
             raise ValueError(f'Role must be one of: {", ".join(allowed_roles)}')
         return v
@@ -171,11 +187,13 @@ class TenantUserBase(BaseModel):
 
 class TenantUserCreate(TenantUserBase):
     """Schema for adding a user to a tenant."""
+
     pass
 
 
 class TenantUserUpdate(BaseModel):
     """Schema for updating a tenant user."""
+
     role: Optional[str] = None
     is_active: Optional[bool] = None
     permissions: Optional[Dict[str, Any]] = None
@@ -183,6 +201,7 @@ class TenantUserUpdate(BaseModel):
 
 class TenantUserResponse(TenantUserBase):
     """Schema for tenant user response."""
+
     id: int
     tenant_id: int
     is_active: bool
@@ -197,8 +216,10 @@ class TenantUserResponse(TenantUserBase):
 # TENANT CONFIGURATION SCHEMAS
 # ============================================================================
 
+
 class RateLimitConfig(BaseModel):
     """Schema for rate limit configuration."""
+
     requests_per_minute: int = Field(default=60, ge=1, le=10000)
     requests_per_hour: int = Field(default=1000, ge=1, le=100000)
     requests_per_day: int = Field(default=10000, ge=1, le=1000000)
@@ -207,6 +228,7 @@ class RateLimitConfig(BaseModel):
 
 class FeatureFlagConfig(BaseModel):
     """Schema for feature flag configuration."""
+
     ml_auto_triage: bool = Field(default=True)
     websocket_notifications: bool = Field(default=True)
     graphql_api: bool = Field(default=False)
@@ -218,9 +240,10 @@ class FeatureFlagConfig(BaseModel):
 
 class TenantSettings(BaseModel):
     """Schema for tenant settings."""
-    timezone: str = Field(default='UTC')
-    currency: str = Field(default='USD', max_length=3)
-    language: str = Field(default='en', max_length=2)
+
+    timezone: str = Field(default="UTC")
+    currency: str = Field(default="USD", max_length=3)
+    language: str = Field(default="en", max_length=2)
     notification_email: Optional[str] = None
     webhook_url: Optional[str] = None
     data_retention_days: int = Field(default=90, ge=30, le=3650)
@@ -229,6 +252,7 @@ class TenantSettings(BaseModel):
 
 class TenantConfigUpdate(BaseModel):
     """Schema for updating tenant configuration."""
+
     settings: Optional[TenantSettings] = None
     rate_limits: Optional[RateLimitConfig] = None
     feature_flags: Optional[FeatureFlagConfig] = None
