@@ -39,7 +39,7 @@ def upgrade():
         sa.PrimaryKeyConstraint('id'),
         sa.ForeignKeyConstraint(['tenant_id'], ['tenants.tenant_id']),
         sa.ForeignKeyConstraint(['document_id'], ['legal_documents.id']),
-        sa.ForeignKeyConstraint(['obligation_id'], ['obligations.id']),
+        sa.ForeignKeyConstraint(['obligation_id'], ['regulatory_obligations.id']),
     )
 
     # Indexes for ai_usage_logs

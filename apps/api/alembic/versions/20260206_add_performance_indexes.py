@@ -105,7 +105,7 @@ def upgrade():
     op.create_index(
         'idx_rules_tenant_active',
         'monitoring_rules',
-        ['tenant_id', 'is_active'],
+        ['tenant_id', 'enabled'],
         postgresql_using='btree',
         unique=False
     )
@@ -133,7 +133,7 @@ def upgrade():
         op.create_index(
             'idx_feature_tenant_updated',
             'feature_values',
-            ['tenant_id', 'updated_at'],
+            ['tenant_id', 'calculated_at'],
             postgresql_using='btree',
             unique=False
         )
@@ -152,23 +152,23 @@ def upgrade():
     )
 
     # ============================================================================
-    # Obligations Table Indexes (Compliance)
+    # Regulatory Obligations Table Indexes (Compliance)
     # ============================================================================
 
     # Index for obligation filtering by status
     op.create_index(
-        'idx_obligations_tenant_status',
-        'obligations',
-        ['tenant_id', 'status'],
+        'idx_reg_obligations_status',
+        'regulatory_obligations',
+        ['status', 'created_at'],
         postgresql_using='btree',
         unique=False
     )
 
     # Index for policy-to-obligation lookups
     op.create_index(
-        'idx_obligations_policy',
-        'obligations',
-        ['policy_id'],
+        'idx_reg_obligations_policy',
+        'regulatory_obligations',
+        ['linked_policy_id'],
         postgresql_using='btree',
         unique=False
     )
@@ -177,21 +177,14 @@ def upgrade():
     # Watchlists Table Indexes
     # ============================================================================
 
-    # Index for watchlist entries lookup
-    op.create_index(
-        'idx_watchlist_entries_watchlist',
-        'watchlist_entries',
-        ['watchlist_id'],
-        postgresql_using='btree',
-        unique=False
-    )
+    # Note: watchlists table doesn't have watchlist_id FK structure
+    # Skipping watchlist_entries index (table doesn't exist in current schema)
 
 
 def downgrade():
     # Drop indexes in reverse order
-    op.drop_index('idx_watchlist_entries_watchlist', 'watchlist_entries')
-    op.drop_index('idx_obligations_policy', 'obligations')
-    op.drop_index('idx_obligations_tenant_status', 'obligations')
+    op.drop_index('idx_reg_obligations_policy', 'regulatory_obligations')
+    op.drop_index('idx_reg_obligations_status', 'regulatory_obligations')
     op.drop_index('idx_cases_tenant_status', 'cases')
 
     # Feature values indexes (only if we created them)
