@@ -1,6 +1,7 @@
 import axios, { AxiosError, InternalAxiosRequestConfig } from "axios";
 import { clearAuthTokens, getAuthToken } from "./auth";
 import { resolveApiBaseUrl } from "@/lib/apiBaseUrl";
+import { logger } from "@/lib/logger";
 
 const apiClient = axios.create({
   baseURL: resolveApiBaseUrl(),
@@ -25,7 +26,7 @@ apiClient.interceptors.response.use(
       clearAuthTokens();
       // Optionally redirect to login
       if (typeof window !== "undefined") {
-        console.warn("[API] Unauthorized - clearing tokens");
+        logger.warn("[API] Unauthorized - clearing tokens");
       }
     }
 
@@ -40,7 +41,7 @@ apiClient.interceptors.response.use(
     }
 
     return Promise.reject(error);
-  }
+  },
 );
 
 export default apiClient;

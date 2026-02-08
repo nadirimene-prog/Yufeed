@@ -3,13 +3,9 @@ const ACCESS_TOKEN_KEY = "access_token";
 const REFRESH_TOKEN_KEY = "refresh_token";
 const TOKEN_TYPE_KEY = "token_type";
 
-const TOKEN_KEYS = [
-  ACCESS_TOKEN_KEY,
-  "auth_token",
-  "token",
-  "jwt",
-  "yufeed_token",
-];
+// Legacy keys kept only for migration: clear them on read, never write to them.
+const LEGACY_TOKEN_KEYS = ["auth_token", "token", "jwt", "yufeed_token"];
+const TOKEN_KEYS = [ACCESS_TOKEN_KEY, ...LEGACY_TOKEN_KEYS];
 
 export interface AuthTokens {
   access_token: string;
@@ -21,7 +17,10 @@ export class AuthError extends Error {
   code?: string;
   availableTenants?: string[];
 
-  constructor(message: string, options?: { code?: string; availableTenants?: string[] }) {
+  constructor(
+    message: string,
+    options?: { code?: string; availableTenants?: string[] },
+  ) {
     super(message);
     this.name = "AuthError";
     this.code = options?.code;
@@ -78,8 +77,7 @@ export function getAuthToken(): string | null {
 
   for (const key of TOKEN_KEYS) {
     const value =
-      window.localStorage.getItem(key) ||
-      window.sessionStorage.getItem(key);
+      window.localStorage.getItem(key) || window.sessionStorage.getItem(key);
     if (!value) continue;
     if (!isJwtTokenValid(value)) {
       window.localStorage.removeItem(key);
@@ -101,7 +99,7 @@ export function getAuthToken(): string | null {
 
 export function setAuthTokens(
   tokens: AuthTokens,
-  storage: "local" | "session" = "local"
+  storage: "local" | "session" = "local",
 ) {
   if (typeof window === "undefined") {
     return;
@@ -132,12 +130,14 @@ export function clearAuthTokens() {
 export async function loginWithPassword(
   email: string,
   password: string,
-  options?: { apiUrl?: string; storage?: "local" | "session"; tenantId?: string }
+  options?: {
+    apiUrl?: string;
+    storage?: "local" | "session";
+    tenantId?: string;
+  },
 ): Promise<AuthTokens> {
   clearAuthTokens();
-  const apiUrl =
-    options?.apiUrl ||
-    getApiBaseUrl();
+  const apiUrl = options?.apiUrl || getApiBaseUrl();
   const response = await fetch(`${apiUrl}/api/auth/login`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
@@ -191,7 +191,10 @@ export function withAuthHeaders(headers: HeadersInit = {}) {
   return normalized;
 }
 
-export function fetchWithAuth(input: RequestInfo | URL, init: RequestInit = {}) {
+export function fetchWithAuth(
+  input: RequestInfo | URL,
+  init: RequestInit = {},
+) {
   return fetch(input, {
     ...init,
     headers: withAuthHeaders(init.headers ?? {}),

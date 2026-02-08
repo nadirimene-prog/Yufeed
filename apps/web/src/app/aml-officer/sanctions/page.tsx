@@ -23,7 +23,11 @@ import {
   Plus,
   Trash2,
 } from "lucide-react";
-import amlOfficerApi, { SanctionsScreenResult, SanctionsMatch } from "@/lib/aml-officer-api";
+import amlOfficerApi, {
+  SanctionsScreenResult,
+  SanctionsMatch,
+} from "@/lib/aml-officer-api";
+import { logger } from "@/lib/logger";
 
 interface ScreeningEntry {
   id: string;
@@ -62,9 +66,7 @@ export default function SanctionsScreeningPage() {
   };
 
   const updateEntry = (id: string, updates: Partial<ScreeningEntry>) => {
-    setEntries(
-      entries.map((e) => (e.id === id ? { ...e, ...updates } : e))
-    );
+    setEntries(entries.map((e) => (e.id === id ? { ...e, ...updates } : e)));
   };
 
   const handleScreen = async () => {
@@ -95,16 +97,19 @@ export default function SanctionsScreeningPage() {
         setResults(result.results);
       }
     } catch (error) {
-      console.error("Screening failed:", error);
+      logger.error("Screening failed:", error);
     } finally {
       setLoading(false);
     }
   };
 
   const getMatchSeverity = (score: number) => {
-    if (score >= 95) return { color: "text-red-600 bg-red-50", label: "Exact Match" };
-    if (score >= 85) return { color: "text-orange-600 bg-orange-50", label: "Strong Match" };
-    if (score >= 70) return { color: "text-yellow-600 bg-yellow-50", label: "Partial Match" };
+    if (score >= 95)
+      return { color: "text-red-600 bg-red-50", label: "Exact Match" };
+    if (score >= 85)
+      return { color: "text-orange-600 bg-orange-50", label: "Strong Match" };
+    if (score >= 70)
+      return { color: "text-yellow-600 bg-yellow-50", label: "Partial Match" };
     return { color: "text-gray-600 bg-gray-50", label: "Weak Match" };
   };
 
@@ -148,7 +153,11 @@ export default function SanctionsScreeningPage() {
               </h2>
               <div className="flex flex-wrap gap-3">
                 {[
-                  { id: "eu_consolidated", label: "EU Consolidated List", icon: Globe },
+                  {
+                    id: "eu_consolidated",
+                    label: "EU Consolidated List",
+                    icon: Globe,
+                  },
                   { id: "ofac_sdn", label: "OFAC SDN", icon: Shield },
                 ].map((list) => (
                   <button
@@ -156,7 +165,9 @@ export default function SanctionsScreeningPage() {
                     onClick={() => {
                       if (selectedLists.includes(list.id)) {
                         if (selectedLists.length > 1) {
-                          setSelectedLists(selectedLists.filter((l) => l !== list.id));
+                          setSelectedLists(
+                            selectedLists.filter((l) => l !== list.id),
+                          );
                         }
                       } else {
                         setSelectedLists([...selectedLists, list.id]);
@@ -231,7 +242,9 @@ export default function SanctionsScreeningPage() {
                           value={entry.entityType}
                           onChange={(e) =>
                             updateEntry(entry.id, {
-                              entityType: e.target.value as "individual" | "entity",
+                              entityType: e.target.value as
+                                | "individual"
+                                | "entity",
                             })
                           }
                           className="w-full px-2 py-1.5 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500"
@@ -250,7 +263,9 @@ export default function SanctionsScreeningPage() {
                           type="text"
                           value={entry.nationality || ""}
                           onChange={(e) =>
-                            updateEntry(entry.id, { nationality: e.target.value })
+                            updateEntry(entry.id, {
+                              nationality: e.target.value,
+                            })
                           }
                           placeholder="Optional"
                           className="w-full px-2 py-1.5 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500"
@@ -267,7 +282,9 @@ export default function SanctionsScreeningPage() {
                             type="date"
                             value={entry.birthDate || ""}
                             onChange={(e) =>
-                              updateEntry(entry.id, { birthDate: e.target.value })
+                              updateEntry(entry.id, {
+                                birthDate: e.target.value,
+                              })
                             }
                             className="w-full px-2 py-1.5 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500"
                           />
@@ -293,7 +310,9 @@ export default function SanctionsScreeningPage() {
                     <Search className="w-5 h-5" />
                     <span>
                       Screen {entries.filter((e) => e.name.trim()).length} Name
-                      {entries.filter((e) => e.name.trim()).length !== 1 ? "s" : ""}
+                      {entries.filter((e) => e.name.trim()).length !== 1
+                        ? "s"
+                        : ""}
                     </span>
                   </>
                 )}
@@ -357,60 +376,69 @@ export default function SanctionsScreeningPage() {
                       {/* Match Details */}
                       {result.matches && result.matches.length > 0 && (
                         <div className="mt-4 space-y-3">
-                          {result.matches.map((match: SanctionsMatch, mIndex: number) => {
-                            const severity = getMatchSeverity(match.score);
-                            return (
-                              <div
-                                key={mIndex}
-                                className="bg-white rounded-lg p-3 border border-red-100"
-                              >
-                                <div className="flex items-center justify-between mb-2">
-                                  <span className="font-medium text-gray-900">
-                                    {match.original_name}
-                                  </span>
-                                  <span
-                                    className={`text-xs px-2 py-1 rounded-full ${severity.color}`}
-                                  >
-                                    {match.score.toFixed(1)}% - {severity.label}
-                                  </span>
-                                </div>
-                                <div className="grid grid-cols-2 gap-2 text-sm">
-                                  <div className="flex items-center space-x-1 text-gray-600">
-                                    <Globe className="w-3.5 h-3.5" />
-                                    <span>{match.list_type}</span>
-                                  </div>
-                                  <div className="flex items-center space-x-1 text-gray-600">
-                                    {match.entity_type === "individual" ? (
-                                      <User className="w-3.5 h-3.5" />
-                                    ) : (
-                                      <Building className="w-3.5 h-3.5" />
-                                    )}
-                                    <span className="capitalize">
-                                      {match.entity_type}
+                          {result.matches.map(
+                            (match: SanctionsMatch, mIndex: number) => {
+                              const severity = getMatchSeverity(match.score);
+                              return (
+                                <div
+                                  key={mIndex}
+                                  className="bg-white rounded-lg p-3 border border-red-100"
+                                >
+                                  <div className="flex items-center justify-between mb-2">
+                                    <span className="font-medium text-gray-900">
+                                      {match.original_name}
+                                    </span>
+                                    <span
+                                      className={`text-xs px-2 py-1 rounded-full ${severity.color}`}
+                                    >
+                                      {match.score.toFixed(1)}% -{" "}
+                                      {severity.label}
                                     </span>
                                   </div>
-                                </div>
-                                {match.programs && match.programs.length > 0 && (
-                                  <div className="mt-2 flex flex-wrap gap-1">
-                                    {match.programs.map((program, pIndex) => (
-                                      <span
-                                        key={pIndex}
-                                        className="text-xs px-2 py-0.5 bg-gray-100 text-gray-600 rounded"
-                                      >
-                                        {program}
+                                  <div className="grid grid-cols-2 gap-2 text-sm">
+                                    <div className="flex items-center space-x-1 text-gray-600">
+                                      <Globe className="w-3.5 h-3.5" />
+                                      <span>{match.list_type}</span>
+                                    </div>
+                                    <div className="flex items-center space-x-1 text-gray-600">
+                                      {match.entity_type === "individual" ? (
+                                        <User className="w-3.5 h-3.5" />
+                                      ) : (
+                                        <Building className="w-3.5 h-3.5" />
+                                      )}
+                                      <span className="capitalize">
+                                        {match.entity_type}
                                       </span>
-                                    ))}
+                                    </div>
                                   </div>
-                                )}
-                                {match.aliases && match.aliases.length > 0 && (
-                                  <div className="mt-2 text-xs text-gray-500">
-                                    <span className="font-medium">Also known as: </span>
-                                    {match.aliases.join(", ")}
-                                  </div>
-                                )}
-                              </div>
-                            );
-                          })}
+                                  {match.programs &&
+                                    match.programs.length > 0 && (
+                                      <div className="mt-2 flex flex-wrap gap-1">
+                                        {match.programs.map(
+                                          (program, pIndex) => (
+                                            <span
+                                              key={pIndex}
+                                              className="text-xs px-2 py-0.5 bg-gray-100 text-gray-600 rounded"
+                                            >
+                                              {program}
+                                            </span>
+                                          ),
+                                        )}
+                                      </div>
+                                    )}
+                                  {match.aliases &&
+                                    match.aliases.length > 0 && (
+                                      <div className="mt-2 text-xs text-gray-500">
+                                        <span className="font-medium">
+                                          Also known as:{" "}
+                                        </span>
+                                        {match.aliases.join(", ")}
+                                      </div>
+                                    )}
+                                </div>
+                              );
+                            },
+                          )}
                         </div>
                       )}
 

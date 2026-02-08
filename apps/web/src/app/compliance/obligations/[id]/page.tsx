@@ -8,7 +8,10 @@ import ObligationApprovalModal from "@/components/compliance/ObligationApprovalM
 import type { Obligation } from "@/types/compliance";
 import { getPolicies, getPolicySections } from "@/lib/compliance-api";
 import { complianceKeys } from "@/lib/queryKeys";
-import { useObligation, useUpdateObligationStatus } from "@/hooks/queries/useComplianceData";
+import {
+  useObligation,
+  useUpdateObligationStatus,
+} from "@/hooks/queries/useComplianceData";
 import {
   useCreateComplianceInternalRule,
   useCreateComplianceInternalRuleMapping,
@@ -21,16 +24,24 @@ import InternalRulesManager from "@/app/compliance/obligations/[id]/components/I
 import LinkedPolicyCard from "@/app/compliance/obligations/[id]/components/LinkedPolicyCard";
 import LinkedRisksList from "@/app/compliance/obligations/[id]/components/LinkedRisksList";
 import type { InternalRuleMappingCreatePayload } from "@/types/compliance-workflow";
+import { logger } from "@/lib/logger";
 
 const POLICIES_PARAMS = { skip: 0, limit: 200 } as const;
-const DISABLED_POLICY_SECTIONS_KEY = ["compliance", "policies", "sections", "disabled"] as const;
+const DISABLED_POLICY_SECTIONS_KEY = [
+  "compliance",
+  "policies",
+  "sections",
+  "disabled",
+] as const;
 
 export default function ObligationDetailPage() {
   const params = useParams();
   const router = useRouter();
   const idParam = Array.isArray(params?.id) ? params.id[0] : params?.id;
   const obligationId =
-    typeof idParam === "string" && /^\\d+$/.test(idParam) ? Number(idParam) : null;
+    typeof idParam === "string" && /^\\d+$/.test(idParam)
+      ? Number(idParam)
+      : null;
 
   const queryClient = useQueryClient();
   const obligationQuery = useObligation(obligationId);
@@ -41,8 +52,10 @@ export default function ObligationDetailPage() {
   const rulesLoading = internalRulesQuery.isLoading;
 
   const updateObligationStatusMutation = useUpdateObligationStatus();
-  const createInternalRuleMutation = useCreateComplianceInternalRule(obligationId);
-  const createMappingMutation = useCreateComplianceInternalRuleMapping(obligationId);
+  const createInternalRuleMutation =
+    useCreateComplianceInternalRule(obligationId);
+  const createMappingMutation =
+    useCreateComplianceInternalRuleMapping(obligationId);
 
   const [actionLoading, setActionLoading] = useState<string | null>(null);
   const [reviewNote, setReviewNote] = useState("");
@@ -54,8 +67,12 @@ export default function ObligationDetailPage() {
     policy_id: "",
     policy_section_id: "",
   });
-  const [mappingForm, setMappingForm] = useState<Record<number, { target: string; mappingType: string }>>({});
-  const [rulesActionLoading, setRulesActionLoading] = useState<string | null>(null);
+  const [mappingForm, setMappingForm] = useState<
+    Record<number, { target: string; mappingType: string }>
+  >({});
+  const [rulesActionLoading, setRulesActionLoading] = useState<string | null>(
+    null,
+  );
   const [showApprovalModal, setShowApprovalModal] = useState(false);
 
   const policiesQuery = useQuery({
@@ -66,7 +83,9 @@ export default function ObligationDetailPage() {
   const policies = policiesQuery.data?.items ?? [];
   const policiesLoading = policiesQuery.isLoading;
 
-  const selectedPolicyId = ruleForm.policy_id ? Number(ruleForm.policy_id) : null;
+  const selectedPolicyId = ruleForm.policy_id
+    ? Number(ruleForm.policy_id)
+    : null;
   const policySectionsQuery = useQuery({
     queryKey:
       typeof selectedPolicyId === "number"
@@ -81,9 +100,14 @@ export default function ObligationDetailPage() {
     enabled: typeof selectedPolicyId === "number",
   });
 
-  const sections = typeof selectedPolicyId === "number" ? policySectionsQuery.data?.items ?? [] : [];
+  const sections =
+    typeof selectedPolicyId === "number"
+      ? (policySectionsQuery.data?.items ?? [])
+      : [];
   const sectionsLoading =
-    typeof selectedPolicyId === "number" ? policySectionsQuery.isLoading : false;
+    typeof selectedPolicyId === "number"
+      ? policySectionsQuery.isLoading
+      : false;
 
   const createInternalRule = async () => {
     if (typeof obligationId !== "number" || !ruleForm.name.trim()) return;
@@ -94,7 +118,9 @@ export default function ObligationDetailPage() {
         description: ruleForm.description.trim() || undefined,
         control_owner: ruleForm.control_owner.trim() || undefined,
         status: ruleForm.status,
-        policy_section_id: ruleForm.policy_section_id ? Number(ruleForm.policy_section_id) : undefined,
+        policy_section_id: ruleForm.policy_section_id
+          ? Number(ruleForm.policy_section_id)
+          : undefined,
       });
       setRuleForm({
         name: "",
@@ -105,7 +131,10 @@ export default function ObligationDetailPage() {
         policy_section_id: "",
       });
     } catch (err) {
-      handleApiError(err, { context: "Create internal rule", customMessage: "Failed to create internal rule" });
+      handleApiError(err, {
+        context: "Create internal rule",
+        customMessage: "Failed to create internal rule",
+      });
     } finally {
       setRulesActionLoading(null);
     }
@@ -113,7 +142,7 @@ export default function ObligationDetailPage() {
 
   const addMapping = async (ruleId: number) => {
     const mapping = mappingForm[ruleId];
-    if (!mapping || !mapping.target.trim()) return;
+    if (!mapping?.target.trim()) return;
     setRulesActionLoading(`map-${ruleId}`);
     try {
       const trimmed = mapping.target.trim();
@@ -125,10 +154,19 @@ export default function ObligationDetailPage() {
       } else {
         payload.monitoring_rule_rule_id = trimmed;
       }
-      await createMappingMutation.mutateAsync({ internalRuleId: ruleId, payload });
-      setMappingForm((prev) => ({ ...prev, [ruleId]: { ...prev[ruleId], target: "" } }));
+      await createMappingMutation.mutateAsync({
+        internalRuleId: ruleId,
+        payload,
+      });
+      setMappingForm((prev) => ({
+        ...prev,
+        [ruleId]: { ...prev[ruleId], target: "" },
+      }));
     } catch (err) {
-      handleApiError(err, { context: "Create mapping", customMessage: "Failed to add monitoring rule mapping" });
+      handleApiError(err, {
+        context: "Create mapping",
+        customMessage: "Failed to add monitoring rule mapping",
+      });
     } finally {
       setRulesActionLoading(null);
     }
@@ -172,14 +210,19 @@ export default function ObligationDetailPage() {
   };
 
   const handleApprovalSuccess = (updatedObligation: Obligation) => {
-    queryClient.setQueryData(complianceKeys.obligationDetail(updatedObligation.id), updatedObligation);
+    queryClient.setQueryData(
+      complianceKeys.obligationDetail(updatedObligation.id),
+      updatedObligation,
+    );
     queryClient.invalidateQueries({ queryKey: complianceKeys.obligations() });
     queryClient.invalidateQueries({
       queryKey: complianceKeys.obligationInternalRules(updatedObligation.id),
     });
   };
 
-  const canUseEnhancedApproval = ["draft", "in_review"].includes((obligation?.status || "").toLowerCase());
+  const canUseEnhancedApproval = ["draft", "in_review"].includes(
+    (obligation?.status || "").toLowerCase(),
+  );
 
   if (obligationId === null) {
     return <div className="text-sm text-gray-500">Invalid obligation id.</div>;
@@ -190,8 +233,10 @@ export default function ObligationDetailPage() {
   }
 
   if (obligationQuery.isError) {
-    console.error("Failed to load obligation detail", obligationQuery.error);
-    return <div className="text-sm text-gray-500">Failed to load obligation.</div>;
+    logger.error("Failed to load obligation detail", obligationQuery.error);
+    return (
+      <div className="text-sm text-gray-500">Failed to load obligation.</div>
+    );
   }
 
   if (!obligation) {
@@ -255,7 +300,9 @@ export default function ObligationDetailPage() {
         onCreateInternalRule={createInternalRule}
       />
 
-      {obligation.linked_policy ? <LinkedPolicyCard policy={obligation.linked_policy} /> : null}
+      {obligation.linked_policy ? (
+        <LinkedPolicyCard policy={obligation.linked_policy} />
+      ) : null}
 
       {obligation.linked_risks && obligation.linked_risks.length > 0 ? (
         <LinkedRisksList linkedRisks={obligation.linked_risks} />

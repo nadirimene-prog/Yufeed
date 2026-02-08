@@ -86,3 +86,11 @@ apply-v2.sh
 
 # Secrets
 .env.bak
+
+# Pre-commit
+.pre-commit-cache/
+
+# Playwright
+apps/web/test-results/
+apps/web/playwright-report/
+apps/web/blob-report/

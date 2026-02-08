@@ -4,12 +4,13 @@ Rate Limiting Middleware
 Provides configurable rate limiting for API endpoints to prevent abuse.
 Uses slowapi (FastAPI port of Flask-Limiter) with Redis backend for distributed rate limiting.
 """
-from slowapi import Limiter, _rate_limit_exceeded_handler
+
+from slowapi import Limiter
 from slowapi.util import get_remote_address
 from slowapi.errors import RateLimitExceeded
 from fastapi import Request
 from fastapi.responses import JSONResponse
-from typing import Callable
+
 import logging
 
 logger = logging.getLogger(__name__)
@@ -47,7 +48,7 @@ limiter = Limiter(
     key_func=get_identifier,
     default_limits=["200 per hour", "1000 per day"],
     storage_uri="memory://",  # Change to "redis://localhost:6379" in production
-    strategy="fixed-window"
+    strategy="fixed-window",
 )
 
 
@@ -60,8 +61,7 @@ def custom_rate_limit_handler(request: Request, exc: RateLimitExceeded):
     """
     identifier = get_identifier(request)
     logger.warning(
-        f"Rate limit exceeded for {identifier} on {request.url.path}. "
-        f"Limit: {exc.detail}"
+        f"Rate limit exceeded for {identifier} on {request.url.path}. " f"Limit: {exc.detail}"
     )
 
     return JSONResponse(
@@ -83,6 +83,8 @@ class RateLimits:
     AUTH_LOGIN = "5 per minute"  # 5 login attempts per minute
     AUTH_REGISTER = "3 per hour"  # 3 registrations per hour
     AUTH_REFRESH = "10 per minute"  # 10 token refreshes per minute
+    AUTH_FORGOT_PASSWORD = "3 per minute"  # 3 forgot-password requests per minute
+    AUTH_RESET_PASSWORD = "5 per minute"  # 5 reset-password attempts per minute
 
     # Search and query endpoints
     SEARCH = "30 per minute"  # 30 searches per minute

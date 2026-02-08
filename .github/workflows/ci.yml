@@ -77,6 +77,15 @@ jobs:
         run: |
           pytest --cov=src --cov-report=xml --cov-report=term
 
+      - name: Test database migrations
+        working-directory: ./apps/api
+        env:
+          DATABASE_URL: postgresql://yufeed:yufeed123@localhost:5432/yufeed_test
+        run: |
+          alembic upgrade head
+          alembic downgrade -1
+          alembic upgrade head
+
       - name: Upload coverage to Codecov
         uses: codecov/codecov-action@v4
         with:
@@ -95,7 +104,7 @@ jobs:
       - name: Set up Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: '18'
+          node-version: '20'
           cache: 'npm'
           cache-dependency-path: ./apps/web/package-lock.json
 
@@ -109,11 +118,17 @@ jobs:
           npm run lint
           npm run type-check
 
-      - name: Run tests (when implemented)
+      - name: Run tests
         working-directory: ./apps/web
         run: |
-          # npm test -- --coverage
-          echo "Frontend tests to be implemented"
+          npm test
+
+      - name: Upload coverage to Codecov
+        uses: codecov/codecov-action@v4
+        with:
+          file: ./apps/web/coverage/coverage-final.json
+          flags: frontend
+          fail_ci_if_error: false
 
   security-scan:
     name: Security Scan
@@ -166,3 +181,18 @@ jobs:
           tags: yufeed-web:test
           cache-from: type=gha
           cache-to: type=gha,mode=max
+
+  code-quality:
+    name: Code Quality
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - run: pip install pre-commit
+
+      - run: pre-commit run --all-files

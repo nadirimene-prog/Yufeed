@@ -1,10 +1,17 @@
-'use client';
+"use client";
 
-import { useEffect, useState } from 'react';
-import { useParams, useRouter } from 'next/navigation';
-import { ArrowLeft, AlertTriangle, Sparkles, ChevronRight, ExternalLink } from 'lucide-react';
-import { fetchWithAuth } from '@/lib/auth';
-import { getApiBaseUrl } from '@/lib/apiBaseUrl';
+import { useEffect, useState } from "react";
+import { useParams, useRouter } from "next/navigation";
+import {
+  ArrowLeft,
+  AlertTriangle,
+  Sparkles,
+  ChevronRight,
+  ExternalLink,
+} from "lucide-react";
+import { fetchWithAuth } from "@/lib/auth";
+import { getApiBaseUrl } from "@/lib/apiBaseUrl";
+import { logger } from "@/lib/logger";
 
 const API_URL = getApiBaseUrl();
 
@@ -70,23 +77,30 @@ export default function AlertDetailPage() {
   const fetchAlertDetails = async () => {
     try {
       // Fetch alert
-      const alertRes = await fetchWithAuth(`${API_URL}/api/alerts/${params.id}`);
+      const alertRes = await fetchWithAuth(
+        `${API_URL}/api/alerts/${params.id}`,
+      );
       const alertData = await alertRes.json();
       setAlert(alertData);
 
       // Fetch transaction if available
       if (alertData.transaction_id) {
-        const txRes = await fetchWithAuth(`${API_URL}/api/transactions/${alertData.transaction_id}`);
+        const txRes = await fetchWithAuth(
+          `${API_URL}/api/transactions/${alertData.transaction_id}`,
+        );
         const txData = await txRes.json();
         setTransaction(txData);
       }
 
       // Fetch related regulations
-      if (alertData.related_regulations && alertData.related_regulations.length > 0) {
+      if (
+        alertData.related_regulations &&
+        alertData.related_regulations.length > 0
+      ) {
         const regsRes = await fetchWithAuth(`${API_URL}/api/documents/batch`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ ids: alertData.related_regulations })
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ ids: alertData.related_regulations }),
         });
         const regsData = await regsRes.json();
         setRegulations(regsData);
@@ -94,7 +108,7 @@ export default function AlertDetailPage() {
 
       setLoading(false);
     } catch (error) {
-      console.error('Error fetching alert details:', error);
+      logger.error("Error fetching alert details:", error);
       setLoading(false);
     }
   };
@@ -105,16 +119,16 @@ export default function AlertDetailPage() {
 
     try {
       const res = await fetchWithAuth(`${API_URL}/api/ai/triage`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ alert_id: alert.id })
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ alert_id: alert.id }),
       });
 
       if (res.ok) {
         fetchAlertDetails();
       }
     } catch (error) {
-      console.error('Error triaging alert:', error);
+      logger.error("Error triaging alert:", error);
     } finally {
       setTriaging(false);
     }
@@ -125,13 +139,13 @@ export default function AlertDetailPage() {
 
     try {
       await fetchWithAuth(`${API_URL}/api/alerts/${alert.id}/assign`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ assigned_to: analyst })
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ assigned_to: analyst }),
       });
       fetchAlertDetails();
     } catch (error) {
-      console.error('Error assigning alert:', error);
+      logger.error("Error assigning alert:", error);
     }
   };
 
@@ -140,31 +154,31 @@ export default function AlertDetailPage() {
 
     try {
       await fetchWithAuth(`${API_URL}/api/alerts/${alert.id}/escalate`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ escalated_to: 'senior_analyst' })
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ escalated_to: "senior_analyst" }),
       });
       fetchAlertDetails();
     } catch (error) {
-      console.error('Error escalating alert:', error);
+      logger.error("Error escalating alert:", error);
     }
   };
 
   const handleResolve = async (outcome: string) => {
     if (!alert) return;
 
-    const notes = prompt('Resolution notes:');
+    const notes = prompt("Resolution notes:");
     if (!notes) return;
 
     try {
       await fetchWithAuth(`${API_URL}/api/alerts/${alert.id}/resolve`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ outcome, resolution_notes: notes })
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ outcome, resolution_notes: notes }),
       });
-      router.push('/transaction-alerts');
+      router.push("/transaction-alerts");
     } catch (error) {
-      console.error('Error resolving alert:', error);
+      logger.error("Error resolving alert:", error);
     }
   };
 
@@ -172,18 +186,23 @@ export default function AlertDetailPage() {
     if (!alert) return;
 
     try {
-      const res = await fetchWithAuth(`${API_URL}/api/cases/from-alert/${alert.alert_id}`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ assigned_to: alert.assigned_to || 'unassigned' })
-      });
+      const res = await fetchWithAuth(
+        `${API_URL}/api/cases/from-alert/${alert.alert_id}`,
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            assigned_to: alert.assigned_to || "unassigned",
+          }),
+        },
+      );
 
       if (res.ok) {
         const caseData = await res.json();
         router.push(`/cases/${caseData.case_id}`);
       }
     } catch (error) {
-      console.error('Error creating case:', error);
+      logger.error("Error creating case:", error);
     }
   };
 
@@ -192,7 +211,9 @@ export default function AlertDetailPage() {
       <div className="flex items-center justify-center min-h-screen">
         <div className="text-center">
           <AlertTriangle className="h-12 w-12 animate-spin mx-auto mb-4 text-blue-600" />
-          <p className="text-lg text-gray-700 dark:text-gray-300">Loading alert details...</p>
+          <p className="text-lg text-gray-700 dark:text-gray-300">
+            Loading alert details...
+          </p>
         </div>
       </div>
     );
@@ -203,17 +224,21 @@ export default function AlertDetailPage() {
       <div className="flex items-center justify-center min-h-screen">
         <div className="text-center">
           <AlertTriangle className="h-12 w-12 mx-auto mb-4 text-red-600" />
-          <p className="text-lg text-gray-700 dark:text-gray-300">Alert not found</p>
+          <p className="text-lg text-gray-700 dark:text-gray-300">
+            Alert not found
+          </p>
         </div>
       </div>
     );
   }
 
   const severityColors = {
-    critical: 'bg-red-100 text-red-800 dark:bg-red-900/20 dark:text-red-400 border-red-200',
-    high: 'bg-orange-100 text-orange-800 dark:bg-orange-900/20 dark:text-orange-400 border-orange-200',
-    medium: 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900/20 dark:text-yellow-400 border-yellow-200',
-    low: 'bg-blue-100 text-blue-800 dark:bg-blue-900/20 dark:text-blue-400 border-blue-200',
+    critical:
+      "bg-red-100 text-red-800 dark:bg-red-900/20 dark:text-red-400 border-red-200",
+    high: "bg-orange-100 text-orange-800 dark:bg-orange-900/20 dark:text-orange-400 border-orange-200",
+    medium:
+      "bg-yellow-100 text-yellow-800 dark:bg-yellow-900/20 dark:text-yellow-400 border-yellow-200",
+    low: "bg-blue-100 text-blue-800 dark:bg-blue-900/20 dark:text-blue-400 border-blue-200",
   };
 
   return (
@@ -235,15 +260,17 @@ export default function AlertDetailPage() {
                 <h1 className="text-3xl font-bold text-gray-900 dark:text-white">
                   {alert.alert_id}
                 </h1>
-                <span className={`text-xs px-3 py-1 rounded-full border ${severityColors[alert.severity as keyof typeof severityColors]}`}>
+                <span
+                  className={`text-xs px-3 py-1 rounded-full border ${severityColors[alert.severity as keyof typeof severityColors]}`}
+                >
                   {alert.severity.toUpperCase()}
                 </span>
                 <span className="text-sm px-3 py-1 rounded-full bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-300">
-                  {alert.status.replace(/_/g, ' ')}
+                  {alert.status.replace(/_/g, " ")}
                 </span>
               </div>
               <p className="text-lg text-gray-600 dark:text-gray-400">
-                {alert.alert_type.replace(/_/g, ' ').toUpperCase()}
+                {alert.alert_type.replace(/_/g, " ").toUpperCase()}
               </p>
             </div>
 
@@ -256,7 +283,7 @@ export default function AlertDetailPage() {
                   className="flex items-center gap-2 px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition disabled:opacity-50"
                 >
                   <Sparkles className="h-4 w-4" />
-                  {triaging ? 'Triaging...' : 'AI Triage'}
+                  {triaging ? "Triaging..." : "AI Triage"}
                 </button>
               )}
               <button
@@ -286,31 +313,51 @@ export default function AlertDetailPage() {
 
               <div className="space-y-4">
                 <div>
-                  <p className="text-sm text-gray-600 dark:text-gray-400 mb-1">Description</p>
-                  <p className="text-gray-900 dark:text-white">{alert.description || 'No description provided'}</p>
+                  <p className="text-sm text-gray-600 dark:text-gray-400 mb-1">
+                    Description
+                  </p>
+                  <p className="text-gray-900 dark:text-white">
+                    {alert.description || "No description provided"}
+                  </p>
                 </div>
 
                 <div className="grid grid-cols-2 gap-4">
                   <div>
-                    <p className="text-sm text-gray-600 dark:text-gray-400 mb-1">User ID</p>
-                    <p className="text-gray-900 dark:text-white font-mono">{alert.user_id}</p>
+                    <p className="text-sm text-gray-600 dark:text-gray-400 mb-1">
+                      User ID
+                    </p>
+                    <p className="text-gray-900 dark:text-white font-mono">
+                      {alert.user_id}
+                    </p>
                   </div>
                   <div>
-                    <p className="text-sm text-gray-600 dark:text-gray-400 mb-1">Priority</p>
-                    <p className="text-gray-900 dark:text-white">{alert.priority}</p>
+                    <p className="text-sm text-gray-600 dark:text-gray-400 mb-1">
+                      Priority
+                    </p>
+                    <p className="text-gray-900 dark:text-white">
+                      {alert.priority}
+                    </p>
                   </div>
                   <div>
-                    <p className="text-sm text-gray-600 dark:text-gray-400 mb-1">Risk Score</p>
-                    <p className={`text-2xl font-bold ${
-                      alert.risk_score >= 70 ? 'text-red-600' :
-                      alert.risk_score >= 40 ? 'text-orange-600' :
-                      'text-green-600'
-                    }`}>
+                    <p className="text-sm text-gray-600 dark:text-gray-400 mb-1">
+                      Risk Score
+                    </p>
+                    <p
+                      className={`text-2xl font-bold ${
+                        alert.risk_score >= 70
+                          ? "text-red-600"
+                          : alert.risk_score >= 40
+                            ? "text-orange-600"
+                            : "text-green-600"
+                      }`}
+                    >
                       {alert.risk_score.toFixed(0)}
                     </p>
                   </div>
                   <div>
-                    <p className="text-sm text-gray-600 dark:text-gray-400 mb-1">Created</p>
+                    <p className="text-sm text-gray-600 dark:text-gray-400 mb-1">
+                      Created
+                    </p>
                     <p className="text-gray-900 dark:text-white text-sm">
                       {new Date(alert.created_at).toLocaleString()}
                     </p>
@@ -319,8 +366,12 @@ export default function AlertDetailPage() {
 
                 {alert.assigned_to && (
                   <div>
-                    <p className="text-sm text-gray-600 dark:text-gray-400 mb-1">Assigned To</p>
-                    <p className="text-gray-900 dark:text-white">{alert.assigned_to}</p>
+                    <p className="text-sm text-gray-600 dark:text-gray-400 mb-1">
+                      Assigned To
+                    </p>
+                    <p className="text-gray-900 dark:text-white">
+                      {alert.assigned_to}
+                    </p>
                   </div>
                 )}
               </div>
@@ -336,44 +387,64 @@ export default function AlertDetailPage() {
                 <div className="space-y-4">
                   <div className="grid grid-cols-2 gap-4">
                     <div>
-                      <p className="text-sm text-gray-600 dark:text-gray-400 mb-1">Transaction ID</p>
+                      <p className="text-sm text-gray-600 dark:text-gray-400 mb-1">
+                        Transaction ID
+                      </p>
                       <p className="text-gray-900 dark:text-white font-mono text-sm">
                         {transaction.transaction_id}
                       </p>
                     </div>
                     <div>
-                      <p className="text-sm text-gray-600 dark:text-gray-400 mb-1">Amount</p>
+                      <p className="text-sm text-gray-600 dark:text-gray-400 mb-1">
+                        Amount
+                      </p>
                       <p className="text-2xl font-bold text-gray-900 dark:text-white">
-                        {transaction.amount.toLocaleString()} {transaction.currency}
+                        {transaction.amount.toLocaleString()}{" "}
+                        {transaction.currency}
                       </p>
                     </div>
                     <div>
-                      <p className="text-sm text-gray-600 dark:text-gray-400 mb-1">Type</p>
+                      <p className="text-sm text-gray-600 dark:text-gray-400 mb-1">
+                        Type
+                      </p>
                       <p className="text-gray-900 dark:text-white">
-                        {transaction.transaction_type.replace(/_/g, ' ')}
+                        {transaction.transaction_type.replace(/_/g, " ")}
                       </p>
                     </div>
                     <div>
-                      <p className="text-sm text-gray-600 dark:text-gray-400 mb-1">Timestamp</p>
+                      <p className="text-sm text-gray-600 dark:text-gray-400 mb-1">
+                        Timestamp
+                      </p>
                       <p className="text-gray-900 dark:text-white text-sm">
                         {new Date(transaction.timestamp).toLocaleString()}
                       </p>
                     </div>
                     {transaction.country_code && (
                       <div>
-                        <p className="text-sm text-gray-600 dark:text-gray-400 mb-1">Country</p>
-                        <p className="text-gray-900 dark:text-white">{transaction.country_code}</p>
+                        <p className="text-sm text-gray-600 dark:text-gray-400 mb-1">
+                          Country
+                        </p>
+                        <p className="text-gray-900 dark:text-white">
+                          {transaction.country_code}
+                        </p>
                       </div>
                     )}
                     {transaction.risk_level && (
                       <div>
-                        <p className="text-sm text-gray-600 dark:text-gray-400 mb-1">Risk Level</p>
-                        <p className={`font-semibold ${
-                          transaction.risk_level === 'critical' ? 'text-red-600' :
-                          transaction.risk_level === 'high' ? 'text-orange-600' :
-                          transaction.risk_level === 'medium' ? 'text-yellow-600' :
-                          'text-green-600'
-                        }`}>
+                        <p className="text-sm text-gray-600 dark:text-gray-400 mb-1">
+                          Risk Level
+                        </p>
+                        <p
+                          className={`font-semibold ${
+                            transaction.risk_level === "critical"
+                              ? "text-red-600"
+                              : transaction.risk_level === "high"
+                                ? "text-orange-600"
+                                : transaction.risk_level === "medium"
+                                  ? "text-yellow-600"
+                                  : "text-green-600"
+                          }`}
+                        >
                           {transaction.risk_level.toUpperCase()}
                         </p>
                       </div>
@@ -395,7 +466,9 @@ export default function AlertDetailPage() {
 
                 <div className="space-y-4">
                   <div>
-                    <p className="text-sm text-gray-600 dark:text-gray-400 mb-1">Recommendation</p>
+                    <p className="text-sm text-gray-600 dark:text-gray-400 mb-1">
+                      Recommendation
+                    </p>
                     <p className="text-lg font-semibold text-gray-900 dark:text-white capitalize">
                       {alert.ai_triage.recommendation}
                     </p>
@@ -403,13 +476,17 @@ export default function AlertDetailPage() {
 
                   <div className="grid grid-cols-2 gap-4">
                     <div>
-                      <p className="text-sm text-gray-600 dark:text-gray-400 mb-1">Confidence</p>
+                      <p className="text-sm text-gray-600 dark:text-gray-400 mb-1">
+                        Confidence
+                      </p>
                       <p className="text-2xl font-bold text-purple-600">
                         {(alert.ai_triage.confidence * 100).toFixed(0)}%
                       </p>
                     </div>
                     <div>
-                      <p className="text-sm text-gray-600 dark:text-gray-400 mb-1">SAR Likelihood</p>
+                      <p className="text-sm text-gray-600 dark:text-gray-400 mb-1">
+                        SAR Likelihood
+                      </p>
                       <p className="text-2xl font-bold text-purple-600">
                         {(alert.ai_triage.sar_likelihood * 100).toFixed(0)}%
                       </p>
@@ -417,25 +494,33 @@ export default function AlertDetailPage() {
                   </div>
 
                   <div>
-                    <p className="text-sm text-gray-600 dark:text-gray-400 mb-2">Reasoning</p>
+                    <p className="text-sm text-gray-600 dark:text-gray-400 mb-2">
+                      Reasoning
+                    </p>
                     <p className="text-gray-900 dark:text-white text-sm leading-relaxed">
                       {alert.ai_triage.reasoning}
                     </p>
                   </div>
 
-                  {alert.ai_triage.next_steps && alert.ai_triage.next_steps.length > 0 && (
-                    <div>
-                      <p className="text-sm text-gray-600 dark:text-gray-400 mb-2">Recommended Actions</p>
-                      <ul className="space-y-2">
-                        {alert.ai_triage.next_steps.map((step, idx) => (
-                          <li key={idx} className="flex items-start gap-2 text-sm text-gray-900 dark:text-white">
-                            <ChevronRight className="h-4 w-4 mt-0.5 text-purple-600 flex-shrink-0" />
-                            <span>{step}</span>
-                          </li>
-                        ))}
-                      </ul>
-                    </div>
-                  )}
+                  {alert.ai_triage.next_steps &&
+                    alert.ai_triage.next_steps.length > 0 && (
+                      <div>
+                        <p className="text-sm text-gray-600 dark:text-gray-400 mb-2">
+                          Recommended Actions
+                        </p>
+                        <ul className="space-y-2">
+                          {alert.ai_triage.next_steps.map((step, idx) => (
+                            <li
+                              key={idx}
+                              className="flex items-start gap-2 text-sm text-gray-900 dark:text-white"
+                            >
+                              <ChevronRight className="h-4 w-4 mt-0.5 text-purple-600 flex-shrink-0" />
+                              <span>{step}</span>
+                            </li>
+                          ))}
+                        </ul>
+                      </div>
+                    )}
                 </div>
               </div>
             )}
@@ -459,29 +544,33 @@ export default function AlertDetailPage() {
           <div className="space-y-6">
             {/* Actions */}
             <div className="bg-white dark:bg-gray-800 rounded-lg shadow p-6">
-              <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">Actions</h3>
+              <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">
+                Actions
+              </h3>
 
               <div className="space-y-2">
                 <select
                   onChange={(e) => handleAssign(e.target.value)}
-                  defaultValue={alert.assigned_to || ''}
+                  defaultValue={alert.assigned_to || ""}
                   className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
                 >
-                  <option value="" disabled>Assign to...</option>
+                  <option value="" disabled>
+                    Assign to...
+                  </option>
                   <option value="analyst1">Analyst 1</option>
                   <option value="analyst2">Analyst 2</option>
                   <option value="senior_analyst">Senior Analyst</option>
                 </select>
 
                 <button
-                  onClick={() => handleResolve('resolved')}
+                  onClick={() => handleResolve("resolved")}
                   className="w-full px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition"
                 >
                   Resolve
                 </button>
 
                 <button
-                  onClick={() => handleResolve('false_positive')}
+                  onClick={() => handleResolve("false_positive")}
                   className="w-full px-4 py-2 bg-gray-600 text-white rounded-lg hover:bg-gray-700 transition"
                 >
                   Mark False Positive

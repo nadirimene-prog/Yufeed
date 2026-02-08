@@ -1,24 +1,48 @@
-'use client';
+"use client";
 
-import { useState } from 'react';
-import { useRouter } from 'next/navigation';
-import { AlertCircle, Search, AlertTriangle, CheckCircle, Clock, Shield, Sparkles } from 'lucide-react';
-import { motion } from 'framer-motion';
-import toast from 'react-hot-toast';
-import { fetchWithAuth } from '@/lib/auth';
-import { getApiBaseUrl } from '@/lib/apiBaseUrl';
+import { useState } from "react";
+import { useRouter } from "next/navigation";
+import {
+  AlertCircle,
+  Search,
+  AlertTriangle,
+  CheckCircle,
+  Clock,
+  Shield,
+  Sparkles,
+} from "lucide-react";
+import { motion } from "framer-motion";
+import toast from "react-hot-toast";
+import { fetchWithAuth } from "@/lib/auth";
+import { getApiBaseUrl } from "@/lib/apiBaseUrl";
+import { logger } from "@/lib/logger";
 import { useMonitoringAlerts } from "@/hooks/queries/useMonitoringData";
 import type { MonitoringAlert } from "@/types/monitoring";
+import { ExportButton } from "@/components/ui/export-button";
+import type { ExportColumn } from "@/lib/export";
 
 const API_URL = getApiBaseUrl();
+
+const alertExportColumns: ExportColumn<Record<string, unknown>>[] = [
+  { key: "alert_id", label: "Alert ID" },
+  { key: "user_id", label: "User ID" },
+  { key: "alert_type", label: "Alert Type" },
+  { key: "severity", label: "Severity" },
+  { key: "status", label: "Status" },
+  { key: "risk_score", label: "Risk Score" },
+  { key: "priority", label: "Priority" },
+  { key: "ai_recommendation", label: "AI Recommendation" },
+  { key: "assigned_to", label: "Assigned To" },
+  { key: "created_at", label: "Created At" },
+];
 
 export default function TransactionAlertsPage() {
   const router = useRouter();
   const [selectedAlerts, setSelectedAlerts] = useState<number[]>([]);
   const [filters, setFilters] = useState({
-    status: 'all',
-    severity: 'all',
-    search: ''
+    status: "all",
+    severity: "all",
+    search: "",
   });
 
   const alertsQuery = useMonitoringAlerts({
@@ -32,77 +56,91 @@ export default function TransactionAlertsPage() {
 
   const handleBulkTriage = async () => {
     if (selectedAlerts.length === 0) {
-      toast.error('Please select at least one alert');
+      toast.error("Please select at least one alert");
       return;
     }
 
-    const toastId = toast.loading(`Triaging ${selectedAlerts.length} alerts...`);
+    const toastId = toast.loading(
+      `Triaging ${selectedAlerts.length} alerts...`,
+    );
     try {
       const res = await fetchWithAuth(`${API_URL}/api/ai/triage/batch`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ alert_ids: selectedAlerts })
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ alert_ids: selectedAlerts }),
       });
 
       if (res.ok) {
         await alertsQuery.refetch();
         setSelectedAlerts([]);
-        toast.success(`Successfully triaged ${selectedAlerts.length} alerts`, { id: toastId });
+        toast.success(`Successfully triaged ${selectedAlerts.length} alerts`, {
+          id: toastId,
+        });
       } else {
-        toast.error('Failed to triage alerts', { id: toastId });
+        toast.error("Failed to triage alerts", { id: toastId });
       }
     } catch (error) {
-      console.error('Error triaging alerts:', error);
-      toast.error('Failed to triage alerts', { id: toastId });
+      logger.error("Error triaging alerts:", error);
+      toast.error("Failed to triage alerts", { id: toastId });
     }
   };
 
   const handleBulkAssign = async (analyst: string) => {
     if (selectedAlerts.length === 0) {
-      toast.error('Please select at least one alert');
+      toast.error("Please select at least one alert");
       return;
     }
 
-    const toastId = toast.loading(`Assigning ${selectedAlerts.length} alerts to ${analyst}...`);
+    const toastId = toast.loading(
+      `Assigning ${selectedAlerts.length} alerts to ${analyst}...`,
+    );
     try {
       for (const alertId of selectedAlerts) {
         await fetchWithAuth(`${API_URL}/api/alerts/${alertId}/assign`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ assigned_to: analyst })
-      });
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ assigned_to: analyst }),
+        });
       }
       await alertsQuery.refetch();
       setSelectedAlerts([]);
-      toast.success(`Assigned ${selectedAlerts.length} alerts to ${analyst}`, { id: toastId });
+      toast.success(`Assigned ${selectedAlerts.length} alerts to ${analyst}`, {
+        id: toastId,
+      });
     } catch (error) {
-      console.error('Error assigning alerts:', error);
-      toast.error('Failed to assign alerts', { id: toastId });
+      logger.error("Error assigning alerts:", error);
+      toast.error("Failed to assign alerts", { id: toastId });
     }
   };
 
   const toggleSelectAlert = (id: number) => {
-    setSelectedAlerts(prev =>
-      prev.includes(id) ? prev.filter(a => a !== id) : [...prev, id]
+    setSelectedAlerts((prev) =>
+      prev.includes(id) ? prev.filter((a) => a !== id) : [...prev, id],
     );
   };
 
   const severityColors = {
-    critical: 'bg-red-100 text-red-800 dark:bg-red-900/20 dark:text-red-400 border-red-200',
-    high: 'bg-orange-100 text-orange-800 dark:bg-orange-900/20 dark:text-orange-400 border-orange-200',
-    medium: 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900/20 dark:text-yellow-400 border-yellow-200',
-    low: 'bg-blue-100 text-blue-800 dark:bg-blue-900/20 dark:text-blue-400 border-blue-200',
+    critical:
+      "bg-red-100 text-red-800 dark:bg-red-900/20 dark:text-red-400 border-red-200",
+    high: "bg-orange-100 text-orange-800 dark:bg-orange-900/20 dark:text-orange-400 border-orange-200",
+    medium:
+      "bg-yellow-100 text-yellow-800 dark:bg-yellow-900/20 dark:text-yellow-400 border-yellow-200",
+    low: "bg-blue-100 text-blue-800 dark:bg-blue-900/20 dark:text-blue-400 border-blue-200",
   };
 
   const statusColors = {
-    pending: 'bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-300',
-    under_review: 'bg-blue-100 text-blue-800 dark:bg-blue-900/20 dark:text-blue-400',
-    escalated: 'bg-purple-100 text-purple-800 dark:bg-purple-900/20 dark:text-purple-400',
-    resolved: 'bg-green-100 text-green-800 dark:bg-green-900/20 dark:text-green-400',
-    false_positive: 'bg-gray-100 text-gray-600 dark:bg-gray-700 dark:text-gray-400',
+    pending: "bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-300",
+    under_review:
+      "bg-blue-100 text-blue-800 dark:bg-blue-900/20 dark:text-blue-400",
+    escalated:
+      "bg-purple-100 text-purple-800 dark:bg-purple-900/20 dark:text-purple-400",
+    resolved:
+      "bg-green-100 text-green-800 dark:bg-green-900/20 dark:text-green-400",
+    false_positive:
+      "bg-gray-100 text-gray-600 dark:bg-gray-700 dark:text-gray-400",
   };
 
-  const filteredAlerts = alerts.filter(alert => {
+  const filteredAlerts = alerts.filter((alert) => {
     if (filters.search) {
       const searchLower = filters.search.toLowerCase();
       return (
@@ -119,7 +157,9 @@ export default function TransactionAlertsPage() {
       <div className="flex items-center justify-center min-h-screen">
         <div className="text-center">
           <AlertCircle className="h-12 w-12 animate-spin mx-auto mb-4 text-blue-600" />
-          <p className="text-lg text-gray-700 dark:text-gray-300">Loading alerts...</p>
+          <p className="text-lg text-gray-700 dark:text-gray-300">
+            Loading alerts...
+          </p>
         </div>
       </div>
     );
@@ -150,7 +190,9 @@ export default function TransactionAlertsPage() {
                   placeholder="Search alerts, users, or IDs..."
                   className="w-full pl-10 pr-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
                   value={filters.search}
-                  onChange={(e) => setFilters(prev => ({ ...prev, search: e.target.value }))}
+                  onChange={(e) =>
+                    setFilters((prev) => ({ ...prev, search: e.target.value }))
+                  }
                 />
               </div>
             </div>
@@ -159,7 +201,9 @@ export default function TransactionAlertsPage() {
             <select
               className="px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
               value={filters.status}
-              onChange={(e) => setFilters(prev => ({ ...prev, status: e.target.value }))}
+              onChange={(e) =>
+                setFilters((prev) => ({ ...prev, status: e.target.value }))
+              }
             >
               <option value="all">All Statuses</option>
               <option value="pending">Pending</option>
@@ -173,7 +217,9 @@ export default function TransactionAlertsPage() {
             <select
               className="px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
               value={filters.severity}
-              onChange={(e) => setFilters(prev => ({ ...prev, severity: e.target.value }))}
+              onChange={(e) =>
+                setFilters((prev) => ({ ...prev, severity: e.target.value }))
+              }
             >
               <option value="all">All Severities</option>
               <option value="critical">Critical</option>
@@ -181,6 +227,15 @@ export default function TransactionAlertsPage() {
               <option value="medium">Medium</option>
               <option value="low">Low</option>
             </select>
+
+            {/* Export */}
+            <ExportButton
+              data={filteredAlerts as unknown as Record<string, unknown>[]}
+              filename="transaction-alerts"
+              pdfTitle="Transaction Alerts Report"
+              columns={alertExportColumns}
+              loading={loading}
+            />
           </div>
 
           {/* Bulk Actions */}
@@ -202,7 +257,9 @@ export default function TransactionAlertsPage() {
                   onChange={(e) => handleBulkAssign(e.target.value)}
                   defaultValue=""
                 >
-                  <option value="" disabled>Assign to...</option>
+                  <option value="" disabled>
+                    Assign to...
+                  </option>
                   <option value="analyst1">Analyst 1</option>
                   <option value="analyst2">Analyst 2</option>
                   <option value="senior_analyst">Senior Analyst</option>
@@ -222,19 +279,19 @@ export default function TransactionAlertsPage() {
           />
           <StatCard
             title="Pending"
-            value={alerts.filter(a => a.status === 'pending').length}
+            value={alerts.filter((a) => a.status === "pending").length}
             icon={<Clock className="h-5 w-5" />}
             color="yellow"
           />
           <StatCard
             title="Critical"
-            value={alerts.filter(a => a.severity === 'critical').length}
+            value={alerts.filter((a) => a.severity === "critical").length}
             icon={<AlertTriangle className="h-5 w-5" />}
             color="red"
           />
           <StatCard
             title="High Risk"
-            value={alerts.filter(a => a.risk_score > 70).length}
+            value={alerts.filter((a) => a.risk_score > 70).length}
             icon={<Shield className="h-5 w-5" />}
             color="orange"
           />
@@ -259,7 +316,9 @@ export default function TransactionAlertsPage() {
                 alert={alert}
                 selected={selectedAlerts.includes(alert.id)}
                 onToggleSelect={toggleSelectAlert}
-                onClick={() => router.push(`/transaction-alerts/${alert.alert_id}`)}
+                onClick={() =>
+                  router.push(`/transaction-alerts/${alert.alert_id}`)
+                }
                 severityColors={severityColors}
                 statusColors={statusColors}
               />
@@ -271,17 +330,22 @@ export default function TransactionAlertsPage() {
   );
 }
 
-function StatCard({ title, value, icon, color }: {
+function StatCard({
+  title,
+  value,
+  icon,
+  color,
+}: {
   title: string;
   value: number;
   icon: React.ReactNode;
-  color: 'blue' | 'yellow' | 'red' | 'orange';
+  color: "blue" | "yellow" | "red" | "orange";
 }) {
   const colorClasses = {
-    blue: 'text-blue-600 bg-blue-50 dark:bg-blue-900/20',
-    yellow: 'text-yellow-600 bg-yellow-50 dark:bg-yellow-900/20',
-    red: 'text-red-600 bg-red-50 dark:bg-red-900/20',
-    orange: 'text-orange-600 bg-orange-50 dark:bg-orange-900/20',
+    blue: "text-blue-600 bg-blue-50 dark:bg-blue-900/20",
+    yellow: "text-yellow-600 bg-yellow-50 dark:bg-yellow-900/20",
+    red: "text-red-600 bg-red-50 dark:bg-red-900/20",
+    orange: "text-orange-600 bg-orange-50 dark:bg-orange-900/20",
   };
 
   return (
@@ -294,7 +358,9 @@ function StatCard({ title, value, icon, color }: {
     >
       <div className="flex items-center justify-between">
         <div>
-          <p className="text-sm text-gray-600 dark:text-gray-400 mb-1">{title}</p>
+          <p className="text-sm text-gray-600 dark:text-gray-400 mb-1">
+            {title}
+          </p>
           <motion.p
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
@@ -318,7 +384,14 @@ function StatCard({ title, value, icon, color }: {
 
 type AlertCardColors = Record<string, string>;
 
-function AlertCard({ alert, selected, onToggleSelect, onClick, severityColors, statusColors }: {
+function AlertCard({
+  alert,
+  selected,
+  onToggleSelect,
+  onClick,
+  severityColors,
+  statusColors,
+}: {
   alert: MonitoringAlert;
   selected: boolean;
   onToggleSelect: (id: number) => void;
@@ -353,11 +426,15 @@ function AlertCard({ alert, selected, onToggleSelect, onClick, severityColors, s
                 <span className="text-sm font-mono text-gray-600 dark:text-gray-400">
                   {alert.alert_id}
                 </span>
-                <span className={`text-xs px-2 py-1 rounded-full border ${severityColors[alert.severity as keyof typeof severityColors]}`}>
+                <span
+                  className={`text-xs px-2 py-1 rounded-full border ${severityColors[alert.severity as keyof typeof severityColors]}`}
+                >
                   {alert.severity.toUpperCase()}
                 </span>
-                <span className={`text-xs px-2 py-1 rounded-full ${statusColors[alert.status as keyof typeof statusColors]}`}>
-                  {alert.status.replace(/_/g, ' ')}
+                <span
+                  className={`text-xs px-2 py-1 rounded-full ${statusColors[alert.status as keyof typeof statusColors]}`}
+                >
+                  {alert.status.replace(/_/g, " ")}
                 </span>
                 {alert.ai_recommendation && (
                   <span className="flex items-center gap-1 text-xs px-2 py-1 rounded-full bg-purple-100 text-purple-800 dark:bg-purple-900/20 dark:text-purple-400">
@@ -367,7 +444,7 @@ function AlertCard({ alert, selected, onToggleSelect, onClick, severityColors, s
                 )}
               </div>
               <p className="text-base font-medium text-gray-900 dark:text-white">
-                {alert.alert_type.replace(/_/g, ' ').toUpperCase()}
+                {alert.alert_type.replace(/_/g, " ").toUpperCase()}
               </p>
               <p className="text-sm text-gray-600 dark:text-gray-400 mt-1">
                 User: {alert.user_id}
@@ -384,11 +461,15 @@ function AlertCard({ alert, selected, onToggleSelect, onClick, severityColors, s
                 Priority {alert.priority}
               </div>
               {alert.risk_score && (
-                <div className={`text-lg font-bold ${
-                  alert.risk_score >= 70 ? 'text-red-600' :
-                  alert.risk_score >= 40 ? 'text-orange-600' :
-                  'text-green-600'
-                }`}>
+                <div
+                  className={`text-lg font-bold ${
+                    alert.risk_score >= 70
+                      ? "text-red-600"
+                      : alert.risk_score >= 40
+                        ? "text-orange-600"
+                        : "text-green-600"
+                  }`}
+                >
                   {alert.risk_score.toFixed(0)}
                 </div>
               )}

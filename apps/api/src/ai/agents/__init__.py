@@ -17,7 +17,6 @@ from .base import BaseAgent, AgentContext, AgentResult, AgentRegistry
 from .investigation import InvestigationAgent
 from .sar import SARAgent, SARWorkflowManager, SARDraft, SARStatus
 from .compliance_officer import ComplianceOfficerAgent, DailyBriefing, ProactiveAlert
-# from .network import NetworkAgent  # Sprint 4
 
 __all__ = [
     "BaseAgent",

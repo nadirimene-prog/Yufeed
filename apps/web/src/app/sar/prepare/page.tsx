@@ -1,10 +1,17 @@
-'use client';
+"use client";
 
-import { useEffect, useState, Suspense } from 'react';
-import { useSearchParams, useRouter } from 'next/navigation';
-import { FileText, AlertTriangle, CheckCircle, Download, Send } from 'lucide-react';
-import { fetchWithAuth } from '@/lib/auth';
-import { getApiBaseUrl } from '@/lib/apiBaseUrl';
+import { useEffect, useState, Suspense } from "react";
+import { useSearchParams, useRouter } from "next/navigation";
+import {
+  FileText,
+  AlertTriangle,
+  CheckCircle,
+  Download,
+  Send,
+} from "lucide-react";
+import { fetchWithAuth } from "@/lib/auth";
+import { getApiBaseUrl } from "@/lib/apiBaseUrl";
+import { logger } from "@/lib/logger";
 
 const API_URL = getApiBaseUrl();
 
@@ -70,15 +77,15 @@ function SARPrepareContent() {
   const [sarData, setSarData] = useState<SARData | null>(null);
   const [loading, setLoading] = useState(true);
   const [preparing, setPreparing] = useState(false);
-  const [jurisdiction, setJurisdiction] = useState('EU');
+  const [jurisdiction, setJurisdiction] = useState("EU");
   const [institutionInfo] = useState({
-    name: '',
-    type: 'Financial Institution',
-    country: 'EU',
-    contact: ''
+    name: "",
+    type: "Financial Institution",
+    country: "EU",
+    contact: "",
   });
 
-  const caseId = searchParams.get('case_id');
+  const caseId = searchParams.get("case_id");
 
   useEffect(() => {
     if (caseId) {
@@ -92,12 +99,12 @@ function SARPrepareContent() {
     setPreparing(true);
     try {
       const res = await fetchWithAuth(`${API_URL}/api/compliance/sar/prepare`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           case_id: caseId,
-          institution_info: institutionInfo.name ? institutionInfo : null
-        })
+          institution_info: institutionInfo.name ? institutionInfo : null,
+        }),
       });
 
       if (res.ok) {
@@ -106,7 +113,7 @@ function SARPrepareContent() {
       }
       setLoading(false);
     } catch (error) {
-      console.error('Error preparing SAR:', error);
+      logger.error("Error preparing SAR:", error);
       setLoading(false);
     } finally {
       setPreparing(false);
@@ -118,35 +125,39 @@ function SARPrepareContent() {
 
     try {
       const res = await fetchWithAuth(`${API_URL}/api/compliance/sar/file`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           sar_data: sarData,
           jurisdiction,
-          dry_run: dryRun
-        })
+          dry_run: dryRun,
+        }),
       });
 
       if (res.ok) {
         const result = await res.json();
-        alert(`SAR ${dryRun ? 'validated' : 'filed'} successfully!\n\nReference: ${result.filing_reference || result.sar_id}`);
+        alert(
+          `SAR ${dryRun ? "validated" : "filed"} successfully!\n\nReference: ${result.filing_reference || result.sar_id}`,
+        );
 
         if (!dryRun) {
-          router.push('/cases');
+          router.push("/cases");
         }
       }
     } catch (error) {
-      console.error('Error filing SAR:', error);
-      alert('Error filing SAR. Please try again.');
+      logger.error("Error filing SAR:", error);
+      alert("Error filing SAR. Please try again.");
     }
   };
 
   const handleDownload = () => {
     if (!sarData) return;
 
-    const blob = new Blob([JSON.stringify(sarData, null, 2)], { type: 'application/json' });
+    const blob = new Blob([JSON.stringify(sarData, null, 2)], {
+      type: "application/json",
+    });
     const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
+    const a = document.createElement("a");
     a.href = url;
     a.download = `${sarData.sar_id}.json`;
     a.click();
@@ -159,7 +170,7 @@ function SARPrepareContent() {
         <div className="text-center">
           <FileText className="h-12 w-12 animate-spin mx-auto mb-4 text-blue-600" />
           <p className="text-lg text-gray-700 dark:text-gray-300">
-            {preparing ? 'Preparing SAR...' : 'Loading...'}
+            {preparing ? "Preparing SAR..." : "Loading..."}
           </p>
         </div>
       </div>
@@ -251,21 +262,33 @@ function SARPrepareContent() {
 
             <div className="grid grid-cols-2 gap-4">
               <div>
-                <p className="text-sm text-gray-600 dark:text-gray-400 mb-1">SAR ID</p>
-                <p className="text-gray-900 dark:text-white font-mono">{sarData.sar_id}</p>
+                <p className="text-sm text-gray-600 dark:text-gray-400 mb-1">
+                  SAR ID
+                </p>
+                <p className="text-gray-900 dark:text-white font-mono">
+                  {sarData.sar_id}
+                </p>
               </div>
               <div>
-                <p className="text-sm text-gray-600 dark:text-gray-400 mb-1">Filing Date</p>
+                <p className="text-sm text-gray-600 dark:text-gray-400 mb-1">
+                  Filing Date
+                </p>
                 <p className="text-gray-900 dark:text-white">
                   {new Date(sarData.filing_date).toLocaleString()}
                 </p>
               </div>
               <div>
-                <p className="text-sm text-gray-600 dark:text-gray-400 mb-1">Case Reference</p>
-                <p className="text-gray-900 dark:text-white font-mono">{sarData.case_reference}</p>
+                <p className="text-sm text-gray-600 dark:text-gray-400 mb-1">
+                  Case Reference
+                </p>
+                <p className="text-gray-900 dark:text-white font-mono">
+                  {sarData.case_reference}
+                </p>
               </div>
               <div>
-                <p className="text-sm text-gray-600 dark:text-gray-400 mb-1">Institution</p>
+                <p className="text-sm text-gray-600 dark:text-gray-400 mb-1">
+                  Institution
+                </p>
                 <p className="text-gray-900 dark:text-white">
                   {sarData.filing_institution.name}
                 </p>
@@ -281,20 +304,26 @@ function SARPrepareContent() {
 
             <div className="grid grid-cols-2 gap-4">
               <div>
-                <p className="text-sm text-gray-600 dark:text-gray-400 mb-1">Type</p>
+                <p className="text-sm text-gray-600 dark:text-gray-400 mb-1">
+                  Type
+                </p>
                 <p className="text-gray-900 dark:text-white capitalize">
                   {sarData.subject_information.type}
                 </p>
               </div>
               <div>
-                <p className="text-sm text-gray-600 dark:text-gray-400 mb-1">Identifier</p>
+                <p className="text-sm text-gray-600 dark:text-gray-400 mb-1">
+                  Identifier
+                </p>
                 <p className="text-gray-900 dark:text-white font-mono">
                   {sarData.subject_information.identifier}
                 </p>
               </div>
               {sarData.subject_information.transaction_count && (
                 <div>
-                  <p className="text-sm text-gray-600 dark:text-gray-400 mb-1">Transaction Count</p>
+                  <p className="text-sm text-gray-600 dark:text-gray-400 mb-1">
+                    Transaction Count
+                  </p>
                   <p className="text-gray-900 dark:text-white">
                     {sarData.subject_information.transaction_count}
                   </p>
@@ -302,7 +331,9 @@ function SARPrepareContent() {
               )}
               {sarData.subject_information.total_amount && (
                 <div>
-                  <p className="text-sm text-gray-600 dark:text-gray-400 mb-1">Total Amount</p>
+                  <p className="text-sm text-gray-600 dark:text-gray-400 mb-1">
+                    Total Amount
+                  </p>
                   <p className="text-gray-900 dark:text-white font-semibold">
                     {sarData.subject_information.total_amount.toLocaleString()}
                   </p>
@@ -319,7 +350,9 @@ function SARPrepareContent() {
 
             <div className="space-y-4">
               <div>
-                <p className="text-sm text-gray-600 dark:text-gray-400 mb-1">Activity Type</p>
+                <p className="text-sm text-gray-600 dark:text-gray-400 mb-1">
+                  Activity Type
+                </p>
                 <p className="text-gray-900 dark:text-white font-medium">
                   {sarData.suspicious_activity.activity_type}
                 </p>
@@ -327,34 +360,45 @@ function SARPrepareContent() {
 
               <div className="grid grid-cols-3 gap-4">
                 <div>
-                  <p className="text-sm text-gray-600 dark:text-gray-400 mb-1">Transaction Count</p>
+                  <p className="text-sm text-gray-600 dark:text-gray-400 mb-1">
+                    Transaction Count
+                  </p>
                   <p className="text-2xl font-bold text-gray-900 dark:text-white">
                     {sarData.suspicious_activity.transaction_count}
                   </p>
                 </div>
                 <div>
-                  <p className="text-sm text-gray-600 dark:text-gray-400 mb-1">Alert Count</p>
+                  <p className="text-sm text-gray-600 dark:text-gray-400 mb-1">
+                    Alert Count
+                  </p>
                   <p className="text-2xl font-bold text-gray-900 dark:text-white">
                     {sarData.suspicious_activity.alert_count}
                   </p>
                 </div>
                 <div>
-                  <p className="text-sm text-gray-600 dark:text-gray-400 mb-1">Total Amount</p>
+                  <p className="text-sm text-gray-600 dark:text-gray-400 mb-1">
+                    Total Amount
+                  </p>
                   <p className="text-2xl font-bold text-gray-900 dark:text-white">
-                    {typeof sarData.suspicious_activity.total_amount === "object" &&
+                    {typeof sarData.suspicious_activity.total_amount ===
+                      "object" &&
                     sarData.suspicious_activity.total_amount !== null
-                      ? Object.entries(sarData.suspicious_activity.total_amount).map(([currency, amount]) => (
+                      ? Object.entries(
+                          sarData.suspicious_activity.total_amount,
+                        ).map(([currency, amount]) => (
                           <span key={currency}>
                             {Number(amount).toLocaleString()} {currency}
                           </span>
                         ))
-                      : sarData.suspicious_activity.total_amount ?? "-"}
+                      : (sarData.suspicious_activity.total_amount ?? "-")}
                   </p>
                 </div>
               </div>
 
               <div>
-                <p className="text-sm text-gray-600 dark:text-gray-400 mb-2">Narrative</p>
+                <p className="text-sm text-gray-600 dark:text-gray-400 mb-2">
+                  Narrative
+                </p>
                 <div className="bg-gray-50 dark:bg-gray-900 p-4 rounded-lg">
                   <p className="text-gray-900 dark:text-white whitespace-pre-wrap leading-relaxed">
                     {sarData.suspicious_activity.narrative}
@@ -376,25 +420,36 @@ function SARPrepareContent() {
             <div className="space-y-4">
               {sarData.regulatory_basis.cited_regulations.length > 0 && (
                 <div>
-                  <p className="text-sm text-gray-600 dark:text-gray-400 mb-2">Cited Regulations</p>
+                  <p className="text-sm text-gray-600 dark:text-gray-400 mb-2">
+                    Cited Regulations
+                  </p>
                   <div className="space-y-2">
-                    {sarData.regulatory_basis.cited_regulations.map((reg, idx: number) => (
-                      <div key={idx} className="p-3 bg-white dark:bg-gray-800 rounded-lg">
-                        <p className="text-xs font-mono text-gray-600 dark:text-gray-400 mb-1">
-                          {reg.celex}
-                        </p>
-                        <p className="text-sm text-gray-900 dark:text-white">{reg.title}</p>
-                        <p className="text-xs text-gray-500 dark:text-gray-500 mt-1">
-                          {reg.relevance}
-                        </p>
-                      </div>
-                    ))}
+                    {sarData.regulatory_basis.cited_regulations.map(
+                      (reg, idx: number) => (
+                        <div
+                          key={idx}
+                          className="p-3 bg-white dark:bg-gray-800 rounded-lg"
+                        >
+                          <p className="text-xs font-mono text-gray-600 dark:text-gray-400 mb-1">
+                            {reg.celex}
+                          </p>
+                          <p className="text-sm text-gray-900 dark:text-white">
+                            {reg.title}
+                          </p>
+                          <p className="text-xs text-gray-500 dark:text-gray-500 mt-1">
+                            {reg.relevance}
+                          </p>
+                        </div>
+                      ),
+                    )}
                   </div>
                 </div>
               )}
 
               <div>
-                <p className="text-sm text-gray-600 dark:text-gray-400 mb-2">Regulatory Context</p>
+                <p className="text-sm text-gray-600 dark:text-gray-400 mb-2">
+                  Regulatory Context
+                </p>
                 <div className="bg-white dark:bg-gray-800 p-4 rounded-lg">
                   <p className="text-sm text-gray-900 dark:text-white whitespace-pre-wrap">
                     {sarData.regulatory_basis.regulatory_context}
@@ -416,27 +471,36 @@ function SARPrepareContent() {
                   Alerts ({sarData.supporting_documents.alerts.length})
                 </p>
                 <div className="space-y-2">
-                  {sarData.supporting_documents.alerts.map((alert, idx: number) => (
-                    <div key={idx} className="p-3 bg-gray-50 dark:bg-gray-900 rounded-lg flex items-center justify-between">
-                      <div>
-                        <p className="text-sm font-mono text-gray-900 dark:text-white">
-                          {alert.alert_id}
-                        </p>
-                        <p className="text-xs text-gray-600 dark:text-gray-400">
-                          {alert.type} - {alert.severity}
+                  {sarData.supporting_documents.alerts.map(
+                    (alert, idx: number) => (
+                      <div
+                        key={idx}
+                        className="p-3 bg-gray-50 dark:bg-gray-900 rounded-lg flex items-center justify-between"
+                      >
+                        <div>
+                          <p className="text-sm font-mono text-gray-900 dark:text-white">
+                            {alert.alert_id}
+                          </p>
+                          <p className="text-xs text-gray-600 dark:text-gray-400">
+                            {alert.type} - {alert.severity}
+                          </p>
+                        </div>
+                        <p className="text-xs text-gray-500 dark:text-gray-500">
+                          {alert.created_at
+                            ? new Date(alert.created_at).toLocaleDateString()
+                            : "-"}
                         </p>
                       </div>
-                      <p className="text-xs text-gray-500 dark:text-gray-500">
-                        {alert.created_at ? new Date(alert.created_at).toLocaleDateString() : "-"}
-                      </p>
-                    </div>
-                  ))}
+                    ),
+                  )}
                 </div>
               </div>
 
               {sarData.supporting_documents.investigation_summary && (
                 <div>
-                  <p className="text-sm text-gray-600 dark:text-gray-400 mb-2">Investigation Summary</p>
+                  <p className="text-sm text-gray-600 dark:text-gray-400 mb-2">
+                    Investigation Summary
+                  </p>
                   <div className="bg-gray-50 dark:bg-gray-900 p-4 rounded-lg">
                     <p className="text-sm text-gray-900 dark:text-white">
                       {sarData.supporting_documents.investigation_summary}
@@ -454,11 +518,15 @@ function SARPrepareContent() {
 
 export default function SARPreparePage() {
   return (
-    <Suspense fallback={
-      <div className="flex items-center justify-center min-h-screen">
-        <div className="animate-pulse text-white/50">Loading SAR preparation...</div>
-      </div>
-    }>
+    <Suspense
+      fallback={
+        <div className="flex items-center justify-center min-h-screen">
+          <div className="animate-pulse text-white/50">
+            Loading SAR preparation...
+          </div>
+        </div>
+      }
+    >
       <SARPrepareContent />
     </Suspense>
   );

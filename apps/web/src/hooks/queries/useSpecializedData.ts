@@ -3,24 +3,25 @@
  * (Onchain Risk, Travel Rule, Model Registry, etc.)
  */
 
-import { useQuery, useMutation, useQueryClient } from '@tantml:function_calls>';
-import { modelRegistryKeys } from '@/lib/queryKeys';
-import { apiClient } from '@/lib/http';
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { modelRegistryKeys } from "@/lib/queryKeys";
+import apiClient from "@/lib/http";
 
 // ============================================================================
 // Onchain Risk
 // ============================================================================
 
 const onchainRiskKeys = {
-  all: ['onchain-risk'] as const,
-  analysis: (params: Record<string, unknown>) => [...onchainRiskKeys.all, 'analysis', params] as const,
+  all: ["onchain-risk"] as const,
+  analysis: (params: Record<string, unknown>) =>
+    [...onchainRiskKeys.all, "analysis", params] as const,
 };
 
 export function useOnchainRisk(params?: { address?: string; chain?: string }) {
   return useQuery({
     queryKey: onchainRiskKeys.analysis(params || {}),
     queryFn: async () => {
-      const response = await apiClient.get('/api/onchain-risk', { params });
+      const response = await apiClient.get("/api/onchain-risk", { params });
       return response.data;
     },
     enabled: !!params?.address,
@@ -32,15 +33,18 @@ export function useOnchainRisk(params?: { address?: string; chain?: string }) {
 // ============================================================================
 
 const travelRuleKeys = {
-  all: ['travel-rule'] as const,
-  transfers: (params: Record<string, unknown>) => [...travelRuleKeys.all, 'transfers', params] as const,
+  all: ["travel-rule"] as const,
+  transfers: (params: Record<string, unknown>) =>
+    [...travelRuleKeys.all, "transfers", params] as const,
 };
 
 export function useTravelRuleTransfers(params?: Record<string, unknown>) {
   return useQuery({
     queryKey: travelRuleKeys.transfers(params || {}),
     queryFn: async () => {
-      const response = await apiClient.get('/api/travel-rule/transfers', { params });
+      const response = await apiClient.get("/api/travel-rule/transfers", {
+        params,
+      });
       return response.data;
     },
   });
@@ -51,7 +55,7 @@ export function useCreateTravelRuleTransfer() {
 
   return useMutation({
     mutationFn: async (data: any) => {
-      const response = await apiClient.post('/api/travel-rule/transfers', data);
+      const response = await apiClient.post("/api/travel-rule/transfers", data);
       return response.data;
     },
     onSuccess: () => {
@@ -68,7 +72,9 @@ export function useModelRegistry(params?: Record<string, unknown>) {
   return useQuery({
     queryKey: modelRegistryKeys.modelsList(params || {}),
     queryFn: async () => {
-      const response = await apiClient.get('/api/model-registry/models', { params });
+      const response = await apiClient.get("/api/model-registry/models", {
+        params,
+      });
       return response.data;
     },
   });
@@ -90,7 +96,7 @@ export function useRegisterModel() {
 
   return useMutation({
     mutationFn: async (data: any) => {
-      const response = await apiClient.post('/api/model-registry/models', data);
+      const response = await apiClient.post("/api/model-registry/models", data);
       return response.data;
     },
     onSuccess: () => {
@@ -104,15 +110,15 @@ export function useRegisterModel() {
 // ============================================================================
 
 const amlScopeKeys = {
-  all: ['aml-scope'] as const,
-  analysis: () => [...amlScopeKeys.all, 'analysis'] as const,
+  all: ["aml-scope"] as const,
+  analysis: () => [...amlScopeKeys.all, "analysis"] as const,
 };
 
 export function useAMLScope() {
   return useQuery({
     queryKey: amlScopeKeys.analysis(),
     queryFn: async () => {
-      const response = await apiClient.get('/api/compliance/aml-scope');
+      const response = await apiClient.get("/api/compliance/aml-scope");
       return response.data;
     },
   });
@@ -123,15 +129,21 @@ export function useAMLScope() {
 // ============================================================================
 
 const complianceReportKeys = {
-  all: ['compliance-reports'] as const,
-  report: (params: Record<string, unknown>) => [...complianceReportKeys.all, 'report', params] as const,
+  all: ["compliance-reports"] as const,
+  report: (params: Record<string, unknown>) =>
+    [...complianceReportKeys.all, "report", params] as const,
 };
 
-export function useComplianceReport(params?: { type?: string; period?: string }) {
+export function useComplianceReport(params?: {
+  type?: string;
+  period?: string;
+}) {
   return useQuery({
     queryKey: complianceReportKeys.report(params || {}),
     queryFn: async () => {
-      const response = await apiClient.get('/api/compliance/reports', { params });
+      const response = await apiClient.get("/api/compliance/reports", {
+        params,
+      });
       return response.data;
     },
   });
@@ -142,7 +154,7 @@ export function useGenerateComplianceReport() {
 
   return useMutation({
     mutationFn: async (data: any) => {
-      const response = await apiClient.post('/api/compliance/reports', data);
+      const response = await apiClient.post("/api/compliance/reports", data);
       return response.data;
     },
     onSuccess: () => {
@@ -156,14 +168,14 @@ export function useGenerateComplianceReport() {
 // ============================================================================
 
 const sarKeys = {
-  all: ['sar'] as const,
-  draft: (id: string) => [...sarKeys.all, 'draft', id] as const,
-  templates: () => [...sarKeys.all, 'templates'] as const,
+  all: ["sar"] as const,
+  draft: (id: string) => [...sarKeys.all, "draft", id] as const,
+  templates: () => [...sarKeys.all, "templates"] as const,
 };
 
 export function useSARDraft(id?: string) {
   return useQuery({
-    queryKey: sarKeys.draft(id || 'new'),
+    queryKey: sarKeys.draft(id || "new"),
     queryFn: async () => {
       if (!id) return null;
       const response = await apiClient.get(`/api/sar/drafts/${id}`);
@@ -177,7 +189,7 @@ export function useSARTemplates() {
   return useQuery({
     queryKey: sarKeys.templates(),
     queryFn: async () => {
-      const response = await apiClient.get('/api/sar/templates');
+      const response = await apiClient.get("/api/sar/templates");
       return response.data;
     },
   });
@@ -188,7 +200,7 @@ export function useCreateSARDraft() {
 
   return useMutation({
     mutationFn: async (data: any) => {
-      const response = await apiClient.post('/api/sar/drafts', data);
+      const response = await apiClient.post("/api/sar/drafts", data);
       return response.data;
     },
     onSuccess: () => {
@@ -205,7 +217,7 @@ export function useUpdateSARDraft() {
       const response = await apiClient.put(`/api/sar/drafts/${id}`, data);
       return response.data;
     },
-    onSuccess: (updated, variables) => {
+    onSuccess: (updated: unknown, variables: { id: string; data: unknown }) => {
       queryClient.setQueryData(sarKeys.draft(variables.id), updated);
     },
   });

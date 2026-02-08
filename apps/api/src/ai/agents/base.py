@@ -17,9 +17,6 @@ from dataclasses import dataclass, field
 from datetime import datetime, timezone
 
 
-def utc_now() -> datetime:
-    """Return current UTC time (timezone-aware)."""
-    return datetime.now(timezone.utc)
 from enum import Enum
 from typing import Any, Dict, List, Optional, TypeVar, Generic
 import json
@@ -28,11 +25,20 @@ import os
 import hashlib
 from anthropic import Anthropic
 
+from src.core.circuit_breaker import CircuitOpenError, anthropic_breaker
+
+
+def utc_now() -> datetime:
+    """Return current UTC time (timezone-aware)."""
+    return datetime.now(timezone.utc)
+
+
 logger = logging.getLogger(__name__)
 
 
 class AgentType(str, Enum):
     """Types of AI agents in the AML Officer system."""
+
     TRIAGE = "triage"
     INVESTIGATION = "investigation"
     SAR = "sar"
@@ -43,13 +49,15 @@ class AgentType(str, Enum):
 
 class ConfidenceLevel(str, Enum):
     """Confidence levels for agent outputs."""
-    HIGH = "high"      # >0.8 - Can auto-act
+
+    HIGH = "high"  # >0.8 - Can auto-act
     MEDIUM = "medium"  # 0.5-0.8 - Needs review
-    LOW = "low"        # <0.5 - Manual required
+    LOW = "low"  # <0.5 - Manual required
 
 
 class ActionRecommendation(str, Enum):
     """Standard action recommendations from agents."""
+
     ESCALATE = "escalate"
     INVESTIGATE = "investigate"
     RESOLVE = "resolve"
@@ -62,8 +70,9 @@ class ActionRecommendation(str, Enum):
 @dataclass
 class Citation:
     """A regulatory citation supporting an agent's conclusion."""
+
     source_type: str  # "regulation", "internal_policy", "case_precedent"
-    reference: str    # e.g., "AMLD 5, Article 13"
+    reference: str  # e.g., "AMLD 5, Article 13"
     celex_id: Optional[str] = None
     excerpt: Optional[str] = None
     relevance_score: float = 1.0
@@ -72,6 +81,7 @@ class Citation:
 @dataclass
 class ReasoningStep:
     """A single step in the agent's chain-of-thought reasoning."""
+
     step_number: int
     description: str
     evidence: List[str] = field(default_factory=list)
@@ -87,6 +97,7 @@ class AgentContext:
     Contains all information the agent needs to perform its task,
     including conversation history, user identity, and session state.
     """
+
     # Core identifiers
     session_id: str
     user_id: Optional[str] = None
@@ -118,11 +129,9 @@ class AgentContext:
 
     def add_message(self, role: str, content: str) -> None:
         """Add a message to conversation history."""
-        self.conversation_history.append({
-            "role": role,
-            "content": content,
-            "timestamp": utc_now().isoformat()
-        })
+        self.conversation_history.append(
+            {"role": role, "content": content, "timestamp": utc_now().isoformat()}
+        )
 
     def to_dict(self) -> Dict[str, Any]:
         """Convert context to dictionary for serialization."""
@@ -136,7 +145,7 @@ class AgentContext:
             "related_data": self.related_data,
             "applicable_regulations": self.applicable_regulations,
             "conversation_history": self.conversation_history,
-            "created_at": self.created_at.isoformat()
+            "created_at": self.created_at.isoformat(),
         }
 
 
@@ -148,6 +157,7 @@ class AgentResult:
     All agents return this format to ensure consistent handling,
     audit trail creation, and downstream processing.
     """
+
     # Agent identification
     agent_type: AgentType
     agent_version: str = "1.0.0"
@@ -211,7 +221,7 @@ class AgentResult:
                     "description": s.description,
                     "evidence": s.evidence,
                     "conclusion": s.conclusion,
-                    "confidence": s.confidence
+                    "confidence": s.confidence,
                 }
                 for s in self.reasoning_chain
             ],
@@ -221,7 +231,7 @@ class AgentResult:
                     "reference": c.reference,
                     "celex_id": c.celex_id,
                     "excerpt": c.excerpt,
-                    "relevance_score": c.relevance_score
+                    "relevance_score": c.relevance_score,
                 }
                 for c in self.citations
             ],
@@ -238,7 +248,7 @@ class AgentResult:
             "tokens_used": self.tokens_used,
             "model_used": self.model_used,
             "error_message": self.error_message,
-            "created_at": self.created_at.isoformat()
+            "created_at": self.created_at.isoformat(),
         }
 
     @classmethod
@@ -248,11 +258,11 @@ class AgentResult:
             agent_type=agent_type,
             success=False,
             error_message=message,
-            confidence_level=ConfidenceLevel.LOW
+            confidence_level=ConfidenceLevel.LOW,
         )
 
 
-T = TypeVar('T', bound=AgentResult)
+T = TypeVar("T", bound=AgentResult)
 
 
 class BaseAgent(ABC, Generic[T]):
@@ -281,14 +291,17 @@ class BaseAgent(ABC, Generic[T]):
         self,
         api_key: Optional[str] = None,
         model: Optional[str] = None,
-        enable_caching: bool = True
+        enable_caching: bool = True,
     ):
         """Initialize the agent with Claude API client."""
         self.api_key = api_key or os.getenv("ANTHROPIC_API_KEY")
         self.is_configured = bool(self.api_key)
-        
+
         if not self.is_configured:
-            logger.warning(f"ANTHROPIC_API_KEY not found for {self.agent_type.value} agent. Operating in Demo Mode.")
+            logger.warning(
+                f"ANTHROPIC_API_KEY not found for {self.agent_type.value} agent. "
+                "Operating in Demo Mode."
+            )
             self.client = None
         else:
             self.client = Anthropic(api_key=self.api_key)
@@ -351,7 +364,7 @@ class BaseAgent(ABC, Generic[T]):
         user_prompt: str,
         context: AgentContext,
         json_mode: bool = True,
-        max_tokens: Optional[int] = None
+        max_tokens: Optional[int] = None,
     ) -> Dict[str, Any]:
         """
         Call Claude API with proper error handling.
@@ -366,33 +379,32 @@ class BaseAgent(ABC, Generic[T]):
             Parsed response content
         """
         import time
+
         start_time = time.time()
 
         messages = []
 
         # Add conversation history if present
         for msg in context.conversation_history:
-            messages.append({
-                "role": msg["role"],
-                "content": msg["content"]
-            })
+            messages.append({"role": msg["role"], "content": msg["content"]})
 
         # Add current user prompt
-        messages.append({
-            "role": "user",
-            "content": user_prompt
-        })
+        messages.append({"role": "user", "content": user_prompt})
 
         if not self.is_configured:
             return self._generate_mock_response(user_prompt)
 
         try:
-            response = self.client.messages.create(
+            # Wrap the Anthropic API call with the circuit breaker so that
+            # repeated failures (timeouts, 5xx, etc.) cause fast-fail instead
+            # of piling up slow requests.
+            response = anthropic_breaker.call(
+                self.client.messages.create,
                 model=self.model,
                 max_tokens=max_tokens or context.max_tokens,
                 temperature=context.temperature,
                 system=self.system_prompt,
-                messages=messages
+                messages=messages,
             )
 
             content = response.content[0].text
@@ -416,7 +428,7 @@ class BaseAgent(ABC, Generic[T]):
                     parsed["_meta"] = {
                         "processing_time_ms": processing_time,
                         "tokens_used": response.usage.input_tokens + response.usage.output_tokens,
-                        "model_used": self.model
+                        "model_used": self.model,
                     }
                     return parsed
                 except json.JSONDecodeError as e:
@@ -425,10 +437,11 @@ class BaseAgent(ABC, Generic[T]):
                         "raw_content": content,
                         "_meta": {
                             "processing_time_ms": processing_time,
-                            "tokens_used": response.usage.input_tokens + response.usage.output_tokens,
+                            "tokens_used": response.usage.input_tokens
+                            + response.usage.output_tokens,
                             "model_used": self.model,
-                            "json_parse_error": str(e)
-                        }
+                            "json_parse_error": str(e),
+                        },
                     }
 
             return {
@@ -436,9 +449,18 @@ class BaseAgent(ABC, Generic[T]):
                 "_meta": {
                     "processing_time_ms": processing_time,
                     "tokens_used": response.usage.input_tokens + response.usage.output_tokens,
-                    "model_used": self.model
-                }
+                    "model_used": self.model,
+                },
             }
+
+        except CircuitOpenError:
+            logger.warning(
+                f"{self.agent_type.value} agent: Anthropic circuit breaker is "
+                f"OPEN -- returning mock/fallback response"
+            )
+            mock = self._generate_mock_response(user_prompt)
+            mock["_meta"]["circuit_breaker"] = "open"
+            return mock
 
         except Exception as e:
             logger.error(f"{self.agent_type.value} agent error: {e}")
@@ -447,14 +469,21 @@ class BaseAgent(ABC, Generic[T]):
     def _generate_mock_response(self, user_prompt: str) -> Dict[str, Any]:
         """Generate a mock response when API key is missing."""
         logger.info(f"Generating mock response for {self.agent_type.value} agent")
-        
+
         # Simple generic mock response based on agent type
         mock_data = {
             "critical_findings": ["Demo Mode: No API key configured"],
             "recommendation": "investigate",
             "confidence": 0.5,
-            "summary": f"This is a demo response from the {self.agent_type.value} agent. Please configure ANTHROPIC_API_KEY for real AI analysis.",
-            "detailed_analysis": "In a production environment with a valid API key, this would contain a deep-dive analysis of the regulatory implications and risk factors. Currently, the system is operating in demonstration mode.",
+            "summary": (
+                f"This is a demo response from the {self.agent_type.value} agent. "
+                "Please configure ANTHROPIC_API_KEY for real AI analysis."
+            ),
+            "detailed_analysis": (
+                "In a production environment with a valid API key, this would contain "
+                "a deep-dive analysis of the regulatory implications and risk factors. "
+                "Currently, the system is operating in demonstration mode."
+            ),
             "risk_score": 50.0,
             "red_flags": ["DEMO_MODE_ACTIVE"],
             "next_steps": ["Configure ANTHROPIC_API_KEY", "Verify system connectivity"],
@@ -462,7 +491,7 @@ class BaseAgent(ABC, Generic[T]):
                 {
                     "source_type": "internal",
                     "reference": "System Configuration Manual",
-                    "excerpt": "Ensure all required environment variables are set."
+                    "excerpt": "Ensure all required environment variables are set.",
                 }
             ],
             "reasoning": [
@@ -470,23 +499,20 @@ class BaseAgent(ABC, Generic[T]):
                     "description": "System check",
                     "evidence": ["Missing API key"],
                     "conclusion": "Operating in fallback mode",
-                    "confidence": 1.0
+                    "confidence": 1.0,
                 }
-            ]
+            ],
         }
-        
+
         mock_data["_meta"] = {
             "processing_time_ms": 100,
             "tokens_used": 0,
-            "model_used": "demo-fallback"
+            "model_used": "demo-fallback",
         }
-        
+
         return mock_data
 
-    def build_reasoning_chain(
-        self,
-        steps: List[Dict[str, Any]]
-    ) -> List[ReasoningStep]:
+    def build_reasoning_chain(self, steps: List[Dict[str, Any]]) -> List[ReasoningStep]:
         """Build a structured reasoning chain from raw steps."""
         return [
             ReasoningStep(
@@ -494,15 +520,12 @@ class BaseAgent(ABC, Generic[T]):
                 description=step.get("description", ""),
                 evidence=step.get("evidence", []),
                 conclusion=step.get("conclusion"),
-                confidence=step.get("confidence", 1.0)
+                confidence=step.get("confidence", 1.0),
             )
             for i, step in enumerate(steps)
         ]
 
-    def build_citations(
-        self,
-        raw_citations: List[Dict[str, Any]]
-    ) -> List[Citation]:
+    def build_citations(self, raw_citations: List[Dict[str, Any]]) -> List[Citation]:
         """Build structured citations from raw data."""
         return [
             Citation(
@@ -510,7 +533,7 @@ class BaseAgent(ABC, Generic[T]):
                 reference=c.get("reference", ""),
                 celex_id=c.get("celex_id"),
                 excerpt=c.get("excerpt"),
-                relevance_score=c.get("relevance_score", 1.0)
+                relevance_score=c.get("relevance_score", 1.0),
             )
             for c in raw_citations
         ]
@@ -552,6 +575,7 @@ class AgentRegistry:
     @classmethod
     def register(cls, agent_type_str: str = None):
         """Register an agent class as a decorator or register an instance."""
+
         def decorator(agent_class):
             # Return the class unchanged - actual registration happens on instantiation
             return agent_class

@@ -1,5 +1,6 @@
 from opensearchpy import OpenSearch
 from src.config import settings
+from src.core.circuit_breaker import CircuitOpenError, opensearch_breaker
 from typing import List, Optional, Dict, Any, Tuple
 from datetime import datetime
 import os
@@ -19,8 +20,10 @@ def get_embedding_provider():
         with _embedding_lock:
             if _embedding_provider is None:
                 from src.ai.embeddings import EmbeddingProvider
+
                 _embedding_provider = EmbeddingProvider()
     return _embedding_provider
+
 
 def get_opensearch_client():
     """
@@ -38,7 +41,7 @@ def get_opensearch_client():
     # Parse URL
     hosts = [settings.OPENSEARCH_URL]
     if "http" not in settings.OPENSEARCH_URL:
-         hosts = [{"host": settings.OPENSEARCH_URL, "port": 9200}]
+        hosts = [{"host": settings.OPENSEARCH_URL, "port": 9200}]
 
     # Check if security is enabled (for production)
     security_enabled = os.getenv("OPENSEARCH_SECURITY_ENABLED", "false").lower() == "true"
@@ -84,16 +87,12 @@ def get_opensearch_client():
             _opensearch_client = client
     return _opensearch_client
 
+
 def init_indices():
     client = get_opensearch_client()
     index_name = "legal_documents"
     index_body = {
-        "settings": {
-            "index": {
-                "number_of_shards": 1,
-                "number_of_replicas": 0
-            }
-        },
+        "settings": {"index": {"number_of_shards": 1, "number_of_replicas": 0}},
         "mappings": {
             "properties": {
                 "celex": {"type": "keyword"},
@@ -114,9 +113,9 @@ def init_indices():
                 "ai_summary": {"type": "text"},
                 # Full-text content fields
                 "full_text": {"type": "text"},
-                "word_count": {"type": "integer"}
+                "word_count": {"type": "integer"},
             }
-        }
+        },
     }
 
     if not client.indices.exists(index=index_name):
@@ -188,6 +187,7 @@ def init_rag_index(embedding_dim: int) -> None:
     except Exception as exc:
         logger.warning("Failed to inspect RAG index mapping: %s", exc)
 
+
 def search_documents(
     q: Optional[str] = None,
     doc_type: Optional[str] = None,
@@ -197,7 +197,7 @@ def search_documents(
     date_from: Optional[datetime] = None,
     date_to: Optional[datetime] = None,
     from_: int = 0,
-    size: int = 10
+    size: int = 10,
 ) -> Dict[str, Any]:
     client = get_opensearch_client()
     index_name = "legal_documents"
@@ -207,12 +207,14 @@ def search_documents(
 
     # Full-text search
     if q:
-        must_clauses.append({
-            "multi_match": {
-                "query": q,
-                "fields": ["title^3", "full_text^2", "ai_summary^1.5", "celex", "content"]
+        must_clauses.append(
+            {
+                "multi_match": {
+                    "query": q,
+                    "fields": ["title^3", "full_text^2", "ai_summary^1.5", "celex", "content"],
+                }
             }
-        })
+        )
     else:
         must_clauses.append({"match_all": {}})
 
@@ -238,22 +240,20 @@ def search_documents(
         filter_clauses.append({"range": {"publication_date": range_query}})
 
     body = {
-        "query": {
-            "bool": {
-                "must": must_clauses,
-                "filter": filter_clauses
-            }
-        },
+        "query": {"bool": {"must": must_clauses, "filter": filter_clauses}},
         "from": from_,
         "size": size,
         "track_total_hits": True,
-        "sort": [
-            {"_score": {"order": "desc"}},
-            {"publication_date": {"order": "desc"}}
-        ]
+        "sort": [{"_score": {"order": "desc"}}, {"publication_date": {"order": "desc"}}],
     }
 
-    response = client.search(index=index_name, body=body)
+    try:
+        response = opensearch_breaker.call(client.search, index=index_name, body=body)
+    except CircuitOpenError:
+        logger.warning(
+            "OpenSearch circuit breaker is OPEN -- returning empty results for search_documents"
+        )
+        return {"total": 0, "results": [], "_circuit_breaker": "open"}
 
     hits = response["hits"]["hits"]
     total = response["hits"]["total"]["value"]
@@ -264,10 +264,7 @@ def search_documents(
         source["score"] = hit["_score"]
         results.append(source)
 
-    return {
-        "total": total,
-        "results": results
-    }
+    return {"total": total, "results": results}
 
 
 def _rrf_scores(hits: List[Dict[str, Any]], k: int = 60) -> Dict[str, float]:
@@ -360,8 +357,14 @@ def search_rag_chunks(
         "track_total_hits": True,
     }
 
-    bm25_response = client.search(index=index_name, body=bm25_body)
-    bm25_hits = bm25_response.get("hits", {}).get("hits", [])
+    try:
+        bm25_response = opensearch_breaker.call(client.search, index=index_name, body=bm25_body)
+        bm25_hits = bm25_response.get("hits", {}).get("hits", [])
+    except CircuitOpenError:
+        logger.warning(
+            "OpenSearch circuit breaker is OPEN -- returning empty results for search_rag_chunks"
+        )
+        return {"total": 0, "results": [], "_circuit_breaker": "open"}
 
     vector_hits: List[Dict[str, Any]] = []
     if alpha < 1.0:
@@ -397,8 +400,15 @@ def search_rag_chunks(
                 "track_total_hits": True,
             }
             try:
-                vector_response = client.search(index=index_name, body=vector_body)
+                vector_response = opensearch_breaker.call(
+                    client.search, index=index_name, body=vector_body
+                )
                 vector_hits = vector_response.get("hits", {}).get("hits", [])
+            except CircuitOpenError:
+                logger.warning(
+                    "OpenSearch circuit breaker is OPEN during vector search -- using BM25 only"
+                )
+                vector_hits = []
             except Exception as exc:
                 logger.warning("Vector search failed, falling back to BM25 only: %s", exc)
                 vector_hits = []
@@ -438,22 +448,35 @@ def index_document(document):
         "cellar_id": document.cellar_id,
         "title": document.title,
         "content": "",  # Legacy field
-        "publication_date": document.publication_date.isoformat() if document.publication_date else None,
-        "entry_into_force_date": document.entry_into_force_date.isoformat() if document.entry_into_force_date else None,
+        "publication_date": (
+            document.publication_date.isoformat() if document.publication_date else None
+        ),
+        "entry_into_force_date": (
+            document.entry_into_force_date.isoformat() if document.entry_into_force_date else None
+        ),
         "status": document.status,
         "type": document.type,
         "compliance_domain": document.compliance_domain,
         "risk_level": document.risk_level,
-        "implementation_deadline": document.implementation_deadline.isoformat() if document.implementation_deadline else None,
+        "implementation_deadline": (
+            document.implementation_deadline.isoformat()
+            if document.implementation_deadline
+            else None
+        ),
         "jurisdictional_scope": document.jurisdictional_scope,
         "ai_summary": document.ai_summary,
         "full_text": document.full_text,
-        "word_count": document.word_count
+        "word_count": document.word_count,
     }
 
     try:
-        client.index(index=index_name, id=document.celex, body=body)
+        opensearch_breaker.call(client.index, index=index_name, id=document.celex, body=body)
         return True
+    except CircuitOpenError:
+        logger.warning(
+            f"OpenSearch circuit breaker is OPEN -- cannot index document {document.celex}"
+        )
+        return False
     except Exception as e:
-        print(f"Failed to index document {document.celex}: {e}")
+        logger.error(f"Failed to index document {document.celex}: {e}")
         return False

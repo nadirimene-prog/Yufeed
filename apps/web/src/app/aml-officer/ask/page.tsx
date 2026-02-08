@@ -21,6 +21,7 @@ import {
   RefreshCw,
 } from "lucide-react";
 import amlOfficerApi, { Source } from "@/lib/aml-officer-api";
+import { logger } from "@/lib/logger";
 
 interface Message {
   id: string;
@@ -93,7 +94,7 @@ export default function ComplianceQAPage() {
 
       setMessages((prev) => [...prev, assistantMessage]);
     } catch (error) {
-      console.error("Failed to get answer:", error);
+      logger.error("Failed to get answer:", error);
       const errorMessage: Message = {
         id: (Date.now() + 1).toString(),
         role: "assistant",
@@ -182,8 +183,8 @@ export default function ComplianceQAPage() {
                 How can I help you today?
               </h2>
               <p className="text-gray-600 mb-8 max-w-md mx-auto">
-                Ask me any question about EU AML/CFT regulations. I&apos;ll provide
-                answers grounded in official regulatory documents.
+                Ask me any question about EU AML/CFT regulations. I&apos;ll
+                provide answers grounded in official regulatory documents.
               </p>
 
               <div className="grid md:grid-cols-2 gap-3 max-w-2xl mx-auto">
@@ -225,7 +226,7 @@ export default function ComplianceQAPage() {
                         {message.confidence && (
                           <span
                             className={`text-xs px-2 py-0.5 rounded-full ${getConfidenceColor(
-                              message.confidence
+                              message.confidence,
                             )}`}
                           >
                             {message.confidence} confidence

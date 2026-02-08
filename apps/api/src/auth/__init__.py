@@ -3,6 +3,7 @@ Authentication Module
 
 Provides JWT-based authentication for the Yufeed API.
 """
+
 from src.auth.jwt_handler import JWTHandler, PasswordHandler, create_token_response
 from src.auth.dependencies import (
     get_current_user,
@@ -10,8 +11,9 @@ from src.auth.dependencies import (
     require_role,
     require_any_role,
     require_superuser,
-    CurrentUser
+    CurrentUser,
 )
+from src.auth.token_blacklist import TokenBlacklist, token_blacklist
 
 __all__ = [
     "JWTHandler",
@@ -23,4 +25,6 @@ __all__ = [
     "require_any_role",
     "require_superuser",
     "CurrentUser",
+    "TokenBlacklist",
+    "token_blacklist",
 ]

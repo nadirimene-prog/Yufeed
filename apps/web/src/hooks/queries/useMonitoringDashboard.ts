@@ -3,27 +3,27 @@
  * Combines multiple queries for dashboard view
  */
 
-import { useQueries } from '@tanstack/react-query';
-import { monitoringKeys } from '@/lib/queryKeys';
-import { apiClient } from '@/lib/http';
+import { useQueries } from "@tanstack/react-query";
+import { monitoringKeys } from "@/lib/queryKeys";
+import apiClient from "@/lib/http";
 
 export function useMonitoringDashboard() {
   return useQueries({
     queries: [
       {
-        queryKey: monitoringKeys.alertsList({ limit: 10, status: 'pending' }),
+        queryKey: monitoringKeys.alertsList({ limit: 10, status: "pending" }),
         queryFn: async () => {
-          const response = await apiClient.get('/api/alerts', {
-            params: { limit: 10, status: 'pending' },
+          const response = await apiClient.get("/api/alerts", {
+            params: { limit: 10, status: "pending" },
           });
           return response.data;
         },
       },
       {
-        queryKey: monitoringKeys.casesList({ limit: 10, status: 'open' }),
+        queryKey: monitoringKeys.casesList({ limit: 10, status: "open" }),
         queryFn: async () => {
-          const response = await apiClient.get('/api/cases', {
-            params: { limit: 10, status: 'open' },
+          const response = await apiClient.get("/api/cases", {
+            params: { limit: 10, status: "open" },
           });
           return response.data;
         },
@@ -31,14 +31,14 @@ export function useMonitoringDashboard() {
       {
         queryKey: monitoringKeys.metrics(),
         queryFn: async () => {
-          const response = await apiClient.get('/api/monitoring/metrics');
+          const response = await apiClient.get("/api/monitoring/metrics");
           return response.data;
         },
       },
       {
         queryKey: monitoringKeys.dashboard(),
         queryFn: async () => {
-          const response = await apiClient.get('/api/monitoring/dashboard');
+          const response = await apiClient.get("/api/monitoring/dashboard");
           return response.data;
         },
       },

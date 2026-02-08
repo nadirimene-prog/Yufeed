@@ -5,7 +5,7 @@ Rate Limiting Test Script
 Tests the rate limiting functionality without starting the full server.
 """
 import sys
-import time
+
 from src.middleware.rate_limiter import limiter, RateLimits, get_identifier
 from fastapi import Request
 from unittest.mock import Mock
@@ -30,7 +30,7 @@ def test_rate_limits_configuration():
         "AI_ANALYSIS",
         "AI_GENERATION",
         "EXPORT",
-        "REPORT"
+        "REPORT",
     ]
 
     for limit_name in expected_limits:
@@ -51,9 +51,11 @@ def test_get_identifier():
 
     # Test 1: IP-based identifier (no user)
     mock_request = Mock(spec=Request)
+
     # Create a simple object for state without user attribute
     class EmptyState:
         pass
+
     mock_request.state = EmptyState()
     mock_request.client = Mock()
     mock_request.client.host = "192.168.1.100"
@@ -84,10 +86,10 @@ def test_limiter_initialization():
 
     # Check limiter attributes
     assert limiter is not None, "Limiter not initialized"
-    print(f"  ✅ Limiter initialized")
+    print("  ✅ Limiter initialized")
 
     # Check if limiter has the expected methods
-    expected_methods = ['limit', 'reset']
+    expected_methods = ["limit", "reset"]
     for method in expected_methods:
         if hasattr(limiter, method):
             print(f"  ✅ Method '{method}' available")

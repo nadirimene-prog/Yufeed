@@ -1,11 +1,15 @@
 import logging
 import os
-from sqlalchemy import create_engine, event, exc
+from sqlalchemy import create_engine, event
 from sqlalchemy.orm import Session
-from sqlalchemy.ext.asyncio import AsyncEngine, create_async_engine, async_sessionmaker
-from sqlalchemy.orm import sessionmaker, declarative_base, Session
+from sqlalchemy.ext.asyncio import (
+    AsyncEngine,
+    create_async_engine,
+    async_sessionmaker,
+    AsyncSession,
+)
+from sqlalchemy.orm import sessionmaker, declarative_base
 from sqlalchemy.pool import Pool
-from fastapi import HTTPException
 from src.config import settings
 
 log = logging.getLogger(__name__)
@@ -20,15 +24,11 @@ DATABASE_URL = settings.DATABASE_URL
 # PostgreSQL uses asyncpg, SQLite uses aiosqlite.
 # ----------------------------------------------------------------------
 if DATABASE_URL.startswith("postgresql://"):
-    ASYNC_DATABASE_URL = DATABASE_URL.replace(
-        "postgresql://", "postgresql+asyncpg://", 1
-    )
+    ASYNC_DATABASE_URL = DATABASE_URL.replace("postgresql://", "postgresql+asyncpg://", 1)
 elif DATABASE_URL.startswith("postgresql+asyncpg://"):
     ASYNC_DATABASE_URL = DATABASE_URL
 elif DATABASE_URL.startswith("sqlite:///"):
-    ASYNC_DATABASE_URL = DATABASE_URL.replace(
-        "sqlite:///", "sqlite+aiosqlite:///", 1
-    )
+    ASYNC_DATABASE_URL = DATABASE_URL.replace("sqlite:///", "sqlite+aiosqlite:///", 1)
 else:
     # Fallback - assume the URL is already configured correctly
     ASYNC_DATABASE_URL = DATABASE_URL
@@ -38,13 +38,27 @@ else:
 # Async engine – uses asyncpg (PostgreSQL) or aiosqlite (SQLite)
 # ----------------------------------------------------------------------
 _is_sqlite = DATABASE_URL.startswith("sqlite")
+
+_async_engine_kwargs = {
+    "future": True,
+}
+# SQLite doesn't support connection pooling options or pool_pre_ping
+if not _is_sqlite:
+    _async_engine_kwargs.update(
+        {
+            "pool_pre_ping": True,
+            "pool_size": 20,
+            "max_overflow": 10,
+            "pool_recycle": 3600,
+            "pool_timeout": 30,
+        }
+    )
+
 async_engine: AsyncEngine = create_async_engine(
     ASYNC_DATABASE_URL,
-    pool_pre_ping=True if not _is_sqlite else False,  # SQLite doesn't support pool_pre_ping
-    future=True,
+    **_async_engine_kwargs,
 )
 
-from sqlalchemy.ext.asyncio import AsyncSession
 
 # ✅ CORRECT async session maker
 AsyncSessionLocal = async_sessionmaker(
@@ -61,12 +75,14 @@ _sync_engine_kwargs = {
 }
 # SQLite doesn't support connection pooling options
 if not _is_sqlite:
-    _sync_engine_kwargs.update({
-        "pool_pre_ping": True,
-        "pool_size": 5,
-        "max_overflow": 10,
-        "pool_recycle": 3600,
-    })
+    _sync_engine_kwargs.update(
+        {
+            "pool_pre_ping": True,
+            "pool_size": 5,
+            "max_overflow": 10,
+            "pool_recycle": 3600,
+        }
+    )
 
 sync_engine = create_engine(DATABASE_URL, **_sync_engine_kwargs)
 
@@ -87,10 +103,12 @@ def _ensure_schema() -> None:
     try:
         # Import models to register all tables before creating schema.
         import src.models  # noqa: F401
+
         Base.metadata.create_all(bind=sync_engine)
         _schema_initialized = True
-    except Exception as exc:
-        log.warning("Failed to initialize test schema: %s", exc)
+    except Exception as e:
+        log.warning("Failed to initialize test schema: %s", e)
+
 
 # ----------------------------------------------------------------------
 # Connection‑pool monitoring (useful for Prometheus / Grafana alerts)
@@ -99,9 +117,11 @@ def _ensure_schema() -> None:
 def receive_connect(dbapi_conn, connection_record):
     log.debug("Database connection established")
 
+
 @event.listens_for(Pool, "checkout")
 def receive_checkout(dbapi_conn, connection_record, connection_proxy):
     log.debug("Connection checked out from pool")
+
 
 # ----------------------------------------------------------------------
 # Async dependency – used by FastAPI routes
@@ -114,6 +134,7 @@ async def get_async_db():
     async with AsyncSessionLocal() as session:
         yield session
 
+
 # ----------------------------------------------------------------------
 # Sync dependency – retained for Alembic and any legacy scripts.
 # ----------------------------------------------------------------------
@@ -124,6 +145,7 @@ def get_sync_db():
         yield db
     finally:
         db.close()
+
 
 def get_db() -> "Session":
     _ensure_schema()

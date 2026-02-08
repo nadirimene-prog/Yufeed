@@ -1,18 +1,24 @@
 # apps/api/src/middleware/audit_log.py
 import json
+import logging
 import re
 import uuid
 from datetime import datetime, timezone
+
 from fastapi import Request, Response
+from starlette.middleware.base import BaseHTTPMiddleware
+
+from src.database import AsyncSessionLocal
+from src.models.audit import AuditLog
+from src.tenancy.context import get_current_tenant
+
+logger = logging.getLogger(__name__)
 
 
 def utc_now() -> datetime:
     """Return current UTC time (timezone-aware)."""
     return datetime.now(timezone.utc)
-from starlette.middleware.base import BaseHTTPMiddleware
-from src.database import AsyncSessionLocal
-from src.models.audit import AuditLog
-import os
+
 
 class AuditLogMiddleware(BaseHTTPMiddleware):
     async def dispatch(self, request: Request, call_next):
@@ -38,17 +44,8 @@ class AuditLogMiddleware(BaseHTTPMiddleware):
         try:
             async with AsyncSessionLocal() as session:
                 async with session.begin():
-                    # Tenant attribution:
-                    # - Prefer authenticated user claim (request.state.user)
-                    # - Fall back to payload tenant_id (e.g. /api/auth/login)
-                    tenant_id = None
-                    if hasattr(request.state, "user") and request.state.user:
-                        tenant_id = getattr(request.state.user, "tenant_id", None)
-                    if not tenant_id and isinstance(payload, dict):
-                        tenant_id = payload.get("tenant_id")
-                    if not tenant_id and os.getenv("ENVIRONMENT", "").lower() in {"test", "testing", "development", "dev"}:
-                        tenant_id = request.headers.get("X-Tenant-ID")
-                    tenant_id = tenant_id or "default"
+                    # Use tenant context set by TenantMiddleware (runs before audit log writes)
+                    tenant_id = get_current_tenant() or "default"
 
                     entity_type = request.headers.get("X-Entity-Type")
                     entity_id = request.headers.get("X-Entity-Id")
@@ -65,12 +62,21 @@ class AuditLogMiddleware(BaseHTTPMiddleware):
                     audit = AuditLog(
                         audit_id=request_id,
                         tenant_id=tenant_id,
-                        actor_id=getattr(request.state, "user", None).user_id
-                        if hasattr(request.state, "user") else None,
-                        actor_email=getattr(request.state, "user", None).email
-                        if hasattr(request.state, "user") else None,
-                        actor_role=getattr(request.state, "user", None).role
-                        if hasattr(request.state, "user") else None,
+                        actor_id=(
+                            getattr(request.state, "user", None).user_id
+                            if hasattr(request.state, "user")
+                            else None
+                        ),
+                        actor_email=(
+                            getattr(request.state, "user", None).email
+                            if hasattr(request.state, "user")
+                            else None
+                        ),
+                        actor_role=(
+                            getattr(request.state, "user", None).role
+                            if hasattr(request.state, "user")
+                            else None
+                        ),
                         actor_ip=request.client.host if request.client else None,
                         user_agent=request.headers.get("User-Agent"),
                         action=request.method.lower(),
@@ -88,8 +94,6 @@ class AuditLogMiddleware(BaseHTTPMiddleware):
                     )
                     session.add(audit)
         except Exception as e:
-            # Log the error but don't fail the request
-            import logging
-            logging.getLogger("uvicorn.error").error(f"Audit log failed: {e}")
+            logger.error(f"Audit log failed: {e}")
 
         return response

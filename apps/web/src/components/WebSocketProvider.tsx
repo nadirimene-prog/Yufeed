@@ -1,10 +1,11 @@
-'use client';
+"use client";
 
-import React, { createContext, useContext, ReactNode } from 'react';
+import React, { createContext, useContext, ReactNode } from "react";
 import { useQueryClient } from "@tanstack/react-query";
-import { useWebSocket, UseWebSocketReturn } from '@/hooks/useWebSocket';
-import { useApiHealth } from '@/hooks/useApiHealth';
+import { useWebSocket, UseWebSocketReturn } from "@/hooks/useWebSocket";
+import { useApiHealth } from "@/hooks/useApiHealth";
 import { complianceKeys, monitoringKeys } from "@/lib/queryKeys";
+import { logger } from "@/lib/logger";
 
 /**
  * WebSocket Provider and Context
@@ -20,7 +21,10 @@ interface WebSocketProviderProps {
   enabled?: boolean;
 }
 
-export function WebSocketProvider({ children, enabled = true }: WebSocketProviderProps) {
+export function WebSocketProvider({
+  children,
+  enabled = true,
+}: WebSocketProviderProps) {
   const { status } = useApiHealth();
   const isApiHealthy = status === "ok";
   const queryClient = useQueryClient();
@@ -31,8 +35,13 @@ export function WebSocketProvider({ children, enabled = true }: WebSocketProvide
       const eventType = notification.event_type || "";
 
       // Compliance events are globally shared by design.
-      if (eventType.startsWith("obligation.") || eventType === "internal_rule.created") {
-        queryClient.invalidateQueries({ queryKey: complianceKeys.obligations() });
+      if (
+        eventType.startsWith("obligation.") ||
+        eventType === "internal_rule.created"
+      ) {
+        queryClient.invalidateQueries({
+          queryKey: complianceKeys.obligations(),
+        });
       }
       if (eventType.startsWith("policy.")) {
         queryClient.invalidateQueries({ queryKey: complianceKeys.policies() });
@@ -53,10 +62,12 @@ export function WebSocketProvider({ children, enabled = true }: WebSocketProvide
       }
     },
     onConnected: () => {
-      console.log('[WebSocketProvider] Connected to real-time notifications');
+      logger.log("[WebSocketProvider] Connected to real-time notifications");
     },
     onDisconnected: () => {
-      console.log('[WebSocketProvider] Disconnected from real-time notifications');
+      logger.log(
+        "[WebSocketProvider] Disconnected from real-time notifications",
+      );
     },
   });
 
@@ -70,7 +81,9 @@ export function WebSocketProvider({ children, enabled = true }: WebSocketProvide
 export function useWebSocketContext(): UseWebSocketReturn {
   const context = useContext(WebSocketContext);
   if (!context) {
-    throw new Error('useWebSocketContext must be used within WebSocketProvider');
+    throw new Error(
+      "useWebSocketContext must be used within WebSocketProvider",
+    );
   }
   return context;
 }

@@ -1,8 +1,7 @@
-import os
-import secrets
 import warnings
 from pydantic_settings import BaseSettings, SettingsConfigDict
 from pydantic import model_validator
+
 
 class Settings(BaseSettings):
     DATABASE_URL: str = "sqlite:///./compliance.db"
@@ -15,6 +14,7 @@ class Settings(BaseSettings):
     SMTP_PASSWORD: str = ""
     EMAILS_FROM_EMAIL: str = "noreply@yufeed.local"
     EMAILS_FROM_NAME: str = "Yufeed Sentinel"
+    FRONTEND_URL: str = "http://localhost:3000"  # Frontend base URL for email links
     ADMIN_EMAIL: str = ""  # Override for alert notifications
     CELLAR_BASE_URL: str = "http://publications.europa.eu/resource/cellar"
     RSS_USER_AGENT: str = "Yufeed/1.0"
@@ -139,15 +139,14 @@ class Settings(BaseSettings):
         if not self.SECRET_KEY:
             if is_production:
                 raise ValueError(
-                    "SECRET_KEY is required in production. "
-                    "Generate one with: python -c \"import secrets; print(secrets.token_hex(32))\""
+                    "SECRET_KEY is required in production! "
+                    'Generate one with: python -c "import secrets; print(secrets.token_hex(32))" '
+                    "and set it in your .env file."
                 )
-            # Generate a random key for development (warn about it)
-            self.SECRET_KEY = secrets.token_hex(32)
+            # In development, use a dummy key if none provided
+            self.SECRET_KEY = "dev_secret_key_do_not_use_in_production"
             warnings.warn(
-                "SECRET_KEY not set - using auto-generated key. "
-                "This is OK for development but MUST be set in production.",
-                UserWarning
+                "SECRET_KEY not set. Using insecure default for development only.", UserWarning
             )
         elif len(self.SECRET_KEY) < 32:
             if is_production:
@@ -155,5 +154,6 @@ class Settings(BaseSettings):
             warnings.warn("SECRET_KEY is too short. Use at least 32 characters.", UserWarning)
 
         return self
+
 
 settings = Settings()

@@ -4,11 +4,13 @@ JWT Authentication Handler
 Provides token generation, validation, and user authentication for the API.
 Uses python-jose for JWT encoding/decoding.
 """
+
 from datetime import datetime, timedelta, timezone
 from typing import Optional, Dict, Any
 from jose import JWTError, jwt
 import bcrypt
 import logging
+import uuid
 
 from src.config import settings
 
@@ -16,6 +18,7 @@ from src.config import settings
 def utc_now() -> datetime:
     """Return current UTC time (timezone-aware)."""
     return datetime.now(timezone.utc)
+
 
 logger = logging.getLogger(__name__)
 
@@ -51,11 +54,14 @@ class JWTHandler:
         else:
             expire = utc_now() + timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
 
-        to_encode.update({
-            "exp": expire,
-            "iat": utc_now(),
-            "type": "access"
-        })
+        to_encode.update(
+            {
+                "exp": expire,
+                "iat": utc_now(),
+                "type": "access",
+                "jti": str(uuid.uuid4()),
+            }
+        )
 
         try:
             encoded_jwt = jwt.encode(to_encode, SECRET_KEY, algorithm=ALGORITHM)
@@ -79,11 +85,14 @@ class JWTHandler:
         to_encode = data.copy()
         expire = utc_now() + timedelta(days=REFRESH_TOKEN_EXPIRE_DAYS)
 
-        to_encode.update({
-            "exp": expire,
-            "iat": utc_now(),
-            "type": "refresh"
-        })
+        to_encode.update(
+            {
+                "exp": expire,
+                "iat": utc_now(),
+                "type": "refresh",
+                "jti": str(uuid.uuid4()),
+            }
+        )
 
         try:
             encoded_jwt = jwt.encode(to_encode, SECRET_KEY, algorithm=ALGORITHM)
@@ -149,10 +158,10 @@ class PasswordHandler:
             Longer passwords will be truncated.
         """
         # Convert to bytes and hash
-        password_bytes = password.encode('utf-8')
+        password_bytes = password.encode("utf-8")
         salt = bcrypt.gensalt(rounds=12)
         hashed = bcrypt.hashpw(password_bytes, salt)
-        return hashed.decode('utf-8')
+        return hashed.decode("utf-8")
 
     @staticmethod
     def verify_password(plain_password: str, hashed_password: str) -> bool:
@@ -166,8 +175,8 @@ class PasswordHandler:
         Returns:
             True if password matches, False otherwise
         """
-        password_bytes = plain_password.encode('utf-8')
-        hashed_bytes = hashed_password.encode('utf-8')
+        password_bytes = plain_password.encode("utf-8")
+        hashed_bytes = hashed_password.encode("utf-8")
         return bcrypt.checkpw(password_bytes, hashed_bytes)
 
 
@@ -194,11 +203,7 @@ def create_token_response(
         >>> tokens["access_token"]  # JWT access token
         >>> tokens["refresh_token"]  # JWT refresh token
     """
-    token_data = {
-        "sub": email,
-        "user_id": user_id,
-        "role": role
-    }
+    token_data = {"sub": email, "user_id": user_id, "role": role}
     if tenant_id:
         token_data["tenant_id"] = tenant_id
     if is_superuser:
@@ -207,8 +212,4 @@ def create_token_response(
     access_token = JWTHandler.create_access_token(token_data)
     refresh_token = JWTHandler.create_refresh_token(token_data)
 
-    return {
-        "access_token": access_token,
-        "refresh_token": refresh_token,
-        "token_type": "bearer"
-    }
+    return {"access_token": access_token, "refresh_token": refresh_token, "token_type": "bearer"}

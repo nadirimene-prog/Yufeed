@@ -1,0 +1,16 @@
+[flake8]
+max-line-length = 100
+extend-ignore = E203, W503
+exclude =
+    .git,
+    __pycache__,
+    .venv,
+    venv,
+    build,
+    dist,
+    *.egg-info,
+    apps/api/src/alembic/versions,
+    docs/archive
+per-file-ignores =
+    apps/api/src/models/*:E501
+    apps/api/src/routers_autoload.py:E501

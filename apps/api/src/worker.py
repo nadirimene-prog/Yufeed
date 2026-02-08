@@ -6,6 +6,7 @@ Handles scheduled tasks for:
 - Feature store updates
 - Alert triage model training
 """
+
 import logging
 import traceback
 from celery import Celery
@@ -19,6 +20,7 @@ from src.ingestion.alerts import send_ingestion_failure_alert
 # Configure logging
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
+
 
 # Cron parser for 5-field expressions (min hour dom mon dow).
 def _safe_crontab(expression: str, fallback: crontab) -> crontab:
@@ -38,6 +40,7 @@ def _safe_crontab(expression: str, fallback: crontab) -> crontab:
     except Exception as exc:
         logger.warning(f"Failed to parse cron '{expression}': {exc}. Using fallback schedule.")
         return fallback
+
 
 CONTENT_BACKFILL_SCHEDULE = _safe_crontab(
     settings.CONTENT_BACKFILL_SCHEDULE,
@@ -98,6 +101,11 @@ celery_app.conf.update(
             "task": "src.worker.retry_failed_ai_analysis",
             "schedule": crontab(minute=30, hour="*/6"),  # Every 6 hours at :30
             "args": (10,),  # Process up to 10 items per run
+        },
+        # Audit log retention - weekly cleanup of records older than 365 days
+        "archive-old-audit-logs": {
+            "task": "src.worker.archive_old_audit_logs",
+            "schedule": crontab(hour=3, minute=0, day_of_week=0),  # Sunday 3 AM
         },
     },
 )
@@ -359,10 +367,16 @@ def retry_failed_ingestion_items(limit: int = 10):
 
     try:
         # Find items ready for retry
-        items = db.query(FailedIngestionItem).filter(
-            FailedIngestionItem.status == "pending",
-            FailedIngestionItem.retry_count < FailedIngestionItem.max_retries,
-        ).order_by(FailedIngestionItem.created_at.asc()).limit(limit).all()
+        items = (
+            db.query(FailedIngestionItem)
+            .filter(
+                FailedIngestionItem.status == "pending",
+                FailedIngestionItem.retry_count < FailedIngestionItem.max_retries,
+            )
+            .order_by(FailedIngestionItem.created_at.asc())
+            .limit(limit)
+            .all()
+        )
 
         if not items:
             logger.info("No failed items to retry")
@@ -382,6 +396,7 @@ def retry_failed_ingestion_items(limit: int = 10):
 
             try:
                 import json
+
                 entry = json.loads(item.entry_json) if item.entry_json else {}
                 result = processor.process_entry(entry)
 
@@ -401,7 +416,9 @@ def retry_failed_ingestion_items(limit: int = 10):
 
             db.commit()
 
-        logger.info(f"DLQ retry completed: {retried} retried, {succeeded} succeeded, {failed} failed")
+        logger.info(
+            f"DLQ retry completed: {retried} retried, {succeeded} succeeded, {failed} failed"
+        )
         return {
             "status": "completed",
             "retried": retried,
@@ -435,7 +452,7 @@ def check_obligation_deadlines():
     from src.models.compliance_workflow import RegulatoryObligation
     from src.models.models import LegalDocument
     from src.utils.time import utc_now
-    from src.email_service import send_email
+    from src.email_service import send_email  # noqa: F401
     from src.config import settings
 
     logger.info("Starting obligation deadline check")
@@ -461,11 +478,13 @@ def check_obligation_deadlines():
         all_alerts = []
 
         for window_name, start, end in windows:
-            query = db.query(RegulatoryObligation).join(
-                LegalDocument, RegulatoryObligation.doc_id == LegalDocument.id
-            ).filter(
-                RegulatoryObligation.status.in_(["draft", "in_review", "approved"]),
-                RegulatoryObligation.effective_date.isnot(None),
+            query = (
+                db.query(RegulatoryObligation)
+                .join(LegalDocument, RegulatoryObligation.doc_id == LegalDocument.id)
+                .filter(
+                    RegulatoryObligation.status.in_(["draft", "in_review", "approved"]),
+                    RegulatoryObligation.effective_date.isnot(None),
+                )
             )
 
             if window_name == "overdue":
@@ -480,16 +499,18 @@ def check_obligation_deadlines():
 
             for obl in obligations:
                 doc = db.query(LegalDocument).filter(LegalDocument.id == obl.doc_id).first()
-                all_alerts.append({
-                    "window": window_name,
-                    "obligation_id": obl.obligation_id,
-                    "obligation_text": (obl.obligation_text or "")[:200],
-                    "article_ref": obl.article_ref,
-                    "deadline": obl.effective_date.isoformat() if obl.effective_date else None,
-                    "document_title": doc.title if doc else "Unknown",
-                    "celex": doc.celex if doc else obl.celex,
-                    "status": obl.status,
-                })
+                all_alerts.append(
+                    {
+                        "window": window_name,
+                        "obligation_id": obl.obligation_id,
+                        "obligation_text": (obl.obligation_text or "")[:200],
+                        "article_ref": obl.article_ref,
+                        "deadline": obl.effective_date.isoformat() if obl.effective_date else None,
+                        "document_title": doc.title if doc else "Unknown",
+                        "celex": doc.celex if doc else obl.celex,
+                        "status": obl.status,
+                    }
+                )
                 alerts_sent[window_name] += 1
 
         # Send consolidated email if there are alerts
@@ -530,18 +551,24 @@ def _send_deadline_alert_email(alerts: list, counts: dict, to_email: str) -> boo
         subject = f"📅 Compliance Deadline Report - {sum(counts.values())} upcoming"
         status_emoji = "📅"
 
+    header_color = (
+        "#dc3545" if overdue_count > 0 else ("#ffc107" if urgent_count > 0 else "#17a2b8")
+    )
+
     # Build HTML email
     html = f"""
     <!DOCTYPE html>
     <html>
     <head>
         <style>
-            body {{ font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; }}
-            .header {{ background: {'#dc3545' if overdue_count > 0 else '#ffc107' if urgent_count > 0 else '#17a2b8'};
+            body {{ font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', \
+Roboto, sans-serif; }}
+            .header {{ background: {header_color};
                       color: white; padding: 20px; border-radius: 8px 8px 0 0; }}
             .content {{ padding: 20px; background: #f8f9fa; }}
             .stats {{ display: flex; gap: 20px; margin: 20px 0; flex-wrap: wrap; }}
-            .stat {{ background: white; padding: 15px; border-radius: 8px; text-align: center; min-width: 100px; }}
+            .stat {{ background: white; padding: 15px; border-radius: 8px; \
+text-align: center; min-width: 100px; }}
             .stat-value {{ font-size: 24px; font-weight: bold; }}
             .stat-label {{ font-size: 12px; color: #666; text-transform: uppercase; }}
             .overdue {{ color: #dc3545; }}
@@ -601,8 +628,10 @@ def _send_deadline_alert_email(alerts: list, counts: dict, to_email: str) -> boo
             html += f"""
             <div class="obligation {css_class}">
                 <strong>{alert['obligation_id']}</strong> - {alert['celex'] or 'N/A'}<br>
-                <small>Deadline: {alert['deadline'] or 'N/A'} | Status: {alert['status']}</small><br>
-                <p>{alert['obligation_text'][:200]}{'...' if len(alert['obligation_text']) > 200 else ''}</p>
+                <small>Deadline: {alert['deadline'] or 'N/A'} | \
+Status: {alert['status']}</small><br>
+                <p>{alert['obligation_text'][:200]}\
+{'...' if len(alert['obligation_text']) > 200 else ''}</p>
                 <small>Document: {alert['document_title'][:100]}</small>
             </div>
             """
@@ -654,11 +683,17 @@ def retry_failed_ai_analysis(limit: int = 10):
 
     try:
         # Find failed AI analysis items
-        items = db.query(FailedIngestionItem).filter(
-            FailedIngestionItem.status == "pending",
-            FailedIngestionItem.source_key == "ai_analysis",
-            FailedIngestionItem.retry_count < FailedIngestionItem.max_retries,
-        ).order_by(FailedIngestionItem.created_at.asc()).limit(limit).all()
+        items = (
+            db.query(FailedIngestionItem)
+            .filter(
+                FailedIngestionItem.status == "pending",
+                FailedIngestionItem.source_key == "ai_analysis",
+                FailedIngestionItem.retry_count < FailedIngestionItem.max_retries,
+            )
+            .order_by(FailedIngestionItem.created_at.asc())
+            .limit(limit)
+            .all()
+        )
 
         if not items:
             logger.info("No failed AI analysis items to retry")
@@ -703,13 +738,15 @@ def retry_failed_ai_analysis(limit: int = 10):
                 if doc.article_breakdown and isinstance(doc.article_breakdown, dict):
                     article_breakdown = doc.article_breakdown.get("articles", [])
 
-                analysis_results = analyze_document({
-                    "celex": doc.celex,
-                    "title": doc.title,
-                    "publication_date": doc.publication_date,
-                    "full_text": doc.full_text,
-                    "article_breakdown": article_breakdown,
-                })
+                analysis_results = analyze_document(
+                    {
+                        "celex": doc.celex,
+                        "title": doc.title,
+                        "publication_date": doc.publication_date,
+                        "full_text": doc.full_text,
+                        "article_breakdown": article_breakdown,
+                    }
+                )
 
                 # Update document with analysis results
                 doc.compliance_domain = analysis_results.get("compliance_domain")
@@ -749,7 +786,10 @@ def retry_failed_ai_analysis(limit: int = 10):
 
             db.commit()
 
-        logger.info(f"AI analysis retry completed: {retried} retried, {succeeded} succeeded, {failed} failed")
+        logger.info(
+            f"AI analysis retry completed: {retried} retried, {succeeded} succeeded, "
+            f"{failed} failed"
+        )
         return {
             "status": "completed",
             "retried": retried,
@@ -759,6 +799,66 @@ def retry_failed_ai_analysis(limit: int = 10):
 
     except Exception as e:
         logger.error(f"AI analysis retry task failed: {e}")
+        raise
+
+    finally:
+        db.close()
+
+
+@celery_app.task(
+    time_limit=1800,  # 30 min hard limit
+    soft_time_limit=1500,  # 25 min soft limit
+)
+def archive_old_audit_logs():
+    """
+    Delete audit log records older than 365 days.
+
+    Processes deletions in batches of 1000 to avoid long-running
+    transactions and excessive lock contention.
+
+    Returns:
+        Dict with archival results
+    """
+    from datetime import datetime, timezone, timedelta
+    from src.audit.models import AuditLog
+
+    logger.info("Starting audit log archival task")
+    db = SessionLocal()
+
+    try:
+        cutoff = datetime.now(timezone.utc) - timedelta(days=365)
+        total_deleted = 0
+        batch_size = 1000
+
+        while True:
+            # Find a batch of old records
+            old_ids = (
+                db.query(AuditLog.id).filter(AuditLog.created_at < cutoff).limit(batch_size).all()
+            )
+
+            if not old_ids:
+                break
+
+            ids = [row[0] for row in old_ids]
+            deleted = (
+                db.query(AuditLog).filter(AuditLog.id.in_(ids)).delete(synchronize_session=False)
+            )
+            db.commit()
+            total_deleted += deleted
+            logger.info(f"Archived {deleted} audit log records (running total: {total_deleted})")
+
+        logger.info(
+            f"Audit log archival completed: {total_deleted} records deleted "
+            f"(cutoff: {cutoff.isoformat()})"
+        )
+        return {
+            "status": "completed",
+            "total_deleted": total_deleted,
+            "cutoff_date": cutoff.isoformat(),
+        }
+
+    except Exception as e:
+        logger.error(f"Audit log archival failed: {e}")
         raise
 
     finally:

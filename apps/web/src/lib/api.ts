@@ -24,8 +24,12 @@ export interface SearchResponse {
   results: SearchResultItem[];
 }
 
-export const searchDocuments = async (params: SearchParams): Promise<SearchResponse> => {
-  const response = await apiClient.get<SearchResponse>('/api/search', { params });
+export const searchDocuments = async (
+  params: SearchParams,
+): Promise<SearchResponse> => {
+  const response = await apiClient.get<SearchResponse>("/api/search", {
+    params,
+  });
   return response.data;
 };
 
@@ -44,7 +48,9 @@ export interface LegalDocument {
 }
 
 export const getDocument = async (celex: string): Promise<LegalDocument> => {
-  const response = await apiClient.get<LegalDocument>(`/api/documents/${celex}`);
+  const response = await apiClient.get<LegalDocument>(
+    `/api/documents/${celex}`,
+  );
   return response.data;
 };
 
@@ -76,14 +82,38 @@ export interface Watchlist extends WatchlistCreate {
   id: number;
 }
 
-export const createWatchlist = async (data: WatchlistCreate): Promise<Watchlist> => {
-  const response = await apiClient.post<Watchlist>('/api/watchlists', data);
+export const createWatchlist = async (
+  data: WatchlistCreate,
+): Promise<Watchlist> => {
+  const response = await apiClient.post<Watchlist>("/api/watchlists", data);
   return response.data;
 };
 
-export const getWatchlists = async (): Promise<Watchlist[]> => {
-  const response = await apiClient.get<Watchlist[]>('/api/watchlists');
+export const getWatchlists = async (
+  params?: Record<string, unknown>,
+): Promise<Watchlist[]> => {
+  const response = await apiClient.get<Watchlist[]>("/api/watchlists", {
+    params,
+  });
   return response.data;
+};
+
+export const addWatchlistEntry = async (
+  watchlistId: string,
+  entry: Record<string, unknown>,
+): Promise<unknown> => {
+  const response = await apiClient.post(
+    `/api/watchlists/${watchlistId}/entries`,
+    entry,
+  );
+  return response.data;
+};
+
+export const removeWatchlistEntry = async (
+  watchlistId: string,
+  entryId: string,
+): Promise<void> => {
+  await apiClient.delete(`/api/watchlists/${watchlistId}/entries/${entryId}`);
 };
 
 // Alerts API
@@ -93,15 +123,38 @@ export interface AlertEvent {
   detected_at: string;
   doc_id: number;
   watchlist_id?: number;
+  document?: {
+    celex: string;
+    title: string;
+  };
 }
 
-export const getAlerts = async (): Promise<AlertEvent[]> => {
-  const response = await apiClient.get<AlertEvent[]>('/api/alerts');
+export const getAlerts = async (
+  params?: Record<string, unknown>,
+): Promise<AlertEvent[]> => {
+  const response = await apiClient.get<AlertEvent[]>("/api/alerts", { params });
   return response.data;
 };
 
-export const getWatchlistAlerts = async (watchlistId: number): Promise<AlertEvent[]> => {
-  const response = await apiClient.get<AlertEvent[]>(`/api/watchlists/${watchlistId}/alerts`);
+export const getAlert = async (id: string): Promise<AlertEvent> => {
+  const response = await apiClient.get<AlertEvent>(`/api/alerts/${id}`);
+  return response.data;
+};
+
+export const updateAlert = async (
+  id: string,
+  data: Record<string, unknown>,
+): Promise<AlertEvent> => {
+  const response = await apiClient.patch<AlertEvent>(`/api/alerts/${id}`, data);
+  return response.data;
+};
+
+export const getWatchlistAlerts = async (
+  watchlistId: number,
+): Promise<AlertEvent[]> => {
+  const response = await apiClient.get<AlertEvent[]>(
+    `/api/watchlists/${watchlistId}/alerts`,
+  );
   return response.data;
 };
 

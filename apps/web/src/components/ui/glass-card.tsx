@@ -13,7 +13,13 @@ import { cardHover, transitions } from "@/lib/motion";
 
 export type GlassCardVariant = "surface" | "interactive" | "elevated";
 export type GlowIntensity = "none" | "subtle" | "strong";
-export type RiskGlow = "critical" | "high" | "medium" | "low" | "clear" | "primary";
+export type RiskGlow =
+  | "critical"
+  | "high"
+  | "medium"
+  | "low"
+  | "clear"
+  | "primary";
 
 interface GlassCardProps extends Omit<HTMLMotionProps<"div">, "children"> {
   /** Visual variant of the card */
@@ -56,10 +62,17 @@ export const GlassCard = forwardRef<HTMLDivElement, GlassCardProps>(
       children,
       ...props
     },
-    ref
+    ref,
   ) => {
     // Determine if glow is a risk level or intensity
-    const isRiskGlow = ["critical", "high", "medium", "low", "clear", "primary"].includes(glow);
+    const isRiskGlow = [
+      "critical",
+      "high",
+      "medium",
+      "low",
+      "clear",
+      "primary",
+    ].includes(glow);
     const glowClass = isRiskGlow ? glowStyles[glow as RiskGlow] : "";
 
     // Base card styles
@@ -67,7 +80,7 @@ export const GlassCard = forwardRef<HTMLDivElement, GlassCardProps>(
       "relative overflow-hidden rounded-xl",
       variantStyles[variant],
       glowClass,
-      className
+      className,
     );
 
     // If hover is enabled and variant is interactive, use motion
@@ -119,7 +132,7 @@ export const GlassCard = forwardRef<HTMLDivElement, GlassCardProps>(
         <div className="relative z-10">{children}</div>
       </motion.div>
     );
-  }
+  },
 );
 
 GlassCard.displayName = "GlassCard";
@@ -135,10 +148,7 @@ interface GlassCardHeaderProps {
 export function GlassCardHeader({ className, children }: GlassCardHeaderProps) {
   return (
     <div
-      className={cn(
-        "px-6 py-4 border-b border-white/5",
-        className
-      )}
+      className={cn("px-6 py-4 border-b border-glass-border-subtle", className)}
     >
       {children}
     </div>
@@ -158,7 +168,7 @@ export function GlassCardTitle({ className, children }: GlassCardTitleProps) {
     <h3
       className={cn(
         "text-lg font-semibold text-foreground text-display",
-        className
+        className,
       )}
     >
       {children}
@@ -179,12 +189,7 @@ export function GlassCardDescription({
   children,
 }: GlassCardDescriptionProps) {
   return (
-    <p
-      className={cn(
-        "text-sm text-muted-foreground mt-1",
-        className
-      )}
-    >
+    <p className={cn("text-sm text-muted-foreground mt-1", className)}>
       {children}
     </p>
   );
@@ -217,8 +222,8 @@ export function GlassCardFooter({ className, children }: GlassCardFooterProps) {
   return (
     <div
       className={cn(
-        "px-6 py-4 border-t border-white/5 bg-white/[0.02]",
-        className
+        "px-6 py-4 border-t border-glass-border-subtle bg-glass-bg-subtle",
+        className,
       )}
     >
       {children}

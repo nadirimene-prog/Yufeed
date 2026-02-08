@@ -3,6 +3,7 @@ Authentication Dependencies
 
 FastAPI dependencies for protecting endpoints with JWT authentication.
 """
+
 from typing import Optional
 from fastapi import Depends, HTTPException, status, Request
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
@@ -11,6 +12,7 @@ from sqlalchemy.orm import Session
 import logging
 
 from src.auth.jwt_handler import JWTHandler
+from src.auth.token_blacklist import token_blacklist
 from src.database import get_db
 from src.auth.api_key import resolve_api_key
 
@@ -26,7 +28,14 @@ class CurrentUser:
     Contains user information extracted from JWT token.
     """
 
-    def __init__(self, user_id: str, email: str, role: str, tenant_id: Optional[str] = None, is_superuser: bool = False):
+    def __init__(
+        self,
+        user_id: str,
+        email: str,
+        role: str,
+        tenant_id: Optional[str] = None,
+        is_superuser: bool = False,
+    ):
         self.user_id = user_id
         self.email = email
         self.role = role
@@ -91,6 +100,23 @@ async def get_current_user(
             # Verify it's an access token
             if not JWTHandler.verify_token_type(payload, "access"):
                 logger.warning("Invalid token type provided")
+                raise credentials_exception
+
+            # Check if token has been revoked
+            jti = payload.get("jti")
+            token_user_id = payload.get("user_id")
+            issued_at = payload.get("iat", 0)
+            if isinstance(issued_at, (int, float)):
+                issued_at = int(issued_at)
+            else:
+                issued_at = 0
+
+            if jti and token_blacklist.is_token_revoked(
+                jti=jti,
+                user_id=str(token_user_id) if token_user_id else "",
+                issued_at=issued_at,
+            ):
+                logger.warning(f"Revoked token used: jti={jti}")
                 raise credentials_exception
 
             # Extract user information
@@ -231,11 +257,15 @@ def require_any_role(required_roles: list):
             return current_user
         if not current_user.has_any_role(required_roles):
             logger.warning(
-                f"User {current_user.email} attempted to access endpoint requiring roles: {required_roles}"
+                f"User {current_user.email} attempted to access endpoint "
+                f"requiring roles: {required_roles}"
             )
             raise HTTPException(
                 status_code=status.HTTP_403_FORBIDDEN,
-                detail=f"This endpoint requires one of the following roles: {', '.join(required_roles)}",
+                detail=(
+                    f"This endpoint requires one of the following roles: "
+                    f"{', '.join(required_roles)}"
+                ),
             )
         return current_user
 
@@ -247,11 +277,11 @@ def require_superuser():
     Dependency factory to require platform superuser privileges.
     """
 
-    async def superuser_checker(current_user: CurrentUser = Depends(get_current_user)) -> CurrentUser:
+    async def superuser_checker(
+        current_user: CurrentUser = Depends(get_current_user),
+    ) -> CurrentUser:
         if not current_user.is_superuser:
-            logger.warning(
-                f"User {current_user.email} attempted to access superuser-only endpoint"
-            )
+            logger.warning(f"User {current_user.email} attempted to access superuser-only endpoint")
             raise HTTPException(
                 status_code=status.HTTP_403_FORBIDDEN,
                 detail="This endpoint requires superuser privileges",
@@ -272,8 +302,7 @@ class RateLimiter:
         self.requests = {}  # In production, use Redis
 
     async def check_rate_limit(
-        self,
-        current_user: CurrentUser = Depends(get_current_user)
+        self, current_user: CurrentUser = Depends(get_current_user)
     ) -> CurrentUser:
         """
         Check if user has exceeded rate limit.
