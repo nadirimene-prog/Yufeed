@@ -21,6 +21,7 @@ import logging
 from src.database import get_db
 from src.auth.dependencies import get_current_user
 from src.models.transaction_models import Alert, Transaction, Case
+from src.models.finding_models import Finding, FindingStatus
 from src.schemas.transaction_schemas import AlertCreate, AlertUpdate, AlertResponse, AlertStatistics
 from src.audit.recorders import record_event, record_decision
 from src.tenancy.queries import (
@@ -92,6 +93,46 @@ def create_alert(alert: AlertCreate, db: Session = Depends(get_db)):
 
     db.add(db_alert)
     db.flush()  # Flush to get the alert ID before ML prediction
+
+    # Finding-first: normalize alert into a finding (idempotent per alert_id)
+    try:
+        tenant_id = db_alert.tenant_id
+        if tenant_id:
+            fingerprint = (
+                __import__("hashlib")
+                .sha256(f"{tenant_id}:TX_ALERT:ALERT:{alert_id}".encode("utf-8"))
+                .hexdigest()[:128]
+            )
+            existing = (
+                db.query(Finding)
+                .filter(Finding.tenant_id == tenant_id, Finding.fingerprint == fingerprint)
+                .first()
+            )
+            if not existing:
+                f = Finding(
+                    tenant_id=tenant_id,
+                    finding_type="TX_ALERT",
+                    severity=(db_alert.severity or "").lower() or None,
+                    status=FindingStatus.new.value,
+                    title=db_alert.description or db_alert.alert_type,
+                    summary=db_alert.description,
+                    fingerprint=fingerprint,
+                    source_refs_json={
+                        "alert_id": alert_id,
+                        "alert_pk": db_alert.id,
+                        "transaction_pk": db_alert.transaction_id,
+                        "user_id": db_alert.user_id,
+                    },
+                    explainability_json={
+                        "matched_rules": db_alert.matched_rules_data,
+                        "evidence": db_alert.evidence,
+                        "regulation_context": db_alert.regulation_context,
+                        "related_regulations": db_alert.related_regulations,
+                    },
+                )
+                db.add(f)
+    except Exception:
+        pass
 
     # Phase 4B: Task 4.4 - ML Auto-Triage
     try:

@@ -37,3 +37,4 @@ from .transaction_models import (
     FeatureValue,
 )
 from .rag_models import LegalChunk
+from .finding_models import Finding, FindingStatus
