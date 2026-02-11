@@ -24,6 +24,7 @@ from src.models.transaction_models import Transaction, Alert, MonitoringRule, Us
 from src.models.finding_models import Finding, FindingStatus
 from src.models.models import LegalDocument
 from src.audit.recorders import record_event, record_decision
+from src.services.finding_service import FindingService
 from src.tenancy.context import get_current_tenant
 from src.monitoring.metrics import rule_coercion_failures_total
 
@@ -357,112 +358,31 @@ class RulesEngine:
 
         self.db.add(alert)
 
-        # Finding-first: normalize velocity alert as a finding
+        # Finding-first: create/update finding via centralized service
         try:
-            user_id = transaction.user_id
-            tenant_id = transaction.tenant_id
-
-            fingerprint_key = f"{tenant_id}:TX_ALERT:VELOCITY:{user_id}:{rule.rule_id}"
-            fingerprint = (
-                __import__("hashlib").sha256(fingerprint_key.encode("utf-8")).hexdigest()[:128]
-            )
-
-            finding = (
-                self.db.query(Finding)
-                .filter(Finding.tenant_id == tenant_id, Finding.fingerprint == fingerprint)
-                .first()
-            )
-
-            if not finding:
-                finding = Finding(
-                    tenant_id=tenant_id,
-                    finding_type="TX_ALERT",
-                    severity=(rule.severity or "").lower() or None,
-                    status=FindingStatus.new.value,
-                    title=f"Velocity: {rule.name}",
-                    summary=f"Velocity rule triggered for user {user_id}",
-                    fingerprint=fingerprint,
-                    source_refs_json={
-                        "alert_id": alert_id,
-                        "user_id": user_id,
-                        "rule_id": rule.rule_id,
-                        "transaction_id": transaction.id,
-                        "transactions": evidence.get("transactions"),
-                    },
-                    explainability_json={
-                        "evidence": evidence,
-                        "matched_rules": {rule.rule_id: rule.name},
-                        "regulation_context": regulation_context,
-                        "related_regulations": related_regulations,
-                    },
-                )
-                self.db.add(finding)
-            else:
-                finding.updated_at = utc_now()
-                finding.source_refs_json = {
-                    **(finding.source_refs_json or {}),
+            svc = FindingService(self.db)
+            svc.create_or_update_finding(
+                tenant_id=transaction.tenant_id,
+                finding_type="TX_ALERT",
+                fingerprint=f"{transaction.tenant_id}:TX_ALERT:{transaction.transaction_id}:{rule.rule_id}",
+                severity=(rule.severity or "").lower() or None,
+                title=rule.name,
+                summary=f"Rule triggered on transaction {transaction.transaction_id}",
+                source_refs={
                     "alert_id": alert_id,
-                    "last_triggered_at": utc_now().isoformat(),
-                }
-                if finding.status == FindingStatus.closed.value:
-                    finding.status = FindingStatus.new.value
+                    "transaction_id": transaction.transaction_id,
+                    "rule_id": rule.rule_id,
+                    "user_id": transaction.user_id,
+                },
+                explainability={
+                    "evidence": evidence,
+                    "matched_rules": {rule.rule_id: rule.name},
+                    "regulation_context": regulation_context,
+                    "related_regulations": related_regulations,
+                },
+            )
         except Exception:
-            pass
-
-        # ------------------------------------------------------------------
-        # Finding-first: every alert also creates/updates a normalized Finding
-        # ------------------------------------------------------------------
-        try:
-            fingerprint_key = (
-                f"{transaction.tenant_id}:TX_ALERT:{transaction.transaction_id}:{rule.rule_id}"
-            )
-            fingerprint = (
-                __import__("hashlib").sha256(fingerprint_key.encode("utf-8")).hexdigest()[:128]
-            )
-
-            finding = (
-                self.db.query(Finding)
-                .filter(
-                    Finding.tenant_id == transaction.tenant_id, Finding.fingerprint == fingerprint
-                )
-                .first()
-            )
-            if not finding:
-                finding = Finding(
-                    tenant_id=transaction.tenant_id,
-                    finding_type="TX_ALERT",
-                    severity=(rule.severity or "").lower() or None,
-                    status=FindingStatus.new.value,
-                    title=f"{rule.name}",
-                    summary=f"Rule triggered on transaction {transaction.transaction_id}",
-                    fingerprint=fingerprint,
-                    source_refs_json={
-                        "alert_id": alert_id,
-                        "transaction_id": transaction.transaction_id,
-                        "transaction_pk": transaction.id,
-                        "rule_id": rule.rule_id,
-                    },
-                    explainability_json={
-                        "evidence": evidence,
-                        "matched_rules": {rule.rule_id: rule.name},
-                        "regulation_context": regulation_context,
-                        "related_regulations": related_regulations,
-                    },
-                )
-                self.db.add(finding)
-            else:
-                # Keep latest references for auditability
-                finding.updated_at = utc_now()
-                finding.source_refs_json = {
-                    **(finding.source_refs_json or {}),
-                    "alert_id": alert_id,
-                    "last_triggered_at": utc_now().isoformat(),
-                }
-                if finding.status in {FindingStatus.closed.value}:
-                    finding.status = FindingStatus.new.value
-        except Exception:
-            # Findings must never break alert creation
-            pass
+            logger.warning("Failed to create finding for alert %s", alert_id, exc_info=True)
 
         event_record = record_event(
             self.db,
@@ -702,47 +622,31 @@ Article Reference: {rule.regulation_article or 'General compliance'}
 
         self.db.add(alert)
 
-        # Finding-first: normalize velocity alert as a finding
+        # Finding-first: create/update velocity finding via centralized service
         try:
-            fingerprint_key = (
-                f"{transactions[0].tenant_id}:TX_ALERT:VELOCITY:{user_id}:{rule.rule_id}"
+            svc = FindingService(self.db)
+            svc.create_or_update_finding(
+                tenant_id=transactions[0].tenant_id,
+                finding_type="TX_ALERT",
+                fingerprint=f"{transactions[0].tenant_id}:TX_ALERT:VELOCITY:{user_id}:{rule.rule_id}",
+                severity=(rule.severity or "").lower() or None,
+                title=rule.name,
+                summary=f"Velocity trigger for user {user_id} ({transaction_count} tx / {float(total_amount)})",
+                source_refs={
+                    "alert_id": alert_id,
+                    "user_id": user_id,
+                    "rule_id": rule.rule_id,
+                    "transactions": [tx.transaction_id for tx in transactions[:50]],
+                },
+                explainability={
+                    "evidence": evidence,
+                    "matched_rules": {rule.rule_id: rule.name},
+                    "regulation_context": regulation_context,
+                    "related_regulations": related_regulations,
+                },
             )
-            fingerprint = (
-                __import__("hashlib").sha256(fingerprint_key.encode("utf-8")).hexdigest()[:128]
-            )
-            existing = (
-                self.db.query(Finding)
-                .filter(
-                    Finding.tenant_id == transactions[0].tenant_id,
-                    Finding.fingerprint == fingerprint,
-                )
-                .first()
-            )
-            if not existing:
-                f = Finding(
-                    tenant_id=transactions[0].tenant_id,
-                    finding_type="TX_ALERT",
-                    severity=(rule.severity or "").lower() or None,
-                    status=FindingStatus.new.value,
-                    title=f"{rule.name}",
-                    summary=f"Velocity trigger for user {user_id} ({transaction_count} tx / {float(total_amount)})",
-                    fingerprint=fingerprint,
-                    source_refs_json={
-                        "alert_id": alert_id,
-                        "user_id": user_id,
-                        "rule_id": rule.rule_id,
-                        "transactions": [tx.transaction_id for tx in transactions[:50]],
-                    },
-                    explainability_json={
-                        "evidence": evidence,
-                        "matched_rules": {rule.rule_id: rule.name},
-                        "regulation_context": regulation_context,
-                        "related_regulations": related_regulations,
-                    },
-                )
-                self.db.add(f)
         except Exception:
-            pass
+            logger.warning("Failed to create velocity finding", exc_info=True)
 
         logger.info(f"Velocity alert {alert_id} created for user {user_id}")
 

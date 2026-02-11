@@ -3,7 +3,7 @@ AI Usage tracking models for cost monitoring and budgeting.
 Tracks API calls, token usage, and estimated costs across tenants.
 """
 
-from sqlalchemy import Column, Integer, String, DateTime, ForeignKey, Float, Index
+from sqlalchemy import Column, Integer, String, DateTime, ForeignKey, Float, Index, JSON
 from sqlalchemy.dialects.postgresql import JSONB
 from datetime import datetime, timezone
 from src.database import Base
@@ -49,14 +49,16 @@ class AIUsageLog(Base):
         String(100), nullable=True
     )  # "obligation_extraction", "policy_analysis", etc.
     document_id = Column(Integer, ForeignKey("legal_documents.id"), nullable=True)
-    obligation_id = Column(Integer, ForeignKey("obligations.id"), nullable=True)
+    obligation_id = Column(Integer, ForeignKey("regulatory_obligations.id"), nullable=True)
     user_id = Column(String(255), nullable=True)  # User who triggered the request
 
     # Metadata
     request_metadata = Column(
-        JSONB, nullable=True
+        JSON().with_variant(JSONB(), "postgresql"), nullable=True
     )  # Additional context (model version, temperature, etc.)
-    response_metadata = Column(JSONB, nullable=True)  # Response details (finish_reason, etc.)
+    response_metadata = Column(
+        JSON().with_variant(JSONB(), "postgresql"), nullable=True
+    )  # Response details (finish_reason, etc.)
 
     # Timestamps
     created_at = Column(DateTime(timezone=True), default=utc_now, nullable=False, index=True)

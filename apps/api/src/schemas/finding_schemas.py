@@ -23,16 +23,26 @@ class FindingCreate(FindingBase):
 
 class FindingUpdate(BaseModel):
     status: Optional[str] = Field(None, max_length=20)
+    severity: Optional[str] = Field(None, max_length=20)
     assigned_to: Optional[str] = Field(None, max_length=255)
     title: Optional[str] = Field(None, max_length=500)
     summary: Optional[str] = None
     sla_due_at: Optional[datetime] = None
 
 
+class FindingCloseRequest(BaseModel):
+    """Payload for closing a finding without escalation."""
+
+    closed_reason: str = Field(..., max_length=50)
+    closed_comment: Optional[str] = None
+
+
 class FindingResponse(FindingBase):
     id: int
     tenant_id: str
     fingerprint: str
+    closed_reason: Optional[str] = None
+    closed_comment: Optional[str] = None
     created_at: datetime
     updated_at: datetime
 
@@ -45,6 +55,9 @@ class EscalateToCaseRequest(BaseModel):
     title: Optional[str] = Field(None, max_length=500)
     description: Optional[str] = None
     priority: Optional[str] = Field(None, max_length=20)
+    existing_case_id: Optional[str] = Field(
+        None, description="Link to an existing case instead of creating a new one"
+    )
 
 
 class CaseLiteResponse(BaseModel):

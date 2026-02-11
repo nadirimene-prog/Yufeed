@@ -7,7 +7,16 @@ into a Case for investigation.
 import enum
 from datetime import datetime
 
-from sqlalchemy import Column, Integer, String, DateTime, Text, JSON, UniqueConstraint
+from sqlalchemy import (
+    Column,
+    Integer,
+    String,
+    DateTime,
+    Text,
+    JSON,
+    Index,
+    UniqueConstraint,
+)
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import relationship
 
@@ -23,10 +32,33 @@ class FindingStatus(str, enum.Enum):
     escalated = "escalated"
 
 
+class FindingType(str, enum.Enum):
+    """Standard finding types emitted by source domains."""
+
+    TX_ALERT = "TX_ALERT"
+    OBLIGATION_BREACH = "OBLIGATION_BREACH"
+    SANCTIONS_HIT = "SANCTIONS_HIT"
+    REG_CHANGE = "REG_CHANGE"
+    ONCHAIN_RISK = "ONCHAIN_RISK"
+    OTHER = "OTHER"
+
+
+class FindingClosedReason(str, enum.Enum):
+    """Reasons for closing a finding without escalation."""
+
+    false_positive = "false_positive"
+    resolved = "resolved"
+    duplicate = "duplicate"
+    not_applicable = "not_applicable"
+    other = "other"
+
+
 class Finding(Base):
     __tablename__ = "findings"
     __table_args__ = (
         UniqueConstraint("tenant_id", "fingerprint", name="uq_findings_tenant_fingerprint"),
+        Index("ix_findings_tenant_status_created", "tenant_id", "status", "created_at"),
+        Index("ix_findings_tenant_severity_status", "tenant_id", "severity", "status"),
     )
 
     id = Column(Integer, primary_key=True)
@@ -59,6 +91,10 @@ class Finding(Base):
 
     assigned_to = Column(String(255), nullable=True, index=True)
     sla_due_at = Column(DateTime, nullable=True, index=True)
+
+    # Close metadata
+    closed_reason = Column(String(50), nullable=True)
+    closed_comment = Column(Text, nullable=True)
 
     created_at = Column(DateTime, default=utc_now, index=True)
     updated_at = Column(DateTime, default=utc_now, onupdate=utc_now)

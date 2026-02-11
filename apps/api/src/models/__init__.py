@@ -37,4 +37,7 @@ from .transaction_models import (
     FeatureValue,
 )
 from .rag_models import LegalChunk
-from .finding_models import Finding, FindingStatus
+from .finding_models import Finding, FindingStatus, FindingType, FindingClosedReason
+from .case_decision import CaseDecision, CaseDecisionStatus, CaseDecisionDisposition
+from .evidence_pack import EvidencePack
+from .case_note import CaseNote

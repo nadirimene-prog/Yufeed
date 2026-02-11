@@ -13,12 +13,81 @@ from fastapi.testclient import TestClient
 from redis import Redis
 from opensearchpy import OpenSearch
 
-from src.database import Base, get_db, SessionLocal
+from src.database import Base, get_db, get_async_db, SessionLocal
 from src.main import app
 from src.config import settings
 from src.models.user import User
 from src.models.tenant_models import Tenant, TenantUser
 from src.auth.jwt_handler import create_token_response
+
+
+# ============================================================================
+# Async-to-Sync Session Adapter
+# ============================================================================
+
+
+class SyncToAsyncSessionAdapter:
+    """Adapter that makes a sync SQLAlchemy Session look async.
+
+    Auth endpoints (register, login, refresh) use ``get_async_db`` which
+    yields an ``AsyncSession``.  In tests we run everything against a single
+    sync transactional session (``db_session``).  This thin wrapper satisfies
+    the ``await db.execute(...)`` / ``await db.commit()`` protocol expected
+    by the async endpoints while delegating to the underlying sync session.
+    """
+
+    def __init__(self, sync_session: Session):
+        self._session = sync_session
+
+    # --- Query / DML --------------------------------------------------
+
+    async def execute(self, stmt, *args, **kwargs):
+        return self._session.execute(stmt, *args, **kwargs)
+
+    async def get(self, entity, ident, **kwargs):
+        return self._session.get(entity, ident, **kwargs)
+
+    async def scalar(self, stmt, *args, **kwargs):
+        return self._session.scalar(stmt, *args, **kwargs)
+
+    # --- Mutation ------------------------------------------------------
+
+    def add(self, instance):
+        self._session.add(instance)
+
+    def add_all(self, instances):
+        self._session.add_all(instances)
+
+    async def flush(self, objects=None):
+        self._session.flush(objects)
+
+    async def commit(self):
+        self._session.commit()
+
+    async def rollback(self):
+        self._session.rollback()
+
+    async def refresh(self, instance, *args, **kwargs):
+        self._session.refresh(instance, *args, **kwargs)
+
+    async def delete(self, instance):
+        self._session.delete(instance)
+
+    async def close(self):
+        pass  # session lifecycle managed by db_session fixture
+
+    # --- Context manager protocol -------------------------------------
+
+    async def __aenter__(self):
+        return self
+
+    async def __aexit__(self, *args):
+        pass
+
+    # --- Attribute pass-through ----------------------------------------
+
+    def __getattr__(self, name):
+        return getattr(self._session, name)
 
 
 # ============================================================================
@@ -81,8 +150,8 @@ def db_session(request, test_db_engine) -> Generator[Session, None, None]:
     if use_outer_tx:
         transaction = connection.begin()
 
-    SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=connection)
-    session = SessionLocal()
+    TestSessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=connection)
+    session = TestSessionLocal()
     # Bind factory_boy SQLAlchemy factories to this session.
     try:
         from tests.factories import (
@@ -92,6 +161,9 @@ def db_session(request, test_db_engine) -> Generator[Session, None, None]:
             MonitoringRuleFactory,
             RuleHitFactory,
             LegalDocumentFactory,
+            FindingFactory,
+            CaseDecisionFactory,
+            EvidencePackFactory,
         )
 
         for factory_cls in (
@@ -101,6 +173,9 @@ def db_session(request, test_db_engine) -> Generator[Session, None, None]:
             MonitoringRuleFactory,
             RuleHitFactory,
             LegalDocumentFactory,
+            FindingFactory,
+            CaseDecisionFactory,
+            EvidencePackFactory,
         ):
             factory_cls._meta.sqlalchemy_session = session
     except Exception:
@@ -133,7 +208,11 @@ def client(db_session: Session) -> Generator[TestClient, None, None]:
         finally:
             pass  # Session cleanup handled by db_session fixture
 
+    async def override_get_async_db():
+        yield SyncToAsyncSessionAdapter(db_session)
+
     app.dependency_overrides[get_db] = override_get_db
+    app.dependency_overrides[get_async_db] = override_get_async_db
 
     with TestClient(app) as test_client:
         yield test_client
@@ -218,54 +297,52 @@ def clean_opensearch(opensearch_client):
 
 
 @pytest.fixture
-def ensure_tenant_membership():
+def ensure_tenant_membership(db_session):
     """
     Ensure a default tenant and membership exist for a user.
-    Returns a helper that accepts email, role, and tenant_id.
+
+    Uses the test ``db_session`` so that objects created by auth endpoints
+    (via the SyncToAsyncSessionAdapter) are visible in the same transaction.
     """
 
     def _ensure(email: str, role: str = "viewer", tenant_id: str = "default") -> Tenant:
         normalized_email = email.lower()
-        db = SessionLocal()
-        try:
-            tenant = db.query(Tenant).filter(Tenant.tenant_id == tenant_id).first()
-            if not tenant:
-                tenant = Tenant(
-                    tenant_id=tenant_id,
-                    name=f"{tenant_id.capitalize()} Tenant",
-                    display_name=tenant_id,
-                    tier="standard",
-                    is_active=True,
-                )
-                db.add(tenant)
-                db.commit()
-                db.refresh(tenant)
-
-            user = db.query(User).filter(User.email == normalized_email).first()
-            if not user:
-                raise AssertionError(f"User not found for email {normalized_email}")
-
-            membership = (
-                db.query(TenantUser)
-                .filter(
-                    TenantUser.tenant_id == tenant.id,
-                    TenantUser.user_id == str(user.id),
-                )
-                .first()
+        db = db_session
+        tenant = db.query(Tenant).filter(Tenant.tenant_id == tenant_id).first()
+        if not tenant:
+            tenant = Tenant(
+                tenant_id=tenant_id,
+                name=f"{tenant_id.capitalize()} Tenant",
+                display_name=tenant_id,
+                tier="standard",
+                is_active=True,
             )
-            if not membership:
-                membership = TenantUser(
-                    tenant_id=tenant.id,
-                    user_id=str(user.id),
-                    role=role,
-                    is_active=True,
-                )
-                db.add(membership)
-                db.commit()
+            db.add(tenant)
+            db.flush()
 
-            return tenant
-        finally:
-            db.close()
+        user = db.query(User).filter(User.email == normalized_email).first()
+        if not user:
+            raise AssertionError(f"User not found for email {normalized_email}")
+
+        membership = (
+            db.query(TenantUser)
+            .filter(
+                TenantUser.tenant_id == tenant.id,
+                TenantUser.user_id == str(user.id),
+            )
+            .first()
+        )
+        if not membership:
+            membership = TenantUser(
+                tenant_id=tenant.id,
+                user_id=str(user.id),
+                role=role,
+                is_active=True,
+            )
+            db.add(membership)
+            db.flush()
+
+        return tenant
 
     return _ensure
 

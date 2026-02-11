@@ -15,6 +15,9 @@ from src.models.transaction_models import (
     MonitoringRule,
     RuleHit,
 )
+from src.models.finding_models import Finding, FindingStatus, FindingType
+from src.models.case_decision import CaseDecision, CaseDecisionStatus
+from src.models.evidence_pack import EvidencePack
 
 
 class BaseSQLAlchemyFactory(factory.alchemy.SQLAlchemyModelFactory):
@@ -295,3 +298,81 @@ class RuleHitFactory(BaseSQLAlchemyFactory):
     )
 
     triggered_at = factory.LazyFunction(datetime.utcnow)
+
+
+class FindingFactory(BaseSQLAlchemyFactory):
+    """Factory for creating test Finding instances."""
+
+    class Meta:
+        model = Finding
+        sqlalchemy_session_persistence = "commit"
+
+    tenant_id = factory.LazyFunction(lambda: "default")
+    finding_type = factory.LazyFunction(lambda: FindingType.TX_ALERT.value)
+    severity = factory.Faker("random_element", elements=["low", "medium", "high", "critical"])
+    status = factory.LazyFunction(lambda: FindingStatus.new.value)
+    title = factory.Faker("sentence")
+    summary = factory.Faker("paragraph")
+    source_refs_json = factory.LazyFunction(
+        lambda: {
+            "alert_id": f"alert_{uuid.uuid4().hex[:8]}",
+            "transaction_id": f"txn_{uuid.uuid4().hex[:8]}",
+        }
+    )
+    fingerprint = factory.LazyFunction(lambda: f"fp_{uuid.uuid4().hex[:32]}")
+    explainability_json = factory.LazyFunction(
+        lambda: {"evidence": "test", "matched_rules": ["rule_001"]}
+    )
+    assigned_to = factory.Faker("email")
+    sla_due_at = None
+    closed_reason = None
+    closed_comment = None
+    created_at = factory.LazyFunction(datetime.utcnow)
+    updated_at = factory.LazyFunction(datetime.utcnow)
+
+
+class CaseDecisionFactory(BaseSQLAlchemyFactory):
+    """Factory for creating test CaseDecision instances."""
+
+    class Meta:
+        model = CaseDecision
+        sqlalchemy_session_persistence = "commit"
+
+    tenant_id = factory.LazyFunction(lambda: "default")
+    case = factory.SubFactory(CaseFactory)
+    version = 1
+    status = factory.LazyFunction(lambda: CaseDecisionStatus.draft.value)
+    disposition = factory.Faker(
+        "random_element",
+        elements=["no_action", "false_positive", "monitor", "remediate", "escalate"],
+    )
+    rationale = factory.Faker("paragraph")
+    created_by = factory.LazyFunction(lambda: f"user_{uuid.uuid4().hex[:8]}")
+    submitted_at = None
+    approver_id = None
+    approved_at = None
+    rejection_reason = None
+    created_at = factory.LazyFunction(datetime.utcnow)
+    updated_at = factory.LazyFunction(datetime.utcnow)
+
+
+class EvidencePackFactory(BaseSQLAlchemyFactory):
+    """Factory for creating test EvidencePack instances."""
+
+    class Meta:
+        model = EvidencePack
+        sqlalchemy_session_persistence = "commit"
+
+    pack_id = factory.LazyFunction(lambda: f"EPACK-{uuid.uuid4().hex[:12].upper()}")
+    tenant_id = factory.LazyFunction(lambda: "default")
+    case = factory.SubFactory(CaseFactory)
+    schema_version = "v1"
+    version = 1
+    format = "json"
+    snapshot_json = factory.LazyFunction(
+        lambda: {"schema_version": "v1", "case": {}, "findings": [], "decision": None}
+    )
+    integrity_hash = factory.LazyFunction(lambda: uuid.uuid4().hex + uuid.uuid4().hex)
+    storage_ref = None
+    created_by = factory.LazyFunction(lambda: f"user_{uuid.uuid4().hex[:8]}")
+    created_at = factory.LazyFunction(datetime.utcnow)
