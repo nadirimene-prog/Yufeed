@@ -1,7 +1,7 @@
 "use client";
 
 import { motion } from "framer-motion";
-import { AlertTriangle, Clock, Shield, User, ChevronRight } from "lucide-react";
+import { Clock, Shield, User, ChevronRight } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { staggerItem } from "@/lib/motion";
 import type { Finding } from "@/types/workbench";
@@ -90,8 +90,9 @@ export function FindingCard({ finding, onClick }: FindingCardProps) {
       variants={staggerItem}
       onClick={onClick}
       className={cn(
-        "group relative rounded-xl border bg-white dark:bg-gray-900/60 p-4 cursor-pointer",
+        "group relative rounded-xl border bg-white dark:bg-gray-900/60 p-4",
         "transition-all duration-200 hover:shadow-md hover:border-gray-300 dark:hover:border-gray-600",
+        onClick && "cursor-pointer",
         severity.border,
       )}
     >

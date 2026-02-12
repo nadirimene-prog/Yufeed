@@ -16,7 +16,7 @@ import { useState } from "react";
 
 interface DecisionTimelineProps {
   decisions: CaseDecision[];
-  onSubmit?: (id: number) => void;
+  onSubmit?: (id: number, rationale: string) => void;
   onApprove?: (id: number) => void;
   onReject?: (id: number) => void;
 }
@@ -65,6 +65,9 @@ export function DecisionTimeline({
   onReject,
 }: DecisionTimelineProps) {
   const [expandedId, setExpandedId] = useState<number | null>(null);
+  const [submitRationale, setSubmitRationale] = useState<
+    Record<number, string>
+  >({});
 
   if (decisions.length === 0) {
     return (
@@ -182,31 +185,78 @@ export function DecisionTimeline({
                     )}
 
                     {/* Action buttons */}
-                    <div className="flex gap-2 mt-3">
+                    <div className="space-y-2 mt-3">
                       {decision.status === "draft" && onSubmit && (
-                        <button
-                          onClick={() => onSubmit(decision.id)}
-                          className="text-xs px-3 py-1.5 rounded-lg bg-blue-600 text-white hover:bg-blue-700 transition"
-                        >
-                          Submit for Approval
-                        </button>
+                        <div className="space-y-2">
+                          <textarea
+                            value={
+                              submitRationale[decision.id] ??
+                              decision.rationale ??
+                              ""
+                            }
+                            onChange={(e) =>
+                              setSubmitRationale((prev) => ({
+                                ...prev,
+                                [decision.id]: e.target.value,
+                              }))
+                            }
+                            rows={2}
+                            className="w-full rounded-lg border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800 px-3 py-2 text-xs text-gray-900 dark:text-white placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500/30"
+                            placeholder="Rationale for submission (min 10 chars)…"
+                          />
+                          <button
+                            onClick={() => {
+                              const rationale =
+                                submitRationale[decision.id] ??
+                                decision.rationale ??
+                                "";
+                              if (rationale.trim().length >= 10) {
+                                onSubmit(decision.id, rationale.trim());
+                              }
+                            }}
+                            disabled={
+                              (
+                                submitRationale[decision.id] ??
+                                decision.rationale ??
+                                ""
+                              ).trim().length < 10
+                            }
+                            className={cn(
+                              "text-xs px-3 py-1.5 rounded-lg text-white transition",
+                              (
+                                submitRationale[decision.id] ??
+                                decision.rationale ??
+                                ""
+                              ).trim().length >= 10
+                                ? "bg-blue-600 hover:bg-blue-700"
+                                : "bg-gray-300 dark:bg-gray-700 cursor-not-allowed",
+                            )}
+                          >
+                            Submit for Approval
+                          </button>
+                        </div>
                       )}
-                      {decision.status === "submitted" && onApprove && (
-                        <button
-                          onClick={() => onApprove(decision.id)}
-                          className="text-xs px-3 py-1.5 rounded-lg bg-emerald-600 text-white hover:bg-emerald-700 transition"
-                        >
-                          Approve
-                        </button>
-                      )}
-                      {decision.status === "submitted" && onReject && (
-                        <button
-                          onClick={() => onReject(decision.id)}
-                          className="text-xs px-3 py-1.5 rounded-lg bg-red-600 text-white hover:bg-red-700 transition"
-                        >
-                          Reject
-                        </button>
-                      )}
+                      {decision.status === "submitted" &&
+                        (onApprove || onReject) && (
+                          <div className="flex gap-2">
+                            {onApprove && (
+                              <button
+                                onClick={() => onApprove(decision.id)}
+                                className="text-xs px-3 py-1.5 rounded-lg bg-emerald-600 text-white hover:bg-emerald-700 transition"
+                              >
+                                Approve
+                              </button>
+                            )}
+                            {onReject && (
+                              <button
+                                onClick={() => onReject(decision.id)}
+                                className="text-xs px-3 py-1.5 rounded-lg bg-red-600 text-white hover:bg-red-700 transition"
+                              >
+                                Reject
+                              </button>
+                            )}
+                          </div>
+                        )}
                     </div>
                   </motion.div>
                 )}

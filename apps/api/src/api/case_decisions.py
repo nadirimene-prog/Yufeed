@@ -130,13 +130,14 @@ def submit_decision(
     current_user: CurrentUser = Depends(require_any_role(_WRITE_ROLES)),
 ):
     """Submit a draft decision for approval."""
-    _resolve_case_pk(case_id, current_user.tenant_id, db)
+    case_pk = _resolve_case_pk(case_id, current_user.tenant_id, db)
     svc = CaseDecisionService(db)
     decision = svc.submit_decision(
         decision_id=decision_id,
         tenant_id=current_user.tenant_id,
         rationale=payload.rationale,
         actor_id=current_user.user_id,
+        case_id=case_pk,
     )
     db.commit()
     db.refresh(decision)
@@ -157,13 +158,14 @@ def approve_decision(
     current_user: CurrentUser = Depends(require_any_role(_APPROVE_ROLES)),
 ):
     """Approve a submitted decision (4-eyes enforced)."""
-    _resolve_case_pk(case_id, current_user.tenant_id, db)
+    case_pk = _resolve_case_pk(case_id, current_user.tenant_id, db)
     svc = CaseDecisionService(db)
     decision = svc.approve_decision(
         decision_id=decision_id,
         tenant_id=current_user.tenant_id,
         approver_id=current_user.user_id,
         comment=payload.comment,
+        case_id=case_pk,
     )
     db.commit()
     db.refresh(decision)
@@ -184,13 +186,14 @@ def reject_decision(
     current_user: CurrentUser = Depends(require_any_role(_APPROVE_ROLES)),
 ):
     """Reject a submitted decision."""
-    _resolve_case_pk(case_id, current_user.tenant_id, db)
+    case_pk = _resolve_case_pk(case_id, current_user.tenant_id, db)
     svc = CaseDecisionService(db)
     decision = svc.reject_decision(
         decision_id=decision_id,
         tenant_id=current_user.tenant_id,
         rejector_id=current_user.user_id,
         rejection_reason=payload.rejection_reason,
+        case_id=case_pk,
     )
     db.commit()
     db.refresh(decision)

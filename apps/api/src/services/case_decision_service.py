@@ -95,9 +95,10 @@ class CaseDecisionService:
         tenant_id: str,
         rationale: str,
         actor_id: str,
+        case_id: Optional[int] = None,
     ) -> CaseDecision:
         """Transition a decision from draft → submitted."""
-        decision = self._get_decision(decision_id, tenant_id)
+        decision = self._get_decision(decision_id, tenant_id, case_id=case_id)
         self._assert_transition(decision, CaseDecisionStatus.draft, CaseDecisionStatus.submitted)
 
         decision.status = CaseDecisionStatus.submitted.value
@@ -132,13 +133,14 @@ class CaseDecisionService:
         tenant_id: str,
         approver_id: str,
         comment: Optional[str] = None,
+        case_id: Optional[int] = None,
     ) -> CaseDecision:
         """Approve a submitted decision.
 
         Enforces 4-eyes: ``approver_id`` must differ from ``created_by``.
         On approval the parent Case is auto-closed.
         """
-        decision = self._get_decision(decision_id, tenant_id)
+        decision = self._get_decision(decision_id, tenant_id, case_id=case_id)
         self._assert_transition(decision, CaseDecisionStatus.submitted, CaseDecisionStatus.approved)
 
         if approver_id == decision.created_by:
@@ -202,9 +204,10 @@ class CaseDecisionService:
         tenant_id: str,
         rejector_id: str,
         rejection_reason: str,
+        case_id: Optional[int] = None,
     ) -> CaseDecision:
         """Reject a submitted decision.  Case remains open/investigating."""
-        decision = self._get_decision(decision_id, tenant_id)
+        decision = self._get_decision(decision_id, tenant_id, case_id=case_id)
         self._assert_transition(decision, CaseDecisionStatus.submitted, CaseDecisionStatus.rejected)
 
         decision.status = CaseDecisionStatus.rejected.value
@@ -236,15 +239,16 @@ class CaseDecisionService:
     # Helpers
     # ------------------------------------------------------------------
 
-    def _get_decision(self, decision_id: int, tenant_id: str) -> CaseDecision:
-        decision = (
-            self.db.query(CaseDecision)
-            .filter(
-                CaseDecision.id == decision_id,
-                CaseDecision.tenant_id == tenant_id,
-            )
-            .first()
+    def _get_decision(
+        self, decision_id: int, tenant_id: str, case_id: Optional[int] = None
+    ) -> CaseDecision:
+        q = self.db.query(CaseDecision).filter(
+            CaseDecision.id == decision_id,
+            CaseDecision.tenant_id == tenant_id,
         )
+        if case_id is not None:
+            q = q.filter(CaseDecision.case_id == case_id)
+        decision = q.first()
         if not decision:
             raise HTTPException(status_code=404, detail="Decision not found")
         return decision

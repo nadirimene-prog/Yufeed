@@ -55,7 +55,7 @@ export default function CaseEvidencePage() {
           </div>
 
           <button
-            onClick={() => createMutation.mutate()}
+            onClick={() => createMutation.mutate("json")}
             disabled={createMutation.isPending}
             className="text-sm px-4 py-2 rounded-xl bg-violet-600 text-white hover:bg-violet-700 disabled:opacity-50 transition flex items-center gap-1.5"
           >

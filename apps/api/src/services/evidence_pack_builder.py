@@ -82,9 +82,10 @@ class EvidencePackBuilder:
         canonical = self.canonicalize(snapshot)
         integrity_hash = self.compute_hash(canonical)
 
-        # Re-inject the real hash and re-canonicalize
+        # Embed the hash for display. The stored integrity_hash is computed
+        # from the snapshot with content_hash="" — to verify, clear
+        # content_hash, re-canonicalize, and compare SHA-256.
         snapshot["integrity"]["content_hash"] = f"sha256:{integrity_hash}"
-        canonical = self.canonicalize(snapshot)
 
         # Auto-increment version
         latest_version = (

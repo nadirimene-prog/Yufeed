@@ -30,6 +30,12 @@ export function CloseDialog({
   const [reason, setReason] = useState("");
   const [comment, setComment] = useState("");
 
+  const handleClose = () => {
+    setReason("");
+    setComment("");
+    onClose();
+  };
+
   const handleSubmit = () => {
     if (!reason) return;
     onConfirm(reason, comment);
@@ -47,7 +53,7 @@ export function CloseDialog({
             initial="initial"
             animate="animate"
             exit="exit"
-            onClick={onClose}
+            onClick={handleClose}
             className="absolute inset-0 bg-black/40 backdrop-blur-sm"
           />
 
@@ -64,7 +70,7 @@ export function CloseDialog({
                 {title}
               </h2>
               <button
-                onClick={onClose}
+                onClick={handleClose}
                 className="p-1.5 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800 transition"
               >
                 <X className="h-4 w-4 text-gray-400" />
@@ -110,7 +116,7 @@ export function CloseDialog({
 
             <div className="flex gap-2 mt-6">
               <button
-                onClick={onClose}
+                onClick={handleClose}
                 className="flex-1 text-sm px-4 py-2 rounded-xl border border-gray-200 dark:border-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800 transition"
               >
                 Cancel

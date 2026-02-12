@@ -35,7 +35,7 @@ export async function getFinding(id: number): Promise<Finding> {
 
 export async function closeFinding(
   id: number,
-  data: { reason: string; comment: string },
+  data: { closed_reason: string; closed_comment: string },
 ): Promise<Finding> {
   const response = await apiClient.post<Finding>(
     `/api/findings/${id}/close`,
@@ -46,7 +46,7 @@ export async function closeFinding(
 
 export async function escalateFinding(
   id: number,
-  data: { case_id: string },
+  data: { existing_case_id: string },
 ): Promise<Finding> {
   const response = await apiClient.post<Finding>(
     `/api/findings/${id}/escalate`,
@@ -56,9 +56,9 @@ export async function escalateFinding(
 }
 
 export async function acknowledgeFinding(id: number): Promise<Finding> {
-  const response = await apiClient.post<Finding>(
-    `/api/findings/${id}/acknowledge`,
-  );
+  const response = await apiClient.patch<Finding>(`/api/findings/${id}`, {
+    status: "acknowledged",
+  });
   return response.data;
 }
 
@@ -91,9 +91,11 @@ export async function createCaseDecision(
 export async function submitCaseDecision(
   caseId: string,
   decisionId: number,
+  data: { rationale: string },
 ): Promise<CaseDecision> {
   const response = await apiClient.post<CaseDecision>(
     `/api/cases/${caseId}/decisions/${decisionId}/submit`,
+    data,
   );
   return response.data;
 }
@@ -101,9 +103,11 @@ export async function submitCaseDecision(
 export async function approveCaseDecision(
   caseId: string,
   decisionId: number,
+  data?: { comment?: string },
 ): Promise<CaseDecision> {
   const response = await apiClient.post<CaseDecision>(
     `/api/cases/${caseId}/decisions/${decisionId}/approve`,
+    data ?? {},
   );
   return response.data;
 }
@@ -111,7 +115,7 @@ export async function approveCaseDecision(
 export async function rejectCaseDecision(
   caseId: string,
   decisionId: number,
-  data: { reason: string },
+  data: { rejection_reason: string },
 ): Promise<CaseDecision> {
   const response = await apiClient.post<CaseDecision>(
     `/api/cases/${caseId}/decisions/${decisionId}/reject`,
@@ -145,9 +149,11 @@ export async function getEvidencePackDetail(
 
 export async function createEvidencePack(
   caseId: string,
+  data: { format: string } = { format: "json" },
 ): Promise<EvidencePack> {
   const response = await apiClient.post<EvidencePack>(
     `/api/cases/${caseId}/evidence-packs/`,
+    data,
   );
   return response.data;
 }

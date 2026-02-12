@@ -55,7 +55,7 @@ export function useCloseFinding() {
       id: number;
       reason: string;
       comment: string;
-    }) => closeFinding(id, { reason, comment }),
+    }) => closeFinding(id, { closed_reason: reason, closed_comment: comment }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: workbenchKeys.findings() });
     },
@@ -66,7 +66,7 @@ export function useEscalateFinding() {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: ({ id, case_id }: { id: number; case_id: string }) =>
-      escalateFinding(id, { case_id }),
+      escalateFinding(id, { existing_case_id: case_id }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: workbenchKeys.findings() });
     },
@@ -114,7 +114,13 @@ export function useCreateDecision(caseId: string) {
 export function useSubmitDecision(caseId: string) {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: (decisionId: number) => submitCaseDecision(caseId, decisionId),
+    mutationFn: ({
+      decisionId,
+      rationale,
+    }: {
+      decisionId: number;
+      rationale: string;
+    }) => submitCaseDecision(caseId, decisionId, { rationale }),
     onSuccess: () => {
       queryClient.invalidateQueries({
         queryKey: workbenchKeys.decisions(caseId),
@@ -126,7 +132,18 @@ export function useSubmitDecision(caseId: string) {
 export function useApproveDecision(caseId: string) {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: (decisionId: number) => approveCaseDecision(caseId, decisionId),
+    mutationFn: ({
+      decisionId,
+      comment,
+    }: {
+      decisionId: number;
+      comment?: string;
+    }) =>
+      approveCaseDecision(
+        caseId,
+        decisionId,
+        comment ? { comment } : undefined,
+      ),
     onSuccess: () => {
       queryClient.invalidateQueries({
         queryKey: workbenchKeys.decisions(caseId),
@@ -144,7 +161,7 @@ export function useRejectDecision(caseId: string) {
     }: {
       decisionId: number;
       reason: string;
-    }) => rejectCaseDecision(caseId, decisionId, { reason }),
+    }) => rejectCaseDecision(caseId, decisionId, { rejection_reason: reason }),
     onSuccess: () => {
       queryClient.invalidateQueries({
         queryKey: workbenchKeys.decisions(caseId),
@@ -173,7 +190,8 @@ export function useEvidencePackDetail(caseId: string, packId: string) {
 export function useCreateEvidencePack(caseId: string) {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: () => createEvidencePack(caseId),
+    mutationFn: (format: string = "json") =>
+      createEvidencePack(caseId, { format }),
     onSuccess: () => {
       queryClient.invalidateQueries({
         queryKey: workbenchKeys.evidencePacks(caseId),

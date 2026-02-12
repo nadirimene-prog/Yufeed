@@ -110,8 +110,10 @@ export default function CaseDecisionsPage() {
         {/* Timeline */}
         <DecisionTimeline
           decisions={decisions}
-          onSubmit={(id) => submitMutation.mutate(id)}
-          onApprove={(id) => approveMutation.mutate(id)}
+          onSubmit={(id, rationale) =>
+            submitMutation.mutate({ decisionId: id, rationale })
+          }
+          onApprove={(id) => approveMutation.mutate({ decisionId: id })}
           onReject={(id) => {
             setRejectDialog(id);
             setRejectReason("");
