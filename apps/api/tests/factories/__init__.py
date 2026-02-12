@@ -8,6 +8,9 @@ from tests.factories.transaction_factories import (
     CaseFactory,
     MonitoringRuleFactory,
     RuleHitFactory,
+    FindingFactory,
+    CaseDecisionFactory,
+    EvidencePackFactory,
 )
 from tests.factories.legal_factories import (
     LegalDocumentFactory,
@@ -20,6 +23,9 @@ __all__ = [
     "CaseFactory",
     "MonitoringRuleFactory",
     "RuleHitFactory",
+    "FindingFactory",
+    "CaseDecisionFactory",
+    "EvidencePackFactory",
     "LegalDocumentFactory",
     "UserFactory",
 ]

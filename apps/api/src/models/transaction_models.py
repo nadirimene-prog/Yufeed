@@ -22,6 +22,7 @@ from sqlalchemy.orm import relationship
 from datetime import datetime, timezone
 
 from src.database import Base
+from src.models.associations import case_findings
 
 
 def utc_now() -> datetime:
@@ -189,6 +190,14 @@ class Case(Base):
 
     created_at = Column(DateTime, default=utc_now)
     updated_at = Column(DateTime, default=utc_now, onupdate=utc_now)
+
+    # Finding-first: cases are created from one or more findings
+    findings = relationship(
+        "Finding",
+        secondary=case_findings,
+        back_populates="cases",
+        lazy="selectin",
+    )
 
 
 class MonitoringRule(Base):

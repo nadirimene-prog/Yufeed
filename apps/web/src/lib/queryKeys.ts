@@ -68,3 +68,22 @@ export const modelRegistryKeys = {
   modelDetail: (id: number | string) =>
     [...modelRegistryKeys.models(), "detail", id] as const,
 } as const;
+
+export const workbenchKeys = {
+  all: ["workbench"] as const,
+  findings: () => [...workbenchKeys.all, "findings"] as const,
+  findingsList: (params: Record<string, unknown>) =>
+    [...workbenchKeys.findings(), "list", params] as const,
+  findingDetail: (id: number) =>
+    [...workbenchKeys.findings(), "detail", id] as const,
+  decisions: (caseId: string) =>
+    [...workbenchKeys.all, "decisions", caseId] as const,
+  decisionsList: (caseId: string, params: Record<string, unknown>) =>
+    [...workbenchKeys.decisions(caseId), "list", params] as const,
+  evidencePacks: (caseId: string) =>
+    [...workbenchKeys.all, "evidence-packs", caseId] as const,
+  evidencePacksList: (caseId: string, params: Record<string, unknown>) =>
+    [...workbenchKeys.evidencePacks(caseId), "list", params] as const,
+  evidencePackDetail: (caseId: string, packId: string) =>
+    [...workbenchKeys.evidencePacks(caseId), "detail", packId] as const,
+} as const;

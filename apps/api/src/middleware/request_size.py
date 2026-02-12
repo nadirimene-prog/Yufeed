@@ -54,6 +54,10 @@ class RequestSizeLimitMiddleware(BaseHTTPMiddleware):
                     },
                 )
 
+            # Content-Length is present and under the limit — skip the
+            # slow stream-reading path to avoid consuming the body.
+            return await call_next(request)
+
         # ----------------------------------------------------------
         # Slow path: no Content-Length (e.g. chunked transfer).
         # Read the body in chunks and abort if the cumulative size

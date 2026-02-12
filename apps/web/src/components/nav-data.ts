@@ -1,12 +1,5 @@
 import type { LucideIcon } from "lucide-react";
-import {
-  Activity,
-  Scale,
-  Search,
-  ShieldAlert,
-  Settings,
-  Sparkles,
-} from "lucide-react";
+import { LayoutDashboard, ShieldAlert, Search, Settings } from "lucide-react";
 
 export type NavItem = {
   label: string;
@@ -24,49 +17,33 @@ export type NavArea = {
   isManual?: boolean;
 };
 
-const WORK_ITEMS: NavItem[] = [
+/* ─── 1. OPERATIONS ─────────────────────────────────────────────── */
+const OPERATIONS_ITEMS: NavItem[] = [
   {
     label: "Command Center",
     href: "/dashboard",
-    description: "Global status and daily entry point.",
+    description: "Daily overview and KPIs.",
   },
   {
-    label: "Obligations Review",
-    href: "/compliance/obligations",
-    description: "Review queue and approvals.",
+    label: "Findings Triage",
+    href: "/findings",
+    description: "Triage, acknowledge, escalate.",
   },
+  { label: "Cases", href: "/cases", description: "Investigation workspace." },
+  { label: "Alerts", href: "/alerts", description: "Transaction alert queue." },
   {
-    label: "Policy Mapping",
-    href: "/compliance/policies",
-    description: "Map internal policies to obligations.",
-  },
-  {
-    label: "Risk Escalations",
-    href: "/compliance/risk-map",
-    description: "High priority risks and remediation.",
-  },
-  {
-    label: "KYC/KYB",
-    href: "/compliance",
-    description: "Case triage and approvals.",
+    label: "SAR Filing",
+    href: "/sar/prepare",
+    description: "SAR preparation workflow.",
   },
 ];
 
+/* ─── 2. COMPLIANCE ─────────────────────────────────────────────── */
 const COMPLIANCE_ITEMS: NavItem[] = [
-  {
-    label: "Overview",
-    href: "/compliance/dashboard",
-    description: "KPIs and backlog summary.",
-  },
-  {
-    label: "KYC/KYB",
-    href: "/compliance",
-    description: "Case workflow and reviews.",
-  },
   {
     label: "Obligations",
     href: "/compliance/obligations",
-    description: "Regulatory obligation list.",
+    description: "Regulatory obligations.",
   },
   {
     label: "Policies",
@@ -76,48 +53,31 @@ const COMPLIANCE_ITEMS: NavItem[] = [
   {
     label: "Risk Map",
     href: "/compliance/risk-map",
-    description: "Risk inventory and remediation.",
+    description: "Risk inventory.",
+  },
+  {
+    label: "KYC / KYB",
+    href: "/compliance",
+    description: "Onboarding reviews.",
   },
   {
     label: "AML Scope",
     href: "/compliance/aml-scope",
     description: "Scope configuration.",
   },
-];
-
-const INVESTIGATION_ITEMS: NavItem[] = [
   {
-    label: "Alerts",
-    href: "/alerts",
-    description: "All alerts queue.",
+    label: "Monitoring Rules",
+    href: "/transaction-monitoring/rules",
+    description: "Rule management.",
   },
   {
-    label: "Cases",
-    href: "/cases",
-    description: "Investigations workspace.",
-  },
-  {
-    label: "Transaction Alerts",
-    href: "/transaction-alerts",
-    description: "AML alert queue.",
-  },
-  {
-    label: "SAR Filing",
-    href: "/sar/prepare",
-    description: "SAR workflow.",
-  },
-  {
-    label: "Network Analysis",
-    href: "/network-analysis",
-    description: "Graph investigations.",
-  },
-  {
-    label: "Audit Trail",
-    href: "/audit",
-    description: "Activity log.",
+    label: "Monitoring Dashboard",
+    href: "/transaction-monitoring/dashboard",
+    description: "Live metrics.",
   },
 ];
 
+/* ─── 3. INTELLIGENCE ───────────────────────────────────────────── */
 const INTELLIGENCE_ITEMS: NavItem[] = [
   {
     label: "Global Search",
@@ -127,51 +87,30 @@ const INTELLIGENCE_ITEMS: NavItem[] = [
   {
     label: "AI Officer",
     href: "/aml-officer",
-    description: "AI assistant.",
+    description: "AI compliance assistant.",
   },
   {
-    label: "Query",
+    label: "Query Lab",
     href: "/query",
-    description: "Natural language research.",
+    description: "Natural-language research.",
   },
   {
-    label: "Compliance Reports",
+    label: "Reports",
     href: "/compliance-report",
-    description: "Reporting views.",
+    description: "Compliance reporting.",
   },
+  {
+    label: "Network Analysis",
+    href: "/network-analysis",
+    description: "Graph investigations.",
+  },
+  { label: "Audit Trail", href: "/audit", description: "Activity log." },
 ];
 
-const MONITORING_ITEMS: NavItem[] = [
+/* ─── 4. SETTINGS ───────────────────────────────────────────────── */
+const SETTINGS_ITEMS: NavItem[] = [
   {
-    label: "Monitoring Dashboard",
-    href: "/transaction-monitoring/dashboard",
-    description: "Live metrics and queues.",
-  },
-  {
-    label: "Monitoring Rules",
-    href: "/transaction-monitoring/rules",
-    description: "Rule management.",
-  },
-  {
-    label: "Decisioning",
-    href: "/decisioning",
-    description: "Scoring and decisions.",
-  },
-  {
-    label: "Travel Rule",
-    href: "/travel-rule",
-    description: "Travel rule compliance.",
-  },
-  {
-    label: "On-chain Risk",
-    href: "/onchain-risk",
-    description: "Crypto exposure analysis.",
-  },
-];
-
-const ADMIN_ITEMS: NavItem[] = [
-  {
-    label: "Settings",
+    label: "Preferences",
     href: "/settings",
     description: "User and system preferences.",
   },
@@ -185,70 +124,76 @@ const ADMIN_ITEMS: NavItem[] = [
     href: "/watchlists",
     description: "Watchlist management.",
   },
+  {
+    label: "Decisioning",
+    href: "/decisioning",
+    description: "Scoring configuration.",
+  },
+  {
+    label: "Travel Rule",
+    href: "/travel-rule",
+    description: "Travel rule compliance.",
+  },
+  {
+    label: "On-chain Risk",
+    href: "/onchain-risk",
+    description: "Crypto exposure analysis.",
+  },
 ];
 
 export const NAV_AREAS: NavArea[] = [
   {
-    id: "work",
-    label: "Work",
-    icon: Sparkles,
-    defaultHref: "/compliance/obligations",
-    routePrefixes: ["/compliance", "/dashboard"],
-    items: WORK_ITEMS,
-    isManual: true,
+    id: "operations",
+    label: "Operations",
+    icon: LayoutDashboard,
+    defaultHref: "/dashboard",
+    routePrefixes: [
+      "/dashboard",
+      "/findings",
+      "/cases",
+      "/alerts",
+      "/transaction-alerts",
+      "/sar",
+    ],
+    items: OPERATIONS_ITEMS,
   },
   {
     id: "compliance",
     label: "Compliance",
-    icon: Scale,
-    defaultHref: "/compliance/dashboard",
-    routePrefixes: ["/compliance"],
-    items: COMPLIANCE_ITEMS,
-  },
-  {
-    id: "investigations",
-    label: "Investigations",
     icon: ShieldAlert,
-    defaultHref: "/alerts",
-    routePrefixes: [
-      "/alerts",
-      "/cases",
-      "/transaction-alerts",
-      "/sar",
-      "/audit",
-      "/network-analysis",
-    ],
-    items: INVESTIGATION_ITEMS,
+    defaultHref: "/compliance/obligations",
+    routePrefixes: ["/compliance", "/transaction-monitoring"],
+    items: COMPLIANCE_ITEMS,
   },
   {
     id: "intelligence",
     label: "Intelligence",
     icon: Search,
     defaultHref: "/search",
-    routePrefixes: ["/search", "/query", "/aml-officer", "/compliance-report"],
+    routePrefixes: [
+      "/search",
+      "/query",
+      "/aml-officer",
+      "/compliance-report",
+      "/network-analysis",
+      "/audit",
+    ],
     items: INTELLIGENCE_ITEMS,
   },
   {
-    id: "monitoring",
-    label: "Monitoring",
-    icon: Activity,
-    defaultHref: "/transaction-monitoring/dashboard",
+    id: "settings",
+    label: "Settings",
+    icon: Settings,
+    defaultHref: "/settings",
     routePrefixes: [
-      "/transaction-monitoring",
+      "/settings",
+      "/model-registry",
+      "/watchlists",
       "/decisioning",
       "/travel-rule",
       "/onchain-risk",
-      "/monitoring",
     ],
-    items: MONITORING_ITEMS,
-  },
-  {
-    id: "admin",
-    label: "Admin",
-    icon: Settings,
-    defaultHref: "/settings",
-    routePrefixes: ["/settings", "/model-registry", "/watchlists"],
-    items: ADMIN_ITEMS,
+    items: SETTINGS_ITEMS,
   },
 ];
 
@@ -276,7 +221,7 @@ export const getAutoAreaForPath = (pathname: string) => {
       return area;
     }
   }
-  return NAV_AREAS.find((area) => area.id === "compliance") || NAV_AREAS[0];
+  return NAV_AREAS.find((area) => area.id === "operations") || NAV_AREAS[0];
 };
 
 export const getAreaById = (areaId: string) =>

@@ -14,7 +14,9 @@
       "Bash(git -C /Users/imenenadir/Documents/Yufeed ls-files:*)",
       "Bash(npx vitest run:*)",
       "Bash(npx next lint:*)",
-      "Bash(npm run lint:*)"
+      "Bash(npm run lint:*)",
+      "Bash(ENVIRONMENT=test python -m pytest:*)",
+      "Bash(ENVIRONMENT=test python3 -m pytest:*)"
     ]
   }
 }

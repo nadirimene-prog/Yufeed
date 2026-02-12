@@ -513,6 +513,55 @@ def check_obligation_deadlines():
                 )
                 alerts_sent[window_name] += 1
 
+        # Finding-first: broadcast obligation findings to active tenants
+        if all_alerts:
+            try:
+                from src.models.tenant_models import Tenant
+                from src.services.finding_service import FindingService
+
+                active_tenants = db.query(Tenant).filter(Tenant.is_active.is_(True)).all()
+                finding_svc = FindingService(db)
+                for alert_data in all_alerts:
+                    window_name = alert_data["window"]
+                    # Only create findings for overdue and 7-day windows
+                    if window_name not in ("overdue", "7_days"):
+                        continue
+                    for tenant in active_tenants:
+                        finding_svc.create_or_update_finding(
+                            tenant_id=tenant.tenant_id,
+                            finding_type="OBLIGATION_BREACH",
+                            fingerprint=(
+                                f"{tenant.tenant_id}:OBLIGATION_BREACH:"
+                                f"{alert_data['obligation_id']}:{window_name}"
+                            ),
+                            severity="high" if window_name == "overdue" else "medium",
+                            title=(
+                                f"Obligation {'overdue' if window_name == 'overdue' else 'due soon'}: "
+                                f"{alert_data['obligation_id']}"
+                            ),
+                            summary=alert_data["obligation_text"][:500],
+                            source_refs={
+                                "obligation_id": alert_data["obligation_id"],
+                                "celex": alert_data.get("celex"),
+                                "deadline": alert_data.get("deadline"),
+                                "article_ref": alert_data.get("article_ref"),
+                            },
+                            explainability={
+                                "window": window_name,
+                                "deadline": alert_data.get("deadline"),
+                                "status": alert_data.get("status"),
+                            },
+                        )
+                db.commit()
+                logger.info(
+                    "Created obligation findings for %d alerts across %d tenants",
+                    len([a for a in all_alerts if a["window"] in ("overdue", "7_days")]),
+                    len(active_tenants),
+                )
+            except Exception as e:
+                logger.warning("Failed to create obligation findings: %s", e, exc_info=True)
+                db.rollback()
+
         # Send consolidated email if there are alerts
         total_alerts = sum(alerts_sent.values())
         if total_alerts > 0 and settings.ADMIN_EMAIL:

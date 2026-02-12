@@ -21,8 +21,10 @@ def utc_now() -> datetime:
 
 
 from src.models.transaction_models import Transaction, Alert, MonitoringRule, UserRiskProfile
+from src.models.finding_models import Finding, FindingStatus
 from src.models.models import LegalDocument
 from src.audit.recorders import record_event, record_decision
+from src.services.finding_service import FindingService
 from src.tenancy.context import get_current_tenant
 from src.monitoring.metrics import rule_coercion_failures_total
 
@@ -356,6 +358,32 @@ class RulesEngine:
 
         self.db.add(alert)
 
+        # Finding-first: create/update finding via centralized service
+        try:
+            svc = FindingService(self.db)
+            svc.create_or_update_finding(
+                tenant_id=transaction.tenant_id,
+                finding_type="TX_ALERT",
+                fingerprint=f"{transaction.tenant_id}:TX_ALERT:{transaction.transaction_id}:{rule.rule_id}",
+                severity=(rule.severity or "").lower() or None,
+                title=rule.name,
+                summary=f"Rule triggered on transaction {transaction.transaction_id}",
+                source_refs={
+                    "alert_id": alert_id,
+                    "transaction_id": transaction.transaction_id,
+                    "rule_id": rule.rule_id,
+                    "user_id": transaction.user_id,
+                },
+                explainability={
+                    "evidence": evidence,
+                    "matched_rules": {rule.rule_id: rule.name},
+                    "regulation_context": regulation_context,
+                    "related_regulations": related_regulations,
+                },
+            )
+        except Exception:
+            logger.warning("Failed to create finding for alert %s", alert_id, exc_info=True)
+
         event_record = record_event(
             self.db,
             event_type="rule.triggered",
@@ -593,6 +621,32 @@ Article Reference: {rule.regulation_article or 'General compliance'}
         )
 
         self.db.add(alert)
+
+        # Finding-first: create/update velocity finding via centralized service
+        try:
+            svc = FindingService(self.db)
+            svc.create_or_update_finding(
+                tenant_id=transactions[0].tenant_id,
+                finding_type="TX_ALERT",
+                fingerprint=f"{transactions[0].tenant_id}:TX_ALERT:VELOCITY:{user_id}:{rule.rule_id}",
+                severity=(rule.severity or "").lower() or None,
+                title=rule.name,
+                summary=f"Velocity trigger for user {user_id} ({transaction_count} tx / {float(total_amount)})",
+                source_refs={
+                    "alert_id": alert_id,
+                    "user_id": user_id,
+                    "rule_id": rule.rule_id,
+                    "transactions": [tx.transaction_id for tx in transactions[:50]],
+                },
+                explainability={
+                    "evidence": evidence,
+                    "matched_rules": {rule.rule_id: rule.name},
+                    "regulation_context": regulation_context,
+                    "related_regulations": related_regulations,
+                },
+            )
+        except Exception:
+            logger.warning("Failed to create velocity finding", exc_info=True)
 
         logger.info(f"Velocity alert {alert_id} created for user {user_id}")
 

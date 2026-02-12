@@ -9,6 +9,8 @@ import {
   TrendingUp,
   ExternalLink,
   CheckCircle,
+  Gavel,
+  Archive,
 } from "lucide-react";
 import { fetchWithAuth } from "@/lib/auth";
 import { getApiBaseUrl } from "@/lib/apiBaseUrl";
@@ -259,6 +261,27 @@ export default function CaseDetailPage() {
                 )}
             </div>
           </div>
+        </div>
+
+        {/* Tab navigation */}
+        <div className="flex gap-1 p-1 rounded-xl bg-gray-100 dark:bg-gray-800/60 w-fit mb-6">
+          <div className="px-4 py-2 rounded-lg bg-white dark:bg-gray-700 text-sm font-medium text-gray-900 dark:text-white shadow-sm">
+            Overview
+          </div>
+          <button
+            onClick={() => router.push(`/cases/${caseData.case_id}/decisions`)}
+            className="px-4 py-2 rounded-lg text-sm font-medium text-gray-500 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white hover:bg-white/50 dark:hover:bg-gray-700/50 transition flex items-center gap-1.5"
+          >
+            <Gavel className="h-3.5 w-3.5" />
+            Decisions
+          </button>
+          <button
+            onClick={() => router.push(`/cases/${caseData.case_id}/evidence`)}
+            className="px-4 py-2 rounded-lg text-sm font-medium text-gray-500 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white hover:bg-white/50 dark:hover:bg-gray-700/50 transition flex items-center gap-1.5"
+          >
+            <Archive className="h-3.5 w-3.5" />
+            Evidence Packs
+          </button>
         </div>
 
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">

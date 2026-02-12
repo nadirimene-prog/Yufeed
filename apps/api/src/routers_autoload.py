@@ -57,6 +57,18 @@ def register_routers(app: FastAPI) -> None:
     from .api.features import router as features_router
 
     include_with_api_prefix(features_router)
+
+    from .api.findings import router as findings_router
+
+    include_with_api_prefix(findings_router)
+
+    from .api.case_decisions import router as case_decisions_router
+
+    include_with_api_prefix(case_decisions_router)
+
+    from .api.evidence_packs import router as evidence_packs_router
+
+    include_with_api_prefix(evidence_packs_router)
     from .api.impact import router as impact_router
 
     include_with_api_prefix(impact_router)

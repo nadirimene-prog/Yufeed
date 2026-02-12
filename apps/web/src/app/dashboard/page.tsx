@@ -16,6 +16,8 @@ import {
   Sparkles,
   Brain,
   Zap,
+  Eye,
+  Clock,
 } from "lucide-react";
 
 import apiClient from "@/lib/http";
@@ -46,6 +48,8 @@ import {
   springs,
 } from "@/lib/motion";
 import { cn } from "@/lib/utils";
+import { useFindings } from "@/hooks/queries/useWorkbenchData";
+import type { Finding } from "@/types/workbench";
 
 interface Coverage {
   total_documents: number;
@@ -837,6 +841,13 @@ export default function DashboardPage() {
       </motion.div>
 
       {/* ════════════════════════════════════════════════════════════════
+          FINDINGS TRIAGE WIDGET
+          ════════════════════════════════════════════════════════════════ */}
+      <motion.div variants={staggerItem}>
+        <FindingsTriageWidget />
+      </motion.div>
+
+      {/* ════════════════════════════════════════════════════════════════
           COVERAGE & REPORTING
           ════════════════════════════════════════════════════════════════ */}
       <motion.div variants={staggerItem} className="grid gap-6 lg:grid-cols-2">
@@ -1042,5 +1053,124 @@ export default function DashboardPage() {
         </BentoGrid>
       </motion.div>
     </motion.div>
+  );
+}
+
+/* ════════════════════════════════════════════════════════════════
+   FINDINGS TRIAGE WIDGET
+   ════════════════════════════════════════════════════════════════ */
+
+const findingSeverityDot: Record<string, string> = {
+  critical: "bg-red-500",
+  high: "bg-orange-500",
+  medium: "bg-amber-500",
+  low: "bg-blue-500",
+  info: "bg-gray-400",
+};
+
+function FindingsTriageWidget() {
+  const { data: findings = [], isLoading } = useFindings({
+    limit: 8,
+    status: "open",
+  });
+
+  const openCount = findings.length;
+  const criticalCount = findings.filter(
+    (f) => f.severity === "critical",
+  ).length;
+
+  return (
+    <GlassCard variant="interactive">
+      <GlassCardHeader className="flex flex-wrap items-start justify-between gap-3">
+        <div>
+          <GlassCardTitle className="flex items-center gap-2">
+            <Eye className="h-5 w-5 text-blue-400" />
+            Findings Triage
+          </GlassCardTitle>
+          <p className="text-sm text-white/40 mt-1">
+            Open findings requiring action.
+          </p>
+        </div>
+        <div className="flex items-center gap-3">
+          <div className="text-right">
+            <div className="text-lg font-bold text-white font-mono">
+              {openCount}
+            </div>
+            <div className="text-[10px] uppercase tracking-wider text-white/30">
+              Open
+            </div>
+          </div>
+          {criticalCount > 0 && (
+            <div className="text-right">
+              <div className="text-lg font-bold text-red-400 font-mono">
+                {criticalCount}
+              </div>
+              <div className="text-[10px] uppercase tracking-wider text-white/30">
+                Critical
+              </div>
+            </div>
+          )}
+          <Link href="/findings">
+            <Button
+              variant="gradient"
+              size="sm"
+              rightIcon={<ArrowUpRight className="h-3 w-3" />}
+            >
+              View All
+            </Button>
+          </Link>
+        </div>
+      </GlassCardHeader>
+      <GlassCardContent>
+        {isLoading ? (
+          <div className="space-y-2">
+            {[1, 2, 3].map((i) => (
+              <Skeleton key={i} className="h-14 w-full rounded-lg" />
+            ))}
+          </div>
+        ) : findings.length === 0 ? (
+          <EmptyStateInline message="No open findings. All clear!" />
+        ) : (
+          <div className="space-y-2">
+            {findings.slice(0, 6).map((finding: Finding) => (
+              <Link
+                key={finding.id}
+                href={`/findings/${finding.id}`}
+                className="block p-3 rounded-lg bg-white/[0.02] border border-white/[0.04] hover:bg-white/[0.04] hover:border-white/[0.08] transition-all group"
+              >
+                <div className="flex items-start gap-3">
+                  <div
+                    className={cn(
+                      "mt-1.5 h-2 w-2 rounded-full shrink-0",
+                      findingSeverityDot[finding.severity] ?? "bg-gray-400",
+                    )}
+                  />
+                  <div className="min-w-0 flex-1">
+                    <div className="flex items-center gap-2 mb-0.5">
+                      <span className="text-[10px] font-semibold uppercase tracking-wider text-white/50">
+                        {finding.severity}
+                      </span>
+                      <span className="text-[10px] text-white/30">
+                        {finding.finding_type.toUpperCase()}
+                      </span>
+                    </div>
+                    <p className="text-sm font-medium text-white line-clamp-1 group-hover:text-accent transition-colors">
+                      {finding.title}
+                    </p>
+                    <p className="text-xs text-white/30 mt-0.5 line-clamp-1">
+                      {finding.summary}
+                    </p>
+                  </div>
+                  <div className="flex items-center gap-1 text-[10px] text-white/30 shrink-0">
+                    <Clock className="h-3 w-3" />
+                    {new Date(finding.created_at).toLocaleDateString()}
+                  </div>
+                </div>
+              </Link>
+            ))}
+          </div>
+        )}
+      </GlassCardContent>
+    </GlassCard>
   );
 }

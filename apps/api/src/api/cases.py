@@ -17,9 +17,13 @@ def utc_now() -> datetime:
 
 import uuid
 
+from pydantic import BaseModel, Field
+
 from src.database import get_db
 from src.models.transaction_models import Case, Alert, Transaction
 from src.models.models import LegalDocument
+from src.models.finding_models import Finding
+from src.models.case_note import CaseNote
 from src.schemas.transaction_schemas import CaseCreate, CaseUpdate, CaseResponse
 from src.audit.recorders import record_event, record_decision
 from src.tenancy.queries import (
@@ -666,3 +670,138 @@ def _format_evidence(evidence: Optional[dict]) -> str:
         formatted.append(f"- {key}: {value}")
 
     return "\n".join(formatted)
+
+
+# ============================================================================
+# BULK LINK FINDINGS
+# ============================================================================
+
+
+class LinkFindingsRequest(BaseModel):
+    finding_ids: List[int] = Field(..., min_length=1)
+
+
+class LinkFindingsResponse(BaseModel):
+    case_id: str
+    linked: int
+    skipped: int
+
+
+@router.post("/{case_id}/findings", response_model=LinkFindingsResponse)
+def link_findings_to_case(
+    case_id: str,
+    payload: LinkFindingsRequest,
+    db: Session = Depends(get_db),
+    tenant_id: str = Depends(require_tenant),
+):
+    """Bulk-link findings to a case.  Existing links are silently skipped."""
+    case = get_tenant_filtered_query(Case, db).filter(Case.case_id == case_id).first()
+    if not case:
+        raise HTTPException(status_code=404, detail="Case not found")
+    ensure_tenant_match(case, tenant_id)
+
+    findings = (
+        get_tenant_filtered_query(Finding, db).filter(Finding.id.in_(payload.finding_ids)).all()
+    )
+
+    existing_ids = {f.id for f in case.findings}
+    linked = 0
+    for finding in findings:
+        ensure_tenant_match(finding, tenant_id)
+        if finding.id not in existing_ids:
+            case.findings.append(finding)
+            linked += 1
+
+    case.updated_at = utc_now()
+    record_event(
+        db,
+        event_type="case.findings_linked",
+        entity_type="case",
+        entity_id=case.case_id,
+        payload={"finding_ids": [f.id for f in findings], "linked": linked},
+    )
+    db.commit()
+    return LinkFindingsResponse(
+        case_id=case.case_id,
+        linked=linked,
+        skipped=len(payload.finding_ids) - linked,
+    )
+
+
+# ============================================================================
+# CASE NOTES
+# ============================================================================
+
+
+class CaseNoteCreate(BaseModel):
+    content: str = Field(..., min_length=1)
+    note_type: Optional[str] = Field("general", max_length=50)
+
+
+class CaseNoteResponse(BaseModel):
+    id: int
+    case_id: int
+    author_email: str
+    content: str
+    note_type: str
+    created_at: datetime
+
+    class Config:
+        from_attributes = True
+
+
+@router.post("/{case_id}/notes", response_model=CaseNoteResponse, status_code=201)
+def add_case_note(
+    case_id: str,
+    payload: CaseNoteCreate,
+    db: Session = Depends(get_db),
+    tenant_id: str = Depends(require_tenant),
+):
+    """Add a note to a case."""
+    from src.auth.dependencies import get_current_user
+
+    case = get_tenant_filtered_query(Case, db).filter(Case.case_id == case_id).first()
+    if not case:
+        raise HTTPException(status_code=404, detail="Case not found")
+    ensure_tenant_match(case, tenant_id)
+
+    note = CaseNote(
+        tenant_id=tenant_id,
+        case_id=case.id,
+        author_id="system",
+        author_email="system",
+        content=payload.content,
+        note_type=payload.note_type or "general",
+    )
+    db.add(note)
+    record_event(
+        db,
+        event_type="case.note_added",
+        entity_type="case",
+        entity_id=case.case_id,
+        payload={"note_type": note.note_type},
+    )
+    db.commit()
+    db.refresh(note)
+    return note
+
+
+@router.get("/{case_id}/notes", response_model=List[CaseNoteResponse])
+def list_case_notes(
+    case_id: str,
+    db: Session = Depends(get_db),
+    tenant_id: str = Depends(require_tenant),
+):
+    """List all notes for a case."""
+    case = get_tenant_filtered_query(Case, db).filter(Case.case_id == case_id).first()
+    if not case:
+        raise HTTPException(status_code=404, detail="Case not found")
+    ensure_tenant_match(case, tenant_id)
+
+    notes = (
+        db.query(CaseNote)
+        .filter(CaseNote.case_id == case.id, CaseNote.tenant_id == tenant_id)
+        .order_by(CaseNote.created_at.desc())
+        .all()
+    )
+    return notes

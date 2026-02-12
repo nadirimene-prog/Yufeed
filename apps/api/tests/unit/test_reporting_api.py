@@ -2,7 +2,11 @@ import pytest
 from datetime import datetime, timedelta, timezone
 from types import SimpleNamespace
 
-from src.api import reporting as reporting_api
+from src.api.reports import sar_filing as sar_filing_api
+from src.api.reports import evidence as evidence_api
+from src.api.reports import compliance_dashboard as dashboard_api
+from src.api.reports import scope_analysis as scope_api
+from src.api.reports import audit_trails as audit_api
 from src.auth.dependencies import CurrentUser
 from src.models.transaction_models import Transaction, Alert, Case, MonitoringRule, UserRiskProfile
 from src.models.models import LegalDocument
@@ -38,9 +42,9 @@ def test_reporting_endpoints_cover_dashboard_and_exports(db_session, monkeypatch
         def prepare_uar(self, alert_id):
             return {"alert_id": alert_id, "prepared": True}
 
-    monkeypatch.setattr(reporting_api, "SARFilingSystem", DummySAR)
-    monkeypatch.setattr(reporting_api, "UARFilingSystem", DummyUAR)
-    monkeypatch.setattr(reporting_api, "publish_event_safe", lambda *args, **kwargs: None)
+    monkeypatch.setattr(sar_filing_api, "SARFilingSystem", DummySAR)
+    monkeypatch.setattr(sar_filing_api, "UARFilingSystem", DummyUAR)
+    monkeypatch.setattr(sar_filing_api, "publish_event_safe", lambda *args, **kwargs: None)
 
     now = datetime.now(timezone.utc)
     doc = LegalDocument(
@@ -232,12 +236,12 @@ def test_reporting_endpoints_cover_dashboard_and_exports(db_session, monkeypatch
     db_session.commit()
 
     # SAR / UAR flows
-    sar = reporting_api.prepare_sar(
+    sar = sar_filing_api.prepare_sar(
         case.case_id, db_session, CurrentUser("1", "admin@example.com", "admin")
     )
     assert sar["case_id"] == case.case_id
 
-    result = reporting_api.file_sar(
+    result = sar_filing_api.file_sar(
         case.case_id,
         "EU",
         False,
@@ -246,27 +250,27 @@ def test_reporting_endpoints_cover_dashboard_and_exports(db_session, monkeypatch
     )
     assert "filing_reference" in result
 
-    uar = reporting_api.prepare_uar(
+    uar = sar_filing_api.prepare_uar(
         alert.id, db_session, CurrentUser("1", "admin@example.com", "admin")
     )
     assert uar["alert_id"] == alert.id
 
     # Evidence exports
-    case_export = reporting_api.export_case_evidence(case.case_id, db_session, None)
+    case_export = evidence_api.export_case_evidence(case.case_id, db_session, None)
     assert case_export["case"]["case_id"] == case.case_id
 
-    decision_export = reporting_api.export_decision_evidence(decision.decision_id, db_session, None)
+    decision_export = evidence_api.export_decision_evidence(decision.decision_id, db_session, None)
     assert decision_export["decision"]["decision_id"] == decision.decision_id
 
-    travel_export = reporting_api.export_travel_rule_evidence(
+    travel_export = evidence_api.export_travel_rule_evidence(
         travel_record.request_id, db_session, None
     )
     assert travel_export["travel_rule_request"]["request_id"] == travel_record.request_id
 
     # Dashboard + summary reports
-    reporting_api.get_compliance_dashboard(None, None, db_session)
+    dashboard_api.get_compliance_dashboard(None, None, db_session)
 
-    home = reporting_api.compliance_home_dashboard(
+    home = dashboard_api.compliance_home_dashboard(
         intake_days=7,
         intake_jurisdiction=None,
         intake_source=None,
@@ -279,7 +283,7 @@ def test_reporting_endpoints_cover_dashboard_and_exports(db_session, monkeypatch
     )
     assert home["coverage"]["total_documents"] >= 1
 
-    aml_scope = reporting_api.aml_scope_review(
+    aml_scope = scope_api.aml_scope_review(
         jurisdiction="EU",
         scope="psp",
         limit=10,
@@ -288,19 +292,19 @@ def test_reporting_endpoints_cover_dashboard_and_exports(db_session, monkeypatch
     )
     assert aml_scope["total_obligations"] >= 1
 
-    alerts_summary = reporting_api.get_alerts_summary_report(None, None, db_session)
+    alerts_summary = audit_api.get_alerts_summary_report(None, None, db_session)
     assert alerts_summary["total_alerts"] >= 1
 
-    tx_summary = reporting_api.get_transactions_summary_report(None, None, db_session)
+    tx_summary = audit_api.get_transactions_summary_report(None, None, db_session)
     assert tx_summary["total_transactions"] >= 1
 
-    coverage = reporting_api.get_regulatory_coverage_report(db_session)
+    coverage = scope_api.get_regulatory_coverage_report(db_session)
     assert coverage["total_regulations_monitored"] >= 1
 
-    alert_audit = reporting_api.get_alert_audit_trail(alert.alert_id, None, 100, db_session)
+    alert_audit = audit_api.get_alert_audit_trail(alert.alert_id, None, 100, db_session)
     assert alert_audit["count"] >= 1
 
-    case_audit = reporting_api.get_case_audit_trail(case.case_id, None, 100, db_session)
+    case_audit = audit_api.get_case_audit_trail(case.case_id, None, 100, db_session)
     assert case_audit["count"] >= 1
 
 
@@ -316,14 +320,12 @@ def test_reporting_scope_filters_no_scopes(db_session):
 
     query = db_session.query(LegalDocument)
     # Empty scope list should no-op
-    filtered = reporting_api._apply_scope_filter_to_docs(query, [], db_session)
+    filtered = scope_api._apply_scope_filter_to_docs(query, [], db_session)
     assert filtered.count() >= 1
 
     obligations_query = db_session.query(RegulatoryObligation, LegalDocument).join(
         LegalDocument, RegulatoryObligation.doc_id == LegalDocument.id
     )
-    filtered_obl = reporting_api._apply_scope_filter_to_obligations(
-        obligations_query, [], db_session
-    )
+    filtered_obl = scope_api._apply_scope_filter_to_obligations(obligations_query, [], db_session)
     # Query should still be usable even with no obligations
     filtered_obl.count()
