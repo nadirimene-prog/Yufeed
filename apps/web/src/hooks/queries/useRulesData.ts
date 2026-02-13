@@ -10,7 +10,7 @@ export function useRules(params?: Record<string, unknown>) {
   return useQuery({
     queryKey: monitoringKeys.rulesList(params || {}),
     queryFn: async () => {
-      const response = await apiClient.get("/api/monitoring_rules", { params });
+      const response = await apiClient.get("/api/monitoring-rules", { params });
       return response.data;
     },
   });
@@ -20,7 +20,7 @@ export function useRule(id: string) {
   return useQuery({
     queryKey: monitoringKeys.ruleDetail(id),
     queryFn: async () => {
-      const response = await apiClient.get(`/api/monitoring_rules/${id}`);
+      const response = await apiClient.get(`/api/monitoring-rules/${id}`);
       return response.data;
     },
     enabled: !!id,
@@ -32,7 +32,7 @@ export function useCreateRule() {
 
   return useMutation({
     mutationFn: async (data: any) => {
-      const response = await apiClient.post("/api/monitoring_rules", data);
+      const response = await apiClient.post("/api/monitoring-rules", data);
       return response.data;
     },
     onSuccess: () => {
@@ -46,7 +46,7 @@ export function useUpdateRule() {
 
   return useMutation({
     mutationFn: async ({ id, data }: { id: string; data: any }) => {
-      const response = await apiClient.put(`/api/monitoring_rules/${id}`, data);
+      const response = await apiClient.put(`/api/monitoring-rules/${id}`, data);
       return response.data;
     },
     onSuccess: (updated, variables) => {
@@ -64,7 +64,7 @@ export function useDeleteRule() {
 
   return useMutation({
     mutationFn: async (id: string) => {
-      const response = await apiClient.delete(`/api/monitoring_rules/${id}`);
+      const response = await apiClient.delete(`/api/monitoring-rules/${id}`);
       return response.data;
     },
     onSuccess: () => {
@@ -78,7 +78,7 @@ export function useToggleRule() {
 
   return useMutation({
     mutationFn: async ({ id, enabled }: { id: string; enabled: boolean }) => {
-      const response = await apiClient.patch(`/api/monitoring_rules/${id}`, {
+      const response = await apiClient.patch(`/api/monitoring-rules/${id}`, {
         enabled,
       });
       return response.data;

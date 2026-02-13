@@ -91,6 +91,11 @@ export function TimelineView({ celex }: TimelineViewProps) {
       </h3>
 
       <div className="relative pl-6 border-l-2 border-gray-200 dark:border-slate-800 space-y-8">
+        {events.length === 0 && (
+          <p className="text-sm text-gray-400 dark:text-gray-500 italic">
+            No timeline events available for this document.
+          </p>
+        )}
         {events.map((event) => {
           const Icon = getIcon(event.type);
           const colorClass = getColor(event.type);

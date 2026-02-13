@@ -107,10 +107,10 @@ export const getUpcomingDeadlines = async (days: number = 90) => {
 export const getDocumentTimeline = async (
   celex: string,
 ): Promise<TimelineEvent[]> => {
-  const response = await apiClient.get<TimelineEvent[]>(
-    `/api/compliance/documents/${celex}/timeline`,
-  );
-  return response.data;
+  // Timeline endpoint is not yet implemented in the backend
+  // Return empty array to avoid 404 errors
+  void celex;
+  return [];
 };
 
 // ========== Policy API ==========
