@@ -23,10 +23,18 @@ import type { FindingListParams, DecisionListParams } from "@/types/workbench";
 export function useFindings(params?: FindingListParams) {
   const queryParams = {
     limit: params?.limit ?? 50,
-    ...(params?.status ? { status: params.status } : {}),
-    ...(params?.severity ? { severity: params.severity } : {}),
-    ...(params?.finding_type ? { finding_type: params.finding_type } : {}),
-    ...(params?.assigned_to ? { assigned_to: params.assigned_to } : {}),
+    ...(params?.status != null && params.status.length > 0
+      ? { status: params.status }
+      : {}),
+    ...(params?.severity != null && params.severity.length > 0
+      ? { severity: params.severity }
+      : {}),
+    ...(params?.finding_type != null && params.finding_type.length > 0
+      ? { finding_type: params.finding_type }
+      : {}),
+    ...(params?.assigned_to != null && params.assigned_to.length > 0
+      ? { assigned_to: params.assigned_to }
+      : {}),
   };
 
   return useQuery({
@@ -87,13 +95,15 @@ export function useAcknowledgeFinding() {
 export function useCaseDecisions(caseId: string, params?: DecisionListParams) {
   const queryParams = {
     limit: params?.limit ?? 50,
-    ...(params?.status ? { status: params.status } : {}),
+    ...(params?.status != null && params.status.length > 0
+      ? { status: params.status }
+      : {}),
   };
 
   return useQuery({
     queryKey: workbenchKeys.decisionsList(caseId, queryParams),
     queryFn: () => getCaseDecisions(caseId, queryParams),
-    enabled: !!caseId,
+    enabled: caseId.length > 0,
   });
 }
 
@@ -142,7 +152,7 @@ export function useApproveDecision(caseId: string) {
       approveCaseDecision(
         caseId,
         decisionId,
-        comment ? { comment } : undefined,
+        comment != null && comment.length > 0 ? { comment } : undefined,
       ),
     onSuccess: () => {
       queryClient.invalidateQueries({
@@ -175,7 +185,7 @@ export function useEvidencePacks(caseId: string) {
   return useQuery({
     queryKey: workbenchKeys.evidencePacksList(caseId, {}),
     queryFn: () => getEvidencePacks(caseId),
-    enabled: !!caseId,
+    enabled: caseId.length > 0,
   });
 }
 
@@ -183,7 +193,7 @@ export function useEvidencePackDetail(caseId: string, packId: string) {
   return useQuery({
     queryKey: workbenchKeys.evidencePackDetail(caseId, packId),
     queryFn: () => getEvidencePackDetail(caseId, packId),
-    enabled: !!caseId && !!packId,
+    enabled: caseId.length > 0 && packId.length > 0,
   });
 }
 

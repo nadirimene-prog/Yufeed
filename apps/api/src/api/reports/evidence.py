@@ -23,7 +23,7 @@ def utc_now() -> datetime:
     return datetime.now(timezone.utc)
 
 
-router = APIRouter(prefix="/api/reporting", tags=["evidence"])
+router = APIRouter(prefix="/reporting", tags=["evidence"])
 
 
 def _model_to_dict(obj):

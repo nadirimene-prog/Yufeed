@@ -169,73 +169,72 @@ export function DecisionTimeline({
                       {decision.rationale}
                     </p>
 
-                    {decision.approver_id && (
-                      <p className="text-xs text-gray-400 mt-2">
-                        Approved by {decision.approver_id} on{" "}
-                        {decision.approved_at
-                          ? new Date(decision.approved_at).toLocaleDateString()
-                          : "—"}
-                      </p>
-                    )}
+                    {decision.approver_id != null &&
+                      decision.approver_id.length > 0 && (
+                        <p className="text-xs text-gray-400 mt-2">
+                          Approved by {decision.approver_id} on{" "}
+                          {decision.approved_at != null
+                            ? new Date(
+                                decision.approved_at,
+                              ).toLocaleDateString()
+                            : "—"}
+                        </p>
+                      )}
 
-                    {decision.rejection_reason && (
-                      <div className="mt-2 p-2 rounded-lg bg-red-50 dark:bg-red-950/20 text-sm text-red-700 dark:text-red-400">
-                        Rejection: {decision.rejection_reason}
-                      </div>
-                    )}
+                    {decision.rejection_reason != null &&
+                      decision.rejection_reason.length > 0 && (
+                        <div className="mt-2 p-2 rounded-lg bg-red-50 dark:bg-red-950/20 text-sm text-red-700 dark:text-red-400">
+                          Rejection: {decision.rejection_reason}
+                        </div>
+                      )}
 
                     {/* Action buttons */}
                     <div className="space-y-2 mt-3">
-                      {decision.status === "draft" && onSubmit && (
-                        <div className="space-y-2">
-                          <textarea
-                            value={
-                              submitRationale[decision.id] ??
-                              decision.rationale ??
-                              ""
-                            }
-                            onChange={(e) =>
-                              setSubmitRationale((prev) => ({
-                                ...prev,
-                                [decision.id]: e.target.value,
-                              }))
-                            }
-                            rows={2}
-                            className="w-full rounded-lg border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800 px-3 py-2 text-xs text-gray-900 dark:text-white placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500/30"
-                            placeholder="Rationale for submission (min 10 chars)…"
-                          />
-                          <button
-                            onClick={() => {
-                              const rationale =
-                                submitRationale[decision.id] ??
-                                decision.rationale ??
-                                "";
-                              if (rationale.trim().length >= 10) {
-                                onSubmit(decision.id, rationale.trim());
-                              }
-                            }}
-                            disabled={
-                              (
-                                submitRationale[decision.id] ??
-                                decision.rationale ??
-                                ""
-                              ).trim().length < 10
-                            }
-                            className={cn(
-                              "text-xs px-3 py-1.5 rounded-lg text-white transition",
-                              (
-                                submitRationale[decision.id] ??
-                                decision.rationale ??
-                                ""
-                              ).trim().length >= 10
-                                ? "bg-blue-600 hover:bg-blue-700"
-                                : "bg-gray-300 dark:bg-gray-700 cursor-not-allowed",
-                            )}
-                          >
-                            Submit for Approval
-                          </button>
-                        </div>
-                      )}
+                      {decision.status === "draft" &&
+                        onSubmit &&
+                        (() => {
+                          const currentRationale =
+                            submitRationale[decision.id] ??
+                            decision.rationale ??
+                            "";
+                          const canSubmit =
+                            currentRationale.trim().length >= 10;
+                          return (
+                            <div className="space-y-2">
+                              <textarea
+                                value={currentRationale}
+                                onChange={(e) =>
+                                  setSubmitRationale((prev) => ({
+                                    ...prev,
+                                    [decision.id]: e.target.value,
+                                  }))
+                                }
+                                rows={2}
+                                className="w-full rounded-lg border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800 px-3 py-2 text-xs text-gray-900 dark:text-white placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500/30"
+                                placeholder="Rationale for submission (min 10 chars)…"
+                              />
+                              <button
+                                onClick={() => {
+                                  if (canSubmit) {
+                                    onSubmit(
+                                      decision.id,
+                                      currentRationale.trim(),
+                                    );
+                                  }
+                                }}
+                                disabled={!canSubmit}
+                                className={cn(
+                                  "text-xs px-3 py-1.5 rounded-lg text-white transition",
+                                  canSubmit
+                                    ? "bg-blue-600 hover:bg-blue-700"
+                                    : "bg-gray-300 dark:bg-gray-700 cursor-not-allowed",
+                                )}
+                              >
+                                Submit for Approval
+                              </button>
+                            </div>
+                          );
+                        })()}
                       {decision.status === "submitted" &&
                         (onApprove || onReject) && (
                           <div className="flex gap-2">

@@ -14,13 +14,13 @@ export async function getFindings(
   params?: FindingListParams,
 ): Promise<Finding[]> {
   const cleanParams: Record<string, unknown> = { limit: params?.limit ?? 50 };
-  if (params?.status && params.status.length > 0)
+  if (params?.status != null && params.status.length > 0)
     cleanParams.status = params.status;
-  if (params?.severity && params.severity.length > 0)
+  if (params?.severity != null && params.severity.length > 0)
     cleanParams.severity = params.severity;
-  if (params?.finding_type && params.finding_type.length > 0)
+  if (params?.finding_type != null && params.finding_type.length > 0)
     cleanParams.finding_type = params.finding_type;
-  if (params?.assigned_to && params.assigned_to.length > 0)
+  if (params?.assigned_to != null && params.assigned_to.length > 0)
     cleanParams.assigned_to = params.assigned_to;
   const response = await apiClient.get<Finding[]>("/api/findings/", {
     params: cleanParams,
@@ -68,7 +68,7 @@ export async function getCaseDecisions(
   params?: DecisionListParams,
 ): Promise<CaseDecision[]> {
   const cleanParams: Record<string, unknown> = { limit: params?.limit ?? 50 };
-  if (params?.status && params.status.length > 0)
+  if (params?.status != null && params.status.length > 0)
     cleanParams.status = params.status;
   const response = await apiClient.get<CaseDecision[]>(
     `/api/cases/${caseId}/decisions/`,

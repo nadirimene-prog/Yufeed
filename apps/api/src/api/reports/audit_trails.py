@@ -19,7 +19,7 @@ def utc_now() -> datetime:
     return datetime.now(timezone.utc)
 
 
-router = APIRouter(prefix="/api/reporting", tags=["audit-trails"])
+router = APIRouter(prefix="/reporting", tags=["audit-trails"])
 
 
 @router.get("/alerts/summary")

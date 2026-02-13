@@ -22,12 +22,6 @@ import {
 } from "@/hooks/queries/useWorkbenchData";
 import { CloseDialog } from "@/components/workbench/CloseDialog";
 import { EscalateDialog } from "@/components/workbench/EscalateDialog";
-import {
-  GlassCard,
-  GlassCardContent,
-  GlassCardHeader,
-  GlassCardTitle,
-} from "@/components/ui/glass-card";
 import { fadeInBlur } from "@/lib/motion";
 import { cn } from "@/lib/utils";
 
@@ -196,33 +190,31 @@ export default function FindingDetailPage() {
             </div>
 
             {/* Explainability */}
-            {finding.explainability &&
-              Object.keys(finding.explainability).length > 0 && (
-                <div className="rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900/60 p-5">
-                  <div className="flex items-center gap-2 mb-3">
-                    <Brain className="h-4 w-4 text-violet-500" />
-                    <h2 className="text-sm font-semibold text-gray-900 dark:text-white">
-                      AI Explainability
-                    </h2>
-                  </div>
-                  <pre className="text-xs text-gray-600 dark:text-gray-400 bg-gray-50 dark:bg-gray-800 rounded-lg p-3 overflow-x-auto">
-                    {JSON.stringify(finding.explainability, null, 2)}
-                  </pre>
+            {Object.keys(finding.explainability).length > 0 && (
+              <div className="rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900/60 p-5">
+                <div className="flex items-center gap-2 mb-3">
+                  <Brain className="h-4 w-4 text-violet-500" />
+                  <h2 className="text-sm font-semibold text-gray-900 dark:text-white">
+                    AI Explainability
+                  </h2>
                 </div>
-              )}
+                <pre className="text-xs text-gray-600 dark:text-gray-400 bg-gray-50 dark:bg-gray-800 rounded-lg p-3 overflow-x-auto">
+                  {JSON.stringify(finding.explainability, null, 2)}
+                </pre>
+              </div>
+            )}
 
             {/* Source References */}
-            {finding.source_refs &&
-              Object.keys(finding.source_refs).length > 0 && (
-                <div className="rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900/60 p-5">
-                  <h2 className="text-sm font-semibold text-gray-900 dark:text-white mb-3">
-                    Source References
-                  </h2>
-                  <pre className="text-xs text-gray-600 dark:text-gray-400 bg-gray-50 dark:bg-gray-800 rounded-lg p-3 overflow-x-auto">
-                    {JSON.stringify(finding.source_refs, null, 2)}
-                  </pre>
-                </div>
-              )}
+            {Object.keys(finding.source_refs).length > 0 && (
+              <div className="rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900/60 p-5">
+                <h2 className="text-sm font-semibold text-gray-900 dark:text-white mb-3">
+                  Source References
+                </h2>
+                <pre className="text-xs text-gray-600 dark:text-gray-400 bg-gray-50 dark:bg-gray-800 rounded-lg p-3 overflow-x-auto">
+                  {JSON.stringify(finding.source_refs, null, 2)}
+                </pre>
+              </div>
+            )}
           </div>
 
           {/* Sidebar */}
@@ -259,35 +251,37 @@ export default function FindingDetailPage() {
                     {new Date(finding.updated_at).toLocaleDateString()}
                   </span>
                 </div>
-                {finding.assigned_to && (
-                  <div className="flex items-center gap-2 text-sm">
-                    <User className="h-3.5 w-3.5 text-gray-400" />
-                    <span className="text-gray-500 dark:text-gray-400">
-                      Assigned
-                    </span>
-                    <span className="ml-auto text-gray-900 dark:text-white">
-                      {finding.assigned_to}
-                    </span>
-                  </div>
-                )}
-                {finding.sla_due_at && (
-                  <div className="flex items-center gap-2 text-sm">
-                    <Clock className="h-3.5 w-3.5 text-gray-400" />
-                    <span className="text-gray-500 dark:text-gray-400">
-                      SLA Due
-                    </span>
-                    <span
-                      className={cn(
-                        "ml-auto font-medium",
-                        new Date(finding.sla_due_at) < new Date()
-                          ? "text-red-600 dark:text-red-400"
-                          : "text-gray-900 dark:text-white",
-                      )}
-                    >
-                      {new Date(finding.sla_due_at).toLocaleDateString()}
-                    </span>
-                  </div>
-                )}
+                {finding.assigned_to != null &&
+                  finding.assigned_to.length > 0 && (
+                    <div className="flex items-center gap-2 text-sm">
+                      <User className="h-3.5 w-3.5 text-gray-400" />
+                      <span className="text-gray-500 dark:text-gray-400">
+                        Assigned
+                      </span>
+                      <span className="ml-auto text-gray-900 dark:text-white">
+                        {finding.assigned_to}
+                      </span>
+                    </div>
+                  )}
+                {finding.sla_due_at != null &&
+                  finding.sla_due_at.length > 0 && (
+                    <div className="flex items-center gap-2 text-sm">
+                      <Clock className="h-3.5 w-3.5 text-gray-400" />
+                      <span className="text-gray-500 dark:text-gray-400">
+                        SLA Due
+                      </span>
+                      <span
+                        className={cn(
+                          "ml-auto font-medium",
+                          new Date(finding.sla_due_at) < new Date()
+                            ? "text-red-600 dark:text-red-400"
+                            : "text-gray-900 dark:text-white",
+                        )}
+                      >
+                        {new Date(finding.sla_due_at).toLocaleDateString()}
+                      </span>
+                    </div>
+                  )}
               </div>
             </div>
 
@@ -297,17 +291,19 @@ export default function FindingDetailPage() {
                 <h3 className="text-sm font-semibold text-gray-900 dark:text-white">
                   Closure Details
                 </h3>
-                {finding.closed_reason && (
-                  <p className="text-sm text-gray-600 dark:text-gray-400">
-                    <span className="font-medium">Reason:</span>{" "}
-                    {finding.closed_reason.replace(/_/g, " ")}
-                  </p>
-                )}
-                {finding.closed_comment && (
-                  <p className="text-sm text-gray-600 dark:text-gray-400">
-                    {finding.closed_comment}
-                  </p>
-                )}
+                {finding.closed_reason != null &&
+                  finding.closed_reason.length > 0 && (
+                    <p className="text-sm text-gray-600 dark:text-gray-400">
+                      <span className="font-medium">Reason:</span>{" "}
+                      {finding.closed_reason.replace(/_/g, " ")}
+                    </p>
+                  )}
+                {finding.closed_comment != null &&
+                  finding.closed_comment.length > 0 && (
+                    <p className="text-sm text-gray-600 dark:text-gray-400">
+                      {finding.closed_comment}
+                    </p>
+                  )}
               </div>
             )}
           </div>

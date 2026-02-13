@@ -13,7 +13,7 @@ from src.auth.dependencies import require_any_role, CurrentUser
 from src.utils.event_bus import publish_event_safe
 
 
-router = APIRouter(prefix="/api/reporting", tags=["sar-filing"])
+router = APIRouter(prefix="/reporting", tags=["sar-filing"])
 
 
 @router.post("/sar/prepare/{case_id}")

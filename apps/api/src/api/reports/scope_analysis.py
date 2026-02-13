@@ -24,7 +24,7 @@ def utc_now() -> datetime:
     return datetime.now(timezone.utc)
 
 
-router = APIRouter(prefix="/api/reporting", tags=["scope-analysis"])
+router = APIRouter(prefix="/reporting", tags=["scope-analysis"])
 
 
 def _apply_scope_filter_to_docs(query, scopes: list[str], db: Session):
