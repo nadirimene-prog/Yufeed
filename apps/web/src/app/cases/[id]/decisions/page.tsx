@@ -2,8 +2,8 @@
 
 import { useState } from "react";
 import { useParams, useRouter } from "next/navigation";
-import { motion } from "framer-motion";
-import { ArrowLeft, Plus, Gavel } from "lucide-react";
+import { motion, AnimatePresence } from "framer-motion";
+import { ArrowLeft, Plus, Gavel, X } from "lucide-react";
 import {
   useCaseDecisions,
   useCreateDecision,
@@ -14,8 +14,6 @@ import {
 import { DecisionTimeline } from "@/components/workbench/DecisionTimeline";
 import { fadeInBlur, modalAnimation, overlayAnimation } from "@/lib/motion";
 import { cn } from "@/lib/utils";
-import { AnimatePresence } from "framer-motion";
-import { X } from "lucide-react";
 
 export default function CaseDecisionsPage() {
   const params = useParams<{ id: string }>();

@@ -6,7 +6,6 @@ import { motion } from "framer-motion";
 import {
   AlertTriangle,
   Search,
-  Filter,
   Eye,
   Clock,
   CheckCircle,
@@ -15,9 +14,8 @@ import {
 import { useFindings } from "@/hooks/queries/useWorkbenchData";
 import { FindingCard } from "@/components/workbench/FindingCard";
 import { GlassCard, GlassCardContent } from "@/components/ui/glass-card";
-import { staggerContainer, staggerItem, fadeInBlur } from "@/lib/motion";
+import { staggerContainer, fadeInBlur } from "@/lib/motion";
 import { cn } from "@/lib/utils";
-import type { Finding } from "@/types/workbench";
 
 export default function FindingsPage() {
   const router = useRouter();
@@ -41,7 +39,7 @@ export default function FindingsPage() {
   const loading = findingsQuery.isLoading;
 
   const filteredFindings = findings.filter((f) => {
-    if (!filters.search) return true;
+    if (filters.search.length === 0) return true;
     const q = filters.search.toLowerCase();
     return (
       f.title.toLowerCase().includes(q) ||
@@ -57,7 +55,8 @@ export default function FindingsPage() {
     escalated: findings.filter((f) => f.status === "escalated").length,
     overdue: findings.filter(
       (f) =>
-        f.sla_due_at &&
+        f.sla_due_at != null &&
+        f.sla_due_at.length > 0 &&
         new Date(f.sla_due_at) < new Date() &&
         f.status !== "closed",
     ).length,

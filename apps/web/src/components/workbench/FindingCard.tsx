@@ -83,7 +83,9 @@ export function FindingCard({ finding, onClick }: FindingCardProps) {
   const status = statusConfig[finding.status] ?? statusConfig.open;
 
   const isOverdue =
-    finding.sla_due_at && new Date(finding.sla_due_at) < new Date();
+    finding.sla_due_at != null &&
+    finding.sla_due_at.length > 0 &&
+    new Date(finding.sla_due_at) < new Date();
 
   return (
     <motion.div
@@ -92,7 +94,7 @@ export function FindingCard({ finding, onClick }: FindingCardProps) {
       className={cn(
         "group relative rounded-xl border bg-white dark:bg-gray-900/60 p-4",
         "transition-all duration-200 hover:shadow-md hover:border-gray-300 dark:hover:border-gray-600",
-        onClick && "cursor-pointer",
+        onClick != null && "cursor-pointer",
         severity.border,
       )}
     >
@@ -149,12 +151,13 @@ export function FindingCard({ finding, onClick }: FindingCardProps) {
                 <Clock className="h-3 w-3" />
                 {timeAgo(finding.created_at)}
               </span>
-              {finding.assigned_to && (
-                <span className="flex items-center gap-1">
-                  <User className="h-3 w-3" />
-                  {finding.assigned_to}
-                </span>
-              )}
+              {finding.assigned_to != null &&
+                finding.assigned_to.length > 0 && (
+                  <span className="flex items-center gap-1">
+                    <User className="h-3 w-3" />
+                    {finding.assigned_to}
+                  </span>
+                )}
             </div>
           </div>
         </div>
