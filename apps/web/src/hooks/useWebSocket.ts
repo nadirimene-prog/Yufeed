@@ -230,7 +230,9 @@ export function useWebSocket(
 
       setConnectionStatus("connecting");
       errorLoggedRef.current = false;
-      const ws = new WebSocket(wsUrl);
+      // Backend expects JWT as query parameter (?token=...)
+      const wsUrlWithToken = `${wsUrl}?token=${encodeURIComponent(token)}`;
+      const ws = new WebSocket(wsUrlWithToken);
 
       ws.onopen = () => {
         if (process.env.NODE_ENV === "development") {
@@ -239,12 +241,6 @@ export function useWebSocket(
         setIsConnected(true);
         setConnectionStatus("connected");
         reconnectAttemptsRef.current = 0;
-
-        // Authenticate by sending token as first message
-        const authToken = getValidToken();
-        if (authToken) {
-          ws.send(JSON.stringify({ type: "authenticate", token: authToken }));
-        }
         if (heartbeatRef.current) {
           clearInterval(heartbeatRef.current);
         }
