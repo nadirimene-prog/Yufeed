@@ -68,3 +68,39 @@ export function useAMLOfficerAsk() {
     mutationFn: (question: string) => amlOfficerApi.askQuestion({ question }),
   });
 }
+
+export function useInvestigateAlert() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: (data: {
+      alertId: number;
+      alertData: Record<string, unknown>;
+      relatedTransactions?: Record<string, unknown>[];
+      relatedRegulations?: Record<string, unknown>[];
+    }) =>
+      amlOfficerApi.investigateAlert({
+        alert_id: data.alertId,
+        alert_data: data.alertData,
+        related_transactions: data.relatedTransactions,
+        related_regulations: data.relatedRegulations,
+      }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: amlOfficerKeys.briefing() });
+    },
+  });
+}
+
+export function useBatchInvestigate() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: (data: {
+      alerts: Record<string, unknown>[];
+      maxConcurrent?: number;
+    }) => amlOfficerApi.batchInvestigate(data.alerts, data.maxConcurrent),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: amlOfficerKeys.briefing() });
+    },
+  });
+}
