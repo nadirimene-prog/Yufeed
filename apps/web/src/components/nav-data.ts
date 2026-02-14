@@ -90,6 +90,16 @@ const INTELLIGENCE_ITEMS: NavItem[] = [
     description: "AI compliance assistant.",
   },
   {
+    label: "AI Investigations",
+    href: "/aml-officer/investigations",
+    description: "AI-powered alert analysis.",
+  },
+  {
+    label: "SAR Management",
+    href: "/aml-officer/sar",
+    description: "Suspicious Activity Reports.",
+  },
+  {
     label: "Query Lab",
     href: "/query",
     description: "Natural-language research.",
@@ -174,6 +184,8 @@ export const NAV_AREAS: NavArea[] = [
       "/search",
       "/query",
       "/aml-officer",
+      "/aml-officer/investigations",
+      "/aml-officer/sar",
       "/compliance-report",
       "/network-analysis",
       "/audit",

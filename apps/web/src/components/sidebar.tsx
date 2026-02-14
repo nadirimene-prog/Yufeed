@@ -20,22 +20,21 @@ export default function Sidebar() {
 
   const activeArea = useMemo(() => {
     const autoArea = getAutoAreaForPath(pathname);
-    const workArea = getAreaById("work");
-    const isWorkPath = workArea ? isPathInAreaItems(workArea, pathname) : false;
 
-    if (manualAreaId === "work" && isWorkPath && workArea) {
-      return workArea;
+    // If user manually selected an area and is on a path within that area, use it
+    if (manualAreaId) {
+      const manualArea = getAreaById(manualAreaId);
+      if (manualArea && isPathInAreaItems(manualArea, pathname)) {
+        return manualArea;
+      }
     }
 
     return autoArea;
   }, [pathname, manualAreaId]);
 
   const handleSelectArea = (areaId: string) => {
-    if (areaId === "work") {
-      setManualAreaId("work");
-      return;
-    }
-    setManualAreaId(null);
+    // Set manual area selection to override auto-detection
+    setManualAreaId(areaId);
   };
 
   const toggleCollapse = () => setCollapsed((prev) => !prev);

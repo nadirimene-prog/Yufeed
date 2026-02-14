@@ -191,8 +191,12 @@ export default function RiskMapPage() {
               <RiskHeatMap
                 cells={heatmapData.cells}
                 onCellClick={(cell) => {
-                  // Filter entries by likelihood/impact
-                  logger.log("Cell clicked:", cell);
+                  // TODO: Implement filtering entries by likelihood/impact
+                  // This would require adding likelihood/impact filters to the UI
+                  // For now, selecting a cell could scroll to or highlight matching entries
+                  if (cell.count > 0) {
+                    // Could filter entries here when filters are implemented
+                  }
                 }}
               />
             )}

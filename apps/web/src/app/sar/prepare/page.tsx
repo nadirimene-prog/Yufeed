@@ -98,14 +98,13 @@ function SARPrepareContent() {
 
     setPreparing(true);
     try {
-      const res = await fetchWithAuth(`${API_URL}/api/compliance/sar/prepare`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          case_id: caseId,
-          institution_info: institutionInfo.name ? institutionInfo : null,
-        }),
-      });
+      const res = await fetchWithAuth(
+        `${API_URL}/api/reporting/sar/prepare/${caseId}`,
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+        },
+      );
 
       if (res.ok) {
         const data = await res.json();
@@ -124,15 +123,13 @@ function SARPrepareContent() {
     if (!sarData) return;
 
     try {
-      const res = await fetchWithAuth(`${API_URL}/api/compliance/sar/file`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          sar_data: sarData,
-          jurisdiction,
-          dry_run: dryRun,
-        }),
-      });
+      const res = await fetchWithAuth(
+        `${API_URL}/api/reporting/sar/file/${sarData.case_reference}?jurisdiction=${jurisdiction}&dry_run=${dryRun}`,
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+        },
+      );
 
       if (res.ok) {
         const result = await res.json();

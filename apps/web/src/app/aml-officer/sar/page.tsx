@@ -3,7 +3,7 @@
 /**
  * SAR (Suspicious Activity Report) Management Page
  *
- * AI-powered SAR narrative generation and filing workflow.
+ * View cases eligible for SAR filing and manage SAR workflow.
  */
 
 import { useState } from "react";
@@ -15,160 +15,64 @@ import {
   AlertTriangle,
   CheckCircle,
   Send,
-  Edit,
   Eye,
   Download,
   Plus,
   User,
-  DollarSign,
-  Flag,
-  BookOpen,
-  ChevronRight,
-  XCircle,
+  Loader2,
 } from "lucide-react";
-// Note: amlOfficerApi is available for real API calls
-// import amlOfficerApi from "@/lib/aml-officer-api";
-
-type SARStatus = "draft" | "pending_review" | "approved" | "filed";
-
-interface SAR {
-  id: string;
-  case_id: string;
-  status: SARStatus;
-  created_at: string;
-  subject_name: string;
-  activity_type: string;
-  total_amount: number;
-  currency: string;
-  narrative_preview: string;
-  red_flags: string[];
-  confidence: number;
-}
-
-/**
- * DEMO DATA - Replace with actual API calls in production
- * These mock SARs demonstrate the UI capabilities
- */
-const MOCK_SARS: SAR[] = [
-  {
-    id: "SAR-2024-001",
-    case_id: "CASE-2024-001",
-    status: "draft",
-    created_at: "2024-01-15T10:30:00Z",
-    subject_name: "John Smith",
-    activity_type: "money_laundering",
-    total_amount: 250000,
-    currency: "EUR",
-    narrative_preview:
-      "The subject conducted multiple high-value wire transfers to jurisdictions with weak AML controls...",
-    red_flags: ["Structuring", "High-risk jurisdictions", "Rapid movement"],
-    confidence: 0.85,
-  },
-  {
-    id: "SAR-2024-002",
-    case_id: "CASE-2024-002",
-    status: "pending_review",
-    created_at: "2024-01-14T15:00:00Z",
-    subject_name: "Global Trading Ltd",
-    activity_type: "fraud",
-    total_amount: 180000,
-    currency: "EUR",
-    narrative_preview:
-      "Analysis reveals a pattern of invoice manipulation and fictitious trading activity...",
-    red_flags: [
-      "Invoice discrepancies",
-      "Shell companies",
-      "No economic purpose",
-    ],
-    confidence: 0.78,
-  },
-  {
-    id: "SAR-2024-003",
-    case_id: "CASE-2024-003",
-    status: "approved",
-    created_at: "2024-01-13T09:00:00Z",
-    subject_name: "Maria Rodriguez",
-    activity_type: "terrorist_financing",
-    total_amount: 45000,
-    currency: "EUR",
-    narrative_preview:
-      "Transactions show a pattern consistent with potential terrorist financing indicators...",
-    red_flags: ["Conflict zone transfers", "NGO misuse", "Smurfing"],
-    confidence: 0.92,
-  },
-  {
-    id: "SAR-2024-004",
-    case_id: "CASE-2024-004",
-    status: "filed",
-    created_at: "2024-01-10T11:00:00Z",
-    subject_name: "Tech Innovations Inc",
-    activity_type: "tax_evasion",
-    total_amount: 520000,
-    currency: "EUR",
-    narrative_preview:
-      "Corporate structure utilized for apparent tax evasion through transfer pricing manipulation...",
-    red_flags: [
-      "Complex structures",
-      "Tax haven jurisdictions",
-      "Round-tripping",
-    ],
-    confidence: 0.88,
-  },
-];
+import { useMonitoringCases } from "@/hooks/queries/useMonitoringData";
+import type { MonitoringCase } from "@/types/monitoring";
 
 export default function SARManagementPage() {
-  const [sars] = useState<SAR[]>(MOCK_SARS);
-  const [selectedSAR, setSelectedSAR] = useState<SAR | null>(null);
-  const [filter, setFilter] = useState<"all" | SARStatus>("all");
+  const [filter, setFilter] = useState<"all" | "ready" | "filed">("all");
 
-  const filteredSARs = sars.filter((sar) => {
-    if (filter === "all") return true;
-    return sar.status === filter;
+  const casesQuery = useMonitoringCases({ limit: 100 });
+  const cases = casesQuery.data ?? [];
+
+  // Filter cases based on SAR relevance
+  const sarRelevantCases = cases.filter((c: MonitoringCase) => {
+    // Include escalated cases (ready for SAR) and cases with SAR filed
+    return c.status === "escalated" || c.outcome === "sar_filed";
   });
 
-  const getStatusStyle = (status: SARStatus) => {
-    switch (status) {
-      case "draft":
-        return { bg: "bg-gray-100", text: "text-gray-700", label: "Draft" };
-      case "pending_review":
-        return {
-          bg: "bg-yellow-100",
-          text: "text-yellow-700",
-          label: "Pending Review",
-        };
-      case "approved":
-        return { bg: "bg-blue-100", text: "text-blue-700", label: "Approved" };
-      case "filed":
-        return { bg: "bg-green-100", text: "text-green-700", label: "Filed" };
+  const filteredCases = sarRelevantCases.filter((c: MonitoringCase) => {
+    if (filter === "all") return true;
+    if (filter === "ready") return c.status === "escalated";
+    if (filter === "filed") return c.outcome === "sar_filed";
+    return true;
+  });
+
+  const getStatusStyle = (caseItem: MonitoringCase) => {
+    if (caseItem.outcome === "sar_filed") {
+      return { bg: "bg-green-100", text: "text-green-700", label: "SAR Filed" };
     }
+    if (caseItem.status === "escalated") {
+      return {
+        bg: "bg-yellow-100",
+        text: "text-yellow-700",
+        label: "Ready for SAR",
+      };
+    }
+    return { bg: "bg-gray-100", text: "text-gray-700", label: caseItem.status };
   };
-
-  const getActivityTypeLabel = (type: string) => {
-    const labels: Record<string, string> = {
-      money_laundering: "Money Laundering",
-      terrorist_financing: "Terrorist Financing",
-      fraud: "Fraud",
-      tax_evasion: "Tax Evasion",
-      sanctions_violation: "Sanctions Violation",
-      corruption: "Corruption",
-      other: "Other",
-    };
-    return labels[type] || type;
-  };
-
-  // TODO: Implement SAR generation with real API
-  // const handleGenerateSAR = async () => {
-  //   const result = await amlOfficerApi.prepareSAR(caseId, caseData);
-  //   // Handle result
-  // };
 
   const stats = {
-    total: sars.length,
-    draft: sars.filter((s) => s.status === "draft").length,
-    pending: sars.filter((s) => s.status === "pending_review").length,
-    approved: sars.filter((s) => s.status === "approved").length,
-    filed: sars.filter((s) => s.status === "filed").length,
+    total: sarRelevantCases.length,
+    ready: sarRelevantCases.filter((c) => c.status === "escalated").length,
+    filed: sarRelevantCases.filter((c) => c.outcome === "sar_filed").length,
   };
+
+  if (casesQuery.isLoading) {
+    return (
+      <div className="flex items-center justify-center min-h-screen bg-gray-50">
+        <div className="text-center">
+          <Loader2 className="w-8 h-8 animate-spin mx-auto mb-3 text-indigo-600" />
+          <p className="text-gray-600">Loading cases...</p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -191,7 +95,7 @@ export default function SARManagementPage() {
                   SAR Management
                 </h1>
                 <p className="text-sm text-gray-500">
-                  AI-generated Suspicious Activity Reports
+                  Suspicious Activity Report workflow
                 </p>
               </div>
             </div>
@@ -202,26 +106,24 @@ export default function SARManagementPage() {
             className="flex items-center space-x-2 px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition"
           >
             <Plus className="w-4 h-4" />
-            <span>New SAR from Case</span>
+            <span>View All Cases</span>
           </Link>
         </div>
       </div>
 
       <div className="max-w-7xl mx-auto px-4 py-8">
         {/* Stats */}
-        <div className="grid grid-cols-5 gap-4 mb-8">
+        <div className="grid grid-cols-3 gap-4 mb-8">
           {[
-            { label: "Total SARs", value: stats.total, color: "text-gray-900" },
-            { label: "Drafts", value: stats.draft, color: "text-gray-600" },
             {
-              label: "Pending Review",
-              value: stats.pending,
-              color: "text-yellow-600",
+              label: "SAR-Related Cases",
+              value: stats.total,
+              color: "text-gray-900",
             },
             {
-              label: "Approved",
-              value: stats.approved,
-              color: "text-blue-600",
+              label: "Ready for Filing",
+              value: stats.ready,
+              color: "text-yellow-600",
             },
             { label: "Filed", value: stats.filed, color: "text-green-600" },
           ].map((stat) => (
@@ -238,11 +140,9 @@ export default function SARManagementPage() {
         {/* Filter Tabs */}
         <div className="flex items-center space-x-2 mb-6">
           {[
-            { value: "all", label: "All SARs" },
-            { value: "draft", label: "Drafts" },
-            { value: "pending_review", label: "Pending Review" },
-            { value: "approved", label: "Approved" },
-            { value: "filed", label: "Filed" },
+            { value: "all", label: "All Cases" },
+            { value: "ready", label: "Ready for SAR" },
+            { value: "filed", label: "SAR Filed" },
           ].map((tab) => (
             <button
               key={tab.value}
@@ -258,246 +158,149 @@ export default function SARManagementPage() {
           ))}
         </div>
 
-        <div className="grid lg:grid-cols-3 gap-6">
-          {/* SAR List */}
-          <div className="lg:col-span-1">
-            <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
-              <div className="divide-y divide-gray-100 max-h-[600px] overflow-y-auto">
-                {filteredSARs.map((sar) => {
-                  const statusStyle = getStatusStyle(sar.status);
+        {/* Cases Grid */}
+        <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-4">
+          {filteredCases.map((caseItem: MonitoringCase) => {
+            const statusStyle = getStatusStyle(caseItem);
 
-                  return (
-                    <button
-                      key={sar.id}
-                      onClick={() => setSelectedSAR(sar)}
-                      className={`w-full p-4 text-left hover:bg-gray-50 transition ${
-                        selectedSAR?.id === sar.id
-                          ? "bg-indigo-50 border-l-4 border-indigo-500"
-                          : ""
-                      }`}
-                    >
-                      <div className="flex items-start justify-between mb-2">
-                        <div>
-                          <p className="font-medium text-gray-900">{sar.id}</p>
-                          <p className="text-sm text-gray-500">
-                            {sar.subject_name}
-                          </p>
-                        </div>
-                        <span
-                          className={`text-xs px-2 py-1 rounded-full ${statusStyle.bg} ${statusStyle.text}`}
-                        >
-                          {statusStyle.label}
-                        </span>
-                      </div>
-
-                      <div className="flex items-center space-x-3 text-sm text-gray-500 mb-2">
-                        <span className="flex items-center space-x-1">
-                          <DollarSign className="w-3.5 h-3.5" />
-                          <span>
-                            {sar.total_amount.toLocaleString()} {sar.currency}
-                          </span>
-                        </span>
-                        <span className="flex items-center space-x-1">
-                          <AlertTriangle className="w-3.5 h-3.5" />
-                          <span>{getActivityTypeLabel(sar.activity_type)}</span>
-                        </span>
-                      </div>
-
-                      <p className="text-sm text-gray-600 line-clamp-2">
-                        {sar.narrative_preview}
-                      </p>
-                    </button>
-                  );
-                })}
-
-                {filteredSARs.length === 0 && (
-                  <div className="p-8 text-center text-gray-500">
-                    <FileText className="w-8 h-8 mx-auto mb-2 text-gray-300" />
-                    <p>No SARs found</p>
-                  </div>
-                )}
-              </div>
-            </div>
-          </div>
-
-          {/* SAR Detail */}
-          <div className="lg:col-span-2">
-            {selectedSAR ? (
-              <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
-                {/* Detail Header */}
-                <div className="p-6 border-b border-gray-100">
-                  <div className="flex items-start justify-between mb-4">
-                    <div>
-                      <h2 className="text-xl font-semibold text-gray-900">
-                        {selectedSAR.id}
-                      </h2>
-                      <p className="text-gray-500">
-                        Case: {selectedSAR.case_id} •{" "}
-                        {new Date(selectedSAR.created_at).toLocaleString()}
-                      </p>
-                    </div>
-                    {(() => {
-                      const statusStyle = getStatusStyle(selectedSAR.status);
-                      return (
-                        <span
-                          className={`px-4 py-2 rounded-lg ${statusStyle.bg} ${statusStyle.text} font-medium`}
-                        >
-                          {statusStyle.label}
-                        </span>
-                      );
-                    })()}
-                  </div>
-
-                  {/* Quick Info */}
-                  <div className="grid grid-cols-4 gap-4">
-                    <div className="bg-gray-50 rounded-lg p-3">
-                      <div className="flex items-center space-x-2 text-gray-500 mb-1">
-                        <User className="w-4 h-4" />
-                        <span className="text-xs">Subject</span>
-                      </div>
-                      <p className="font-medium text-gray-900 truncate">
-                        {selectedSAR.subject_name}
-                      </p>
-                    </div>
-                    <div className="bg-gray-50 rounded-lg p-3">
-                      <div className="flex items-center space-x-2 text-gray-500 mb-1">
-                        <AlertTriangle className="w-4 h-4" />
-                        <span className="text-xs">Activity Type</span>
-                      </div>
-                      <p className="font-medium text-gray-900">
-                        {getActivityTypeLabel(selectedSAR.activity_type)}
-                      </p>
-                    </div>
-                    <div className="bg-gray-50 rounded-lg p-3">
-                      <div className="flex items-center space-x-2 text-gray-500 mb-1">
-                        <DollarSign className="w-4 h-4" />
-                        <span className="text-xs">Total Amount</span>
-                      </div>
-                      <p className="font-medium text-gray-900">
-                        {selectedSAR.total_amount.toLocaleString()}{" "}
-                        {selectedSAR.currency}
-                      </p>
-                    </div>
-                    <div className="bg-gray-50 rounded-lg p-3">
-                      <div className="flex items-center space-x-2 text-gray-500 mb-1">
-                        <Brain className="w-4 h-4" />
-                        <span className="text-xs">AI Confidence</span>
-                      </div>
-                      <p className="font-medium text-gray-900">
-                        {(selectedSAR.confidence * 100).toFixed(0)}%
-                      </p>
-                    </div>
-                  </div>
-                </div>
-
-                {/* Narrative */}
-                <div className="p-6 border-b border-gray-100">
-                  <h3 className="text-sm font-medium text-gray-700 mb-3 flex items-center space-x-2">
-                    <BookOpen className="w-4 h-4" />
-                    <span>AI-Generated Narrative</span>
-                  </h3>
-                  <div className="bg-gray-50 rounded-lg p-4">
-                    <p className="text-gray-700 whitespace-pre-wrap">
-                      {selectedSAR.narrative_preview}
+            return (
+              <div
+                key={caseItem.case_id}
+                className="bg-white rounded-xl border border-gray-200 p-5 hover:shadow-md transition"
+              >
+                <div className="flex items-start justify-between mb-3">
+                  <div>
+                    <p className="font-medium text-gray-900">
+                      {caseItem.case_id}
                     </p>
-                    <button className="mt-3 text-sm text-indigo-600 hover:text-indigo-700 flex items-center space-x-1">
-                      <span>View full narrative</span>
-                      <ChevronRight className="w-4 h-4" />
-                    </button>
+                    <p className="text-sm text-gray-500">
+                      {caseItem.case_type || "Investigation"}
+                    </p>
                   </div>
+                  <span
+                    className={`text-xs px-2 py-1 rounded-full ${statusStyle.bg} ${statusStyle.text}`}
+                  >
+                    {statusStyle.label}
+                  </span>
                 </div>
 
-                {/* Red Flags */}
-                <div className="p-6 border-b border-gray-100">
-                  <h3 className="text-sm font-medium text-gray-700 mb-3 flex items-center space-x-2">
-                    <Flag className="w-4 h-4 text-red-500" />
-                    <span>Red Flags Identified</span>
-                  </h3>
-                  <div className="flex flex-wrap gap-2">
-                    {selectedSAR.red_flags.map((flag, index) => (
-                      <span
-                        key={index}
-                        className="px-3 py-1.5 bg-red-50 text-red-700 rounded-lg text-sm"
-                      >
-                        {flag}
+                <div className="space-y-2 mb-4">
+                  <div className="flex items-center space-x-2 text-sm text-gray-600">
+                    <User className="w-4 h-4" />
+                    <span>{caseItem.subject_id || "Unknown subject"}</span>
+                  </div>
+                  {caseItem.severity && (
+                    <div className="flex items-center space-x-2 text-sm">
+                      <AlertTriangle
+                        className={`w-4 h-4 ${
+                          caseItem.severity === "critical"
+                            ? "text-red-500"
+                            : caseItem.severity === "high"
+                              ? "text-orange-500"
+                              : "text-yellow-500"
+                        }`}
+                      />
+                      <span className="capitalize text-gray-600">
+                        {caseItem.severity} severity
                       </span>
-                    ))}
-                  </div>
+                    </div>
+                  )}
                 </div>
 
-                {/* Actions */}
-                <div className="p-6">
-                  <div className="flex items-center space-x-3">
-                    {selectedSAR.status === "draft" && (
-                      <>
-                        <button className="flex items-center space-x-2 px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition">
-                          <Edit className="w-4 h-4" />
-                          <span>Edit Narrative</span>
-                        </button>
-                        <button className="flex items-center space-x-2 px-4 py-2 bg-yellow-500 text-white rounded-lg hover:bg-yellow-600 transition">
-                          <Send className="w-4 h-4" />
-                          <span>Submit for Review</span>
-                        </button>
-                      </>
-                    )}
+                {caseItem.description && (
+                  <p className="text-sm text-gray-600 line-clamp-2 mb-4">
+                    {caseItem.description}
+                  </p>
+                )}
 
-                    {selectedSAR.status === "pending_review" && (
-                      <>
-                        <button className="flex items-center space-x-2 px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition">
-                          <CheckCircle className="w-4 h-4" />
-                          <span>Approve</span>
-                        </button>
-                        <button className="flex items-center space-x-2 px-4 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition">
-                          <XCircle className="w-4 h-4" />
-                          <span>Request Changes</span>
-                        </button>
-                      </>
-                    )}
+                <div className="flex items-center gap-2">
+                  <Link
+                    href={`/cases/${caseItem.case_id}`}
+                    className="flex-1 flex items-center justify-center space-x-1 px-3 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition text-sm"
+                  >
+                    <Eye className="w-4 h-4" />
+                    <span>View Case</span>
+                  </Link>
 
-                    {selectedSAR.status === "approved" && (
-                      <button className="flex items-center space-x-2 px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition">
-                        <Send className="w-4 h-4" />
-                        <span>File with FIU</span>
-                      </button>
-                    )}
+                  {caseItem.status === "escalated" && (
+                    <Link
+                      href={`/sar/prepare?case_id=${caseItem.case_id}`}
+                      className="flex-1 flex items-center justify-center space-x-1 px-3 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition text-sm"
+                    >
+                      <Send className="w-4 h-4" />
+                      <span>Prepare SAR</span>
+                    </Link>
+                  )}
 
-                    {selectedSAR.status === "filed" && (
-                      <div className="flex items-center space-x-2 text-green-600">
-                        <CheckCircle className="w-5 h-5" />
-                        <span className="font-medium">Filed successfully</span>
-                      </div>
-                    )}
-
-                    <button className="flex items-center space-x-2 px-4 py-2 border border-gray-200 text-gray-600 rounded-lg hover:bg-gray-50 transition ml-auto">
+                  {caseItem.outcome === "sar_filed" && (
+                    <button className="flex-1 flex items-center justify-center space-x-1 px-3 py-2 border border-gray-200 text-gray-600 rounded-lg hover:bg-gray-50 transition text-sm">
                       <Download className="w-4 h-4" />
-                      <span>Export PDF</span>
+                      <span>Export</span>
                     </button>
-
-                    <button className="flex items-center space-x-2 px-4 py-2 border border-gray-200 text-gray-600 rounded-lg hover:bg-gray-50 transition">
-                      <Eye className="w-4 h-4" />
-                      <span>Preview goAML</span>
-                    </button>
-                  </div>
+                  )}
                 </div>
               </div>
-            ) : (
-              <div className="bg-white rounded-xl border border-gray-200 p-12 text-center">
-                <FileText className="w-12 h-12 text-gray-300 mx-auto mb-4" />
-                <h3 className="text-lg font-medium text-gray-900 mb-2">
-                  Select a SAR
-                </h3>
-                <p className="text-gray-500 mb-6">
-                  Choose a SAR from the list to view details and take action
-                </p>
-                <Link
-                  href="/cases"
-                  className="inline-flex items-center space-x-2 px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition"
-                >
-                  <Plus className="w-4 h-4" />
-                  <span>Create SAR from Case</span>
-                </Link>
-              </div>
-            )}
+            );
+          })}
+
+          {filteredCases.length === 0 && (
+            <div className="col-span-full bg-white rounded-xl border border-gray-200 p-12 text-center">
+              <FileText className="w-12 h-12 text-gray-300 mx-auto mb-4" />
+              <h3 className="text-lg font-medium text-gray-900 mb-2">
+                No Cases Found
+              </h3>
+              <p className="text-gray-500 mb-6">
+                {filter === "ready"
+                  ? "No cases are currently ready for SAR filing."
+                  : filter === "filed"
+                    ? "No SARs have been filed yet."
+                    : "No SAR-related cases found. Escalate cases to prepare SARs."}
+              </p>
+              <Link
+                href="/cases"
+                className="inline-flex items-center space-x-2 px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition"
+              >
+                <Plus className="w-4 h-4" />
+                <span>View All Cases</span>
+              </Link>
+            </div>
+          )}
+        </div>
+
+        {/* Info Panel */}
+        <div className="mt-8 bg-gradient-to-br from-blue-50 to-indigo-50 dark:from-blue-900/20 dark:to-indigo-900/20 rounded-xl p-6 border border-blue-200 dark:border-blue-800">
+          <div className="flex items-start space-x-4">
+            <div className="p-2 bg-blue-100 rounded-lg">
+              <Brain className="w-6 h-6 text-blue-600" />
+            </div>
+            <div>
+              <h3 className="font-semibold text-gray-900 mb-2">
+                AI-Powered SAR Generation
+              </h3>
+              <p className="text-sm text-gray-600 mb-3">
+                When you prepare a SAR, our AI generates a comprehensive
+                narrative based on case evidence, transaction patterns, and
+                regulatory requirements. The generated SAR includes:
+              </p>
+              <ul className="text-sm text-gray-600 space-y-1">
+                <li className="flex items-center space-x-2">
+                  <CheckCircle className="w-4 h-4 text-green-500" />
+                  <span>Auto-generated suspicious activity narrative</span>
+                </li>
+                <li className="flex items-center space-x-2">
+                  <CheckCircle className="w-4 h-4 text-green-500" />
+                  <span>Regulatory citations and compliance mapping</span>
+                </li>
+                <li className="flex items-center space-x-2">
+                  <CheckCircle className="w-4 h-4 text-green-500" />
+                  <span>Transaction summaries and red flag analysis</span>
+                </li>
+                <li className="flex items-center space-x-2">
+                  <CheckCircle className="w-4 h-4 text-green-500" />
+                  <span>goAML and FIU-compatible export formats</span>
+                </li>
+              </ul>
+            </div>
           </div>
         </div>
       </div>
