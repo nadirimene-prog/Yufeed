@@ -120,7 +120,12 @@ export default function ObligationApprovalModal({
             setLinkedPolicyId(suggestionsRes.items[0].policy_document_id);
           }
         })
-        .catch((e) => logger.error(e))
+        .catch((e) => {
+          logger.error("Failed to load obligation modal data:", e);
+          setPolicies([]);
+          setRiskEntries([]);
+          setSuggestions([]);
+        })
         .finally(() => setLoadingData(false));
 
       // Reset form state

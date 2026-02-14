@@ -23,6 +23,7 @@ import {
   Zap,
 } from "lucide-react";
 
+import toast from "react-hot-toast";
 import amlOfficerApi, {
   DailyBriefing,
   ProactiveAlert,
@@ -51,12 +52,11 @@ export default function AMLOfficerDashboard() {
 
   const fetchProactiveAlerts = async () => {
     try {
-      const alertsData = await amlOfficerApi
-        .getProactiveAlerts()
-        .catch(() => ({ alerts: [] }));
+      const alertsData = await amlOfficerApi.getProactiveAlerts();
       setProactiveAlerts(alertsData.alerts || []);
     } catch (err) {
-      logger.error(err);
+      logger.error("Failed to fetch proactive alerts:", err);
+      setProactiveAlerts([]);
     } finally {
       setRefreshing(false);
     }
@@ -224,13 +224,12 @@ export default function AMLOfficerDashboard() {
               <RecentAlertsTable
                 data={proactiveAlerts}
                 onAction={(alertItem, action) => {
-                  logger.log(`Action ${action} on alert`, alertItem);
-                  // Future: Implement actual API call here
-                  window.alert(
-                    action === "approve"
-                      ? "Alert dismissed"
-                      : "Alert escalated",
-                  );
+                  // TODO: Implement actual API call to update alert status
+                  if (action === "approve") {
+                    toast.success("Alert dismissed");
+                  } else {
+                    toast("Alert escalated", { icon: "⚠️" });
+                  }
                 }}
               />
             </div>

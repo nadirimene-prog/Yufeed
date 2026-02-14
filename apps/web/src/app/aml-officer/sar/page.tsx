@@ -19,19 +19,10 @@ import {
   Download,
   Plus,
   User,
-  DollarSign,
-  Flag,
   Loader2,
 } from "lucide-react";
 import { useMonitoringCases } from "@/hooks/queries/useMonitoringData";
 import type { MonitoringCase } from "@/types/monitoring";
-
-type CaseStatus =
-  | "open"
-  | "under_investigation"
-  | "escalated"
-  | "sar_filed"
-  | "closed";
 
 export default function SARManagementPage() {
   const [filter, setFilter] = useState<"all" | "ready" | "filed">("all");
