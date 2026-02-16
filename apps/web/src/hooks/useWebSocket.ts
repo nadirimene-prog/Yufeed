@@ -89,6 +89,7 @@ export function useWebSocket(
   const reconnectTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const reconnectAttemptsRef = useRef(0);
   const errorLoggedRef = useRef(false);
+  const maxReconnectToastShownRef = useRef(false);
   const connectRef = useRef<() => void>(() => {});
   const heartbeatRef = useRef<NodeJS.Timeout | null>(null);
   const maxReconnectAttempts = 10;
@@ -246,6 +247,7 @@ export function useWebSocket(
         setIsConnected(true);
         setConnectionStatus("connected");
         reconnectAttemptsRef.current = 0;
+        maxReconnectToastShownRef.current = false; // Reset toast flag on success
         if (heartbeatRef.current) {
           clearInterval(heartbeatRef.current);
         }
@@ -316,19 +318,21 @@ export function useWebSocket(
                 "This is expected if the backend is not running or if you're not logged in.",
             );
           }
-          // Only show error toast in production, or if we were previously connected
-          if (
-            process.env.NODE_ENV === "production" ||
-            reconnectAttemptsRef.current > 5
-          ) {
+          // Only show error toast once, not repeatedly
+          if (!maxReconnectToastShownRef.current) {
+            maxReconnectToastShownRef.current = true;
             toast.error("Lost connection to server. Please refresh the page.", {
               duration: 10000,
             });
           }
         } else if (event.code === 1008) {
-          toast.error("WebSocket authentication failed. Please log in again.", {
-            duration: 8000,
-          });
+          // Authentication failed - only show once
+          if (!maxReconnectToastShownRef.current) {
+            maxReconnectToastShownRef.current = true;
+            toast.error("WebSocket authentication failed. Please log in again.", {
+              duration: 8000,
+            });
+          }
         }
       };
 
@@ -384,6 +388,7 @@ export function useWebSocket(
   const reconnect = useCallback(() => {
     disconnect();
     reconnectAttemptsRef.current = 0;
+    maxReconnectToastShownRef.current = false; // Reset toast flag on manual reconnect
     setTimeout(() => connect(), 100);
   }, [connect, disconnect]);
 
