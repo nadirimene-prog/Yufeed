@@ -260,16 +260,21 @@ class TenantMiddleware(BaseHTTPMiddleware):
             True if endpoint requires tenant
         """
         exempt_paths = [
+            "/",  # Root endpoint
             "/api/docs",
             "/api/redoc",
             "/api/openapi.json",
             "/health",
             "/healthz",
+            "/api/health",  # Test alias
+            "/api/healthz",  # Test alias
             "/metrics",
             "/api/auth/login",
             "/api/auth/register",
             "/api/auth/token",
             "/api/auth/refresh",
+            "/api/auth/forgot-password",
+            "/api/auth/reset-password",
             "/api/tenants",
             "/ws",  # WebSocket endpoint handles its own auth
         ]

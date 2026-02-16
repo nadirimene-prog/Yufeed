@@ -85,16 +85,79 @@ async def lifespan(app: FastAPI):
 # ----------------------------------------------------------------------
 # FastAPI app – instrumented with OpenTelemetry
 # ----------------------------------------------------------------------
+from fastapi.security import OAuth2PasswordBearer
+
+# OAuth2 scheme for Swagger UI authentication
+oauth2_scheme = OAuth2PasswordBearer(
+    tokenUrl="/api/auth/token",
+    scopes={
+        "read": "Read access to resources",
+        "write": "Write access to resources",
+        "admin": "Administrative access"
+    }
+)
+
 app = FastAPI(
-    title="EU Legal Monitoring MVP",
+    title="YuFeed API",
+    description="AI-powered EU legal monitoring & AML compliance platform",
+    version="1.0.0",
     docs_url="/api/docs",
     redoc_url="/api/redoc",
     lifespan=lifespan,
+    # OpenAPI security scheme configuration
+    swagger_ui_init_oauth={
+        "usePkceWithAuthorizationCodeGrant": True,
+        "clientId": "yufeed-api",
+    },
 )
 
 # --- Rate limiter configuration ---
 app.state.limiter = limiter
 app.add_exception_handler(RateLimitExceeded, custom_rate_limit_handler)
+
+
+# --- OpenAPI schema customization ---
+def custom_openapi():
+    """Customize OpenAPI schema to include security schemes."""
+    if app.openapi_schema:
+        return app.openapi_schema
+    
+    from fastapi.openapi.utils import get_openapi
+    
+    openapi_schema = get_openapi(
+        title=app.title,
+        version=app.version,
+        description=app.description,
+        routes=app.routes,
+    )
+    
+    # Add security schemes
+    openapi_schema["components"]["securitySchemes"] = {
+        "bearerAuth": {
+            "type": "http",
+            "scheme": "bearer",
+            "bearerFormat": "JWT",
+            "description": "Enter your JWT token in the format: Bearer <token>"
+        },
+        "apiKeyAuth": {
+            "type": "apiKey",
+            "in": "header",
+            "name": "X-API-Key",
+            "description": "Enter your API key (format: yk_live_<tenant_id>_<random>)"
+        }
+    }
+    
+    # Add global security requirement (can be overridden per endpoint)
+    openapi_schema["security"] = [
+        {"bearerAuth": []},
+        {"apiKeyAuth": []}
+    ]
+    
+    app.openapi_schema = openapi_schema
+    return app.openapi_schema
+
+
+app.openapi = custom_openapi
 
 
 # --- OpenAPI alias for Swagger (/api/docs) ---
