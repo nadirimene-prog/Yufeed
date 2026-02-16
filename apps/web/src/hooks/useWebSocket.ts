@@ -219,8 +219,13 @@ export function useWebSocket(
     try {
       const token = getValidToken();
       if (!token) {
+        // Silently skip connection if not authenticated
+        // This prevents error spam when user is logged out
         setIsConnected(false);
         setConnectionStatus("disconnected");
+        if (process.env.NODE_ENV === "development") {
+          console.log("[WebSocket] Skipping connection - no valid token");
+        }
         return;
       }
       const wsUrl = getWebSocketUrl();
@@ -256,7 +261,13 @@ export function useWebSocket(
 
       ws.onerror = (error) => {
         if (!errorLoggedRef.current && process.env.NODE_ENV === "development") {
-          console.warn("[WebSocket] Error:", error);
+          console.warn(
+            "[WebSocket] Connection error - is the backend running?",
+            {
+              url: wsUrlWithToken.split("?")[0] + "?token=***", // Hide token
+              error,
+            },
+          );
           errorLoggedRef.current = true;
         }
         errorLoggedRef.current = true;
@@ -300,11 +311,20 @@ export function useWebSocket(
           }, delay);
         } else if (reconnectAttemptsRef.current >= maxReconnectAttempts) {
           if (process.env.NODE_ENV === "development") {
-            console.error("[WebSocket] Max reconnection attempts reached");
+            console.warn(
+              "[WebSocket] Max reconnection attempts reached. " +
+                "This is expected if the backend is not running or if you're not logged in.",
+            );
           }
-          toast.error("Lost connection to server. Please refresh the page.", {
-            duration: 10000,
-          });
+          // Only show error toast in production, or if we were previously connected
+          if (
+            process.env.NODE_ENV === "production" ||
+            reconnectAttemptsRef.current > 5
+          ) {
+            toast.error("Lost connection to server. Please refresh the page.", {
+              duration: 10000,
+            });
+          }
         } else if (event.code === 1008) {
           toast.error("WebSocket authentication failed. Please log in again.", {
             duration: 8000,
