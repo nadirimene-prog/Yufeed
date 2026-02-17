@@ -53,6 +53,9 @@ def register_routers(app: FastAPI) -> None:
     from .api.decisioning import router as decisioning_router
 
     include_with_api_prefix(decisioning_router)
+    from .api.dashboard_overview import router as dashboard_overview_router
+
+    include_with_api_prefix(dashboard_overview_router)
     from .api.endpoints import router as endpoints_router
 
     include_with_api_prefix(endpoints_router)

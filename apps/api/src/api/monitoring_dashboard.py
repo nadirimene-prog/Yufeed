@@ -154,6 +154,14 @@ def get_realtime_metrics(db: Session = Depends(get_db)):
     }
 
 
+@router.get("/metrics")
+def get_realtime_metrics_compat(db: Session = Depends(get_db)):
+    """
+    Backward-compatible alias for clients still using /api/monitoring/metrics.
+    """
+    return get_realtime_metrics(db)
+
+
 @router.get("/trends/alerts")
 def get_alert_trends(days: int = Query(30, ge=1, le=365), db: Session = Depends(get_db)):
     """
