@@ -9,8 +9,10 @@ import {
   getRiskMap,
   updateObligationStatus,
 } from "@/lib/compliance-api";
-import { complianceKeys } from "@/lib/queryKeys";
+import { complianceKeys, dashboardKeys } from "@/lib/queryKeys";
 import type { ObligationsListResponse } from "@/lib/compliance-api";
+import type { DashboardOverviewResponse } from "@/features/dashboard/types";
+import apiClient from "@/lib/http";
 
 const DASHBOARD_OBLIGATIONS_PARAMS = {
   limit: 10,
@@ -19,6 +21,19 @@ const DASHBOARD_OBLIGATIONS_PARAMS = {
 const DASHBOARD_POLICIES_PARAMS = { limit: 10 } as const;
 
 export function useComplianceDashboard() {
+  const overviewQuery = useQuery({
+    queryKey: dashboardKeys.overview("compliance", "7d"),
+    queryFn: async () => {
+      const response = await apiClient.get<DashboardOverviewResponse>(
+        "/api/dashboard/overview",
+        {
+          params: { view: "compliance", time_range: "7d" },
+        },
+      );
+      return response.data;
+    },
+  });
+
   const obligationsQuery = useQuery({
     queryKey: complianceKeys.obligationsList(DASHBOARD_OBLIGATIONS_PARAMS),
     queryFn: () => getObligations(DASHBOARD_OBLIGATIONS_PARAMS),
@@ -35,6 +50,7 @@ export function useComplianceDashboard() {
   });
 
   const errors = [
+    overviewQuery.error,
     obligationsQuery.error,
     policiesQuery.error,
     riskMapQuery.error,
@@ -42,18 +58,24 @@ export function useComplianceDashboard() {
 
   return {
     data: {
+      overview: overviewQuery.data,
       obligations: obligationsQuery.data,
       policies: policiesQuery.data,
       riskMap: riskMapQuery.data,
     },
     isLoading:
+      overviewQuery.isLoading ||
       obligationsQuery.isLoading ||
       policiesQuery.isLoading ||
       riskMapQuery.isLoading,
     isError:
-      obligationsQuery.isError || policiesQuery.isError || riskMapQuery.isError,
+      overviewQuery.isError ||
+      obligationsQuery.isError ||
+      policiesQuery.isError ||
+      riskMapQuery.isError,
     errors,
     queries: {
+      overviewQuery,
       obligationsQuery,
       policiesQuery,
       riskMapQuery,
