@@ -93,8 +93,8 @@ oauth2_scheme = OAuth2PasswordBearer(
     scopes={
         "read": "Read access to resources",
         "write": "Write access to resources",
-        "admin": "Administrative access"
-    }
+        "admin": "Administrative access",
+    },
 )
 
 app = FastAPI(
@@ -121,38 +121,35 @@ def custom_openapi():
     """Customize OpenAPI schema to include security schemes."""
     if app.openapi_schema:
         return app.openapi_schema
-    
+
     from fastapi.openapi.utils import get_openapi
-    
+
     openapi_schema = get_openapi(
         title=app.title,
         version=app.version,
         description=app.description,
         routes=app.routes,
     )
-    
+
     # Add security schemes
     openapi_schema["components"]["securitySchemes"] = {
         "bearerAuth": {
             "type": "http",
             "scheme": "bearer",
             "bearerFormat": "JWT",
-            "description": "Enter your JWT token in the format: Bearer <token>"
+            "description": "Enter your JWT token in the format: Bearer <token>",
         },
         "apiKeyAuth": {
             "type": "apiKey",
             "in": "header",
             "name": "X-API-Key",
-            "description": "Enter your API key (format: yk_live_<tenant_id>_<random>)"
-        }
+            "description": "Enter your API key (format: yk_live_<tenant_id>_<random>)",
+        },
     }
-    
+
     # Add global security requirement (can be overridden per endpoint)
-    openapi_schema["security"] = [
-        {"bearerAuth": []},
-        {"apiKeyAuth": []}
-    ]
-    
+    openapi_schema["security"] = [{"bearerAuth": []}, {"apiKeyAuth": []}]
+
     app.openapi_schema = openapi_schema
     return app.openapi_schema
 
@@ -167,6 +164,17 @@ def _openapi_alias():
 
 
 register_routers(app)
+
+# Register new compliance routers
+from src.api.reminders import router as reminders_router
+from src.api.gap_analysis import router as gap_analysis_router
+from src.api.policy_generator import router as policy_generator_router
+
+app.include_router(reminders_router)
+app.include_router(gap_analysis_router)
+app.include_router(policy_generator_router)
+
+logger.info("Registered compliance routers: reminders, gap_analysis, policy_generator")
 
 Instrumentator().instrument(app).expose(app, endpoint="/metrics", include_in_schema=False)
 FastAPIInstrumentor().instrument_app(app)
@@ -257,6 +265,11 @@ def api_root():
 @app.get("/healthz", tags=["monitoring"])
 def health_check():
     return JSONResponse(content={"status": "ok", "service": "yufeed-api", "ts": int(time.time())})
+
+
+@app.get("/api/healthz", tags=["monitoring"], include_in_schema=False)
+def health_check_alias():
+    return health_check()
 
 
 # ----------------------------------------------------------------------

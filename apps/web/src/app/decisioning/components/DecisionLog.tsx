@@ -298,8 +298,8 @@ export default function DecisionLog({
                     </span>
                   </div>
                   <div className="mt-2 text-[11px] text-gray-600 dark:text-gray-400">
-                    <div>Event: {item.event_type || "-"}</div>
-                    <div>Entity: {item.entity_id || "-"}</div>
+                    <div>Event: {item.event_type ?? "-"}</div>
+                    <div>Entity: {item.entity_id ?? "-"}</div>
                   </div>
                 </button>
               ))}

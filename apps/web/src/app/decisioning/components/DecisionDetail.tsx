@@ -74,7 +74,7 @@ export default function DecisionDetail({
                 Reason Codes
               </div>
               <div className="mt-2 flex flex-wrap gap-2">
-                {(selectedDecision.reason_codes || []).length ? (
+                {(selectedDecision.reason_codes ?? []).length ? (
                   selectedDecision.reason_codes?.map((code) => (
                     <span
                       key={code}
@@ -104,7 +104,7 @@ export default function DecisionDetail({
                 Event ID
               </div>
               <div className="font-medium text-gray-900 dark:text-gray-100">
-                {selectedDecision.event_id || "-"}
+                {selectedDecision.event_id ?? "-"}
               </div>
             </div>
             <div>
@@ -120,7 +120,7 @@ export default function DecisionDetail({
                 Event Type
               </div>
               <div className="font-medium text-gray-900 dark:text-gray-100">
-                {selectedDecision.event_type || "-"}
+                {selectedDecision.event_type ?? "-"}
               </div>
             </div>
             <div>
@@ -128,7 +128,7 @@ export default function DecisionDetail({
                 Entity
               </div>
               <div className="font-medium text-gray-900 dark:text-gray-100">
-                {selectedDecision.entity_id || "-"}
+                {selectedDecision.entity_id ?? "-"}
               </div>
             </div>
             <div>
@@ -136,7 +136,7 @@ export default function DecisionDetail({
                 Rule Version
               </div>
               <div className="font-medium text-gray-900 dark:text-gray-100">
-                {selectedDecision.rule_version || "-"}
+                {selectedDecision.rule_version ?? "-"}
               </div>
             </div>
             <div>
@@ -144,7 +144,7 @@ export default function DecisionDetail({
                 Model Version
               </div>
               <div className="font-medium text-gray-900 dark:text-gray-100">
-                {selectedDecision.model_version || "-"}
+                {selectedDecision.model_version ?? "-"}
               </div>
             </div>
           </div>

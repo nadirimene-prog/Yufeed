@@ -202,6 +202,15 @@
   --glass-border-medium: rgba(255, 255, 255, 0.1);
   --glass-border-strong: rgba(255, 255, 255, 0.15);
 
+  /* New Ultra Surfaces */
+  --surface-ultra-1: rgba(10, 10, 18, 0.4);
+  --surface-ultra-2: rgba(10, 10, 18, 0.6);
+  --surface-ultra-3: rgba(10, 10, 18, 0.8);
+
+  --surface-glow-primary: 0 0 30px rgba(109, 90, 205, 0.15);
+  --surface-glow-accent: 0 0 30px rgba(0, 212, 255, 0.15);
+  --surface-glow-error: 0 0 30px rgba(255, 51, 102, 0.15);
+
   /* ════════════════════════════════════════════════════════════════
      TYPOGRAPHY SCALE
      Whispered labels, declared values

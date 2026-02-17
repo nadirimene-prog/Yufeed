@@ -3,12 +3,9 @@
  * and whether it's running inside Docker or directly on the host.
  */
 export function resolveApiBaseUrl(): string {
-  // Browser context: Prefer public API URL if provided, otherwise use relative paths
+  // Browser context: Always use relative paths to leverage Next.js rewrites/proxy.
+  // This avoids CORS issues and "Failed to fetch" errors due to absolute URL mismatch.
   if (typeof window !== "undefined") {
-    const publicUrl = process.env.NEXT_PUBLIC_API_URL;
-    if (publicUrl) {
-      return publicUrl.replace(/\/$/, "");
-    }
     return "";
   }
 

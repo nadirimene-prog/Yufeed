@@ -255,9 +255,9 @@ def db_session():
     Base.metadata.create_all(bind=engine)
     Session = sessionmaker(bind=engine)
     session = Session()
-    
+
     yield session
-    
+
     session.close()
     Base.metadata.drop_all(bind=engine)
 ```

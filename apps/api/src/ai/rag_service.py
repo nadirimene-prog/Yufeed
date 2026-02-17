@@ -12,6 +12,7 @@ from anthropic import AsyncAnthropic
 from sqlalchemy.orm import Session
 from src.models.models import LegalDocument
 from src.search import search_documents as opensearch_documents, search_rag_chunks
+from src.config import settings
 import os
 import logging
 
@@ -30,7 +31,7 @@ class RAGService:
     """
 
     def __init__(self, db: Optional[Session] = None):
-        api_key = os.getenv("ANTHROPIC_API_KEY")
+        api_key = settings.ANTHROPIC_API_KEY or os.getenv("ANTHROPIC_API_KEY")
         self.client = AsyncAnthropic(api_key=api_key) if api_key else None
         self.db = db
 
@@ -188,10 +189,13 @@ class RAGService:
             }
 
         prompt = self._build_rag_prompt(query, chunks)
+        logger.error(f"DEBUG: About to call Claude API with model claude-3-5-sonnet-20240620")
 
         try:
+            # Try haiku first (more widely available), fall back to sonnet
+            model = "claude-3-haiku-20240307"
             message = await self.client.messages.create(
-                model="claude-3-5-sonnet-20240620",
+                model=model,
                 max_tokens=2000,
                 temperature=0.3,
                 messages=[{"role": "user", "content": prompt}],
@@ -203,7 +207,7 @@ class RAGService:
             avg_score = sum(d.get("score", 0) for d in chunks) / len(chunks)
             confidence = "high" if avg_score > 5.0 else "medium" if avg_score > 2.0 else "low"
 
-            return {"answer": answer_text, "confidence": confidence, "model": "claude-3-5-sonnet"}
+            return {"answer": answer_text, "confidence": confidence, "model": model}
 
         except Exception as e:
             logger.error(f"RAG generation error: {e}")

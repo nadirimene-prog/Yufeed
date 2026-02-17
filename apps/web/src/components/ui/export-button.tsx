@@ -52,7 +52,7 @@ export function ExportButton({
   pdfTitle,
   columns,
   variant = "outline",
-  size = "default",
+  size = "md",
   className,
   loading = false,
   disabled = false,

@@ -192,7 +192,7 @@ export default function AlertDetailPage() {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
-            assigned_to: alert.assigned_to || "unassigned",
+            assigned_to: alert.assigned_to ?? "unassigned",
           }),
         },
       );

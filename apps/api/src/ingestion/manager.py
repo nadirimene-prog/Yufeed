@@ -19,6 +19,7 @@ from sqlalchemy.orm import Session
 from .rss import RSSFetcher
 from .processor import IngestionProcessor
 from .legifrance import LegifranceFetcher
+from .supervisory_fetcher import SupervisoryAggregator
 from .alerts import send_ingestion_report, send_ingestion_failure_alert, IngestionReport
 from src.config import settings
 from src.ingestion.config import IngestionConfig
@@ -516,3 +517,65 @@ class IngestionManager:
             send_ingestion_report(reports)
 
         return reports
+
+    def run_supervisory_ingestion(self, send_alerts: bool = False) -> Dict[str, Any]:
+        """
+        Run ingestion from EU Supervisory Authorities (AMLA, ESMA, etc.).
+
+        This is separate from legislative ingestion as supervisory authorities
+        publish guidelines, opinions, and Q&As rather than binding regulations.
+
+        Args:
+            send_alerts: Whether to send email alerts
+
+        Returns:
+            Dict with ingestion statistics
+        """
+        logger.info("Starting supervisory authority ingestion...")
+
+        aggregator = SupervisoryAggregator()
+        results = {
+            "amla": {"seen": 0, "new": 0, "errors": []},
+            "esma": {"seen": 0, "new": 0, "errors": []},
+            "fiu": {"seen": 0, "new": 0, "errors": []},
+        }
+
+        # Fetch AMLA updates
+        try:
+            amla_entries = aggregator.amla.fetch()
+            results["amla"]["seen"] = len(amla_entries)
+            logger.info(f"AMLA: {len(amla_entries)} entries found")
+            # Process entries (store as alerts/notifications rather than full documents)
+            for entry in amla_entries:
+                # TODO: Create SupervisoryAlert or similar model
+                pass
+        except Exception as e:
+            logger.error(f"AMLA ingestion error: {e}")
+            results["amla"]["errors"].append(str(e))
+
+        # Fetch ESMA updates
+        try:
+            esma_entries = aggregator.esma.fetch()
+            results["esma"]["seen"] = len(esma_entries)
+            logger.info(f"ESMA: {len(esma_entries)} entries found")
+            for entry in esma_entries:
+                # TODO: Process ESMA updates
+                pass
+        except Exception as e:
+            logger.error(f"ESMA ingestion error: {e}")
+            results["esma"]["errors"].append(str(e))
+
+        # Fetch FIU updates
+        try:
+            tracfin_entries = aggregator.fiu.fetch("tracfin")
+            results["fiu"]["seen"] = len(tracfin_entries)
+            logger.info(f"TRACFIN: {len(tracfin_entries)} entries found")
+            for entry in tracfin_entries:
+                # TODO: Process FIU updates
+                pass
+        except Exception as e:
+            logger.error(f"TRACFIN ingestion error: {e}")
+            results["fiu"]["errors"].append(str(e))
+
+        logger.info("Supervisory ingestion complete")
+        return results

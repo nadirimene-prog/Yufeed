@@ -30,7 +30,7 @@ export default function ObligationSummary({
             Article reference
           </div>
           <div className="mt-1 text-sm text-gray-700 dark:text-gray-300">
-            {articleRef || "—"}
+            {articleRef ?? "—"}
           </div>
         </div>
         <div>
@@ -38,7 +38,7 @@ export default function ObligationSummary({
             Applicability
           </div>
           <div className="mt-1 text-sm text-gray-700 dark:text-gray-300">
-            {applicability || "—"}
+            {applicability ?? "—"}
           </div>
         </div>
         <div>

@@ -1,97 +1,344 @@
-import { ReactNode } from "react";
+"use client";
+
+import * as React from "react";
 import { cn } from "@/lib/utils";
-import { FileQuestion, Search, AlertTriangle, Inbox } from "lucide-react";
+import { Button } from "@/components/ui/button-horizon";
+import {
+  Search,
+  FileX,
+  FolderOpen,
+  Inbox,
+  AlertCircle,
+  Plus,
+  LucideIcon,
+} from "lucide-react";
 
-type EmptyStateVariant = "no-data" | "no-results" | "error" | "inbox";
+/**
+ * Horizon Empty State System
+ * Consistent, helpful empty states for all scenarios
+ */
 
-interface EmptyStateProps {
-  variant?: EmptyStateVariant;
-  title?: string;
+/* ─────────────────────────────────────────────────────────────────────────────
+   Types
+   ───────────────────────────────────────────────────────────────────────────── */
+
+export interface EmptyStateProps {
+  /**
+   * Icon to display
+   */
+  icon?: LucideIcon;
+  /**
+   * Predefined icon variant
+   */
+  variant?:
+    | "default"
+    | "search"
+    | "data"
+    | "inbox"
+    | "error"
+    | "no-results"
+    | "no-data";
+  /**
+   * Title text
+   */
+  title: string;
+  /**
+   * Description text
+   */
   description?: string;
-  icon?: ReactNode;
+  /**
+   * Primary action button
+   */
   action?: {
     label: string;
     onClick: () => void;
+    icon?: LucideIcon;
   };
+  /**
+   * Secondary action button
+   */
+  secondaryAction?: {
+    label: string;
+    onClick: () => void;
+  };
+  /**
+   * Custom content below description
+   */
+  children?: React.ReactNode;
+  /**
+   * Container className
+   */
   className?: string;
+  /**
+   * Compact mode (smaller padding)
+   */
+  compact?: boolean;
 }
 
-const variantConfig = {
-  "no-data": {
-    icon: FileQuestion,
-    title: "No data available",
-    description: "There is no data to display at the moment.",
-    iconColor: "text-gray-400 dark:text-gray-600",
-  },
-  "no-results": {
-    icon: Search,
-    title: "No results found",
-    description: "Try adjusting your search or filter criteria.",
-    iconColor: "text-blue-400 dark:text-blue-600",
-  },
-  error: {
-    icon: AlertTriangle,
-    title: "Something went wrong",
-    description: "An error occurred while loading the data.",
-    iconColor: "text-red-400 dark:text-red-600",
-  },
-  inbox: {
-    icon: Inbox,
-    title: "All caught up!",
-    description: "No new items to review.",
-    iconColor: "text-green-400 dark:text-green-600",
-  },
+/* ─────────────────────────────────────────────────────────────────────────────
+   Icon mapping
+   ───────────────────────────────────────────────────────────────────────────── */
+
+const variantIcons: Record<string, LucideIcon> = {
+  default: FolderOpen,
+  search: Search,
+  data: FileX,
+  inbox: Inbox,
+  error: AlertCircle,
+  "no-results": Search, // Alias for backward compatibility
+  "no-data": FileX, // Alias for backward compatibility
 };
 
+const variantIconClasses: Record<string, string> = {
+  default: "bg-primary/10 text-primary",
+  search: "bg-info-500/10 text-info-400",
+  data: "bg-foreground-tertiary/10 text-foreground-tertiary",
+  inbox: "bg-foreground-tertiary/10 text-foreground-tertiary",
+  error: "bg-critical-500/10 text-critical-400",
+  "no-results": "bg-info-500/10 text-info-400", // Alias for backward compatibility
+  "no-data": "bg-foreground-tertiary/10 text-foreground-tertiary", // Alias for backward compatibility
+};
+
+/* ─────────────────────────────────────────────────────────────────────────────
+   Empty State Component
+   ───────────────────────────────────────────────────────────────────────────── */
+
 export function EmptyState({
-  variant = "no-data",
+  icon: CustomIcon,
+  variant = "default",
   title,
   description,
-  icon,
   action,
+  secondaryAction,
+  children,
   className,
+  compact = false,
 }: EmptyStateProps) {
-  const config = variantConfig[variant];
-  const Icon = icon || config.icon;
-  const displayTitle = title || config.title;
-  const displayDescription = description || config.description;
+  const Icon = CustomIcon || variantIcons[variant];
+  const iconClass = variantIconClasses[variant];
 
   return (
     <div
       className={cn(
-        "flex flex-col items-center justify-center text-center p-12",
+        "flex flex-col items-center justify-center text-center",
+        compact ? "py-8 px-4" : "py-16 px-4",
         className,
       )}
     >
-      <div className={cn("mb-4", config.iconColor)}>
-        {typeof Icon === "function" ? <Icon className="h-16 w-16" /> : Icon}
+      {/* Icon */}
+      <div
+        className={cn(
+          "flex items-center justify-center rounded-full",
+          compact ? "h-12 w-12 mb-4" : "h-16 w-16 mb-6",
+          iconClass,
+        )}
+      >
+        <Icon className={cn(compact ? "h-6 w-6" : "h-8 w-8")} />
       </div>
 
-      <h3 className="text-xl font-semibold text-gray-900 dark:text-white mb-2">
-        {displayTitle}
+      {/* Title */}
+      <h3
+        className={cn(
+          "font-display font-semibold text-foreground",
+          compact ? "text-base" : "text-lg",
+        )}
+      >
+        {title}
       </h3>
 
-      <p className="text-gray-600 dark:text-gray-400 max-w-md mb-6">
-        {displayDescription}
-      </p>
-
-      {action && (
-        <button
-          onClick={action.onClick}
-          className="px-4 py-2 bg-primary-600 hover:bg-primary-700 text-white rounded-lg font-medium transition-colors"
+      {/* Description */}
+      {description && (
+        <p
+          className={cn(
+            "mt-2 text-foreground-secondary max-w-sm",
+            compact ? "text-sm" : "text-base",
+          )}
         >
-          {action.label}
-        </button>
+          {description}
+        </p>
+      )}
+
+      {/* Custom content */}
+      {children && <div className="mt-4">{children}</div>}
+
+      {/* Actions */}
+      {(action || secondaryAction) && (
+        <div className="mt-6 flex flex-col sm:flex-row items-center gap-3">
+          {action && (
+            <Button
+              variant="primary"
+              onClick={action.onClick}
+              leftIcon={action.icon && <action.icon className="h-4 w-4" />}
+              size={compact ? "sm" : "md"}
+            >
+              {action.label}
+            </Button>
+          )}
+          {secondaryAction && (
+            <Button
+              variant="secondary"
+              onClick={secondaryAction.onClick}
+              size={compact ? "sm" : "md"}
+            >
+              {secondaryAction.label}
+            </Button>
+          )}
+        </div>
       )}
     </div>
   );
 }
 
-// Compact version for inline use
-export function EmptyStateInline({ message }: { message: string }) {
+/* ─────────────────────────────────────────────────────────────────────────────
+   Predefined Empty States
+   ───────────────────────────────────────────────────────────────────────────── */
+
+/**
+ * Empty state for search results
+ */
+export function EmptySearch({
+  query,
+  onClear,
+  className,
+}: {
+  query?: string;
+  onClear?: () => void;
+  className?: string;
+}) {
   return (
-    <div className="text-center py-8 text-gray-500 dark:text-gray-400">
+    <EmptyState
+      variant="search"
+      title={query ? `No results for "${query}"` : "No results found"}
+      description="Try adjusting your search terms or filters to find what you're looking for."
+      action={
+        onClear
+          ? {
+              label: "Clear search",
+              onClick: onClear,
+            }
+          : undefined
+      }
+      className={className}
+    />
+  );
+}
+
+/**
+ * Empty state for data tables/lists
+ */
+export function EmptyData({
+  title = "No data available",
+  description = "There are no items to display at the moment.",
+  onCreate,
+  createLabel = "Create new",
+  className,
+}: {
+  title?: string;
+  description?: string;
+  onCreate?: () => void;
+  createLabel?: string;
+  className?: string;
+}) {
+  return (
+    <EmptyState
+      variant="data"
+      title={title}
+      description={description}
+      action={
+        onCreate
+          ? {
+              label: createLabel,
+              onClick: onCreate,
+              icon: Plus,
+            }
+          : undefined
+      }
+      className={className}
+    />
+  );
+}
+
+/**
+ * Empty state for inbox/notifications
+ */
+export function EmptyInbox({
+  title = "All caught up!",
+  description = "You have no pending notifications or messages.",
+  className,
+}: {
+  title?: string;
+  description?: string;
+  className?: string;
+}) {
+  return (
+    <EmptyState
+      variant="inbox"
+      title={title}
+      description={description}
+      className={className}
+    />
+  );
+}
+
+/**
+ * Empty state for errors
+ */
+export function EmptyError({
+  title = "Something went wrong",
+  description = "We couldn't load the data. Please try again.",
+  onRetry,
+  className,
+}: {
+  title?: string;
+  description?: string;
+  onRetry?: () => void;
+  className?: string;
+}) {
+  return (
+    <EmptyState
+      variant="error"
+      title={title}
+      description={description}
+      action={
+        onRetry
+          ? {
+              label: "Try again",
+              onClick: onRetry,
+            }
+          : undefined
+      }
+      className={className}
+    />
+  );
+}
+
+/**
+ * Compact inline empty state (for tables, lists)
+ */
+export function EmptyInline({
+  message = "No items",
+  className,
+}: {
+  message?: string;
+  className?: string;
+}) {
+  return (
+    <div
+      className={cn(
+        "flex items-center justify-center py-8 text-sm text-foreground-secondary",
+        className,
+      )}
+    >
       {message}
     </div>
   );
 }
+
+/* ─────────────────────────────────────────────────────────────────────────────
+   Exports
+   ───────────────────────────────────────────────────────────────────────────── */
+
+// Alias for backward compatibility
+export { EmptyInline as EmptyStateInline };
+
+export default EmptyState;

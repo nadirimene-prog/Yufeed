@@ -202,7 +202,7 @@ def client(db_session: Session) -> Generator[TestClient, None, None]:
 
         limiter.enabled = False
         # Clear any existing rate limit records
-        if hasattr(limiter, '_storage') and limiter._storage:
+        if hasattr(limiter, "_storage") and limiter._storage:
             try:
                 limiter._storage.clear()
             except Exception:

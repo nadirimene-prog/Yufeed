@@ -1,5 +1,5 @@
 export function obligationStatusStyle(status?: string) {
-  const value = (status || "draft").toLowerCase();
+  const value = (status ?? "draft").toLowerCase();
   if (value === "approved")
     return "bg-emerald-50 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-300";
   if (value === "in_review")

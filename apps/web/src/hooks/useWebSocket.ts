@@ -121,7 +121,7 @@ export function useWebSocket(
     }
     const wsProtocol = opts.apiUrl?.startsWith("https") ? "wss" : "ws";
     const baseUrl =
-      opts.apiUrl?.replace(/^https?:\/\//, "") || "localhost:8000";
+      opts.apiUrl?.replace(/^https?:\/\//, "") ?? "localhost:8000";
     return `${wsProtocol}://${baseUrl}/api/ws`;
   }, [opts.apiUrl]);
 
@@ -329,9 +329,12 @@ export function useWebSocket(
           // Authentication failed - only show once
           if (!maxReconnectToastShownRef.current) {
             maxReconnectToastShownRef.current = true;
-            toast.error("WebSocket authentication failed. Please log in again.", {
-              duration: 8000,
-            });
+            toast.error(
+              "WebSocket authentication failed. Please log in again.",
+              {
+                duration: 8000,
+              },
+            );
           }
         }
       };

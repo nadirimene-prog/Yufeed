@@ -5,7 +5,6 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { amlOfficerKeys } from "@/lib/queryKeys";
 import { amlOfficerApi } from "@/lib/aml-officer-api";
-import type { ComplianceQuestion } from "@/lib/aml-officer-api";
 
 export function useAMLOfficerBriefing() {
   return useQuery({

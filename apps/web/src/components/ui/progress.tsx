@@ -22,7 +22,7 @@ type ProgressColor =
   | "purple"
   | "gray";
 
-interface ProgressProps extends React.HTMLAttributes<HTMLDivElement> {
+export interface ProgressProps extends React.HTMLAttributes<HTMLDivElement> {
   /** Progress value (0-100) */
   value: number;
   /** Maximum value */
@@ -198,7 +198,7 @@ function Progress({
 /**
  * Circular Progress - Ring-style progress indicator
  */
-interface CircularProgressProps {
+export interface CircularProgressProps {
   /** Progress value (0-100) */
   value: number;
   /** Size in pixels */
@@ -296,7 +296,7 @@ function CircularProgress({
 
       {/* Center content */}
       <div className="absolute inset-0 flex items-center justify-center">
-        {children ||
+        {children ??
           (showLabel && (
             <span className="text-sm font-bold font-mono text-white">
               {Math.round(percentage)}%
@@ -310,12 +310,12 @@ function CircularProgress({
 /**
  * Step Progress - For multi-step workflows
  */
-interface Step {
+export interface Step {
   label: string;
   description?: string;
 }
 
-interface StepProgressProps {
+export interface StepProgressProps {
   /** Steps configuration */
   steps: Step[];
   /** Current step (0-indexed) */

@@ -10,6 +10,7 @@ from pydantic import BaseModel, Field
 from typing import Optional, List, Dict, Any
 from src.database import get_db
 from src.ai.rag_service import RAGService, ConversationManager
+import os
 
 
 router = APIRouter(prefix="/query", tags=["Natural Language Query"])

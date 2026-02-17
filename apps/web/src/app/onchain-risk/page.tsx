@@ -31,7 +31,7 @@ export default function OnchainRiskPage() {
       const res = await fetchWithAuth(`${API_URL}/api/onchain/plugins`);
       if (!res.ok) throw new Error(await res.text());
       const data = await res.json();
-      setPlugins(data.plugins || []);
+      setPlugins(data.plugins ?? []);
     } catch {
       setPlugins([]);
     }

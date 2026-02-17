@@ -581,7 +581,7 @@ export function getReducedMotionVariants(
 ): Variants {
   if (prefersReducedMotion()) {
     return (
-      reducedVariants || {
+      reducedVariants ?? {
         initial: { opacity: 1 },
         animate: { opacity: 1 },
         exit: { opacity: 1 },
@@ -651,7 +651,7 @@ export function getMotionSafeVariants<T extends Variants>(
   if (typeof window === "undefined") return fullVariants;
 
   if (prefersReducedMotion()) {
-    return reducedVariants || reducedFadeIn;
+    return reducedVariants ?? reducedFadeIn;
   }
   return fullVariants;
 }

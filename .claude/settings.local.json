@@ -16,7 +16,10 @@
       "Bash(npx next lint:*)",
       "Bash(npm run lint:*)",
       "Bash(ENVIRONMENT=test python -m pytest:*)",
-      "Bash(ENVIRONMENT=test python3 -m pytest:*)"
+      "Bash(ENVIRONMENT=test python3 -m pytest:*)",
+      "Bash(npx tsc:*)",
+      "Bash(npx eslint src/lib/workbench-api.ts src/hooks/queries/useWorkbenchData.ts \"src/components/workbench/\" src/types/workbench.ts src/lib/queryKeys.ts \"src/app/findings/\" \"src/app/cases/\" src/app/dashboard/page.tsx)",
+      "Bash(npx eslint:*)"
     ]
   }
 }

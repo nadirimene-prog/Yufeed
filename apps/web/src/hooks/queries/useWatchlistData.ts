@@ -9,11 +9,12 @@ import {
   createWatchlist,
   addWatchlistEntry,
   removeWatchlistEntry,
+  type WatchlistCreate,
 } from "@/lib/api";
 
 export function useWatchlists(params?: Record<string, unknown>) {
   return useQuery({
-    queryKey: watchlistKeys.list(params || {}),
+    queryKey: watchlistKeys.list(params ?? {}),
     queryFn: () => getWatchlists(params),
   });
 }
@@ -30,7 +31,7 @@ export function useCreateWatchlist() {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: (data: any) => createWatchlist(data),
+    mutationFn: (data: WatchlistCreate) => createWatchlist(data),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: watchlistKeys.all });
     },
@@ -41,8 +42,13 @@ export function useAddWatchlistEntry() {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: ({ watchlistId, entry }: { watchlistId: string; entry: any }) =>
-      addWatchlistEntry(watchlistId, entry),
+    mutationFn: ({
+      watchlistId,
+      entry,
+    }: {
+      watchlistId: string;
+      entry: Record<string, unknown>;
+    }) => addWatchlistEntry(watchlistId, entry),
     onSuccess: (_, variables) => {
       queryClient.invalidateQueries({
         queryKey: watchlistKeys.detail(variables.watchlistId),

@@ -625,7 +625,7 @@ function RiskEntryDetailModal({
           <div className="p-3 rounded-lg bg-white/5">
             <p className="text-xs text-white/50 mb-1">Category</p>
             <p className="text-sm font-medium text-white">
-              {entry.category_name || "N/A"}
+              {entry.category_name ?? "N/A"}
             </p>
           </div>
         </div>

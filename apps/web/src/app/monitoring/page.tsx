@@ -1,5 +1,7 @@
 "use client";
 
+export const dynamic = "force-dynamic";
+
 import {
   AlertCircle,
   Clock,
@@ -53,8 +55,8 @@ export default function MonitoringDashboard() {
   const { data, isLoading, isError, errors } = useMonitoringDashboard();
 
   const metrics = data.metrics as RealtimeMetrics | null;
-  const alerts = (data.alerts || []) as Alert[];
-  const recentTransactions = (data.cases || []) as Transaction[];
+  const alerts = (data.alerts ?? []) as Alert[];
+  const recentTransactions = (data.cases ?? []) as Transaction[];
 
   return (
     <LoadingBoundary
@@ -79,28 +81,28 @@ export default function MonitoringDashboard() {
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
             <MetricCard
               title="Active Alerts"
-              value={metrics?.alerts_last_hour || 0}
+              value={metrics?.alerts_last_hour ?? 0}
               icon={<AlertCircle className="h-6 w-6" />}
               iconColor="text-orange-600"
               bgColor="bg-orange-50 dark:bg-orange-900/20"
             />
             <MetricCard
               title="Critical Pending"
-              value={metrics?.critical_alerts_pending || 0}
+              value={metrics?.critical_alerts_pending ?? 0}
               icon={<AlertTriangle className="h-6 w-6" />}
               iconColor="text-red-600"
               bgColor="bg-red-50 dark:bg-red-900/20"
             />
             <MetricCard
               title="High Risk (1h)"
-              value={metrics?.high_risk_transactions_last_hour || 0}
+              value={metrics?.high_risk_transactions_last_hour ?? 0}
               icon={<Shield className="h-6 w-6" />}
               iconColor="text-purple-600"
               bgColor="bg-purple-50 dark:bg-purple-900/20"
             />
             <MetricCard
               title="Transactions (1h)"
-              value={metrics?.transactions_last_hour || 0}
+              value={metrics?.transactions_last_hour ?? 0}
               icon={<TrendingUp className="h-6 w-6" />}
               iconColor="text-green-600"
               bgColor="bg-green-50 dark:bg-green-900/20"
@@ -117,7 +119,7 @@ export default function MonitoringDashboard() {
                 <span className="text-sm font-medium text-gray-900 dark:text-white">
                   System Status:{" "}
                   <span className="text-green-600">
-                    {metrics?.system_status || "Unknown"}
+                    {metrics?.system_status ?? "Unknown"}
                   </span>
                 </span>
               </div>

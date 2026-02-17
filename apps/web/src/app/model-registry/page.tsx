@@ -174,7 +174,7 @@ export default function ModelRegistryPage() {
   return (
     <LoadingBoundary
       loading={isLoading}
-      error={queryError || error}
+      error={queryError ?? error}
       isEmpty={!models || models.length === 0}
       emptyMessage="No models registered"
       emptyDescription="Register your first model to start tracking versions"

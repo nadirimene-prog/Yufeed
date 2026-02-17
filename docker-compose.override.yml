@@ -1,4 +1,16 @@
 services:
+  # Override API service for local development
+  api:
+    environment:
+      # Override database host to use Docker service name
+      - DATABASE_URL=postgresql://postgres:postgres@db:5432/yufeed
+      - REDIS_URL=redis://redis:6379/0
+      - OPENSEARCH_URL=http://opensearch:9200
+    volumes:
+      - ./apps/api:/app
+      - /app/.venv
+    command: uvicorn src.main:app --host 0.0.0.0 --port 8000 --reload
+
   web:
     build:
       context: ./apps/web

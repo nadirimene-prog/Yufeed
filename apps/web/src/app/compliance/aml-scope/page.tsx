@@ -31,22 +31,6 @@ interface AMLScopeGapItem {
   };
 }
 
-interface AMLScopeResponse {
-  as_of: string;
-  jurisdiction?: string | null;
-  scope?: string | null;
-  total_obligations: number;
-  status_counts: Record<string, number>;
-  coverage: {
-    covered: number;
-    coverage_pct: number;
-    policy_mapped: number;
-    policy_mapping_pct: number;
-  };
-  by_jurisdiction: AMLScopeItem[];
-  gap_items: AMLScopeGapItem[];
-}
-
 const formatDate = (value?: string | null) => {
   if (!value) return "—";
   const parsed = new Date(value);
@@ -260,8 +244,8 @@ export default function AmlScopePage() {
                         {item.obligation_text}
                       </div>
                       <div className="mt-2 text-[11px] text-gray-400">
-                        {item.document?.celex || "—"} •{" "}
-                        {item.document?.jurisdiction || "EU"}
+                        {item.document?.celex ?? "—"} •{" "}
+                        {item.document?.jurisdiction ?? "EU"}
                       </div>
                     </Link>
                   ))

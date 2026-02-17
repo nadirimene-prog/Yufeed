@@ -1,71 +1,90 @@
 "use client";
 
+import {
+  ShieldAlert,
+  Clock,
+  User,
+  CheckCircle2,
+  Zap,
+  Shield,
+} from "lucide-react";
 import { motion } from "framer-motion";
-import { Clock, Shield, User, ChevronRight } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { staggerItem } from "@/lib/motion";
 import type { Finding } from "@/types/workbench";
+import { AnimatedButton } from "@/components/ui/button";
 
 interface FindingCardProps {
   finding: Finding;
   onClick?: () => void;
+  onAcknowledge?: (id: string | number) => void;
+  onEscalate?: (id: string | number) => void;
 }
 
-const severityConfig = {
+const severityConfig: Record<
+  string,
+  {
+    icon: typeof Shield;
+    color: string;
+    bg: string;
+    border: string;
+    glow: string;
+  }
+> = {
   critical: {
-    color: "text-red-500",
-    bg: "bg-red-50 dark:bg-red-950/30",
-    border: "border-red-200 dark:border-red-900/50",
-    dot: "bg-red-500",
+    icon: ShieldAlert,
+    color: "text-risk-critical",
+    bg: "bg-risk-critical/10",
+    border: "border-risk-critical/30",
+    glow: "var(--surface-glow-error)",
   },
   high: {
-    color: "text-orange-500",
-    bg: "bg-orange-50 dark:bg-orange-950/30",
-    border: "border-orange-200 dark:border-orange-900/50",
-    dot: "bg-orange-500",
+    icon: Shield,
+    color: "text-risk-high",
+    bg: "bg-risk-high/10",
+    border: "border-risk-high/30",
+    glow: "var(--surface-glow-accent)",
   },
   medium: {
-    color: "text-amber-500",
-    bg: "bg-amber-50 dark:bg-amber-950/30",
-    border: "border-amber-200 dark:border-amber-900/50",
-    dot: "bg-amber-500",
+    icon: Shield,
+    color: "text-risk-medium",
+    bg: "bg-risk-medium/10",
+    border: "border-risk-medium/30",
+    glow: "var(--surface-glow-accent)",
   },
   low: {
-    color: "text-blue-500",
-    bg: "bg-blue-50 dark:bg-blue-950/30",
-    border: "border-blue-200 dark:border-blue-900/50",
-    dot: "bg-blue-500",
+    icon: Shield,
+    color: "text-risk-low",
+    bg: "bg-risk-low/10",
+    border: "border-risk-low/30",
+    glow: "var(--surface-glow-accent)",
   },
   info: {
-    color: "text-gray-500",
-    bg: "bg-gray-50 dark:bg-gray-950/30",
-    border: "border-gray-200 dark:border-gray-800",
-    dot: "bg-gray-400",
+    icon: Shield,
+    color: "text-info",
+    bg: "bg-info/10",
+    border: "border-info/30",
+    glow: "var(--surface-glow-primary)",
   },
-} as const;
+};
 
-const statusConfig = {
-  open: {
-    label: "Open",
-    color: "text-blue-600 dark:text-blue-400",
-    bg: "bg-blue-50 dark:bg-blue-950/40",
-  },
-  acknowledged: {
-    label: "Acknowledged",
-    color: "text-amber-600 dark:text-amber-400",
-    bg: "bg-amber-50 dark:bg-amber-950/40",
-  },
+const statusConfig: Record<
+  string,
+  { label: string; color: string; bg: string }
+> = {
+  new: { label: "New", color: "text-cyan-400", bg: "bg-cyan-400/10" },
+  open: { label: "Open", color: "text-amber-400", bg: "bg-amber-400/10" },
+  triaged: { label: "Triaged", color: "text-blue-400", bg: "bg-blue-400/10" },
   escalated: {
     label: "Escalated",
-    color: "text-orange-600 dark:text-orange-400",
-    bg: "bg-orange-50 dark:bg-orange-950/40",
+    color: "text-purple-400",
+    bg: "bg-purple-400/10",
   },
   closed: {
     label: "Closed",
-    color: "text-gray-500 dark:text-gray-400",
-    bg: "bg-gray-100 dark:bg-gray-800",
+    color: "text-emerald-400",
+    bg: "bg-emerald-400/10",
   },
-} as const;
+};
 
 function timeAgo(dateStr: string): string {
   const seconds = Math.floor((Date.now() - new Date(dateStr).getTime()) / 1000);
@@ -78,92 +97,117 @@ function timeAgo(dateStr: string): string {
   return `${days}d ago`;
 }
 
-export function FindingCard({ finding, onClick }: FindingCardProps) {
+export function FindingCard({
+  finding,
+  onClick,
+  onAcknowledge,
+  onEscalate,
+}: FindingCardProps) {
   const severity = severityConfig[finding.severity] ?? severityConfig.info;
   const status = statusConfig[finding.status] ?? statusConfig.open;
 
-  const isOverdue =
-    finding.sla_due_at != null &&
-    finding.sla_due_at.length > 0 &&
-    new Date(finding.sla_due_at) < new Date();
-
   return (
     <motion.div
-      variants={staggerItem}
-      onClick={onClick}
+      layoutId={`finding-${finding.id}`}
+      whileHover={{ y: -2, scale: 1.01 }}
       className={cn(
-        "group relative rounded-xl border bg-white dark:bg-gray-900/60 p-4",
-        "transition-all duration-200 hover:shadow-md hover:border-gray-300 dark:hover:border-gray-600",
-        onClick != null && "cursor-pointer",
-        severity.border,
+        "group relative flex flex-col gap-3 rounded-2xl border p-4 transition-all duration-300",
+        "bg-void-925/40 backdrop-blur-md border-white/10 hover:border-white/20 hover:bg-void-900/60",
+        finding.severity === "critical" &&
+          "hover:shadow-[var(--surface-glow-error)]",
       )}
+      onClick={onClick}
     >
+      {/* Risk Indicator Bar */}
+      <div
+        className={cn(
+          "absolute left-0 top-4 bottom-4 w-1 rounded-r-full transition-colors",
+          severity.color.replace("text-", "bg-"),
+        )}
+      />
+
       <div className="flex items-start justify-between gap-3">
-        {/* Left: severity dot + content */}
-        <div className="flex items-start gap-3 min-w-0 flex-1">
+        <div className="flex flex-1 items-start gap-3 pl-2">
           <div
             className={cn(
-              "mt-1 h-2.5 w-2.5 rounded-full shrink-0",
-              severity.dot,
+              "mt-0.5 rounded-lg p-2 flex items-center justify-center border",
+              severity.bg,
+              severity.border,
             )}
-          />
-          <div className="min-w-0 flex-1">
+          >
+            <severity.icon className={cn("h-4 w-4", severity.color)} />
+          </div>
+          <div className="min-w-0">
             <div className="flex items-center gap-2 mb-1">
               <span
                 className={cn(
-                  "text-xs font-medium px-2 py-0.5 rounded-full",
-                  severity.bg,
-                  severity.color,
-                )}
-              >
-                {finding.severity.toUpperCase()}
-              </span>
-              <span
-                className={cn(
-                  "text-xs font-medium px-2 py-0.5 rounded-full",
-                  status.bg,
+                  "text-[10px] font-bold uppercase tracking-widest px-2 py-0.5 rounded-full",
                   status.color,
+                  status.bg,
                 )}
               >
                 {status.label}
               </span>
-              {isOverdue && (
-                <span className="text-xs font-medium px-2 py-0.5 rounded-full bg-red-100 text-red-700 dark:bg-red-950/50 dark:text-red-400">
-                  Overdue
-                </span>
-              )}
+              <span className="text-[10px] text-white/30 uppercase tracking-tighter">
+                {finding.finding_type}
+              </span>
             </div>
-
-            <h3 className="text-sm font-semibold text-gray-900 dark:text-white truncate">
+            <h3 className="text-sm font-semibold text-white/90 line-clamp-1 group-hover:text-white transition-colors">
               {finding.title}
             </h3>
-            <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5 line-clamp-1">
-              {finding.summary}
-            </p>
+          </div>
+        </div>
+        <div className="text-[10px] text-white/30 font-mono flex items-center gap-1">
+          <Clock size={10} />
+          {timeAgo(finding.created_at)}
+        </div>
+      </div>
 
-            {/* Metadata row */}
-            <div className="flex items-center gap-3 mt-2 text-xs text-gray-400 dark:text-gray-500">
-              <span className="flex items-center gap-1">
-                <Shield className="h-3 w-3" />
-                {finding.finding_type.toUpperCase()}
-              </span>
-              <span className="flex items-center gap-1">
-                <Clock className="h-3 w-3" />
-                {timeAgo(finding.created_at)}
-              </span>
-              {finding.assigned_to != null &&
-                finding.assigned_to.length > 0 && (
-                  <span className="flex items-center gap-1">
-                    <User className="h-3 w-3" />
-                    {finding.assigned_to}
-                  </span>
-                )}
-            </div>
+      <p className="text-xs text-white/50 line-clamp-2 leading-relaxed pl-11">
+        {finding.summary}
+      </p>
+
+      <div className="mt-2 flex items-center justify-between pl-11">
+        <div className="flex items-center gap-4">
+          <div className="flex items-center gap-1.5">
+            <User size={12} className="text-white/20" />
+            <span className="text-[11px] text-white/40">
+              {finding.assigned_to || "Unassigned"}
+            </span>
           </div>
         </div>
 
-        {/* Right: chevron */}
-        <ChevronRight className="h-4 w-4 text-gray-300 dark:text-gray-600 group-hover:text-gray-500 dark:group-hover:text-gray-400 transition shrink-0 mt-1" />
+        {/* Action micro-interactions */}
+        <div className="flex items-center gap-2 opacity-0 group-hover:opacity-100 transition-opacity translate-x-2 group-hover:translate-x-0 transition-transform">
+          {finding.status === "open" && (
+            <AnimatedButton
+              variant="glass"
+              size="sm"
+              className="h-7 px-2 text-[10px] bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-400 border-emerald-500/20"
+              onClick={(e) => {
+                e.stopPropagation();
+                onAcknowledge?.(finding.id);
+              }}
+              leftIcon={<CheckCircle2 size={12} />}
+            >
+              Acknowledge
+            </AnimatedButton>
+          )}
+          {finding.status !== "escalated" && (
+            <AnimatedButton
+              variant="glass"
+              size="sm"
+              className="h-7 px-2 text-[10px] bg-aurora-500/10 hover:bg-aurora-500/20 text-aurora-400 border-aurora-500/20"
+              onClick={(e) => {
+                e.stopPropagation();
+                onEscalate?.(finding.id);
+              }}
+              leftIcon={<Zap size={12} />}
+            >
+              Escalate
+            </AnimatedButton>
+          )}
+        </div>
       </div>
     </motion.div>
   );

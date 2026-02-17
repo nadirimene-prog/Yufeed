@@ -30,7 +30,7 @@ export function useAlerts(params?: {
   offset?: number;
 }) {
   return useQuery({
-    queryKey: monitoringKeys.alertsList(params || {}),
+    queryKey: monitoringKeys.alertsList(params ?? {}),
     queryFn: () => getAlerts(params),
   });
 }
@@ -49,11 +49,20 @@ export function useAlert(id: string) {
 /**
  * Update alert (generic update)
  */
+// Alert Update types
+interface AlertUpdateData extends Record<string, unknown> {
+  status?: string;
+  assigned_to?: string;
+  priority?: number;
+  resolution_status?: string;
+  resolution_notes?: string;
+}
+
 export function useUpdateAlert() {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: ({ id, data }: { id: string; data: any }) =>
+    mutationFn: ({ id, data }: { id: string; data: AlertUpdateData }) =>
       updateAlert(id, data),
     onSuccess: (updated, variables) => {
       // Update detail cache
@@ -125,7 +134,13 @@ export function useBulkUpdateAlerts() {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: async ({ ids, data }: { ids: string[]; data: any }) => {
+    mutationFn: async ({
+      ids,
+      data,
+    }: {
+      ids: string[];
+      data: AlertUpdateData;
+    }) => {
       // Execute updates in parallel
       return Promise.all(ids.map((id) => updateAlert(id, data)));
     },

@@ -1,256 +1,228 @@
 "use client";
 
+import * as React from "react";
 import { cn } from "@/lib/utils";
+import { Card, CardContent, CardHeader } from "@/components/ui/card";
 
 /**
- * ═══════════════════════════════════════════════════════════════════
- * SKELETON - Sentinel Design System
- * Glass-styled loading placeholders with shimmer effect
- * ═══════════════════════════════════════════════════════════════════
+ * Horizon Skeleton System
+ * Loading placeholders that reduce layout shift and improve perceived performance
  */
 
-interface SkeletonProps extends React.HTMLAttributes<HTMLDivElement> {
-  /** Skeleton variant */
-  variant?: "default" | "text" | "circular" | "rectangular";
-  /** Animation type */
-  animation?: "shimmer" | "pulse" | "none";
-  /** Width (for non-full-width skeletons) */
-  width?: number | string;
-  /** Height */
-  height?: number | string;
+/* ─────────────────────────────────────────────────────────────────────────────
+   Base Skeleton Component
+   ───────────────────────────────────────────────────────────────────────────── */
+
+export interface SkeletonProps extends React.HTMLAttributes<HTMLDivElement> {
+  /**
+   * Enable pulse animation
+   */
+  animate?: boolean;
+  /**
+   * Skeleton variant
+   */
+  variant?: "default" | "circle" | "text" | "rect";
+  /**
+   * Width of skeleton (can be any CSS value)
+   */
+  width?: string | number;
+  /**
+   * Height of skeleton (can be any CSS value)
+   */
+  height?: string | number;
 }
 
 function Skeleton({
   className,
+  animate = true,
   variant = "default",
-  animation = "shimmer",
   width,
   height,
   style,
   ...props
 }: SkeletonProps) {
-  const variantStyles = {
-    default: "rounded-lg",
-    text: "rounded h-4",
-    circular: "rounded-full",
-    rectangular: "rounded-none",
-  };
+  const variantClasses = {
+    default: "rounded-md",
+    circle: "rounded-full",
+    text: "rounded h-4 w-full",
+    rect: "rounded-none",
+  }[variant];
 
-  const animationStyles = {
-    shimmer:
-      "animate-shimmer bg-gradient-to-r from-white/[0.03] via-white/[0.08] to-white/[0.03] bg-[length:200%_100%]",
-    pulse: "animate-pulse bg-white/[0.05]",
-    none: "bg-white/[0.05]",
+  const styles: React.CSSProperties = {
+    width: typeof width === "number" ? `${width}px` : width,
+    height: typeof height === "number" ? `${height}px` : height,
+    ...style,
   };
 
   return (
     <div
       className={cn(
-        "relative overflow-hidden",
-        variantStyles[variant],
-        animationStyles[animation],
+        "bg-bg-floating",
+        animate && "animate-pulse",
+        variantClasses,
         className,
       )}
-      style={{
-        width: width,
-        height: height,
-        ...style,
-      }}
+      style={styles}
       {...props}
     />
   );
 }
 
-/**
- * Skeleton Text - For loading text content
- */
-interface SkeletonTextProps {
-  /** Number of lines */
+/* ─────────────────────────────────────────────────────────────────────────────
+   Skeleton Text (for multi-line text)
+   ───────────────────────────────────────────────────────────────────────────── */
+
+export interface SkeletonTextProps extends React.HTMLAttributes<HTMLDivElement> {
   lines?: number;
-  /** Last line width percentage */
+  lineHeight?: number;
   lastLineWidth?: string;
-  /** Gap between lines */
-  gap?: "sm" | "md" | "lg";
-  /** Line height */
-  lineHeight?: "sm" | "md" | "lg";
-  className?: string;
+  animate?: boolean;
 }
 
 function SkeletonText({
-  lines = 3,
-  lastLineWidth = "70%",
-  gap = "md",
-  lineHeight = "md",
   className,
+  lines = 3,
+  lineHeight = 16,
+  lastLineWidth = "60%",
+  animate = true,
+  ...props
 }: SkeletonTextProps) {
-  const gapClasses = {
-    sm: "space-y-1.5",
-    md: "space-y-2",
-    lg: "space-y-3",
-  };
-
-  const heightClasses = {
-    sm: "h-3",
-    md: "h-4",
-    lg: "h-5",
-  };
-
   return (
-    <div className={cn(gapClasses[gap], className)}>
-      {Array.from({ length: lines }).map((_, i) => (
+    <div className={cn("space-y-2", className)} {...props}>
+      {Array.from({ length: lines }).map((_, index) => (
         <Skeleton
-          key={i}
+          key={index}
           variant="text"
-          className={heightClasses[lineHeight]}
-          style={{
-            width: i === lines - 1 ? lastLineWidth : "100%",
-          }}
+          height={lineHeight}
+          width={index === lines - 1 ? lastLineWidth : "100%"}
+          animate={animate}
         />
       ))}
     </div>
   );
 }
 
-/**
- * Skeleton Avatar - For loading user avatars
- */
-interface SkeletonAvatarProps {
-  size?: "sm" | "md" | "lg" | "xl";
+/* ─────────────────────────────────────────────────────────────────────────────
+   Skeleton Avatar
+   ───────────────────────────────────────────────────────────────────────────── */
+
+export interface SkeletonAvatarProps {
+  size?: "xs" | "sm" | "md" | "lg" | "xl";
+  animate?: boolean;
   className?: string;
 }
 
-function SkeletonAvatar({ size = "md", className }: SkeletonAvatarProps) {
+function SkeletonAvatar({
+  size = "md",
+  animate = true,
+  className,
+}: SkeletonAvatarProps) {
   const sizeClasses = {
+    xs: "h-6 w-6",
     sm: "h-8 w-8",
     md: "h-10 w-10",
     lg: "h-12 w-12",
     xl: "h-16 w-16",
-  };
+  }[size];
 
   return (
-    <Skeleton variant="circular" className={cn(sizeClasses[size], className)} />
+    <Skeleton
+      variant="circle"
+      className={cn(sizeClasses, className)}
+      animate={animate}
+    />
   );
 }
 
-/**
- * Skeleton Card - For loading card content
- */
-interface SkeletonCardProps {
-  /** Show header section */
-  hasHeader?: boolean;
-  /** Show avatar in header */
-  hasAvatar?: boolean;
-  /** Number of content lines */
-  contentLines?: number;
-  /** Show footer */
+/* ─────────────────────────────────────────────────────────────────────────────
+   Skeleton Card
+   ───────────────────────────────────────────────────────────────────────────── */
+
+export interface SkeletonCardProps {
+  header?: boolean;
+  content?: boolean;
+  footer?: boolean;
+  /** @deprecated Use footer instead */
   hasFooter?: boolean;
+  lines?: number;
+  /** @deprecated Use lines instead */
+  contentLines?: number;
+  animate?: boolean;
   className?: string;
 }
 
 function SkeletonCard({
-  hasHeader = true,
-  hasAvatar = false,
-  contentLines = 3,
-  hasFooter = false,
+  header = true,
+  content = true,
+  footer = false,
+  hasFooter,
+  lines = 3,
+  contentLines,
+  animate = true,
   className,
 }: SkeletonCardProps) {
+  // Support both lines and contentLines for backward compatibility
+  const lineCount = contentLines ?? lines;
+  // Support both footer and hasFooter for backward compatibility
+  const showFooter = hasFooter ?? footer;
   return (
-    <div
-      className={cn(
-        "rounded-xl border border-white/[0.06] bg-white/[0.02] p-5",
-        className,
+    <Card variant="default" className={className}>
+      {header && (
+        <CardHeader>
+          <Skeleton width="60%" height={20} animate={animate} />
+          <Skeleton
+            width="40%"
+            height={14}
+            animate={animate}
+            className="mt-2"
+          />
+        </CardHeader>
       )}
-    >
-      {/* Header */}
-      {hasHeader && (
-        <div className="flex items-start gap-3 mb-4">
-          {hasAvatar && <SkeletonAvatar />}
-          <div className="flex-1 space-y-2">
-            <Skeleton className="h-4 w-1/3" />
-            <Skeleton className="h-3 w-1/4" />
+      {content && (
+        <CardContent>
+          <SkeletonText lines={lineCount} animate={animate} />
+        </CardContent>
+      )}
+      {showFooter && (
+        <div className="px-5 pb-5 pt-0 flex items-center gap-2">
+          <Skeleton width={80} height={32} animate={animate} />
+          <Skeleton width={80} height={32} animate={animate} />
+        </div>
+      )}
+    </Card>
+  );
+}
+
+/* ─────────────────────────────────────────────────────────────────────────────
+   Skeleton Metric Card
+   ───────────────────────────────────────────────────────────────────────────── */
+
+function SkeletonMetricCard({ className }: { className?: string }) {
+  return (
+    <Card variant="default" className={className}>
+      <CardContent>
+        <div className="flex items-start justify-between">
+          <div className="space-y-2 flex-1">
+            <Skeleton width="50%" height={14} />
+            <Skeleton width="40%" height={32} />
+            <Skeleton width="30%" height={16} />
           </div>
+          <Skeleton variant="circle" className="h-10 w-10" />
         </div>
-      )}
-
-      {/* Content */}
-      <SkeletonText lines={contentLines} />
-
-      {/* Footer */}
-      {hasFooter && (
-        <div className="flex items-center gap-2 mt-4 pt-4 border-t border-white/[0.06]">
-          <Skeleton className="h-8 w-20" />
-          <Skeleton className="h-8 w-20" />
-        </div>
-      )}
-    </div>
+      </CardContent>
+    </Card>
   );
 }
 
-/**
- * Skeleton Metric Card - For loading metric displays
- */
-interface SkeletonMetricCardProps {
-  size?: "sm" | "md" | "lg";
-  className?: string;
-}
+/* ─────────────────────────────────────────────────────────────────────────────
+   Skeleton Table
+   ───────────────────────────────────────────────────────────────────────────── */
 
-function SkeletonMetricCard({
-  size = "md",
-  className,
-}: SkeletonMetricCardProps) {
-  const sizeConfig = {
-    sm: {
-      padding: "p-4",
-      title: "h-3 w-16",
-      value: "h-6 w-20",
-      icon: "h-8 w-8",
-    },
-    md: {
-      padding: "p-5",
-      title: "h-3 w-20",
-      value: "h-8 w-24",
-      icon: "h-10 w-10",
-    },
-    lg: {
-      padding: "p-6",
-      title: "h-4 w-24",
-      value: "h-10 w-28",
-      icon: "h-12 w-12",
-    },
-  };
-
-  const config = sizeConfig[size];
-
-  return (
-    <div
-      className={cn(
-        "rounded-xl border border-white/[0.06] bg-white/[0.02]",
-        config.padding,
-        className,
-      )}
-    >
-      <div className="flex items-start justify-between">
-        <div className="flex-1 space-y-3">
-          <Skeleton className={config.title} />
-          <Skeleton className={config.value} />
-          <Skeleton className="h-3 w-16" />
-        </div>
-        <Skeleton className={cn(config.icon, "rounded-lg")} />
-      </div>
-    </div>
-  );
-}
-
-/**
- * Skeleton Table - For loading table data
- */
-interface SkeletonTableProps {
-  /** Number of rows */
+export interface SkeletonTableProps {
   rows?: number;
-  /** Number of columns */
   columns?: number;
-  /** Show header */
   hasHeader?: boolean;
+  animate?: boolean;
   className?: string;
 }
 
@@ -258,128 +230,137 @@ function SkeletonTable({
   rows = 5,
   columns = 4,
   hasHeader = true,
+  animate = true,
   className,
 }: SkeletonTableProps) {
   return (
     <div
       className={cn(
-        "rounded-xl border border-white/[0.06] overflow-hidden",
+        "rounded-xl border border-border-subtle overflow-hidden",
         className,
       )}
     >
-      {/* Header */}
-      {hasHeader && (
-        <div className="flex gap-4 p-4 border-b border-white/[0.06] bg-white/[0.02]">
-          {Array.from({ length: columns }).map((_, i) => (
-            <Skeleton
-              key={i}
-              className="h-4 flex-1"
-              style={{ maxWidth: i === 0 ? "30%" : `${100 / columns}%` }}
-            />
+      <table className="w-full">
+        {hasHeader && (
+          <thead className="bg-bg-overlay border-b border-border-subtle">
+            <tr>
+              {Array.from({ length: columns }).map((_, index) => (
+                <th key={index} className="px-4 py-3">
+                  <Skeleton
+                    width={`${60 + ((index * 17) % 30)}%`}
+                    height={14}
+                    animate={animate}
+                  />
+                </th>
+              ))}
+            </tr>
+          </thead>
+        )}
+        <tbody className="divide-y divide-border-subtle">
+          {Array.from({ length: rows }).map((_, rowIndex) => (
+            <tr
+              key={rowIndex}
+              className={rowIndex % 2 === 1 ? "bg-bg-overlay/50" : ""}
+            >
+              {Array.from({ length: columns }).map((_, colIndex) => (
+                <td key={colIndex} className="px-4 py-4">
+                  <Skeleton
+                    width={`${40 + (((rowIndex * columns + colIndex) * 13) % 50)}%`}
+                    height={16}
+                    animate={animate}
+                  />
+                </td>
+              ))}
+            </tr>
           ))}
-        </div>
-      )}
-
-      {/* Rows */}
-      <div className="divide-y divide-white/[0.04]">
-        {Array.from({ length: rows }).map((_, rowIndex) => (
-          <div key={rowIndex} className="flex gap-4 p-4">
-            {Array.from({ length: columns }).map((_, colIndex) => (
-              <Skeleton
-                key={colIndex}
-                className="h-4 flex-1"
-                style={{
-                  maxWidth: colIndex === 0 ? "30%" : `${100 / columns}%`,
-                }}
-              />
-            ))}
-          </div>
-        ))}
-      </div>
+        </tbody>
+      </table>
     </div>
   );
 }
 
-/**
- * Skeleton List - For loading list items
- */
-interface SkeletonListProps {
-  /** Number of items */
+/* ─────────────────────────────────────────────────────────────────────────────
+   Skeleton List
+   ───────────────────────────────────────────────────────────────────────────── */
+
+export interface SkeletonListProps {
   items?: number;
-  /** Show avatar */
-  hasAvatar?: boolean;
-  /** Show description line */
-  hasDescription?: boolean;
-  /** Show action button */
-  hasAction?: boolean;
+  avatar?: boolean;
+  lines?: number;
+  animate?: boolean;
   className?: string;
 }
 
 function SkeletonList({
   items = 5,
-  hasAvatar = true,
-  hasDescription = true,
-  hasAction = false,
+  avatar = true,
+  lines = 2,
+  animate = true,
   className,
 }: SkeletonListProps) {
   return (
     <div className={cn("space-y-3", className)}>
-      {Array.from({ length: items }).map((_, i) => (
+      {Array.from({ length: items }).map((_, index) => (
         <div
-          key={i}
-          className="flex items-center gap-3 p-3 rounded-lg border border-white/[0.04] bg-white/[0.01]"
+          key={index}
+          className="flex items-start gap-3 p-3 rounded-lg bg-bg-elevated"
         >
-          {hasAvatar && <SkeletonAvatar size="sm" />}
-          <div className="flex-1 space-y-2">
-            <Skeleton className="h-4 w-2/5" />
-            {hasDescription && <Skeleton className="h-3 w-3/5" />}
+          {avatar && <SkeletonAvatar size="md" animate={animate} />}
+          <div className="flex-1 min-w-0 space-y-2">
+            <Skeleton width="70%" height={16} animate={animate} />
+            {lines > 1 && (
+              <Skeleton width="90%" height={14} animate={animate} />
+            )}
+            {lines > 2 && (
+              <Skeleton width="50%" height={14} animate={animate} />
+            )}
           </div>
-          {hasAction && <Skeleton className="h-8 w-16 rounded-lg" />}
         </div>
       ))}
     </div>
   );
 }
 
-/**
- * Legacy exports for backward compatibility
- */
-function CardSkeleton() {
-  return <SkeletonCard />;
-}
+/* ─────────────────────────────────────────────────────────────────────────────
+   Skeleton Page
+   ─────────────────────────────────────────────────────────────────────────────
+   Full page skeleton layout for initial loading states
+   ───────────────────────────────────────────────────────────────────────────── */
 
-function TableSkeleton({ rows = 5 }: { rows?: number }) {
-  return <SkeletonTable rows={rows} />;
-}
-
-function GraphSkeleton() {
-  const graphHeights = [
-    0.35, 0.6, 0.45, 0.8, 0.55, 0.7, 0.4, 0.75, 0.5, 0.65, 0.58, 0.72,
-  ];
+function SkeletonPage() {
   return (
-    <div className="rounded-xl border border-white/[0.06] bg-white/[0.02] p-6">
-      <Skeleton className="h-6 w-48 mb-6" />
-      <div className="h-64 flex items-end justify-between gap-2">
-        {graphHeights.map((height, i) => (
-          <Skeleton
-            key={i}
-            className="flex-1 rounded-t-md"
-            style={{ height: `${20 + height * 80}%` }}
-          />
+    <div className="space-y-8">
+      {/* Header */}
+      <div className="space-y-2">
+        <Skeleton width="30%" height={32} />
+        <Skeleton width="50%" height={16} />
+      </div>
+
+      {/* Metrics */}
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+        {Array.from({ length: 4 }).map((_, i) => (
+          <SkeletonMetricCard key={i} />
         ))}
       </div>
-      <div className="flex justify-between mt-4">
-        {Array.from({ length: 6 }).map((_, i) => (
-          <Skeleton key={i} className="h-3 w-12" />
-        ))}
+
+      {/* Content */}
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        <div className="lg:col-span-2 space-y-4">
+          <SkeletonCard lines={4} />
+          <SkeletonTable rows={5} columns={4} />
+        </div>
+        <div className="space-y-4">
+          <SkeletonCard lines={3} />
+          <SkeletonCard lines={2} footer />
+        </div>
       </div>
     </div>
   );
 }
 
-function TextSkeleton({ lines = 3 }: { lines?: number }) {
-  return <SkeletonText lines={lines} />;
-}
+/* ─────────────────────────────────────────────────────────────────────────────
+   Exports
+   ───────────────────────────────────────────────────────────────────────────── */
 
 export {
   Skeleton,
@@ -389,9 +370,10 @@ export {
   SkeletonMetricCard,
   SkeletonTable,
   SkeletonList,
-  // Legacy exports
-  CardSkeleton,
-  TableSkeleton,
-  GraphSkeleton,
-  TextSkeleton,
+  SkeletonPage,
 };
+
+// Aliases for backward compatibility
+export { SkeletonTable as TableSkeleton };
+
+export default Skeleton;
