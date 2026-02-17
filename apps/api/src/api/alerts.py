@@ -47,7 +47,8 @@ except Exception as exc:
                 "prediction": "unknown",
                 "false_positive_probability": 0.5,
                 "true_positive_probability": 0.5,
-                "confidence": "low",
+                "confidence": 0.5,
+                "confidence_label": "low",
                 "recommendation": "manual_review",
                 "threshold_used": 0.5,
                 "model_version": "unavailable",
@@ -132,9 +133,20 @@ def create_alert(alert: AlertCreate, db: Session = Depends(get_db)):
         # Get ML prediction for triage
         prediction = alert_triage_model.predict(db, db_alert)
 
+        raw_confidence = prediction.get("confidence", 0)
+        try:
+            confidence = float(raw_confidence)
+        except (TypeError, ValueError):
+            # Fall back to probability-style payloads when confidence is not numeric.
+            confidence = float(
+                prediction.get("true_positive_probability")
+                or prediction.get("false_positive_probability")
+                or 0
+            )
+
         # Store ML prediction
         db_alert.ml_prediction = prediction["prediction"]
-        db_alert.ml_confidence = float(prediction.get("confidence", 0))
+        db_alert.ml_confidence = confidence
         db_alert.ml_model_version = prediction.get("model_version", "unknown")
 
         # Store feature snapshot for explainability
@@ -143,7 +155,6 @@ def create_alert(alert: AlertCreate, db: Session = Depends(get_db)):
 
         # Auto-triage based on ML confidence
         recommendation = prediction.get("recommendation", "manual_review")
-        confidence = float(prediction.get("confidence", 0))
 
         if recommendation == "auto_close" and confidence > 0.85:
             # High confidence false positive - auto-close

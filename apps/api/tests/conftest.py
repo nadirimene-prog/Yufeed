@@ -16,6 +16,7 @@ from opensearchpy import OpenSearch
 from src.database import Base, get_db, get_async_db, SessionLocal
 from src.main import app
 from src.config import settings
+from src.audit import models as _audit_models  # noqa: F401 - register audit tables on Base metadata
 from src.models.user import User
 from src.models.tenant_models import Tenant, TenantUser
 from src.auth.jwt_handler import create_token_response
