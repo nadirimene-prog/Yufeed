@@ -8,7 +8,6 @@ from pydantic import BaseModel, Field, validator
 from datetime import datetime
 from decimal import Decimal
 
-
 # ============================================================================
 # TRANSACTION SCHEMAS
 # ============================================================================

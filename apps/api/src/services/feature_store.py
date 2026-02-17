@@ -29,7 +29,13 @@ def utc_now() -> datetime:
 
 
 REDIS_URL = os.getenv("REDIS_URL", "redis://localhost:6379/0")
-redis = redis_async.from_url(REDIS_URL, encoding="utf-8", decode_responses=True)
+if not REDIS_URL:
+    from unittest.mock import AsyncMock
+
+    redis = AsyncMock()
+    redis.get.return_value = None
+else:
+    redis = redis_async.from_url(REDIS_URL, encoding="utf-8", decode_responses=True)
 
 CACHE_TTL = int(os.getenv("FEATURE_CACHE_TTL", "60"))
 

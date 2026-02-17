@@ -24,7 +24,6 @@ from src.schemas.evidence_pack_schemas import (
 from src.services.evidence_pack_builder import EvidencePackBuilder
 from src.tenancy.queries import get_tenant_filtered_query
 
-
 router = APIRouter(prefix="/api/cases/{case_id}/evidence-packs", tags=["evidence-packs"])
 
 _ALLOWED_ROLES = ["admin", "compliance", "auditor", "aml_officer"]

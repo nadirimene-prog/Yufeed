@@ -238,7 +238,7 @@ ANTHROPIC_API_KEY=sk-ant-...
 OPENAI_API_KEY=sk-...
 
 # Databases
-DATABASE_URL=postgresql://user:pass@localhost/yufeed
+DATABASE_URL=postgresql://<db_user>:<db_password>@localhost/yufeed
 REDIS_URL=redis://localhost:6379/0
 OPENSEARCH_URL=https://localhost:9200
 

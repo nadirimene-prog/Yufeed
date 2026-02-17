@@ -52,6 +52,47 @@ def test_create_alert_uses_finding_service(db_session, monkeypatch):
 
 
 @pytest.mark.unit
+def test_create_alert_handles_non_numeric_ml_confidence(db_session, monkeypatch):
+    class StubFindingService:
+        def __init__(self, db):
+            self.db = db
+
+        def create_or_update_finding(self, **kwargs):
+            return None, True
+
+    monkeypatch.setattr(alerts_api, "FindingService", StubFindingService)
+    monkeypatch.setattr(
+        alerts_api.alert_triage_model,
+        "predict",
+        lambda db, alert: {
+            "prediction": "unknown",
+            "confidence": "low",
+            "true_positive_probability": 0.5,
+            "false_positive_probability": 0.5,
+            "recommendation": "manual_review",
+            "model_version": "test",
+        },
+    )
+
+    set_current_tenant("default")
+    try:
+        created = alerts_api.create_alert(
+            AlertCreate(
+                alert_type="test_alert",
+                severity="medium",
+                user_id="user-ml-fallback",
+                description="Non-numeric confidence should not fail",
+            ),
+            db_session,
+        )
+    finally:
+        clear_current_tenant()
+
+    assert created.ml_prediction == "unknown"
+    assert float(created.ml_confidence) == 0.5
+
+
+@pytest.mark.unit
 def test_create_alert_continues_when_finding_service_fails(db_session, monkeypatch):
     class FailingFindingService:
         def __init__(self, db):

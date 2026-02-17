@@ -23,6 +23,11 @@ def test_cases_workflow(db_session):
         db_session.add(regulation)
         db_session.commit()
 
+        from_alert_case = cases_api.create_case_from_alert(
+            alert.alert_id, assigned_to="analyst@example.com", db=db_session
+        )
+        assert from_alert_case.tenant_id == "default"
+
         case_payload = CaseCreate(
             case_type="investigation",
             subject_type="user",

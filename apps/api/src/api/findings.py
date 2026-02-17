@@ -29,7 +29,6 @@ from src.services.finding_service import FindingService
 from src.tenancy.queries import get_tenant_filtered_query
 from src.utils.time import utc_now
 
-
 router = APIRouter(prefix="/api/findings", tags=["findings"])
 
 _ALLOWED_ROLES = ["admin", "compliance", "aml_officer"]

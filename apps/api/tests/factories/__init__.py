@@ -14,6 +14,7 @@ from tests.factories.transaction_factories import (
 )
 from tests.factories.legal_factories import (
     LegalDocumentFactory,
+    TenantFactory,
     UserFactory,
 )
 
@@ -27,5 +28,6 @@ __all__ = [
     "CaseDecisionFactory",
     "EvidencePackFactory",
     "LegalDocumentFactory",
+    "TenantFactory",
     "UserFactory",
 ]

@@ -132,6 +132,9 @@ Initial Evidence:
         evidence=alert.evidence or {},
     )
 
+    # Ensure tenant_id is populated for non-nullable case records.
+    set_tenant_on_create(db_case)
+
     db.add(db_case)
 
     # Update alert

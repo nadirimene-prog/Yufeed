@@ -15,7 +15,7 @@ You had **conflicting database configurations** that caused PostgreSQL vs SQLite
 **`.env`** (Root - Now works for BOTH Docker and local)
 ```bash
 # For LOCAL development (default):
-DATABASE_URL=postgresql://postgres:postgres@localhost:5432/yufeed
+DATABASE_URL=postgresql://<db_user>:<db_password>@localhost:5432/yufeed
 
 # For DOCKER, this gets overridden by docker-compose.override.yml
 ```
@@ -25,7 +25,7 @@ DATABASE_URL=postgresql://postgres:postgres@localhost:5432/yufeed
 api:
   environment:
     # Inside Docker, use service name "db" instead of "localhost"
-    - DATABASE_URL=postgresql://postgres:postgres@db:5432/yufeed
+    - DATABASE_URL=postgresql://<db_user>:<db_password>@db:5432/yufeed
 ```
 
 ### 2. Fixed Config Loading
@@ -137,7 +137,7 @@ ls -la .env apps/api/.env 2>/dev/null
 
 ```bash
 # To use PostgreSQL:
-echo 'DATABASE_URL=postgresql://postgres:postgres@localhost:5432/yufeed' > .env
+echo 'DATABASE_URL=postgresql://<db_user>:<db_password>@localhost:5432/yufeed' > .env
 
 # To use SQLite:
 echo 'DATABASE_URL=sqlite:///./compliance.db' > .env
@@ -178,7 +178,7 @@ python -c "from src.config import settings; print(f'Database: {settings.DATABASE
 The CI workflow already handles this correctly:
 ```yaml
 env:
-  DATABASE_URL: postgresql://yufeed:yufeed123@localhost:5432/yufeed_test
+  DATABASE_URL: postgresql://<db_user>:<db_password>@localhost:5432/yufeed_test
 ```
 
 It uses the environment variable directly, bypassing `.env` files.

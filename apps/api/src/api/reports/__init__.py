@@ -11,7 +11,6 @@ from .compliance_dashboard import router as compliance_dashboard_router
 from .scope_analysis import router as scope_analysis_router
 from .audit_trails import router as audit_trails_router
 
-
 # Create main router for reports
 router = APIRouter()
 
