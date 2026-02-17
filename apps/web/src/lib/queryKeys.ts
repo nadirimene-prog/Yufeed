@@ -87,3 +87,10 @@ export const workbenchKeys = {
   evidencePackDetail: (caseId: string, packId: string) =>
     [...workbenchKeys.evidencePacks(caseId), "detail", packId] as const,
 } as const;
+
+export const dashboardKeys = {
+  all: ["dashboard"] as const,
+  overview: (view: string, timeRange: string) =>
+    [...dashboardKeys.all, "overview", view, timeRange] as const,
+  badges: () => [...dashboardKeys.all, "badges"] as const,
+} as const;
