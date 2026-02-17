@@ -88,6 +88,7 @@ make ci
 - API compatibility/deprecations: `docs/engineering/api/API_COMPATIBILITY.md`
 - Runbooks: `docs/runbooks/`
 - Engineering audits: `docs/audits/`
+- Archived implementation reports: `docs/archive/root-reports/`
 - Developer setup/troubleshooting: `docs/dev/`
 
 ## Contributing and security
