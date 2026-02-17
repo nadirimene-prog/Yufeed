@@ -40,6 +40,15 @@ interface JwtPayload {
   [key: string]: unknown;
 }
 
+export interface AuthUserProfile {
+  userId: string | null;
+  email: string | null;
+  role: string | null;
+  tenantId: string | null;
+  displayName: string;
+  initials: string;
+}
+
 function decodeJwtPayload(token: string): JwtPayload | null {
   const parts = token.split(".");
   if (parts.length < 2) return null;
@@ -53,6 +62,47 @@ function decodeJwtPayload(token: string): JwtPayload | null {
   } catch {
     return null;
   }
+}
+
+function toDisplayName(payload: JwtPayload): string {
+  const rawName =
+    typeof payload.name === "string"
+      ? payload.name
+      : typeof payload.full_name === "string"
+        ? payload.full_name
+        : null;
+
+  if (rawName && rawName.trim().length > 0) {
+    return rawName.trim();
+  }
+
+  const email =
+    typeof payload.email === "string"
+      ? payload.email
+      : typeof payload.sub === "string"
+        ? payload.sub
+        : "";
+
+  if (!email.includes("@")) {
+    return "YuFeed User";
+  }
+
+  const local = email.split("@")[0] ?? "";
+  return local
+    .split(/[._-]/g)
+    .filter(Boolean)
+    .map((segment) => segment.charAt(0).toUpperCase() + segment.slice(1))
+    .join(" ");
+}
+
+function toInitials(displayName: string): string {
+  const tokens = displayName
+    .split(" ")
+    .map((token) => token.trim())
+    .filter(Boolean);
+  if (tokens.length === 0) return "YU";
+  if (tokens.length === 1) return tokens[0].slice(0, 2).toUpperCase();
+  return `${tokens[0]?.charAt(0) ?? ""}${tokens[1]?.charAt(0) ?? ""}`.toUpperCase();
 }
 
 function isJwtTokenValid(token: string): boolean {
@@ -99,6 +149,33 @@ export function getAuthToken(): string | null {
   }
 
   return null;
+}
+
+export function getAuthUserProfile(): AuthUserProfile | null {
+  const token = getAuthToken();
+  if (!token) return null;
+
+  const payload = decodeJwtPayload(token);
+  if (!payload) return null;
+
+  const displayName = toDisplayName(payload);
+
+  return {
+    userId:
+      typeof payload.user_id === "string" && payload.user_id.length > 0
+        ? payload.user_id
+        : null,
+    email:
+      typeof payload.email === "string"
+        ? payload.email
+        : typeof payload.sub === "string"
+          ? payload.sub
+          : null,
+    role: typeof payload.role === "string" ? payload.role : null,
+    tenantId: typeof payload.tenant_id === "string" ? payload.tenant_id : null,
+    displayName,
+    initials: toInitials(displayName),
+  };
 }
 
 export function setAuthTokens(

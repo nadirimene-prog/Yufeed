@@ -2,10 +2,12 @@
 
 import * as React from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 
 import { motion, AnimatePresence } from "framer-motion";
 import { cn } from "@/lib/utils";
 import { Button, IconButton } from "@/components/ui/button-horizon";
+import { clearAuthTokens, getAuthUserProfile } from "@/lib/auth";
 
 import {
   Search,
@@ -223,6 +225,8 @@ function GlobalSearch() {
 function UserMenu() {
   const [isOpen, setIsOpen] = React.useState(false);
   const menuRef = React.useRef<HTMLDivElement>(null);
+  const router = useRouter();
+  const profile = React.useMemo(() => getAuthUserProfile(), []);
 
   React.useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
@@ -235,20 +239,34 @@ function UserMenu() {
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
 
+  const displayName = profile?.displayName ?? "Workspace User";
+  const email = profile?.email ?? "unknown@yufeed.local";
+  const roleLabel = profile?.role
+    ? profile.role
+        .replaceAll("_", " ")
+        .replace(/\b\w/g, (token) => token.toUpperCase())
+    : "Analyst";
+  const initials = profile?.initials ?? "YU";
+
+  const handleSignOut = () => {
+    clearAuthTokens();
+    router.replace("/");
+  };
+
   return (
     <div className="relative" ref={menuRef}>
       <button
         onClick={() => setIsOpen(!isOpen)}
         className="flex items-center gap-2 rounded-lg p-1.5 hover:bg-bg-overlay transition-colors"
       >
-        <div className="h-8 w-8 rounded-full bg-primary/10 flex items-center justify-center">
-          <User className="h-4 w-4 text-primary" />
+        <div className="h-8 w-8 rounded-full bg-primary/10 flex items-center justify-center text-xs font-semibold text-primary">
+          {initials}
         </div>
         <div className="hidden lg:block text-left">
-          <div className="text-sm font-medium text-foreground">John Doe</div>
-          <div className="text-xs text-foreground-tertiary">
-            Compliance Officer
+          <div className="text-sm font-medium text-foreground">
+            {displayName}
           </div>
+          <div className="text-xs text-foreground-tertiary">{roleLabel}</div>
         </div>
         <ChevronDown
           className={cn(
@@ -268,10 +286,8 @@ function UserMenu() {
             className="absolute right-0 top-full mt-2 w-56 rounded-xl border border-border-default bg-bg-overlay shadow-xl overflow-hidden z-50"
           >
             <div className="px-4 py-3 border-b border-border-subtle">
-              <div className="font-medium text-foreground">John Doe</div>
-              <div className="text-sm text-foreground-secondary">
-                john@yufeed.com
-              </div>
+              <div className="font-medium text-foreground">{displayName}</div>
+              <div className="text-sm text-foreground-secondary">{email}</div>
             </div>
             <ul className="py-1">
               <li>
@@ -294,7 +310,10 @@ function UserMenu() {
               </li>
             </ul>
             <div className="border-t border-border-subtle py-1">
-              <button className="flex w-full items-center gap-3 px-4 py-2 text-sm text-critical-400 hover:bg-critical-500/10">
+              <button
+                className="flex w-full items-center gap-3 px-4 py-2 text-sm text-critical-400 hover:bg-critical-500/10"
+                onClick={handleSignOut}
+              >
                 <LogOut className="h-4 w-4" />
                 Sign out
               </button>
