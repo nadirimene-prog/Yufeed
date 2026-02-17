@@ -13,7 +13,7 @@ responses==0.24.1
 freezegun==1.4.0
 
 # Load testing
-locust==2.20.0
+locust==2.43.3
 
 # Code quality
 black==24.1.1
