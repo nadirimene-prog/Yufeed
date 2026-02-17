@@ -117,8 +117,8 @@ export default function NetworkAnalysisPage() {
         `${API_URL}/api/network/fraud-rings/detect`,
       );
       const data = await res.json();
-      setFraudRings(data.rings || []);
-      toast.success(`Found ${data.rings?.length || 0} potential fraud rings`, {
+      setFraudRings(data.rings ?? []);
+      toast.success(`Found ${data.rings?.length ?? 0} potential fraud rings`, {
         id: toastId,
       });
     } catch (error) {

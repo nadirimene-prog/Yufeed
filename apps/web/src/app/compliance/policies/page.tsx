@@ -41,7 +41,7 @@ interface PolicySection {
 }
 
 const policyStatusStyle = (status?: string | null) => {
-  const value = (status || "draft").toLowerCase();
+  const value = (status ?? "draft").toLowerCase();
   if (value === "active")
     return "bg-emerald-50 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-300";
   if (value === "approved")
@@ -133,10 +133,10 @@ export default function PoliciesPage() {
       });
       const items = response.items || [];
       setPolicies(items);
-      setTotal(response.total || 0);
+      setTotal(response.total ?? 0);
       if (items.length) {
         const nextSelected =
-          items.find((item: Policy) => item.id === selectedPolicyId)?.id ||
+          items.find((item: Policy) => item.id === selectedPolicyId)?.id ??
           items[0].id;
         setSelectedPolicyId(nextSelected);
       } else {
@@ -294,7 +294,7 @@ export default function PoliciesPage() {
   };
 
   const selectedPolicy =
-    policies.find((policy) => policy.id === selectedPolicyId) || null;
+    policies.find((policy) => policy.id === selectedPolicyId) ?? null;
 
   return (
     <div className="space-y-6">
@@ -462,7 +462,7 @@ export default function PoliciesPage() {
             <div>
               Active:{" "}
               {
-                policies.filter((item) => (item.status || "draft") === "active")
+                policies.filter((item) => (item.status ?? "draft") === "active")
                   .length
               }
             </div>
@@ -489,12 +489,12 @@ export default function PoliciesPage() {
                     <span
                       className={`rounded-full px-2 py-1 text-[10px] font-semibold ${policyStatusStyle(policy.status)}`}
                     >
-                      {(policy.status || "draft").replace("_", " ")}
+                      {(policy.status ?? "draft").replace("_", " ")}
                     </span>
                   </div>
                   <div className="mt-1 text-xs text-gray-500">
                     {policy.policy_id} •{" "}
-                    {policy.language?.toUpperCase() || "EN"}
+                    {policy.language?.toUpperCase() ?? "EN"}
                   </div>
                   <div className="mt-1 text-xs text-gray-400">
                     Updated {formatDate(policy.updated_at)}
@@ -639,19 +639,19 @@ export default function PoliciesPage() {
                         >
                           <div className="flex items-center justify-between">
                             <div className="text-xs font-semibold text-gray-800 dark:text-gray-100">
-                              {section.title ||
-                                section.section_ref ||
+                              {section.title ??
+                                section.section_ref ??
                                 "Untitled section"}
                             </div>
                             <span
                               className={`rounded-full px-2 py-1 text-[10px] font-semibold ${policyStatusStyle(section.status)}`}
                             >
-                              {(section.status || "draft").replace("_", " ")}
+                              {(section.status ?? "draft").replace("_", " ")}
                             </span>
                           </div>
                           <div className="mt-1 text-[11px] text-gray-500">
-                            {section.section_ref || "No ref"} • v
-                            {section.version || "1"}
+                            {section.section_ref ?? "No ref"} • v
+                            {section.version ?? "1"}
                           </div>
                         </div>
                       ))

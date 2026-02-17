@@ -23,7 +23,7 @@ export default function SearchPage() {
     title: item.title,
     type: "Regulation", // Default, could be enhanced with backend data
     status: item.status === "active" ? "In Force" : "No Longer in Force",
-    date: item.publication_date || new Date().toISOString(),
+    date: item.publication_date ?? new Date().toISOString(),
     topics: [], // Could be extracted from metadata if available
   });
 

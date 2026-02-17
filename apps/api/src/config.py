@@ -1,9 +1,33 @@
 import warnings
 from pydantic_settings import BaseSettings, SettingsConfigDict
 from pydantic import model_validator
+import os
+
+# Load .env file explicitly before Settings is defined
+from dotenv import load_dotenv
+
+# Get absolute path to this file
+_CURRENT_FILE = os.path.abspath(__file__)
+
+# Path calculation:
+# src/config.py -> src/ -> apps/api/ -> project root/
+root_env = os.path.join(
+    os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(_CURRENT_FILE)))), ".env"
+)
+api_env = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(_CURRENT_FILE))), ".env")
+
+if os.path.exists(root_env):
+    load_dotenv(dotenv_path=root_env, override=False)
+else:
+    load_dotenv(dotenv_path=api_env, override=False)
 
 
 class Settings(BaseSettings):
+    model_config = SettingsConfigDict(
+        env_file_encoding="utf-8",
+        case_sensitive=False,
+    )
+
     DATABASE_URL: str = "sqlite:///./compliance.db"
     REDIS_URL: str = "redis://localhost:6379/0"
     OPENSEARCH_URL: str = "http://localhost:9200"

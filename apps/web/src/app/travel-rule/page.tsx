@@ -5,7 +5,6 @@ import { Send, CheckCircle2 } from "lucide-react";
 import { fetchWithAuth } from "@/lib/auth";
 import { getApiBaseUrl } from "@/lib/apiBaseUrl";
 import { useTravelRuleTransfers } from "@/hooks/queries/useSpecializedData";
-import { LoadingBoundary } from "@/components/shared/LoadingBoundary";
 
 const API_URL = getApiBaseUrl();
 
@@ -48,7 +47,6 @@ export default function TravelRulePage() {
   const {
     data: inbox = [],
     isLoading: inboxLoading,
-    error: inboxError,
     refetch,
   } = useTravelRuleTransfers();
 

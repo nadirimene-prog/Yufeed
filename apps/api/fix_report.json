@@ -1,0 +1,271 @@
+{
+  "timestamp": "2026-02-17T07:37:43.939644",
+  "before_stats": {
+    "total": 261,
+    "with_content": 17,
+    "with_good_content": 17,
+    "content_rate": 6.513409961685824,
+    "avg_length": 63067
+  },
+  "celex_problems_found": 133,
+  "celex_fixed": [
+    {
+      "old": "32015D2366",
+      "new": "32015L2366",
+      "reason": "PSD2 is a Directive, not a Decision"
+    }
+  ],
+  "documents_to_reextract": 244,
+  "reextraction_list": [
+    {
+      "id": 261,
+      "celex": "32015L2366",
+      "title": "Directive (EU) 2015/2366 (PSD2)"
+    },
+    {
+      "id": 33,
+      "celex": "32020R0354R",
+      "title": "$item.title"
+    },
+    {
+      "id": 199,
+      "celex": "52023XC00585",
+      "title": "Summary of European Commission Decisions on authorisations for the placing on the market for the use and/or for use of substances listed in Annex XIV to Regulation (EC) No 1907/2006 of the European Parliament and of the Council of 18 December 2006 concerning the Registration, Evaluation, Authorisation and Restriction of Chemicals (REACH)"
+    },
+    {
+      "id": 206,
+      "celex": "52023XC00784",
+      "title": "Summary of European Commission Decisions on authorisations for the placing on the market for the use and/or for use of substances listed in Annex XIV to Regulation (EC) No 1907/2006 of the European Parliament and of the Council concerning the Registration, Evaluation, Authorisation and Restriction of Chemicals (REACH)"
+    },
+    {
+      "id": 200,
+      "celex": "52023XC00885",
+      "title": "Summary of European Commission Decisions on authorisations for the placing on the market for the use and/or for use of substances listed in Annex XIV to Regulation (EC) No 1907/2006 of the European Parliament and of the Council concerning the Registration, Evaluation, Authorisation and Restriction of Chemicals (REACH) (Published pursuant to Article 64(9) of Regulation (EC) No 1907/2006)"
+    },
+    {
+      "id": 204,
+      "celex": "52023XC00886",
+      "title": "Summary of European Commission Decisions on authorisations for the placing on the market for the use and/or for use of substances listed in Annex XIV to Regulation (EC) No 1907/2006 of the European Parliament and of the Council concerning the Registration, Evaluation, Authorisation and Restriction of Chemicals (REACH) (Published pursuant to Article 64(9) of Regulation (EC) No 1907/2006)"
+    },
+    {
+      "id": 205,
+      "celex": "52023XC00901",
+      "title": "Summary of European Commission Decisions on authorisations for the placing on the market for the use and/or for use of substances listed in Annex XIV to Regulation (EC) No 1907/2006 of the European Parliament and of the Council of 18 December 2006 concerning the Registration, Evaluation, Authorisation and Restriction of Chemicals (REACH)"
+    },
+    {
+      "id": 202,
+      "celex": "52023XC00907",
+      "title": "Summary of European Commission Decisions on authorisations for the placing on the market for the use and/or for use of substances listed in Annex XIV to Regulation (EC) No 1907/2006 of the European Parliament and of the Council of 18 December 2006 concerning the Registration, Evaluation, Authorisation and Restriction of Chemicals (REACH)"
+    },
+    {
+      "id": 201,
+      "celex": "52023XC00909",
+      "title": "Summary of European Commission Decisions on authorisations for the placing on the market for the use and/or for use of substances listed in Annex XIV to Regulation (EC) No 1907/2006 of the European Parliament and of the Council of 18 December 2006 concerning the Registration, Evaluation, Authorisation and Restriction of Chemicals (REACH)"
+    },
+    {
+      "id": 203,
+      "celex": "52023XC00917",
+      "title": "Summary of European Commission Decisions on authorisations for the placing on the market for the use and/or for use of substances listed in Annex XIV to Regulation (EC) No 1907/2006 of the European Parliament and of the Council of 18 December 2006 concerning the Registration, Evaluation, Authorisation and Restriction of Chemicals (REACH)"
+    },
+    {
+      "id": 208,
+      "celex": "52023XC01017",
+      "title": "Summary of European Commission Decisions on authorisations for the placing on the market for the use and/or for use of substances listed in Annex XIV to Regulation (EC) No 1907/2006 of the European Parliament and of the Council of 18 December 2006 concerning the Registration, Evaluation, Authorisation and Restriction of Chemicals (REACH)"
+    },
+    {
+      "id": 209,
+      "celex": "52023XC01180",
+      "title": "Summary of European Commission Decisions on authorisations for the placing on the market for the use and/or for use of substances listed in Annex XIV to Regulation (EC) No 1907/2006 of the European Parliament and of the Council of 18 December 2006 concerning the Registration, Evaluation, Authorisation and Restriction of Chemicals (REACH)"
+    },
+    {
+      "id": 210,
+      "celex": "52023XC01182",
+      "title": "Summary of European Commission Decisions on authorisations for the placing on the market for the use and/or for use of substances listed in Annex XIV to Regulation (EC) No 1907/2006 of the European Parliament and of the Council of 18 December 2006 concerning the Registration, Evaluation, Authorisation and Restriction of Chemicals (REACH)"
+    },
+    {
+      "id": 211,
+      "celex": "52023XC01425",
+      "title": "Summary of European Commission Decisions on authorisations for the placing on the market for the use and/or for use of substances listed in Annex XIV to Regulation (EC) No 1907/2006 of the European Parliament and of the Council of 18 December 2006 concerning the Registration, Evaluation, Authorisation and Restriction of Chemicals (REACH)"
+    },
+    {
+      "id": 212,
+      "celex": "52023XC01444",
+      "title": "Summary of European Commission Decisions on authorisations for the placing on the market for the use and/or for use of substances listed in Annex XIV to Regulation (EC) No 1907/2006 of the European Parliament and of the Council concerning the Registration, Evaluation, Authorisation and Restriction of Chemicals (REACH) (Published pursuant to Article 64(9) of Regulation (EC) No 1907/2006 )"
+    },
+    {
+      "id": 213,
+      "celex": "52023XC01489",
+      "title": "Summary of European Commission Decisions on authorisations for the placing on the market for the use and/or for use of substances listed in Annex XIV to Regulation (EC) No 1907/2006 of the European Parliament and of the Council of 18 December 2006 concerning the Registration, Evaluation, Authorisation and Restriction of Chemicals (REACH)"
+    },
+    {
+      "id": 216,
+      "celex": "52023XC01490",
+      "title": "Summary of European Commission Decisions on authorisations for the placing on the market for the use and/or for use of substances listed in Annex XIV to Regulation (EC) No 1907/2006 of the European Parliament and of the Council of 18 December 2006 concerning the Registration, Evaluation, Authorisation and Restriction of Chemicals (REACH)"
+    },
+    {
+      "id": 217,
+      "celex": "52023XC01518",
+      "title": "Summary of European Commission Decisions on authorisations for the placing on the market for the use and/or for use of substances listed in Annex XIV to Regulation (EC) No 1907/2006 of the European Parliament and of the Council of 18 December 2006 concerning the Registration, Evaluation, Authorisation and Restriction of Chemicals (REACH)"
+    },
+    {
+      "id": 215,
+      "celex": "52023XC01519",
+      "title": "Summary of European Commission Decisions on authorisations for the placing on the market for the use and/or for use of substances listed in Annex XIV to Regulation (EC) No 1907/2006 of the European Parliament and of the Council of 18 December 2006 concerning the Registration, Evaluation, Authorisation and Restriction of Chemicals (REACH)"
+    },
+    {
+      "id": 214,
+      "celex": "52023XC01604",
+      "title": "Commission Communication in the framework of the implementation of Regulation (EC) No 1907/ 2006 of the European Parliament and of the Council concerning the Registration, Evaluation, Authorisation and Restriction of Chemical"
+    },
+    {
+      "id": 222,
+      "celex": "52024M11309",
+      "title": "Prior notification of a concentration (Case M.11309 \u2013 KINGPSAN / NWG)"
+    },
+    {
+      "id": 218,
+      "celex": "52024XC00581",
+      "title": "Summary of European Commission Decisions on authorisations for the placing on the market for the use and/or for use of substances listed in Annex XIV to Regulation (EC) No 1907/2006 of the European Parliament and of the Council of 18 December 2006 concerning the Registration, Evaluation, Authorisation and Restriction of Chemicals (REACH)"
+    },
+    {
+      "id": 221,
+      "celex": "52024XC00692",
+      "title": "Summary of European Commission Decisions on authorisations for the placing on the market for the use and/or for use of substances listed in Annex XIV to Regulation (EC) No 1907/2006 of the European Parliament and of the Council concerning the Registration, Evaluation, Authorisation and Restriction of Chemicals (REACH) (Published pursuant to Article 64(9) of Regulation (EC) No 1907/2006 )"
+    },
+    {
+      "id": 220,
+      "celex": "52024XC00787",
+      "title": "Summary of European Commission Decisions on authorisations for the placing on the market for the use and/or for use of substances listed in Annex XIV to Regulation (EC) No 1907/2006 of the European Parliament and of the Council of 18 December 2006 concerning the Registration, Evaluation, Authorisation and Restriction of Chemicals (REACH)"
+    },
+    {
+      "id": 219,
+      "celex": "52024XC01004",
+      "title": "Summary of European Commission Decisions on authorisations for the placing on the market for the use and/or for use of substances listed in Annex XIV to Regulation (EC) No 1907/2006 of the European Parliament and of the Council of 18 December 2006 concerning the Registration, Evaluation, Authorisation and Restriction of Chemicals (REACH)"
+    },
+    {
+      "id": 233,
+      "celex": "52024XC01347",
+      "title": "Summary of European Commission Decisions on authorisations for the placing on the market for the use and/or for use of substances listed in Annex XIV to Regulation (EC) No 1907/2006 of the European Parliament and of the Council concerning the Registration, Evaluation, Authorisation and Restriction of Chemicals (REACH)"
+    },
+    {
+      "id": 224,
+      "celex": "52024XC02512",
+      "title": "Summary of European Commission Decisions on authorisations for the placing on the market for the use and/or for use of substances listed in Annex XIV to Regulation (EC) No 1907/2006 of the European Parliament and of the Council concerning the Registration, Evaluation, Authorisation and Restriction of Chemicals (REACH)"
+    },
+    {
+      "id": 225,
+      "celex": "52024XC02513",
+      "title": "Summary of European Commission Decisions on authorisations for the placing on the market for the use and/or for use of substances listed in Annex XIV to Regulation (EC) No 1907/2006 of the European Parliament and of the Council concerning the Registration, Evaluation, Authorisation and Restriction of Chemicals (REACH)"
+    },
+    {
+      "id": 223,
+      "celex": "52024XC02514",
+      "title": "Summary of European Commission Decisions on authorisations for the placing on the market for the use and/or for use of substances listed in Annex XIV to Regulation (EC) No 1907/2006 of the European Parliament and of the Council concerning the Registration, Evaluation, Authorisation and Restriction of Chemicals (REACH) (Published pursuant to Article 64(9) of Regulation (EC) No 1907/2006)"
+    },
+    {
+      "id": 227,
+      "celex": "52024XC02876",
+      "title": "Summary of European Commission Decisions on authorisations for the placing on the market for the use and/or for use of substances listed in Annex XIV to Regulation (EC) No 1907/2006 of the European Parliament and of the Council concerning the Registration, Evaluation, Authorisation and Restriction of Chemicals (REACH)"
+    },
+    {
+      "id": 226,
+      "celex": "52024XC02894",
+      "title": "COMMUNICATION FROM THE COMMISSION - Guiding criteria and principles for the essential use concept in EU legislation dealing with chemicals"
+    },
+    {
+      "id": 228,
+      "celex": "52024XC02978",
+      "title": "Summary of European Commission Decisions on authorisations for the placing on the market for the use and/or for use of substances listed in Annex XIV to Regulation (EC) No 1907/2006 of the European Parliament and of the Council concerning the Registration, Evaluation, Authorisation and Restriction of Chemicals (REACH)"
+    },
+    {
+      "id": 230,
+      "celex": "52024XC02981",
+      "title": "Summary of European Commission Decisions on authorisations for the placing on the market for the use and/or for use of substances listed in Annex XIV to Regulation (EC) No 1907/2006 of the European Parliament and of the Council concerning the Registration, Evaluation, Authorisation and Restriction of Chemicals (REACH)"
+    },
+    {
+      "id": 229,
+      "celex": "52024XC03024",
+      "title": "Summary of European Commission Decisions on authorisations for the placing on the market for the use and/or for use of substances listed in Annex XIV to Regulation (EC) No 1907/2006 of the European Parliament and of the Council concerning the Registration, Evaluation, Authorisation and Restriction of Chemicals (REACH)"
+    },
+    {
+      "id": 232,
+      "celex": "52024XC03103",
+      "title": "Summary of European Commission Decisions on authorisations for the placing on the market for the use and/or for use of substances listed in Annex XIV to Regulation (EC) No 1907/2006 of the European Parliament and of the Council concerning the Registration, Evaluation, Authorisation and Restriction of Chemicals (REACH)"
+    },
+    {
+      "id": 237,
+      "celex": "52024XC03105",
+      "title": "Summary of European Commission Decisions on authorisations for the placing on the market for the use and/or for use of substances listed in Annex XIV to Regulation (EC) No 1907/2006 of the European Parliament and of the Council concerning the Registration, Evaluation, Authorisation and Restriction of Chemicals (REACH) (Published pursuant to Article 64(9) of Regulation (EC) No 1907/2006)"
+    },
+    {
+      "id": 236,
+      "celex": "52024XC03116",
+      "title": "Summary of European Commission Decisions on authorisations for the placing on the market for the use and/or for use of substances listed in Annex XIV to Regulation (EC) No 1907/2006 of the European Parliament and of the Council concerning the Registration, Evaluation, Authorisation and Restriction of Chemicals (REACH)"
+    },
+    {
+      "id": 234,
+      "celex": "52024XC03118",
+      "title": "Summary of European Commission Decisions on authorisations for the placing on the market for the use and/or for use of substances listed in Annex XIV to Regulation (EC) No 1907/2006 of the European Parliament and of the Council concerning the Registration, Evaluation, Authorisation and Restriction of Chemicals (REACH)"
+    },
+    {
+      "id": 235,
+      "celex": "52024XC03120",
+      "title": "Summary of European Commission Decisions on authorisations for the placing on the market for the use and/or for use of substances listed in Annex XIV to Regulation (EC) No 1907/2006 of the European Parliament and of the Council concerning the Registration, Evaluation, Authorisation and Restriction of Chemicals (REACH)"
+    },
+    {
+      "id": 238,
+      "celex": "52024XC03124",
+      "title": "Summary of European Commission Decisions on authorisations for the placing on the market for the use and/or for use of substances listed in Annex XIV to Regulation (EC) No 1907/2006 of the European Parliament and of the Council concerning the Registration, Evaluation, Authorisation and Restriction of Chemicals (REACH)"
+    },
+    {
+      "id": 239,
+      "celex": "52024XC03512",
+      "title": "Summary of European Commission Decisions on authorisations for the placing on the market for the use and/or for use of substances listed in Annex XIV to Regulation (EC) No 1907/2006 of the European Parliament and of the Council concerning the Registration, Evaluation, Authorisation and Restriction of Chemicals (REACH)"
+    },
+    {
+      "id": 240,
+      "celex": "52024XC03551",
+      "title": "Summary of European Commission Decisions on authorisations for the placing on the market for the use and/or for use of substances listed in Annex XIV to Regulation (EC) No 1907/2006 of the European Parliament and of the Council concerning the Registration, Evaluation, Authorisation and Restriction of Chemicals (REACH)"
+    },
+    {
+      "id": 242,
+      "celex": "52024XC03557",
+      "title": "Summary of European Commission Decisions on authorisations for the placing on the market for the use and/or for use of substances listed in Annex XIV to Regulation (EC) No 1907/2006 of the European Parliament and of the Council concerning the Registration, Evaluation, Authorisation and Restriction of Chemicals (REACH)"
+    },
+    {
+      "id": 243,
+      "celex": "52024XC03560",
+      "title": "Summary of European Commission Decisions on authorisations for the placing on the market for the use and/or for use of substances listed in Annex XIV to Regulation (EC) No 1907/2006 of the European Parliament and of the Council concerning the Registration, Evaluation, Authorisation and Restriction of Chemicals (REACH) (Published pursuant to Article 64(9) of Regulation (EC) No 1907/2006)"
+    },
+    {
+      "id": 244,
+      "celex": "52024XC03690",
+      "title": "Summary of European Commission Decisions on authorisations for the placing on the market for the use and/or for use of substances listed in Annex XIV to Regulation (EC) No 1907/2006 of the European Parliament and of the Council concerning the Registration, Evaluation, Authorisation and Restriction of Chemicals (REACH) (Published pursuant to Article 64(9) of Regulation (EC) No 1907/2006)"
+    },
+    {
+      "id": 245,
+      "celex": "52024XC03692",
+      "title": "Summary of European Commission Decisions on authorisations for the placing on the market for the use and/or for use of substances listed in Annex XIV to Regulation (EC) No 1907/2006 of the European Parliament and of the Council concerning the Registration, Evaluation, Authorisation and Restriction of Chemicals (REACH) (Published pursuant to Article 64(9) of Regulation (EC) No 1907/2006)"
+    },
+    {
+      "id": 246,
+      "celex": "52024XC03716",
+      "title": "Summary of European Commission Decisions on authorisations for the placing on the market for the use and/or for use of substances listed in Annex XIV to Regulation (EC) No 1907/2006 of the European Parliament and of the Council concerning the Registration, Evaluation, Authorisation and Restriction of Chemicals (REACH)"
+    },
+    {
+      "id": 241,
+      "celex": "52024XC03820",
+      "title": "Summary of European Commission Decisions on authorisations for the placing on the market for the use and/or for use of substances listed in Annex XIV to Regulation (EC) No 1907/2006 of the European Parliament and of the Council concerning the Registration, Evaluation, Authorisation and Restriction of Chemicals (REACH)"
+    },
+    {
+      "id": 249,
+      "celex": "52024XC03859",
+      "title": "Summary of European Commission Decisions on authorisations for the placing on the market for the use and/or for use of substances listed in Annex XIV to Regulation (EC) No 1907/2006 of the European Parliament and of the Council concerning the Registration, Evaluation, Authorisation and Restriction of Chemicals (REACH)"
+    },
+    {
+      "id": 248,
+      "celex": "52024XC03864",
+      "title": "Summary of European Commission Decisions on authorisations for the placing on the market for the use and/or for use of substances listed in Annex XIV to Regulation (EC) No 1907/2006 of the European Parliament and of the Council concerning the Registration, Evaluation, Authorisation and Restriction of Chemicals (REACH)"
+    }
+  ]
+}

@@ -78,7 +78,7 @@ function serializeParam(value: unknown, config: FilterConfig): string | null {
     case "array": {
       const arr = Array.isArray(value) ? value : [];
       const joined = arr.filter(Boolean).join(",");
-      return joined || null;
+      return joined ?? null;
     }
     case "string":
     default:

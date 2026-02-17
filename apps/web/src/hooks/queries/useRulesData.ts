@@ -8,7 +8,7 @@ import apiClient from "@/lib/http";
 
 export function useRules(params?: Record<string, unknown>) {
   return useQuery({
-    queryKey: monitoringKeys.rulesList(params || {}),
+    queryKey: monitoringKeys.rulesList(params ?? {}),
     queryFn: async () => {
       const response = await apiClient.get("/api/monitoring-rules", { params });
       return response.data;
@@ -27,11 +27,25 @@ export function useRule(id: string) {
   });
 }
 
+// Monitoring Rule types
+interface MonitoringRuleData {
+  name: string;
+  description?: string;
+  category?: string;
+  severity?: string;
+  conditions: Record<string, unknown>;
+  thresholds?: Record<string, unknown>;
+  regulatory_source_id?: number;
+  regulation_article?: string;
+  regulatory_requirement?: string;
+  enabled?: boolean;
+}
+
 export function useCreateRule() {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: async (data: any) => {
+    mutationFn: async (data: MonitoringRuleData) => {
       const response = await apiClient.post("/api/monitoring-rules", data);
       return response.data;
     },
@@ -45,7 +59,13 @@ export function useUpdateRule() {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: async ({ id, data }: { id: string; data: any }) => {
+    mutationFn: async ({
+      id,
+      data,
+    }: {
+      id: string;
+      data: Partial<MonitoringRuleData>;
+    }) => {
       const response = await apiClient.put(`/api/monitoring-rules/${id}`, data);
       return response.data;
     },

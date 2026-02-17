@@ -88,9 +88,9 @@ export default function ObligationReview({
       </div>
 
       <div className="mt-4 grid gap-2 text-xs text-gray-500">
-        <div>Created by: {createdBy || "—"}</div>
-        <div>Reviewed by: {reviewedBy || "—"}</div>
-        <div>Approved by: {approvedBy || "—"}</div>
+        <div>Created by: {createdBy ?? "—"}</div>
+        <div>Reviewed by: {reviewedBy ?? "—"}</div>
+        <div>Approved by: {approvedBy ?? "—"}</div>
         <div>Approved at: {formatDate(approvedAt)}</div>
       </div>
     </div>

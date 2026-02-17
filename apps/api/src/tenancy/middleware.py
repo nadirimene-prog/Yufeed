@@ -59,6 +59,11 @@ class TenantMiddleware(BaseHTTPMiddleware):
         tenant_id = None
 
         try:
+            # Skip tenant extraction entirely for exempt paths (login, health, docs, etc.)
+            if not self._requires_tenant(request):
+                response = await call_next(request)
+                return response
+
             # Extract tenant from various sources
             tenant_id = await self._extract_tenant_from_request(request)
 
@@ -69,14 +74,14 @@ class TenantMiddleware(BaseHTTPMiddleware):
                     logger.debug(f"Request tenant: {tenant_id}")
                 else:
                     logger.warning(f"Invalid or inactive tenant: {tenant_id}")
-                    raise HTTPException(status_code=403, detail="Invalid tenant")
+                    return JSONResponse(status_code=403, content={"detail": "Invalid tenant"})
             else:
-                # No tenant found - check if endpoint requires tenant
-                if self._requires_tenant(request):
-                    raise HTTPException(
-                        status_code=401,
-                        detail="No tenant context found. Provide X-API-Key or X-Tenant-ID header.",
-                    )
+                return JSONResponse(
+                    status_code=401,
+                    content={
+                        "detail": "No tenant context found. Provide X-API-Key or X-Tenant-ID header."
+                    },
+                )
 
             # Process request
             response = await call_next(request)
@@ -86,7 +91,7 @@ class TenantMiddleware(BaseHTTPMiddleware):
             return JSONResponse(status_code=exc.status_code, content={"detail": exc.detail})
         except Exception as e:
             logger.error(f"Tenant middleware error: {e}", exc_info=True)
-            raise HTTPException(status_code=500, detail="Internal server error")
+            return JSONResponse(status_code=500, content={"detail": "Internal server error"})
         finally:
             # Always clear context after request
             clear_current_tenant()
@@ -260,16 +265,21 @@ class TenantMiddleware(BaseHTTPMiddleware):
             True if endpoint requires tenant
         """
         exempt_paths = [
+            "/",  # Root endpoint
             "/api/docs",
             "/api/redoc",
             "/api/openapi.json",
             "/health",
             "/healthz",
+            "/api/health",  # Test alias
+            "/api/healthz",  # Test alias
             "/metrics",
             "/api/auth/login",
             "/api/auth/register",
             "/api/auth/token",
             "/api/auth/refresh",
+            "/api/auth/forgot-password",
+            "/api/auth/reset-password",
             "/api/tenants",
             "/ws",  # WebSocket endpoint handles its own auth
         ]

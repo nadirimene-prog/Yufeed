@@ -24,10 +24,7 @@ import {
 } from "lucide-react";
 
 import toast from "react-hot-toast";
-import amlOfficerApi, {
-  DailyBriefing,
-  ProactiveAlert,
-} from "@/lib/aml-officer-api";
+import amlOfficerApi, { type ProactiveAlert } from "@/lib/aml-officer-api";
 import { useAMLOfficerBriefing } from "@/hooks/queries/useAMLOfficerData";
 import { LoadingBoundary } from "@/components/shared/LoadingBoundary";
 import { MetricCard } from "@/components/ui/metric-card";

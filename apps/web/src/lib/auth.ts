@@ -86,10 +86,14 @@ export function getAuthToken(): string | null {
     }
     const payload = decodeJwtPayload(value);
     if (!payload?.tenant_id) {
-      // Tenant-scoped API requires tenant_id in the JWT. Treat tenant-less tokens as invalid.
-      window.localStorage.removeItem(key);
-      window.sessionStorage.removeItem(key);
-      continue;
+      // Tenant-scoped API often requires tenant_id in the JWT.
+      // We log a warning but don't delete the token to avoid aggressive 401 loops
+      // if the backend can resolve the tenant by other means.
+      if (typeof window !== "undefined") {
+        console.warn(
+          `[Auth] Token found but mission tenant_id claim. key=${key}`,
+        );
+      }
     }
     return value;
   }

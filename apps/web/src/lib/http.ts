@@ -37,7 +37,9 @@ apiClient.interceptors.response.use(
         method: error.config?.method,
         status: error.response?.status,
         message: error.message,
+        data: error.response?.data,
       });
+      console.error(error);
     }
 
     return Promise.reject(error);

@@ -1,5 +1,7 @@
 "use client";
 
+export const dynamic = "force-dynamic";
+
 import { useMemo, useState } from "react";
 import Link from "next/link";
 import { handleApiError } from "@/lib/api-error-handler";
@@ -10,7 +12,7 @@ import {
 import type { Obligation } from "@/types/compliance";
 
 const obligationStatusStyle = (status?: string) => {
-  const value = (status || "draft").toLowerCase();
+  const value = (status ?? "draft").toLowerCase();
   if (value === "approved")
     return "bg-emerald-50 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-300";
   if (value === "in_review")
@@ -80,7 +82,7 @@ export default function ObligationsPage() {
   };
 
   const actionsFor = (status?: string) => {
-    const normalized = (status || "draft").toLowerCase();
+    const normalized = (status ?? "draft").toLowerCase();
     if (normalized === "draft") {
       return [
         { label: "Send to review", status: "in_review" },
@@ -218,8 +220,8 @@ export default function ObligationsPage() {
                     </Link>
                     <div className="mt-1 text-xs text-gray-500">
                       {item.document.celex} •{" "}
-                      {item.document.jurisdiction || "EU"} •{" "}
-                      {item.document.source_system || "source"}
+                      {item.document.jurisdiction ?? "EU"} •{" "}
+                      {item.document.source_system ?? "source"}
                     </div>
                     <p className="mt-2 text-xs text-gray-500 line-clamp-2 dark:text-gray-400">
                       {item.obligation_text}

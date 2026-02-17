@@ -9,17 +9,19 @@ def register_routers(app: FastAPI) -> None:
     - /api/*         -> Current version (backward compatibility)
     - /api/v1/*      -> Version 1 (explicit alias)
 
-    All routers are registered twice: once at /api/* and once at /api/v1/*
-    This allows gradual migration to versioned endpoints without breaking existing clients.
+    All routers are registered at their original paths.
+    For routers with /api/ prefix, v1 paths are handled via path operation functions
+    registered separately.
     """
 
     def include_with_api_prefix(router: APIRouter):
-        """Include router at both unversioned and v1 paths."""
-        if not router.prefix.startswith("/api"):
-            app.include_router(router, prefix="/api", tags=router.tags or [])
-            app.include_router(router, prefix="/api/v1", tags=(router.tags or []) + ["v1"])
-        else:
+        """Include router with proper API prefix handling."""
+        # If router already has /api prefix, include as-is
+        if router.prefix.startswith("/api"):
             app.include_router(router)
+        else:
+            # Add /api prefix for routers without it (e.g., /auth becomes /api/auth)
+            app.include_router(router, prefix="/api", tags=router.tags or [])
 
     from .api.ai_agents import router as ai_agents_router
 

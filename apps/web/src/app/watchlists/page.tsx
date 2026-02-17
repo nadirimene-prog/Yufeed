@@ -2,11 +2,7 @@
 
 import { useState } from "react";
 import { Plus, Mail, Clock, ShieldCheck, FileText, Rss } from "lucide-react";
-import {
-  createWatchlist,
-  type Watchlist,
-  type WatchlistCreate,
-} from "@/lib/api";
+import { createWatchlist, type WatchlistCreate } from "@/lib/api";
 import { useWatchlists } from "@/hooks/queries/useWatchlistData";
 import { LoadingBoundary } from "@/components/shared/LoadingBoundary";
 import { logger } from "@/lib/logger";

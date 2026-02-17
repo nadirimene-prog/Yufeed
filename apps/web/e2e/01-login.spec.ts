@@ -1,5 +1,5 @@
 import { test, expect } from '@playwright/test';
-import { loginViaUI, TEST_USER } from './helpers/auth';
+import { loginViaUI } from './helpers/auth';
 
 /**
  * E2E Scenario 1: Login → Dashboard visible

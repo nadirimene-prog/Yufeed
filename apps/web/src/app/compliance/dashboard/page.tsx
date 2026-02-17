@@ -59,7 +59,7 @@ export default function ComplianceDashboardPage() {
   const activePolicies = policies.filter(
     (p) => p.status === "active" || p.status === "approved",
   ).length;
-  const highRisks = riskMap?.high_priority_risks?.length || 0;
+  const highRisks = riskMap?.high_priority_risks?.length ?? 0;
 
   return (
     <div className="p-6 space-y-6">
@@ -124,7 +124,7 @@ export default function ComplianceDashboardPage() {
           icon={<AlertTriangle className="h-5 w-5" />}
           trend={{
             direction: highRisks > 0 ? "up" : "neutral",
-            value: String(riskMap?.total_entries || 0),
+            value: String(riskMap?.total_entries ?? 0),
             label: "total risks",
           }}
           className="bg-gradient-to-br from-red-500/20 to-transparent"
@@ -189,7 +189,7 @@ export default function ComplianceDashboardPage() {
                 <StatusBadge status={obl.status} />
                 <div className="flex-1 min-w-0">
                   <p className="text-sm text-white truncate">
-                    {obl.article_ref || obl.obligation_id}
+                    {obl.article_ref ?? obl.obligation_id}
                   </p>
                   <p className="text-xs text-white/50 truncate">
                     {obl.obligation_text.substring(0, 80)}...

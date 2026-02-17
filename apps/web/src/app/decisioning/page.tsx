@@ -188,12 +188,12 @@ export default function DecisioningPage() {
     try {
       const payloadObj = parseJson(payload, "Payload");
       const txPayload = {
-        transaction_id: payloadObj.transaction_id || `TXN-${Date.now()}`,
-        user_id: payloadObj.user_id || "user-123",
-        amount: payloadObj.amount || 1000,
-        currency: payloadObj.currency || "EUR",
-        transaction_type: payloadObj.transaction_type || "transfer",
-        country_code: payloadObj.country_code || "FR",
+        transaction_id: payloadObj.transaction_id ?? `TXN-${Date.now()}`,
+        user_id: payloadObj.user_id ?? "user-123",
+        amount: payloadObj.amount ?? 1000,
+        currency: payloadObj.currency ?? "EUR",
+        transaction_type: payloadObj.transaction_type ?? "transfer",
+        country_code: payloadObj.country_code ?? "FR",
       };
       const res = await fetchWithAuth(`${API_URL}/api/transactions/ingest`, {
         method: "POST",
@@ -441,13 +441,13 @@ export default function DecisioningPage() {
     } = event.metadata ?? {};
     const contextObj = metadataObj.context ?? metadataObj;
 
-    setEventType(String(event.event_type || eventType));
-    setEntityType(String(event.entity_type || ""));
-    setEntityId(String(event.entity_id || ""));
-    setSource(String(event.source || "replay"));
+    setEventType(String(event.event_type ?? eventType));
+    setEntityType(String(event.entity_type ?? ""));
+    setEntityId(String(event.entity_id ?? ""));
+    setSource(String(event.source ?? "replay"));
     setPayload(JSON.stringify(payloadObj, null, 2));
     setContext(JSON.stringify(contextObj, null, 2));
-    setReplaySourceDecisionId(selectedDecision?.decision_id || null);
+    setReplaySourceDecisionId(selectedDecision?.decision_id ?? null);
     setActiveTab("console");
     if (autoRunReplay) {
       setTimeout(() => {

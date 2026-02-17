@@ -1,0 +1,11 @@
+{
+  "successful": 49,
+  "failed": 1,
+  "total_words": 68918,
+  "errors": [
+    {
+      "celex": "32020R0354R",
+      "error": "No content extracted"
+    }
+  ]
+}

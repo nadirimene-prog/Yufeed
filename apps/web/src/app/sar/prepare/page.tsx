@@ -78,7 +78,9 @@ function SARPrepareContent() {
   const [loading, setLoading] = useState(true);
   const [preparing, setPreparing] = useState(false);
   const [jurisdiction, setJurisdiction] = useState("EU");
-  const [institutionInfo] = useState({
+  // Institution info state is reserved for future use when editing institution details
+
+  const [_institutionInfo] = useState({
     name: "",
     type: "Financial Institution",
     country: "EU",
@@ -134,7 +136,7 @@ function SARPrepareContent() {
       if (res.ok) {
         const result = await res.json();
         alert(
-          `SAR ${dryRun ? "validated" : "filed"} successfully!\n\nReference: ${result.filing_reference || result.sar_id}`,
+          `SAR ${dryRun ? "validated" : "filed"} successfully!\n\nReference: ${result.filing_reference ?? result.sar_id}`,
         );
 
         if (!dryRun) {

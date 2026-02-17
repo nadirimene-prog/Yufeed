@@ -16,6 +16,7 @@ from src.models import (
 from src.models.compliance_workflow import FailedIngestionItem
 from src.ingestion.cellar import CellarClient
 from src.ingestion.content_extractor import ContentExtractor
+from src.services.confidence_scorer import ConfidenceScorer
 from src.ingestion.oj_mapping import extract_oj_act_identifier
 from src.search import index_document
 from src.ai.analyzer import analyze_document
@@ -37,6 +38,7 @@ class IngestionProcessor:
         self.db = db
         self.cellar = CellarClient()
         self.content_extractor = ContentExtractor()
+        self.confidence_scorer = ConfidenceScorer()
         self._rag_indexer: Optional[RAGIndexer] = None
 
     def _get_rag_indexer(self) -> Optional[RAGIndexer]:
@@ -521,6 +523,15 @@ class IngestionProcessor:
             logger.info(f"Skipping AI analysis for {doc.celex}: no content available")
             return False
 
+        # Calculate confidence score before analysis
+        confidence = self.confidence_scorer.calculate_confidence(
+            full_text=doc.full_text, articles=article_breakdown, analysis_method="llm"
+        )
+
+        logger.info(
+            f"AI analysis confidence for {doc.celex}: {confidence.score:.3f} ({confidence.quality_tier})"
+        )
+
         analysis_results = analyze_document(
             {
                 "celex": doc.celex,
@@ -537,6 +548,14 @@ class IngestionProcessor:
         doc.implementation_deadline = analysis_results.get("implementation_deadline")
         doc.ai_summary = analysis_results.get("ai_summary")
         doc.analyzed_at = analysis_results.get("analyzed_at")
+
+        # Store confidence metadata (if the column exists)
+        try:
+            doc.ai_confidence = confidence.score
+            doc.analysis_quality = confidence.quality_tier
+        except AttributeError:
+            # Column doesn't exist yet, will be added in migration
+            pass
         scope_tags = infer_scope_tags(
             doc.title,
             doc.full_text,

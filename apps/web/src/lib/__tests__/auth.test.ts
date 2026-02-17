@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeEach, vi } from "vitest";
+import { describe, it, expect, beforeEach } from "vitest";
 import { getAuthToken, setAuthTokens, clearAuthTokens } from "../auth";
 
 // Helper to create a valid JWT with tenant_id

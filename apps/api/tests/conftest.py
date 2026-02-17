@@ -201,6 +201,12 @@ def client(db_session: Session) -> Generator[TestClient, None, None]:
         from src.middleware import limiter
 
         limiter.enabled = False
+        # Clear any existing rate limit records
+        if hasattr(limiter, "_storage") and limiter._storage:
+            try:
+                limiter._storage.clear()
+            except Exception:
+                pass
 
     def override_get_db():
         try:

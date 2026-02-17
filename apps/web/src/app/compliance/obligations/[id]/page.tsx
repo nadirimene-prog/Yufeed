@@ -1,5 +1,7 @@
 "use client";
 
+export const dynamic = "force-dynamic";
+
 import { useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
@@ -38,10 +40,10 @@ export default function ObligationDetailPage() {
   const params = useParams();
   const router = useRouter();
   const idParam = Array.isArray(params?.id) ? params.id[0] : params?.id;
-  const obligationId =
-    typeof idParam === "string" && /^\\d+$/.test(idParam)
-      ? Number(idParam)
-      : null;
+
+  // Robust ID parsing: checks if it's a valid number
+  const parsedId = Number(idParam);
+  const obligationId = !isNaN(parsedId) && parsedId > 0 ? parsedId : null;
 
   const queryClient = useQueryClient();
   const obligationQuery = useObligation(obligationId);
@@ -190,7 +192,7 @@ export default function ObligationDetailPage() {
   };
 
   const actionsFor = (status?: string) => {
-    const normalized = (status || "draft").toLowerCase();
+    const normalized = (status ?? "draft").toLowerCase();
     if (normalized === "draft") {
       return [
         { label: "Send to review", status: "in_review" },
@@ -250,18 +252,18 @@ export default function ObligationDetailPage() {
       <ObligationHeader
         obligationId={obligation.obligation_id}
         title={obligation.document.title}
-        celex={obligation.document.celex || null}
-        jurisdiction={obligation.document.jurisdiction || null}
-        sourceSystem={obligation.document.source_system || null}
+        celex={obligation.document.celex ?? null}
+        jurisdiction={obligation.document.jurisdiction ?? null}
+        sourceSystem={obligation.document.source_system ?? null}
         status={obligation.status}
       />
 
       <ObligationSummary
         obligationText={obligation.obligation_text}
-        articleRef={obligation.article_ref || null}
-        applicability={obligation.applicability || null}
-        effectiveDate={obligation.effective_date || null}
-        updatedAt={obligation.updated_at || null}
+        articleRef={obligation.article_ref ?? null}
+        applicability={obligation.applicability ?? null}
+        effectiveDate={obligation.effective_date ?? null}
+        updatedAt={obligation.updated_at ?? null}
       />
 
       <ObligationReview
@@ -278,10 +280,10 @@ export default function ObligationDetailPage() {
             router.push(`/doc/${obligation.document.celex}`);
           }
         }}
-        createdBy={obligation.created_by || null}
-        reviewedBy={obligation.reviewed_by || null}
-        approvedBy={obligation.approved_by || null}
-        approvedAt={obligation.approved_at || null}
+        createdBy={obligation.created_by ?? null}
+        reviewedBy={obligation.reviewed_by ?? null}
+        approvedBy={obligation.approved_by ?? null}
+        approvedAt={obligation.approved_at ?? null}
       />
 
       <InternalRulesManager

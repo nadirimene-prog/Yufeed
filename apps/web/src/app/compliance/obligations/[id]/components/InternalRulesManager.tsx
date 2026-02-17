@@ -81,7 +81,7 @@ export default function InternalRulesManager({
                     </div>
                     <div className="mt-1 text-xs text-gray-500">
                       {rule.internal_rule_id} •{" "}
-                      {rule.control_owner || "Owner TBD"}
+                      {rule.control_owner ?? "Owner TBD"}
                     </div>
                   </div>
                   <span
@@ -90,7 +90,7 @@ export default function InternalRulesManager({
                       obligationStatusStyle(rule.status ?? undefined)
                     }
                   >
-                    {(rule.status || "draft").replace("_", " ")}
+                    {(rule.status ?? "draft").replace("_", " ")}
                   </span>
                 </div>
 
@@ -102,7 +102,7 @@ export default function InternalRulesManager({
 
                 {rule.policy_section && (
                   <div className="mt-2 text-[11px] text-gray-500">
-                    Policy section: {rule.policy_section.section_ref || "—"}{" "}
+                    Policy section: {rule.policy_section.section_ref ?? "—"}{" "}
                     {rule.policy_section.title
                       ? `• ${rule.policy_section.title}`
                       : ""}
@@ -122,18 +122,18 @@ export default function InternalRulesManager({
                         >
                           <div className="flex items-center justify-between">
                             <div className="text-xs font-semibold text-gray-800 dark:text-gray-200">
-                              {mapping.monitoring_rule?.name ||
+                              {mapping.monitoring_rule?.name ??
                                 "Monitoring rule"}
                             </div>
                             <div className="text-[10px] text-gray-500">
-                              {mapping.monitoring_rule?.rule_id ||
-                                mapping.monitoring_rule_id ||
+                              {mapping.monitoring_rule?.rule_id ??
+                                mapping.monitoring_rule_id ??
                                 "—"}
                             </div>
                           </div>
                           <div className="mt-1 text-[11px] text-gray-500">
-                            {mapping.mapping_type || "transaction_monitoring"} •{" "}
-                            {mapping.monitoring_rule?.severity || "severity ?"}
+                            {mapping.mapping_type ?? "transaction_monitoring"} •{" "}
+                            {mapping.monitoring_rule?.severity ?? "severity ?"}
                           </div>
                         </div>
                       ))
@@ -285,7 +285,7 @@ export default function InternalRulesManager({
               ) : (
                 sections.map((section) => (
                   <option key={section.id} value={section.id}>
-                    {section.section_ref || "Section"}{" "}
+                    {section.section_ref ?? "Section"}{" "}
                     {section.title ? `• ${section.title}` : ""}
                   </option>
                 ))

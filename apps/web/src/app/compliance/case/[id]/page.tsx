@@ -148,7 +148,7 @@ export default function CaseDetailPage() {
                   <div>
                     <span className="block text-gray-500">Phone</span>
                     <span className="font-medium">
-                      {caseDetails.phone_number || "N/A"}
+                      {caseDetails.phone_number ?? "N/A"}
                     </span>
                   </div>
                   <div className="col-span-2">
@@ -188,13 +188,13 @@ export default function CaseDetailPage() {
                       target="_blank"
                       className="font-medium text-blue-600 hover:underline"
                     >
-                      {caseDetails.website || "N/A"}
+                      {caseDetails.website ?? "N/A"}
                     </a>
                   </div>
                   <div className="col-span-2">
                     <span className="block text-gray-500">Industry</span>
                     <span className="font-medium">
-                      {caseDetails.industry || "N/A"}
+                      {caseDetails.industry ?? "N/A"}
                     </span>
                   </div>
                 </>

@@ -19,7 +19,7 @@ const onchainRiskKeys = {
 
 export function useOnchainRisk(params?: { address?: string; chain?: string }) {
   return useQuery({
-    queryKey: onchainRiskKeys.analysis(params || {}),
+    queryKey: onchainRiskKeys.analysis(params ?? {}),
     queryFn: async () => {
       const response = await apiClient.get("/api/onchain/plugins", { params });
       return response.data;
@@ -40,7 +40,7 @@ const travelRuleKeys = {
 
 export function useTravelRuleTransfers(params?: Record<string, unknown>) {
   return useQuery({
-    queryKey: travelRuleKeys.transfers(params || {}),
+    queryKey: travelRuleKeys.transfers(params ?? {}),
     queryFn: async () => {
       const response = await apiClient.get("/api/travel-rule/requests", {
         params,
@@ -50,11 +50,29 @@ export function useTravelRuleTransfers(params?: Record<string, unknown>) {
   });
 }
 
+// Travel Rule Transfer Request types
+interface TravelRuleParty {
+  name: string;
+  account_id?: string;
+  wallet_address?: string;
+  country?: string;
+}
+
+interface TravelRuleTransferRequest {
+  transaction_id: string;
+  amount: number;
+  currency: string;
+  asset?: string;
+  originator: TravelRuleParty;
+  beneficiary: TravelRuleParty;
+  message?: string;
+}
+
 export function useCreateTravelRuleTransfer() {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: async (data: any) => {
+    mutationFn: async (data: TravelRuleTransferRequest) => {
       const response = await apiClient.post("/api/travel-rule/requests", data);
       return response.data;
     },
@@ -70,7 +88,7 @@ export function useCreateTravelRuleTransfer() {
 
 export function useModelRegistry(params?: Record<string, unknown>) {
   return useQuery({
-    queryKey: modelRegistryKeys.modelsList(params || {}),
+    queryKey: modelRegistryKeys.modelsList(params ?? {}),
     queryFn: async () => {
       const response = await apiClient.get("/api/models", {
         params,
@@ -91,11 +109,21 @@ export function useModel(id: string) {
   });
 }
 
+// Model Registry types
+interface ModelRegistrationData {
+  model_id: string;
+  name: string;
+  description?: string;
+  model_type?: string;
+  owner?: string;
+  status?: string;
+}
+
 export function useRegisterModel() {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: async (data: any) => {
+    mutationFn: async (data: ModelRegistrationData) => {
       const response = await apiClient.post("/api/models", data);
       return response.data;
     },
@@ -139,7 +167,7 @@ export function useComplianceReport(params?: {
   period?: string;
 }) {
   return useQuery({
-    queryKey: complianceReportKeys.report(params || {}),
+    queryKey: complianceReportKeys.report(params ?? {}),
     queryFn: async () => {
       const response = await apiClient.get("/api/reporting/dashboard", {
         params,
@@ -149,11 +177,19 @@ export function useComplianceReport(params?: {
   });
 }
 
+// Compliance Report types
+interface ComplianceReportParams {
+  type?: string;
+  period?: string;
+  date_from?: string;
+  date_to?: string;
+}
+
 export function useGenerateComplianceReport() {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: async (data: any) => {
+    mutationFn: async (data: ComplianceReportParams) => {
       const response = await apiClient.get("/api/reporting/dashboard", {
         params: data,
       });
@@ -177,7 +213,7 @@ const sarKeys = {
 
 export function useSARDraft(id?: string) {
   return useQuery({
-    queryKey: sarKeys.draft(id || "new"),
+    queryKey: sarKeys.draft(id ?? "new"),
     queryFn: async () => {
       if (!id) return null;
       // SAR drafts endpoint does not exist; return null gracefully
@@ -197,11 +233,19 @@ export function useSARTemplates() {
   });
 }
 
+// SAR Draft types
+interface SARDraftData {
+  case_id: number;
+  case_data: Record<string, unknown>;
+  related_alerts?: Record<string, unknown>[];
+  related_transactions?: Record<string, unknown>[];
+}
+
 export function useCreateSARDraft() {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: async (data: any) => {
+    mutationFn: async (data: SARDraftData) => {
       const response = await apiClient.post(
         "/api/aml-officer/sar/prepare",
         data,
@@ -218,7 +262,7 @@ export function useUpdateSARDraft() {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: async ({ data }: { id: string; data: any }) => {
+    mutationFn: async ({ data }: { id: string; data: SARDraftData }) => {
       // SAR draft update endpoint does not exist; prepare new SAR instead
       const response = await apiClient.post(
         "/api/aml-officer/sar/prepare",
@@ -226,7 +270,10 @@ export function useUpdateSARDraft() {
       );
       return response.data;
     },
-    onSuccess: (updated: unknown, variables: { id: string; data: unknown }) => {
+    onSuccess: (
+      updated: unknown,
+      variables: { id: string; data: SARDraftData },
+    ) => {
       queryClient.setQueryData(sarKeys.draft(variables.id), updated);
     },
   });

@@ -33,45 +33,40 @@ import { getApiBaseUrl } from "@/lib/apiBaseUrl";
 
 const API_URL = getApiBaseUrl();
 
-interface ComplianceMetrics {
-  alert_metrics: {
-    total_alerts: number;
-    by_severity: Record<string, number>;
-    by_status: Record<string, number>;
-    resolution_time_avg_hours: number;
-    false_positive_rate: number;
-  };
-  case_metrics: {
-    total_cases: number;
-    open_cases: number;
-    closed_cases: number;
-    sar_filed: number;
-    sar_rate: number;
-    avg_investigation_days: number;
-  };
-  transaction_metrics: {
-    total_transactions: number;
-    flagged_transactions: number;
-    flag_rate: number;
-    high_risk_transactions: number;
-    total_volume: Record<string, number>;
-  };
-  regulatory_coverage: {
-    total_rules: number;
-    active_rules: number;
-    rules_with_regulations: number;
-    regulatory_coverage_rate: number;
-  };
-  ai_metrics?: {
-    alerts_triaged: number;
-    avg_confidence: number;
-    auto_escalated: number;
-    auto_resolved: number;
-  };
-}
-
 export default function ComplianceReportPage() {
-  const { data: metrics, isLoading, error } = useComplianceReport();
+  const { data: metricsRaw, isLoading, error } = useComplianceReport();
+
+  // Provide empty default metrics for static generation
+  const metrics = metricsRaw ?? {
+    alert_metrics: {
+      total_alerts: 0,
+      by_severity: {},
+      by_status: {},
+      resolution_time_avg_hours: 0,
+      false_positive_rate: 0,
+    },
+    case_metrics: {
+      total_cases: 0,
+      open_cases: 0,
+      closed_cases: 0,
+      sar_filed: 0,
+      sar_rate: 0,
+      avg_investigation_days: 0,
+    },
+    transaction_metrics: {
+      total_transactions: 0,
+      flagged_transactions: 0,
+      flag_rate: 0,
+      high_risk_transactions: 0,
+      total_volume: {},
+    },
+    regulatory_coverage: {
+      total_rules: 0,
+      active_rules: 0,
+      rules_with_regulations: 0,
+      regulatory_coverage_rate: 0,
+    },
+  };
   const [dateRange, setDateRange] = useState(() => {
     const now = new Date();
     const fromDate = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
@@ -206,7 +201,7 @@ export default function ComplianceReportPage() {
               />
               <MetricCard
                 title="Critical Alerts"
-                value={metrics.alert_metrics.by_severity.critical || 0}
+                value={metrics.alert_metrics.by_severity.critical ?? 0}
                 icon={<AlertTriangle className="h-5 w-5" />}
                 color="red"
               />
@@ -237,7 +232,7 @@ export default function ComplianceReportPage() {
                       cy="50%"
                       labelLine={false}
                       label={({ name, percent }) =>
-                        `${name} ${((percent || 0) * 100).toFixed(0)}%`
+                        `${name} ${((percent ?? 0) * 100).toFixed(0)}%`
                       }
                       outerRadius={80}
                       fill="#8884d8"

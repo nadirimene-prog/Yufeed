@@ -288,7 +288,7 @@ function CaseCard({
 
           {(caseItem.description || caseItem.summary) && (
             <p className="text-sm text-gray-600 dark:text-gray-400 mt-2 line-clamp-2">
-              {caseItem.summary || caseItem.description}
+              {caseItem.summary ?? caseItem.description}
             </p>
           )}
         </div>

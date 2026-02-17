@@ -42,7 +42,7 @@ function NewCaseContent() {
         router.push(`/cases/${data.case_id}`);
       } else {
         const errorData = await res.json().catch(() => ({}));
-        setError(errorData.detail || "Failed to create case from alert");
+        setError(errorData.detail ?? "Failed to create case from alert");
       }
     } catch (err) {
       logger.error("Error creating case from alert:", err);

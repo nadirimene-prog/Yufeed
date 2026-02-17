@@ -22,17 +22,7 @@ import { EmptyState } from "@/components/ui/empty-state";
 import { LoadingBoundary } from "@/components/shared/LoadingBoundary";
 import { cn } from "@/lib/utils";
 
-interface Alert {
-  id: number;
-  doc_id: number;
-  watchlist_id?: number;
-  event_type: string;
-  detected_at: string;
-  document?: {
-    celex: string;
-    title: string;
-  };
-}
+// Alert type is defined by the API and used via the hook's return type
 
 type AlertFilter = "all" | "new_doc" | "updated_doc" | "new_version";
 

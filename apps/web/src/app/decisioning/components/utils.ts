@@ -29,16 +29,16 @@ export function decisionsToCsv(items: DecisionListItem[]) {
 
   const rows = items.map((item) => [
     item.decision_id,
-    item.event_id || "",
+    item.event_id ?? "",
     item.decision,
     item.created_at,
-    item.event_type || "",
-    item.entity_type || "",
-    item.entity_id || "",
-    item.source || "",
-    (item.reason_codes || []).join("|"),
-    item.rule_version || "",
-    item.model_version || "",
+    item.event_type ?? "",
+    item.entity_type ?? "",
+    item.entity_id ?? "",
+    item.source ?? "",
+    (item.reason_codes ?? []).join("|"),
+    item.rule_version ?? "",
+    item.model_version ?? "",
   ]);
 
   return [headers, ...rows]

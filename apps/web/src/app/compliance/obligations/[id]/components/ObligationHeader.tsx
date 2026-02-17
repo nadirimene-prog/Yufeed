@@ -26,11 +26,11 @@ export default function ObligationHeader({
           {title}
         </h1>
         <div className="mt-2 flex flex-wrap gap-2 text-xs text-gray-500">
-          <span>{celex || "—"}</span>
+          <span>{celex ?? "—"}</span>
           <span>•</span>
-          <span>{jurisdiction || "EU"}</span>
+          <span>{jurisdiction ?? "EU"}</span>
           <span>•</span>
-          <span>{sourceSystem || "source"}</span>
+          <span>{sourceSystem ?? "source"}</span>
         </div>
       </div>
       <div className="flex items-center gap-2">

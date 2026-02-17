@@ -63,7 +63,7 @@ export default function DocPage({
     return (
       <div className="flex flex-col items-center justify-center min-h-screen gap-4">
         <div className="text-lg text-red-600">
-          {error || "Document not found"}
+          {error ?? "Document not found"}
         </div>
         <Link href="/search" className="text-blue-600 hover:underline">
           Back to Search

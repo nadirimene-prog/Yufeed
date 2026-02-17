@@ -300,7 +300,7 @@ export default function CaseDetailPage() {
                       Description
                     </p>
                     <p className="text-gray-900 dark:text-white">
-                      {caseData.summary || caseData.description}
+                      {caseData.summary ?? caseData.description}
                     </p>
                   </div>
                 )}
