@@ -211,11 +211,24 @@ def get_coverage_by_document(
                 ld.id,
                 ld.celex,
                 ld.title,
-                COUNT(ro.id) as total_obligations,
-                SUM(CASE WHEN ro.coverage_status = 'covered' THEN 1 ELSE 0 END) as covered,
-                SUM(CASE WHEN ro.coverage_status = 'uncovered' THEN 1 ELSE 0 END) as uncovered
+                COUNT(DISTINCT ro.id) as total_obligations,
+                COUNT(
+                    DISTINCT CASE
+                        WHEN opm.id IS NOT NULL OR ro.linked_policy_id IS NOT NULL THEN ro.id
+                        ELSE NULL
+                    END
+                ) as covered,
+                (
+                    COUNT(DISTINCT ro.id) - COUNT(
+                        DISTINCT CASE
+                            WHEN opm.id IS NOT NULL OR ro.linked_policy_id IS NOT NULL THEN ro.id
+                            ELSE NULL
+                        END
+                    )
+                ) as uncovered
             FROM legal_documents ld
             LEFT JOIN regulatory_obligations ro ON ld.id = ro.doc_id
+            LEFT JOIN obligation_policy_mappings opm ON ro.id = opm.obligation_id
             WHERE ro.id IS NOT NULL
             GROUP BY ld.id
             ORDER BY uncovered DESC
@@ -256,7 +269,7 @@ def map_obligation_to_policy(
         analyzer.map_obligation_to_policy(
             obligation_id=obligation_id,
             policy_id=policy_id,
-            mapped_by=f"user:{current_user.id}",
+            mapped_by=f"user:{current_user.user_id}",
             confidence=1.0,
             notes=notes,
         )
@@ -264,7 +277,7 @@ def map_obligation_to_policy(
         return {
             "status": "success",
             "message": f"Obligation {obligation_id} mapped to policy {policy_id}",
-            "mapped_by": current_user.id,
+            "mapped_by": current_user.user_id,
             "mapped_at": datetime.now(timezone.utc).isoformat(),
         }
 
@@ -299,8 +312,7 @@ def unmap_obligation(
         text(
             """
         UPDATE regulatory_obligations
-        SET coverage_status = 'uncovered',
-            linked_policy_id = NULL
+        SET linked_policy_id = NULL
         WHERE id = :obl_id
     """
         ),
@@ -340,7 +352,7 @@ def get_obligation_coverage(
         SELECT
             m.id,
             m.policy_id,
-            p.title as policy_title,
+            p.name as policy_title,
             m.mapping_confidence,
             m.mapped_by,
             m.mapped_at
@@ -352,6 +364,11 @@ def get_obligation_coverage(
         {"obl_id": obligation_id},
     ).fetchall()
 
+    analyzer = GapAnalyzer(db)
+    coverage_status = "covered" if mappings or obl.linked_policy_id else "uncovered"
+    category = analyzer.auto_categorize_obligation(obl.obligation_text).value
+    severity = analyzer.calculate_severity(obl, ObligationCategory(category)).value
+
     return {
         "obligation": {
             "id": obl.id,
@@ -360,13 +377,13 @@ def get_obligation_coverage(
             "text": (
                 obl.obligation_text[:500] if len(obl.obligation_text) > 500 else obl.obligation_text
             ),
-            "coverage_status": obl.coverage_status,
-            "category": obl.category,
-            "severity": obl.gap_severity,
+            "coverage_status": coverage_status,
+            "category": category,
+            "severity": severity,
             "effective_date": obl.effective_date.isoformat() if obl.effective_date else None,
         },
         "coverage": {
-            "status": obl.coverage_status,
+            "status": coverage_status,
             "linked_policy_id": obl.linked_policy_id,
             "mapped_policies": [
                 {
@@ -431,7 +448,7 @@ def recalculate_coverage(
     return {
         "status": "queued",
         "message": "Coverage recalculation started in background",
-        "triggered_by": current_user.id,
+        "triggered_by": current_user.user_id,
         "timestamp": datetime.now(timezone.utc).isoformat(),
     }
 
@@ -459,7 +476,7 @@ def admin_list_mappings(
             ro.celex,
             ro.article_ref,
             m.policy_id,
-            p.title as policy_title,
+            p.name as policy_title,
             m.mapped_by,
             m.mapping_confidence,
             m.mapped_at

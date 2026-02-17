@@ -232,7 +232,7 @@ def get_user_subscriptions(
             WHERE s.user_id = :user_id
         """
         ),
-        {"user_id": current_user.id},
+        {"user_id": current_user.user_id},
     ).fetchall()
 
     return {
@@ -284,7 +284,7 @@ def create_subscription(
             """
             ),
             {
-                "user_id": current_user.id,
+                "user_id": current_user.user_id,
                 "obl_id": obligation_id,
                 "doc_id": doc_id,
                 "days": reminder_days,
@@ -298,7 +298,7 @@ def create_subscription(
             "status": "success",
             "message": "Subscription created",
             "subscription": {
-                "user_id": current_user.id,
+                "user_id": current_user.user_id,
                 "obligation_id": obligation_id,
                 "document_id": doc_id,
                 "reminder_days": reminder_days,
@@ -329,7 +329,7 @@ def delete_subscription(
             WHERE id = :sub_id AND user_id = :user_id
         """
         ),
-        {"sub_id": subscription_id, "user_id": current_user.id},
+        {"sub_id": subscription_id, "user_id": current_user.user_id},
     )
     db.commit()
 

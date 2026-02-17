@@ -193,13 +193,14 @@ def mark_related_obligations_for_review(
     now = utc_now()
 
     for relation in relations:
-        # Find the related document by CELEX
-        related_doc = (
-            db.query(LegalDocument).filter(LegalDocument.celex == relation.to_celex).first()
-        )
+        # Find the related target document
+        related_doc = db.query(LegalDocument).filter(LegalDocument.id == relation.to_doc_id).first()
 
         if not related_doc:
-            logger.debug(f"Related document {relation.to_celex} not found in database")
+            logger.debug(
+                "Related target document %s not found in database",
+                relation.to_doc_id,
+            )
             continue
 
         # Find approved obligations for the related document
@@ -275,9 +276,7 @@ def get_obligations_needing_review_due_to_relations(
     affected_obligations = []
 
     for relation in relations:
-        related_doc = (
-            db.query(LegalDocument).filter(LegalDocument.celex == relation.to_celex).first()
-        )
+        related_doc = db.query(LegalDocument).filter(LegalDocument.id == relation.to_doc_id).first()
 
         if not related_doc:
             continue

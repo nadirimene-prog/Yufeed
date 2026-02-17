@@ -8,6 +8,7 @@ from sqlalchemy.orm import Session, joinedload
 from sqlalchemy import func, and_, or_
 from typing import List, Optional
 from datetime import datetime, timedelta, timezone
+from pydantic import BaseModel
 
 
 def utc_now() -> datetime:
@@ -21,7 +22,7 @@ import logging
 from src.database import get_db
 from src.auth.dependencies import get_current_user
 from src.models.transaction_models import Alert, Transaction, Case
-from src.models.finding_models import Finding, FindingStatus
+from src.services.finding_service import FindingService
 from src.schemas.transaction_schemas import AlertCreate, AlertUpdate, AlertResponse, AlertStatistics
 from src.audit.recorders import record_event, record_decision
 from src.tenancy.queries import (
@@ -63,6 +64,11 @@ router = APIRouter(
 )
 
 
+class AlertNoteCreate(BaseModel):
+    note: str
+    author: Optional[str] = None
+
+
 # ============================================================================
 # ALERT CREATION & MANAGEMENT
 # ============================================================================
@@ -94,45 +100,32 @@ def create_alert(alert: AlertCreate, db: Session = Depends(get_db)):
     db.add(db_alert)
     db.flush()  # Flush to get the alert ID before ML prediction
 
-    # Finding-first: normalize alert into a finding (idempotent per alert_id)
+    # Finding-first: normalize alert into a finding through centralized service.
     try:
         tenant_id = db_alert.tenant_id
         if tenant_id:
-            fingerprint = (
-                __import__("hashlib")
-                .sha256(f"{tenant_id}:TX_ALERT:ALERT:{alert_id}".encode("utf-8"))
-                .hexdigest()[:128]
+            FindingService(db).create_or_update_finding(
+                tenant_id=tenant_id,
+                finding_type="TX_ALERT",
+                fingerprint=f"TX_ALERT:ALERT:{alert_id}",
+                severity=(db_alert.severity or "").lower() or None,
+                title=db_alert.description or db_alert.alert_type,
+                summary=db_alert.description,
+                source_refs={
+                    "alert_id": alert_id,
+                    "alert_pk": db_alert.id,
+                    "transaction_pk": db_alert.transaction_id,
+                    "user_id": db_alert.user_id,
+                },
+                explainability={
+                    "matched_rules": db_alert.matched_rules_data,
+                    "evidence": db_alert.evidence,
+                    "regulation_context": db_alert.regulation_context,
+                    "related_regulations": db_alert.related_regulations,
+                },
             )
-            existing = (
-                db.query(Finding)
-                .filter(Finding.tenant_id == tenant_id, Finding.fingerprint == fingerprint)
-                .first()
-            )
-            if not existing:
-                f = Finding(
-                    tenant_id=tenant_id,
-                    finding_type="TX_ALERT",
-                    severity=(db_alert.severity or "").lower() or None,
-                    status=FindingStatus.new.value,
-                    title=db_alert.description or db_alert.alert_type,
-                    summary=db_alert.description,
-                    fingerprint=fingerprint,
-                    source_refs_json={
-                        "alert_id": alert_id,
-                        "alert_pk": db_alert.id,
-                        "transaction_pk": db_alert.transaction_id,
-                        "user_id": db_alert.user_id,
-                    },
-                    explainability_json={
-                        "matched_rules": db_alert.matched_rules_data,
-                        "evidence": db_alert.evidence,
-                        "regulation_context": db_alert.regulation_context,
-                        "related_regulations": db_alert.related_regulations,
-                    },
-                )
-                db.add(f)
-    except Exception:
-        pass
+    except Exception as exc:
+        logger.warning("Failed to upsert finding for alert %s: %s", alert_id, exc)
 
     # Phase 4B: Task 4.4 - ML Auto-Triage
     try:
@@ -458,6 +451,48 @@ def update_alert(
     db.commit()
     db.refresh(alert)
 
+    return alert
+
+
+@router.post("/{alert_id}/notes", response_model=AlertResponse, status_code=201)
+def add_alert_note(
+    alert_id: str,
+    payload: AlertNoteCreate,
+    db: Session = Depends(get_db),
+    tenant_id: str = Depends(require_tenant),
+):
+    """
+    Add an investigation note to an alert.
+    """
+    alert = get_tenant_filtered_query(Alert, db).filter(Alert.alert_id == alert_id).first()
+    if not alert:
+        raise HTTPException(status_code=404, detail="Alert not found")
+
+    ensure_tenant_match(alert, tenant_id)
+
+    evidence = alert.evidence or {}
+    existing_notes = evidence.get("notes")
+    notes = existing_notes if isinstance(existing_notes, list) else []
+    notes.append(
+        {
+            "note": payload.note,
+            "author": payload.author,
+            "created_at": utc_now().isoformat(),
+        }
+    )
+    evidence["notes"] = notes
+    alert.evidence = evidence
+    alert.updated_at = utc_now()
+
+    record_event(
+        db,
+        event_type="alert.note_added",
+        entity_type="alert",
+        entity_id=alert.alert_id,
+        payload={"author": payload.author, "note": payload.note},
+    )
+    db.commit()
+    db.refresh(alert)
     return alert
 
 

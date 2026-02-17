@@ -20,6 +20,7 @@ import uuid
 from pydantic import BaseModel, Field
 
 from src.database import get_db
+from src.auth.dependencies import get_current_user
 from src.models.transaction_models import Case, Alert, Transaction
 from src.models.models import LegalDocument
 from src.models.finding_models import Finding
@@ -33,7 +34,11 @@ from src.tenancy.queries import (
     require_tenant,
 )
 
-router = APIRouter(prefix="/api/cases", tags=["cases"])
+router = APIRouter(
+    prefix="/api/cases",
+    tags=["cases"],
+    dependencies=[Depends(get_current_user), Depends(require_tenant)],
+)
 
 
 # ============================================================================
@@ -89,7 +94,7 @@ def create_case_from_alert(
     Automatically pulls alert context, transaction details, and regulatory info.
     """
     # Get alert
-    alert = db.query(Alert).filter(Alert.alert_id == alert_id).first()
+    alert = get_tenant_filtered_query(Alert, db).filter(Alert.alert_id == alert_id).first()
     if not alert:
         raise HTTPException(status_code=404, detail="Alert not found")
 
@@ -491,7 +496,7 @@ def get_case_regulations(
     )
 
     return [
-        {"id": reg.id, "celex": reg.celex, "title": reg.title, "document_type": reg.document_type}
+        {"id": reg.id, "celex": reg.celex, "title": reg.title, "document_type": reg.type}
         for reg in regulations
     ]
 
@@ -609,30 +614,38 @@ def add_evidence(
 
 
 @router.get("/statistics/overview")
-def get_case_statistics(db: Session = Depends(get_db)):
+def get_case_statistics(db: Session = Depends(get_db), _: str = Depends(require_tenant)):
     """
     Get case management statistics.
     """
     # Total cases
-    total_cases = db.query(func.count(Case.id)).scalar() or 0
+    base_query = get_tenant_filtered_query(Case, db)
+    total_cases = base_query.with_entities(func.count(Case.id)).scalar() or 0
 
     # Cases by status
     status_results = (
-        db.query(Case.status, func.count(Case.id).label("count")).group_by(Case.status).all()
+        get_tenant_filtered_query(Case, db)
+        .with_entities(Case.status, func.count(Case.id).label("count"))
+        .group_by(Case.status)
+        .all()
     )
 
     cases_by_status = {row.status: row.count for row in status_results}
 
     # Cases by priority
     priority_results = (
-        db.query(Case.priority, func.count(Case.id).label("count")).group_by(Case.priority).all()
+        get_tenant_filtered_query(Case, db)
+        .with_entities(Case.priority, func.count(Case.id).label("count"))
+        .group_by(Case.priority)
+        .all()
     )
 
     cases_by_priority = {row.priority: row.count for row in priority_results}
 
     # Cases by outcome
     outcome_results = (
-        db.query(Case.outcome, func.count(Case.id).label("count"))
+        get_tenant_filtered_query(Case, db)
+        .with_entities(Case.outcome, func.count(Case.id).label("count"))
         .filter(Case.outcome.isnot(None))
         .group_by(Case.outcome)
         .all()

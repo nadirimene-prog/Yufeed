@@ -1,5 +1,5 @@
 import pytest
-from datetime import datetime, timedelta, timezone
+from datetime import datetime
 
 from src.ingestion.manager import IngestionManager
 import src.ingestion.manager as manager_module
@@ -60,3 +60,64 @@ def test_ingestion_manager_get_or_create_source(db_session):
     config["name"] = "EUR-Lex Updated"
     updated = manager._get_or_create_source(config)
     assert updated.name == "EUR-Lex Updated"
+
+
+@pytest.mark.unit
+def test_process_source_does_not_advance_watermark_on_failed_fetch(db_session, monkeypatch):
+    manager = IngestionManager(db_session)
+    manager.processor = DummyProcessor(db_session)
+
+    previous_watermark = datetime(2024, 1, 15)
+    config = {
+        "source_key": "eur-lex-oj-en",
+        "name": "EUR-Lex Official Journal (EN)",
+        "jurisdiction": "EU",
+        "language": "en",
+        "source_type": "rss",
+        "base_url": "https://eur-lex.europa.eu",
+        "schedule": "weekly",
+        "fetch": lambda *_: (_ for _ in ()).throw(RuntimeError("fetch failed")),
+    }
+
+    source = manager._get_or_create_source(config)
+    source.last_ingested_at = previous_watermark
+    db_session.commit()
+
+    monkeypatch.setattr(manager_module, "retry_with_backoff", lambda func, **_: func())
+
+    report = manager._process_source(config)
+    db_session.refresh(source)
+
+    assert report.status == "failed"
+    assert source.last_ingested_at == previous_watermark
+
+
+@pytest.mark.unit
+def test_process_source_advances_watermark_on_success(db_session, monkeypatch):
+    manager = IngestionManager(db_session)
+    manager.processor = DummyProcessor(db_session)
+
+    previous_watermark = datetime(2024, 1, 15)
+    config = {
+        "source_key": "eur-lex-oj-en",
+        "name": "EUR-Lex Official Journal (EN)",
+        "jurisdiction": "EU",
+        "language": "en",
+        "source_type": "rss",
+        "base_url": "https://eur-lex.europa.eu",
+        "schedule": "weekly",
+        "fetch": lambda *_: [],
+    }
+
+    source = manager._get_or_create_source(config)
+    source.last_ingested_at = previous_watermark
+    db_session.commit()
+
+    monkeypatch.setattr(manager_module, "retry_with_backoff", lambda func, **_: func())
+
+    report = manager._process_source(config)
+    db_session.refresh(source)
+
+    assert report.status == "completed"
+    assert source.last_ingested_at is not None
+    assert source.last_ingested_at > previous_watermark

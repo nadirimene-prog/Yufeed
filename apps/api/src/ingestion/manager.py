@@ -317,9 +317,15 @@ class IngestionManager:
         run.status = "failed" if (errors and seen == 0) else "partial" if errors else "completed"
         self.db.commit()
 
-        # Update source last ingested timestamp
-        source.last_ingested_at = run.completed_at
-        self.db.commit()
+        # Advance watermark only on non-failed runs to avoid skipping windows.
+        if run.status != "failed":
+            source.last_ingested_at = run.completed_at
+            self.db.commit()
+        else:
+            logger.warning(
+                "Not advancing last_ingested_at for %s because run failed",
+                source_key,
+            )
 
         return IngestionReport(
             source_name=source_config["name"],
