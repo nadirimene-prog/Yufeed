@@ -37,7 +37,7 @@ scikit-learn==1.8.0
 xgboost==2.0.3
 lightgbm==4.2.0
 joblib==1.5.3
-shap==0.44.0
+shap==0.50.0
 
 # WebSocket (for Phase 4B Task 6)
 websockets==12.0
