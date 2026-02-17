@@ -8,6 +8,7 @@ from fastapi.testclient import TestClient
 from sqlalchemy.orm import Session
 from decimal import Decimal
 from datetime import datetime
+import uuid
 
 from tests.factories import MonitoringRuleFactory
 
@@ -22,6 +23,9 @@ class TestTransactionIngestionFlow:
         """
         Test end-to-end flow: Transaction ingestion → Rule evaluation → Alert creation
         """
+        transaction_id = f"txn_integration_{uuid.uuid4().hex[:8]}"
+        user_id = f"user_integration_{uuid.uuid4().hex[:8]}"
+
         # Step 1: Create monitoring rule
         rule = MonitoringRuleFactory(
             enabled=True,
@@ -39,8 +43,8 @@ class TestTransactionIngestionFlow:
             "/api/transactions",
             headers=auth_headers,
             json={
-                "transaction_id": "txn_integration_001",
-                "user_id": "user_integration_001",
+                "transaction_id": transaction_id,
+                "user_id": user_id,
                 "amount": 15000.00,
                 "currency": "USD",
                 "transaction_type": "deposit",
@@ -52,13 +56,11 @@ class TestTransactionIngestionFlow:
 
         assert txn_response.status_code == 201
         txn_data = txn_response.json()
-        assert txn_data["transaction_id"] == "txn_integration_001"
+        assert txn_data["transaction_id"] == transaction_id
         transaction_db_id = txn_data["id"]
 
         # Step 3: Verify alert was created
-        alerts_response = client.get(
-            f"/api/alerts?user_id=user_integration_001", headers=auth_headers
-        )
+        alerts_response = client.get(f"/api/alerts?user_id={user_id}", headers=auth_headers)
 
         assert alerts_response.status_code == 200
         alerts = alerts_response.json()
@@ -66,15 +68,13 @@ class TestTransactionIngestionFlow:
         # Should have at least one alert
         assert len(alerts) > 0
 
-        # Find alert related to our transaction
-        related_alert = next(
-            (a for a in alerts if a.get("transaction_id") == transaction_db_id), None
-        )
+        # Find alerts related to our transaction (multiple rules can fire)
+        related_alerts = [a for a in alerts if a.get("transaction_id") == transaction_db_id]
 
-        assert related_alert is not None
-        assert related_alert["alert_type"] == "high_value"
-        assert related_alert["user_id"] == "user_integration_001"
-        assert related_alert["status"] == "pending"
+        assert related_alerts
+        assert all(a["user_id"] == user_id for a in related_alerts)
+        assert any(a["alert_type"] == "high_value" for a in related_alerts)
+        assert any(a["status"] == "pending" for a in related_alerts)
 
     def test_multiple_transactions_velocity_alert(
         self, client: TestClient, db_session: Session, auth_headers: dict
@@ -138,7 +138,7 @@ class TestAlertTriageWorkflow:
             "/api/transactions",
             headers=auth_headers,
             json={
-                "transaction_id": "txn_triage_001",
+                "transaction_id": f"txn_triage_{uuid.uuid4().hex[:8]}",
                 "user_id": "user_triage_001",
                 "amount": 25000.00,
                 "currency": "USD",
@@ -220,7 +220,7 @@ class TestCaseCreationFlow:
                 "/api/transactions",
                 headers=auth_headers,
                 json={
-                    "transaction_id": f"txn_case_{i}",
+                    "transaction_id": f"txn_case_{i}_{uuid.uuid4().hex[:8]}",
                     "user_id": user_id,
                     "amount": 15000.00 + (i * 1000),
                     "currency": "USD",

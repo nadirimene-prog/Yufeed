@@ -47,9 +47,11 @@ def test_compliance_workflow_endpoints(db_session):
 
     fetched = workflow_api.get_policy(policy["id"], db_session, None)
     assert fetched["policy_id"]
+    fetched_by_business_id = workflow_api.get_policy(policy["policy_id"], db_session, None)
+    assert fetched_by_business_id["id"] == policy["id"]
 
     updated = workflow_api.update_policy(
-        policy["id"],
+        policy["policy_id"],
         PolicyUpdate(status="approved"),
         db_session,
         None,
@@ -57,7 +59,7 @@ def test_compliance_workflow_endpoints(db_session):
     assert updated["status"] == "approved"
 
     section = workflow_api.create_policy_section(
-        policy["id"],
+        policy["policy_id"],
         PolicySectionCreate(section_ref="1", title="Scope", content="Scope"),
         db_session,
         None,
@@ -76,7 +78,7 @@ def test_compliance_workflow_endpoints(db_session):
     assert updated_section["title"] == "Updated"
 
     internal_rule = workflow_api.create_internal_rule(
-        obligation.id,
+        obligation.obligation_id,
         InternalRuleCreate(
             name="Internal Rule",
             description="Desc",
@@ -88,7 +90,7 @@ def test_compliance_workflow_endpoints(db_session):
     assert internal_rule["name"] == "Internal Rule"
 
     updated_rule = workflow_api.update_internal_rule(
-        internal_rule["id"],
+        internal_rule["internal_rule_id"],
         InternalRuleUpdate(status="approved"),
         db_session,
         None,
@@ -123,5 +125,7 @@ def test_compliance_workflow_endpoints(db_session):
     rules = workflow_api.list_internal_rules(obligation.id, db_session, None)
     assert rules["items"]
 
-    mappings = workflow_api.list_internal_rule_mappings(internal_rule["id"], db_session, None)
+    mappings = workflow_api.list_internal_rule_mappings(
+        internal_rule["internal_rule_id"], db_session, None
+    )
     assert mappings["items"]
