@@ -208,9 +208,9 @@ def _get_email_subject(reminder_type: ReminderType, days_remaining: int) -> str:
     elif reminder_type == ReminderType.SEVEN_DAYS:
         return f"📅 Reminder: Compliance Deadline in {days_remaining} Days"
     elif reminder_type == ReminderType.FOURTEEN_DAYS:
-        return f"📅 Compliance Deadline in 2 Weeks"
+        return "📅 Compliance Deadline in 2 Weeks"
     else:
-        return f"📅 Compliance Deadline in 30 Days"
+        return "📅 Compliance Deadline in 30 Days"
 
 
 def _get_email_body(

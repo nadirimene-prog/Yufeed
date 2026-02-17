@@ -34,18 +34,29 @@ env/
 .coverage
 coverage.xml
 htmlcov/
+coverage/
 .tox/
 .hypothesis/
 
 # Temporary/generated files
 *.txt.tmp
 *.bak
+*.orig
+*.rej
+*.backup.*
+**/*.backup.*
 all_downs.txt
 all_revs.txt
 celerybeat-schedule
 celerybeat-schedule.*
 apps/api/celerybeat-schedule
 apps/api/celerybeat-schedule.*
+apps/api/extraction_progress.json
+apps/api/full_reextraction_report.json
+apps/api/reextraction_report.json
+apps/api/fix_report.json
+apps/web/lint_output.txt
+apps/web/SYNC_TEST.txt
 
 # IDEs
 .vscode/
@@ -58,6 +69,7 @@ apps/api/celerybeat-schedule.*
 node_modules/
 .next/
 out/
+apps/web/coverage/
 npm-debug.log*
 yarn-debug.log*
 yarn-error.log*

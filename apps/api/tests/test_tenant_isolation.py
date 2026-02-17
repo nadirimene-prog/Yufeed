@@ -154,7 +154,7 @@ class TestTenantManagement:
 
         # Cleanup
         client.delete(
-            f"/api/tenants/test_create_tenant?hard_delete=true",
+            "/api/tenants/test_create_tenant?hard_delete=true",
             headers=superuser_headers,
         )
 

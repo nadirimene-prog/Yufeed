@@ -39,8 +39,8 @@ repos:
       - id: flake8
         args:
           - --max-line-length=100
-          - --extend-ignore=E203,E402,E501,E711,E712,E722,E731,E741,F401,F403,F541,F841,W291,W293,W391,W503
-        files: ^apps/api/
+          - --extend-ignore=E203,E402,E501,E712,E741,F401,F841
+        files: ^apps/api/(src|tests)/.*\.py$
 
   # ── Python: mypy type checker ─────────────────────────────────────────
   - repo: https://github.com/pre-commit/mirrors-mypy
@@ -74,9 +74,10 @@ repos:
     hooks:
       - id: eslint
         name: eslint (apps/web)
-        entry: npx --prefix apps/web eslint --fix --config apps/web/eslint.config.mjs
+        entry: bash -lc 'cd apps/web && npx --no-install eslint src --max-warnings=0'
         language: system
         files: ^apps/web/src/.*\.(ts|tsx)$
+        pass_filenames: false
         types: [file]
 
   # ── Frontend: Prettier ────────────────────────────────────────────────
@@ -84,7 +85,8 @@ repos:
     hooks:
       - id: prettier
         name: prettier (apps/web)
-        entry: npx --prefix apps/web prettier --write --ignore-unknown
+        entry: bash -lc 'cd apps/web && npx --no-install prettier --check --ignore-unknown src'
         language: system
         files: ^apps/web/src/.*\.(ts|tsx|css)$
+        pass_filenames: false
         types: [file]

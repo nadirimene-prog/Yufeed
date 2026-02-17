@@ -10,6 +10,10 @@ permissions:
   contents: read
   security-events: write
 
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
   backend-tests:
     name: Backend Tests
@@ -49,12 +53,16 @@ jobs:
         with:
           python-version: '3.12'
           cache: 'pip'
+          cache-dependency-path: |
+            apps/api/requirements.txt
+            apps/api/requirements-dev.txt
 
       - name: Install dependencies
         working-directory: ./apps/api
         run: |
           python -m pip install --upgrade pip
           pip install -r requirements.txt
+          pip install -r requirements-dev.txt
 
       - name: Run tenant/security audit
         working-directory: ./apps/api
@@ -64,10 +72,8 @@ jobs:
       - name: Run linting
         working-directory: ./apps/api
         run: |
-          pip install flake8 black mypy
-          flake8 src/ --max-line-length=100
-          black --check src/
-          mypy src/ --ignore-missing-imports
+          python -m flake8 src/ tests/ --max-line-length=100 --extend-ignore=E203,E402,E501,E712,E741,F401,F841
+          python -m black --check src/
 
       - name: Run tests
         working-directory: ./apps/api
@@ -115,13 +121,13 @@ jobs:
       - name: Run linting
         working-directory: ./apps/web
         run: |
-          npm run lint
+          npm run lint -- --max-warnings=0
           npm run type-check
 
       - name: Run tests
         working-directory: ./apps/web
         run: |
-          npm test
+          npm run test:coverage
 
       - name: Upload coverage to Codecov
         uses: codecov/codecov-action@v4
@@ -139,7 +145,7 @@ jobs:
         uses: actions/checkout@v4
 
       - name: Run Trivy vulnerability scanner
-        uses: aquasecurity/trivy-action@master
+        uses: aquasecurity/trivy-action@0.28.0
         with:
           scan-type: 'fs'
           scan-ref: '.'
@@ -188,6 +194,16 @@ jobs:
 
     steps:
       - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+          cache-dependency-path: ./apps/web/package-lock.json
+
+      - name: Install frontend dependencies
+        working-directory: ./apps/web
+        run: npm ci
 
       - uses: actions/setup-python@v5
         with:

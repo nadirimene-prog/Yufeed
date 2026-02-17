@@ -117,7 +117,9 @@ async def test_tenant_required_decorator():
 @pytest.mark.unit
 @pytest.mark.asyncio
 async def test_tenant_middleware_helpers(monkeypatch):
-    app = lambda scope, receive, send: None
+    async def app(scope, receive, send):
+        return None
+
     middleware = TenantMiddleware(app)
 
     scope = {

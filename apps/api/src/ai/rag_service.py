@@ -189,7 +189,7 @@ class RAGService:
             }
 
         prompt = self._build_rag_prompt(query, chunks)
-        logger.error(f"DEBUG: About to call Claude API with model claude-3-5-sonnet-20240620")
+        logger.error("DEBUG: About to call Claude API with model claude-3-5-sonnet-20240620")
 
         try:
             # Try haiku first (more widely available), fall back to sonnet
