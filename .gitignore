@@ -1,9 +1,30 @@
-# MacOS
-.DS_Store
-.AppleDouble
-.LSOverride
+# =============================================================================
+# YuFeed - Git Ignore
+# =============================================================================
 
+# -----------------------------------------------------------------------------
+# Environment & Secrets
+# -----------------------------------------------------------------------------
+.env
+.env.local
+.env.*.local
+.env.development
+.env.test
+.env.production
+!.env.example
+!.env.test.example
+
+# Secrets
+*.pem
+*.key
+*.crt
+secrets/
+.secrets
+secrets.baseline
+
+# -----------------------------------------------------------------------------
 # Python
+# -----------------------------------------------------------------------------
 __pycache__/
 *.py[cod]
 *$py.class
@@ -15,8 +36,8 @@ dist/
 downloads/
 eggs/
 .eggs/
-**/lib/python*/
-**/lib64/
+lib/
+lib64/
 parts/
 sdist/
 var/
@@ -24,73 +45,184 @@ wheels/
 *.egg-info/
 .installed.cfg
 *.egg
-.venv/
+MANIFEST
+
+# Virtual environments
 venv/
 ENV/
 env/
+.venv/
+env.bak/
+venv.bak/
 
 # Testing
-.pytest_cache/
-.coverage
-coverage.xml
-htmlcov/
 .tox/
+.nox/
+.coverage
+.coverage.*
+.cache
+nosetests.xml
+coverage.xml
+*.cover
 .hypothesis/
+.pytest_cache/
+htmlcov/
 
-# Temporary/generated files
-*.txt.tmp
-*.bak
-all_downs.txt
-all_revs.txt
-celerybeat-schedule
-celerybeat-schedule.*
-apps/api/celerybeat-schedule
-apps/api/celerybeat-schedule.*
+# Type checking
+.mypy_cache/
+.dmypy.json
+dmypy.json
+.pyre/
+.pytype/
+
+# Jupyter Notebook
+.ipynb_checkpoints
 
 # IDEs
-.vscode/
 .idea/
+.vscode/
 *.swp
 *.swo
 *~
+.DS_Store
+*.sublime-project
+*.sublime-workspace
 
-# Node.js / Frontend
+# -----------------------------------------------------------------------------
+# Node.js
+# -----------------------------------------------------------------------------
 node_modules/
-.next/
-out/
 npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
 .pnpm-debug.log*
-.env.local
-.env.development.local
-.env.test.local
-.env.production.local
+.yarn-integrity
 
-# Environment
-.env
+# Next.js
+.next/
+out/
 
-# Database
+# Build outputs
+build/
+dist/
+*.tsbuildinfo
+
+# -----------------------------------------------------------------------------
+# Databases
+# -----------------------------------------------------------------------------
 *.db
 *.sqlite
+*.sqlite3
+*.db-journal
+*.db-wal
+*.db-shm
 
-# Logs
-*.log
+# PostgreSQL
+data/
+pgsql_data/
 
+# Redis
+dump.rdb
+*.rdb
+
+# -----------------------------------------------------------------------------
 # Docker
+# -----------------------------------------------------------------------------
 .docker/
+docker-compose.override.yml
+docker-compose.*.yml
+!.dockerignore
 
-# OS
+# -----------------------------------------------------------------------------
+# Logs
+# -----------------------------------------------------------------------------
+logs/
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+lerna-debug.log*
+.pnpm-debug.log*
+
+# -----------------------------------------------------------------------------
+# Infrastructure & Deployment
+# -----------------------------------------------------------------------------
+.terraform/
+*.tfstate
+*.tfstate.*
+terraform.tfvars
+*.pem
+*.key
+kubeconfig*
+*.kubeconfig
+
+# Kubernetes
+kubernetes/secrets/
+
+# -----------------------------------------------------------------------------
+# AI/ML
+# -----------------------------------------------------------------------------
+models/
+*.pkl
+*.h5
+*.pb
+*.onnx
+*.pt
+*.pth
+chroma_data/
+vectorstore/
+embeddings/
+
+# -----------------------------------------------------------------------------
+# Temporary Files
+# -----------------------------------------------------------------------------
+tmp/
+temp/
+*.tmp
+*.temp
+*.bak
+*.backup
+*.old
+*.orig
+
+# -----------------------------------------------------------------------------
+# OS Generated Files
+# -----------------------------------------------------------------------------
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
 Thumbs.db
-apply-v2.sh
+desktop.ini
 
-# Secrets
-.env.bak
+# -----------------------------------------------------------------------------
+# Specific to YuFeed
+# -----------------------------------------------------------------------------
+# Data directories
+data/
+datasets/
+uploads/
+media/
+staticfiles/
 
-# Pre-commit
-.pre-commit-cache/
+# Local development
+docker-compose.override.yml
+.local/
 
-# Playwright
-apps/web/test-results/
-apps/web/playwright-report/
-apps/web/blob-report/
+# Documentation builds
+docs/_build/
+site/
+
+# E2E test artifacts
+test-results/
+playwright-report/
+playwright/.cache/
+
+# -----------------------------------------------------------------------------
+# Keep these files
+# -----------------------------------------------------------------------------
+!.github/
+!docs/
+!config/

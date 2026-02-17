@@ -1,60 +1,74 @@
 ## Description
-<!-- Brief description of changes -->
+<!-- Provide a brief description of the changes in this PR -->
+
+Fixes # (issue)
 
 ## Type of Change
-- [ ] Bug fix (non-breaking change fixing an issue)
-- [ ] New feature (non-breaking change adding functionality)
-- [ ] Breaking change (fix or feature that would cause existing functionality to not work as expected)
-- [ ] Refactoring (no behavior change)
-- [ ] Documentation update
-- [ ] Performance improvement
-
-## Related Issue
-Closes #<issue_number>
+<!-- Mark the relevant option with an [x] -->
+- [ ] 🐛 Bug fix (non-breaking change which fixes an issue)
+- [ ] ✨ New feature (non-breaking change which adds functionality)
+- [ ] 💥 Breaking change (fix or feature that would cause existing functionality to not work as expected)
+- [ ] 📝 Documentation update
+- [ ] 🔧 Configuration change
+- [ ] 🧹 Code refactoring
+- [ ] ⚡ Performance improvement
+- [ ] 🧪 Test updates
 
 ## Changes Made
-<!-- List the specific changes -->
--
--
--
+<!-- Describe the changes in detail -->
+1.
+2.
+3.
 
 ## Testing
-<!-- Describe the testing you performed -->
-- [ ] Unit tests added/updated
-- [ ] Integration tests added/updated
+<!-- Describe the tests you ran -->
+- [ ] Unit tests pass
+- [ ] Integration tests pass
 - [ ] Manual testing performed
-- [ ] All tests pass locally
 
-**Test Coverage:**
-<!-- Add coverage percentage if applicable -->
+### Test Coverage
+<!-- If applicable, provide coverage statistics -->
+```
+Before: XX%
+After: XX%
+```
 
-## Screenshots (if applicable)
-<!-- Add screenshots for UI changes -->
+## Screenshots/Videos
+<!-- If applicable, add screenshots or videos to help explain your changes -->
 
 ## Checklist
-- [ ] Code follows project style guidelines (see CONTRIBUTING.md)
-- [ ] Self-review performed
-- [ ] Comments added for complex logic
-- [ ] Documentation updated (ARCHITECTURE.md, README.md, etc.)
-- [ ] No new warnings generated
-- [ ] Tests pass locally (`pytest` for backend, `npm test` for frontend)
-- [ ] Linting passes (`flake8`, `black` for backend; `npm run lint` for frontend)
-- [ ] Type checking passes (`mypy` for backend; `npm run type-check` for frontend)
-- [ ] Dependent changes merged and published
+<!-- Mark completed items with [x] -->
+- [ ] My code follows the project's style guidelines
+- [ ] I have performed a self-review of my code
+- [ ] I have commented my code, particularly in hard-to-understand areas
+- [ ] I have made corresponding changes to the documentation
+- [ ] My changes generate no new warnings
+- [ ] I have added tests that prove my fix is effective or that my feature works
+- [ ] New and existing unit tests pass locally with my changes
+- [ ] Any dependent changes have been merged and published
 
-## Breaking Changes
-<!-- If this PR introduces breaking changes, describe them here -->
+## Security Considerations
+<!-- If applicable, describe any security implications -->
+- [ ] No sensitive data exposed
+- [ ] Input validation implemented
+- [ ] Authentication/authorization checked
 
-## Migration Guide
-<!-- If breaking changes, provide migration instructions -->
+## Performance Impact
+<!-- Describe any performance implications -->
+- [ ] No significant impact
+- [ ] Performance improved
+- [ ] Performance degraded (explain why acceptable)
 
-## Additional Notes
-<!-- Any other information for reviewers -->
+## Related PRs
+<!-- Link to any related PRs -->
 
-## Reviewer Checklist
-- [ ] Code quality and style
-- [ ] Architecture adherence
-- [ ] Security considerations
-- [ ] Performance impact
-- [ ] Test coverage adequate
-- [ ] Documentation complete
+## Deployment Notes
+<!-- Any special deployment considerations -->
+- [ ] Database migrations required
+- [ ] Environment variables added/changed
+- [ ] Feature flags needed
+
+## Reviewers
+<!-- Tag relevant reviewers -->
+- @reviewer1
+- @reviewer2

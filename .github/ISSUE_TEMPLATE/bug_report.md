@@ -1,49 +1,49 @@
 ---
-name: Bug Report
-about: Create a report to help us improve
+name: Bug report
+about: Create a report to help us improve YuFeed
 title: '[BUG] '
 labels: bug
 assignees: ''
+
 ---
 
 ## Bug Description
-<!-- A clear and concise description of the bug -->
+<!-- A clear and concise description of what the bug is -->
 
-## To Reproduce
-Steps to reproduce the behavior:
+## Steps to Reproduce
+<!-- Steps to reproduce the behavior -->
 1. Go to '...'
-2. Click on '...'
-3. Scroll down to '...'
+2. Click on '....'
+3. Scroll down to '....'
 4. See error
 
 ## Expected Behavior
-<!-- What you expected to happen -->
+<!-- A clear and concise description of what you expected to happen -->
 
 ## Actual Behavior
 <!-- What actually happened -->
 
 ## Screenshots
-<!-- If applicable, add screenshots to help explain the problem -->
+<!-- If applicable, add screenshots to help explain your problem -->
 
 ## Environment
-- **OS**: [e.g., macOS 14.0, Ubuntu 22.04, Windows 11]
-- **Browser**: [e.g., Chrome 120, Firefox 121, Safari 17]
-- **Version**: [e.g., main branch, commit hash]
-- **Deployment**: [e.g., Docker, local development]
+<!-- Please complete the following information -->
+- **YuFeed Version:** [e.g., 1.0.0]
+- **Deployment:** [e.g., Docker, Local, Cloud]
+- **Browser:** [e.g., Chrome 120, Safari 17]
+- **OS:** [e.g., macOS 14, Ubuntu 22.04]
 
-## Logs/Error Messages
+## API/Backend Details
+<!-- If applicable -->
+- **Python Version:** [e.g., 3.12.1]
+- **Database:** [e.g., PostgreSQL 15, SQLite]
+- **Error Logs:**
 ```
-Paste relevant logs or error messages here
+Paste relevant logs here
 ```
 
 ## Additional Context
-<!-- Any other context about the problem -->
+<!-- Add any other context about the problem here -->
 
 ## Possible Solution
-<!-- If you have suggestions on how to fix the bug -->
-
-## Priority
-- [ ] Critical (System is unusable)
-- [ ] High (Major functionality broken)
-- [ ] Medium (Feature partially broken)
-- [ ] Low (Minor issue or cosmetic)
+<!-- If you have suggestions on how to fix the bug, please describe -->

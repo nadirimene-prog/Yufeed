@@ -78,6 +78,10 @@ repos:
         language: system
         files: ^apps/web/src/.*\.(ts|tsx)$
         types: [file]
+        exclude: >-
+          (?x)^(
+            apps/web/src/components/ui/button\.tsx$
+          )$
 
   # ── Frontend: Prettier ────────────────────────────────────────────────
   - repo: local

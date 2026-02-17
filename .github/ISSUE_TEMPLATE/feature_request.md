@@ -1,54 +1,47 @@
 ---
-name: Feature Request
-about: Suggest an idea for this project
+name: Feature request
+about: Suggest an idea for YuFeed
 title: '[FEATURE] '
 labels: enhancement
 assignees: ''
+
 ---
 
 ## Feature Description
-<!-- A clear and concise description of the feature you'd like -->
+<!-- A clear and concise description of what you want to happen -->
 
 ## Problem Statement
-<!-- Describe the problem this feature would solve -->
-**Is your feature request related to a problem? Please describe:**
+<!-- Is your feature request related to a problem? Please describe -->
+A clear and concise description of what the problem is. Ex. I'm always frustrated when [...]
 
 ## Proposed Solution
-<!-- Describe how you envision this feature working -->
+<!-- Describe the solution you'd like -->
+
+## User Story
+<!-- As a [type of user], I want [goal], so that [benefit] -->
+As a [compliance officer/analyst/admin], I want [feature], so that [benefit].
+
+## Acceptance Criteria
+<!-- Define what "done" looks like -->
+- [ ] Criterion 1
+- [ ] Criterion 2
+- [ ] Criterion 3
+
+## UI/UX Mockups
+<!-- If applicable, add mockups or wireframes -->
+
+## Technical Considerations
+<!-- Any technical details or constraints -->
 
 ## Alternatives Considered
-<!-- Describe any alternative solutions or features you've considered -->
-
-## Use Cases
-<!-- Describe specific scenarios where this feature would be useful -->
-1.
-2.
-3.
-
-## Benefits
-<!-- What are the benefits of implementing this feature? -->
--
--
--
-
-## Implementation Suggestions
-<!-- If you have ideas on how to implement this, describe them here -->
-
-## Mockups/Examples
-<!-- If applicable, add mockups, diagrams, or examples -->
+<!-- A clear and concise description of any alternative solutions -->
 
 ## Additional Context
-<!-- Any other context, screenshots, or information about the feature request -->
+<!-- Add any other context or screenshots about the feature request -->
 
 ## Priority
-- [ ] Critical (Blocking existing functionality)
-- [ ] High (Significant value addition)
-- [ ] Medium (Nice to have)
-- [ ] Low (Future consideration)
-
-## Effort Estimate
-<!-- If you have a sense of the implementation effort -->
-- [ ] Small (< 1 day)
-- [ ] Medium (1-3 days)
-- [ ] Large (> 3 days)
-- [ ] Unknown
+<!-- How important is this feature? -->
+- [ ] Critical - Blocking work
+- [ ] High - Major improvement
+- [ ] Medium - Nice to have
+- [ ] Low - Minor enhancement
