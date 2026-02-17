@@ -99,8 +99,7 @@ const statusDotVariants = cva("h-2 w-2 rounded-full", {
    ───────────────────────────────────────────────────────────────────────────── */
 
 export interface BadgeProps
-  extends
-    React.HTMLAttributes<HTMLSpanElement>,
+  extends React.HTMLAttributes<HTMLSpanElement>,
     VariantProps<typeof badgeVariants> {
   dot?: boolean;
   dotStatus?: VariantProps<typeof statusDotVariants>["status"];
@@ -174,10 +173,8 @@ Badge.displayName = "Badge";
    Pre-configured badges for common status states
    ───────────────────────────────────────────────────────────────────────────── */
 
-interface StatusBadgeProps extends Omit<
-  BadgeProps,
-  "variant" | "dot" | "dotStatus"
-> {
+interface StatusBadgeProps
+  extends Omit<BadgeProps, "variant" | "dot" | "dotStatus"> {
   status:
     | "draft"
     | "pending"

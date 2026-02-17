@@ -12,7 +12,6 @@ from src.compliance.sar_filing import SARFilingSystem, UARFilingSystem
 from src.auth.dependencies import require_any_role, CurrentUser
 from src.utils.event_bus import publish_event_safe
 
-
 router = APIRouter(prefix="/reporting", tags=["sar-filing"])
 
 

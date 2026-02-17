@@ -9,7 +9,6 @@ from typing import Optional, List, Dict, Any
 from pydantic import BaseModel, Field, validator
 from datetime import datetime
 
-
 # ============================================================================
 # TENANT SCHEMAS
 # ============================================================================

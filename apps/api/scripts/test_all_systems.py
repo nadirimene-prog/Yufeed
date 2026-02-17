@@ -5,9 +5,7 @@ Tests Deadline Reminders, Gap Analyzer, and Policy Generator
 """
 
 import sys
-import os
 from pathlib import Path
-from datetime import datetime, timezone
 
 # Set up paths
 sys.path.insert(0, str(Path(__file__).parent.parent / "src"))
@@ -76,13 +74,6 @@ def test_deadline_reminders():
         ReminderService = module.ReminderService
         print("  ✅ ReminderService imports successfully")
 
-        # Test auto-categorization
-        test_cases = [
-            ("Customer due diligence must be performed", "kyc_kyb"),
-            ("Transaction monitoring systems required", "aml_monitoring"),
-            ("Suspicious transaction reports filed with FIU", "reporting"),
-        ]
-
         print("\n  Testing auto-categorization:")
         from sqlalchemy.orm import sessionmaker
         from sqlalchemy import create_engine
@@ -92,10 +83,8 @@ def test_deadline_reminders():
         db = Session()
 
         service = ReminderService(db)
-        for text_obl, expected_cat in test_cases:
-            result = service._get_reminder_type(7)  # Just testing method exists
-            print(f"    ✅ Method callable")
-            break
+        service._get_reminder_type(7)  # Smoke-test method is callable
+        print("    ✅ Method callable")
 
         db.close()
         return True
@@ -142,7 +131,7 @@ def test_gap_analyzer():
 
         print("\n  Testing auto-categorization:")
         from sqlalchemy.orm import sessionmaker
-        from sqlalchemy import create_engine
+        from sqlalchemy import create_engine, text
 
         engine = create_engine("sqlite:///./compliance.db")
         Session = sessionmaker(bind=engine)
@@ -212,7 +201,7 @@ def test_policy_generator():
         Session = sessionmaker(bind=engine)
         db = Session()
 
-        generator = PolicyGenerator(db)
+        PolicyGenerator(db)
 
         # Check template variables
         print("\n  Template Variables Populated:")

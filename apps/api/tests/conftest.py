@@ -354,6 +354,19 @@ def ensure_tenant_membership(db_session):
 
 
 @pytest.fixture
+def tenant_factory(db_session):
+    """
+    Factory helper for creating tenants bound to the current test session.
+    """
+    from tests.factories import TenantFactory
+
+    def _create(**kwargs):
+        return TenantFactory(sqlalchemy_session=db_session, **kwargs)
+
+    return _create
+
+
+@pytest.fixture
 def test_user_token(client: TestClient, ensure_tenant_membership) -> str:
     """
     Create a test user and return authentication token.

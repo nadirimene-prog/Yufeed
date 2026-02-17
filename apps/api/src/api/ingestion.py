@@ -21,7 +21,6 @@ from src.models.compliance_workflow import (
 from src.models.models import LegalDocument
 from src.utils.time import utc_now
 
-
 router = APIRouter(prefix="/api/ingestion", tags=["ingestion"])
 
 

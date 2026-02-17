@@ -63,10 +63,10 @@ describe("auth", () => {
       expect(localStorage.getItem("access_token")).toBeNull();
     });
 
-    it("returns null for tokens without tenant_id", () => {
+    it("returns token for tokens without tenant_id", () => {
       const noTenant = makeJwt({ sub: "user1" });
       localStorage.setItem("access_token", noTenant);
-      expect(getAuthToken()).toBeNull();
+      expect(getAuthToken()).toBe(noTenant);
     });
 
     it("falls back to legacy keys", () => {

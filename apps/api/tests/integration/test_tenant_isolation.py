@@ -17,6 +17,7 @@ Test Coverage:
 
 from datetime import datetime, timedelta, timezone
 from decimal import Decimal
+import secrets
 import uuid
 
 import pytest
@@ -179,7 +180,7 @@ class TestTransactionProcessingTenantIsolation:
         db_session.add(
             MonitoringRule(
                 tenant_id="tenant-b",
-                rule_id="RULE-TENANT-B-ALWAYS",
+                rule_id=f"RULE-TENANT-B-ALWAYS-{secrets.token_hex(4)}",
                 name="Always trigger",
                 description="Should never evaluate cross-tenant",
                 category="amount_threshold",

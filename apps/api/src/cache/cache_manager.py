@@ -39,7 +39,10 @@ class CacheManager:
             redis_url: Redis connection URL (default: from settings)
             default_ttl: Default TTL in seconds (default: 5 minutes)
         """
-        self.redis_url = redis_url or getattr(settings, "REDIS_URL", "redis://localhost:6379/0")
+        configured_url = (
+            redis_url if redis_url is not None else getattr(settings, "REDIS_URL", None)
+        )
+        self.redis_url = configured_url or "redis://localhost:6379/0"
         self.default_ttl = default_ttl
         self._client: Optional[redis.Redis] = None
         self.enabled = True
@@ -63,7 +66,7 @@ class CacheManager:
                 # Test connection
                 self._client.ping()
                 logger.info("Redis cache connected successfully")
-            except RedisError as e:
+            except (RedisError, ValueError) as e:
                 logger.warning(f"Redis connection failed: {e}. Caching disabled.")
                 self.enabled = False
                 # Return a mock client that does nothing

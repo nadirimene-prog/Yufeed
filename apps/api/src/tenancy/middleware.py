@@ -135,6 +135,22 @@ class TenantMiddleware(BaseHTTPMiddleware):
                 payload = JWTHandler.decode_token(token)
                 if not JWTHandler.verify_token_type(payload, "access"):
                     raise HTTPException(status_code=401, detail="Invalid token type")
+
+                # In development/testing, allow explicit tenant override header/query
+                # for local diagnostics and multi-tenant test fixtures.
+                if allow_legacy_tenant_headers:
+                    header_tenant_id = request.headers.get("X-Tenant-ID")
+                    if header_tenant_id:
+                        logger.warning(
+                            "Using X-Tenant-ID header override (development/testing only)"
+                        )
+                        return header_tenant_id
+
+                    query_tenant_id = request.query_params.get("tenant_id")
+                    if query_tenant_id:
+                        logger.warning("Using tenant_id query override (development/testing only)")
+                        return query_tenant_id
+
                 tenant_id = payload.get("tenant_id")
                 if tenant_id:
                     return tenant_id
@@ -264,10 +280,8 @@ class TenantMiddleware(BaseHTTPMiddleware):
         Returns:
             True if endpoint requires tenant
         """
-        exempt_paths = [
+        exempt_exact_paths = {
             "/",  # Root endpoint
-            "/api/docs",
-            "/api/redoc",
             "/api/openapi.json",
             "/health",
             "/healthz",
@@ -281,14 +295,22 @@ class TenantMiddleware(BaseHTTPMiddleware):
             "/api/auth/forgot-password",
             "/api/auth/reset-password",
             "/api/tenants",
+        }
+
+        exempt_prefix_paths = (
+            "/api/docs",
+            "/api/redoc",
+            "/api/v1",
             "/ws",  # WebSocket endpoint handles its own auth
-        ]
+        )
 
         path = request.url.path
 
-        # Check if path starts with any exempt path
-        for exempt in exempt_paths:
-            if path.startswith(exempt):
+        if path in exempt_exact_paths:
+            return False
+
+        for exempt_prefix in exempt_prefix_paths:
+            if path.startswith(exempt_prefix):
                 return False
 
         return True

@@ -14,7 +14,6 @@ from src.context import get_current_tenant
 from src.services.ai_cost_service import AICostService
 from pydantic import BaseModel
 
-
 router = APIRouter(prefix="/ai-costs", tags=["ai-costs"])
 
 

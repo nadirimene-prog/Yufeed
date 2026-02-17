@@ -5,7 +5,6 @@ from typing import Optional, List, Dict, Any
 
 from pydantic import BaseModel, Field
 
-
 # Risk level constants for validation
 RISK_LEVELS = ["low", "medium", "high", "critical"]
 LIKELIHOOD_LEVELS = ["rare", "unlikely", "possible", "likely", "almost_certain"]

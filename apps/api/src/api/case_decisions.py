@@ -22,7 +22,6 @@ from src.schemas.case_decision_schemas import (
 from src.services.case_decision_service import CaseDecisionService
 from src.tenancy.queries import get_tenant_filtered_query
 
-
 router = APIRouter(prefix="/api/cases/{case_id}/decisions", tags=["case-decisions"])
 
 _WRITE_ROLES = ["admin", "compliance", "aml_officer"]

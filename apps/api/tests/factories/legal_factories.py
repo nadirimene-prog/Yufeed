@@ -8,6 +8,7 @@ from datetime import datetime
 import uuid
 
 from src.models.models import LegalDocument, DocType, ComplianceDomain, RiskLevel
+from src.models.tenant_models import Tenant
 
 
 class BaseSQLAlchemyFactory(factory.alchemy.SQLAlchemyModelFactory):
@@ -62,3 +63,17 @@ class UserFactory(factory.Factory):
     password = "TestPassword123!"
     full_name = factory.Faker("name")
     role = factory.Faker("random_element", elements=["user", "analyst", "admin"])
+
+
+class TenantFactory(BaseSQLAlchemyFactory):
+    """Factory for creating test Tenant instances."""
+
+    class Meta:
+        model = Tenant
+        sqlalchemy_session_persistence = "commit"
+
+    tenant_id = factory.LazyFunction(lambda: f"tenant_{uuid.uuid4().hex[:8]}")
+    name = factory.Faker("company")
+    display_name = factory.Faker("company")
+    is_active = True
+    tier = "standard"
