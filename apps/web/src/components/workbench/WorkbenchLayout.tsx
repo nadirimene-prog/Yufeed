@@ -31,7 +31,10 @@ export function WorkbenchLayout({
   const [isDiscoveryExpanded, setIsDiscoveryExpanded] = useState(true);
   const [isIntelligenceExpanded, setIsIntelligenceExpanded] = useState(true);
   const [isFlowing, setIsFlowing] = useState(false);
-  const [isDesktop, setIsDesktop] = useState(false);
+  const [isDesktop, setIsDesktop] = useState(() => {
+    if (typeof window === "undefined") return false;
+    return window.matchMedia("(min-width: 1280px)").matches;
+  });
 
   useEffect(() => {
     const media = window.matchMedia("(min-width: 1280px)");
@@ -62,7 +65,7 @@ export function WorkbenchLayout({
   }, [activeId]);
 
   return (
-    <div className="flex flex-col min-h-[calc(100vh-theme(spacing.24))] w-full gap-2 p-2 md:p-4">
+    <div className="relative flex flex-col min-h-[calc(100vh-theme(spacing.24))] w-full gap-2 p-2 md:p-4">
       {/* Global HUD */}
       <SentinelHUD />
 
@@ -95,6 +98,11 @@ export function WorkbenchLayout({
               )}
               <button
                 onClick={() => setIsDiscoveryExpanded(!isDiscoveryExpanded)}
+                aria-label={
+                  isDiscoveryExpanded
+                    ? "Collapse discovery rail"
+                    : "Expand discovery rail"
+                }
                 className="rounded-lg p-1.5 text-white/40 hover:bg-white/5 hover:text-white"
               >
                 {isDiscoveryExpanded ? (
@@ -189,6 +197,7 @@ export function WorkbenchLayout({
             </div>
             <div className="flex items-center gap-2">
               <button className="rounded-lg p-1.5 text-white/40 hover:bg-white/5 hover:text-white">
+                <span className="sr-only">Expand workspace</span>
                 <Maximize2 size={14} />
               </button>
             </div>
@@ -231,6 +240,11 @@ export function WorkbenchLayout({
               <button
                 onClick={() =>
                   setIsIntelligenceExpanded(!isIntelligenceExpanded)
+                }
+                aria-label={
+                  isIntelligenceExpanded
+                    ? "Collapse intelligence panel"
+                    : "Expand intelligence panel"
                 }
                 className="rounded-lg p-1.5 text-white/40 hover:bg-white/5 hover:text-white"
               >

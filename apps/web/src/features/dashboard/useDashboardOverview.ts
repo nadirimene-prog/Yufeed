@@ -12,6 +12,7 @@ import {
 export function useDashboardOverview(
   view: DashboardView,
   timeRange: DashboardTimeRange,
+  options?: { enabled?: boolean },
 ) {
   return useQuery({
     queryKey: dashboardKeys.overview(view, timeRange),
@@ -26,5 +27,6 @@ export function useDashboardOverview(
     },
     staleTime: 30_000,
     refetchInterval: 60_000,
+    enabled: options?.enabled ?? true,
   });
 }

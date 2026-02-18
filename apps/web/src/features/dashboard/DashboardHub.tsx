@@ -6,9 +6,11 @@ import {
   Activity,
   AlertTriangle,
   Clock,
+  FileSearch,
   FolderOpen,
   Gauge,
   Layers3,
+  Route,
   ShieldAlert,
 } from "lucide-react";
 import { MetricCard } from "@/components/ui/metric-card";
@@ -42,6 +44,7 @@ const VIEW_OPTIONS: Array<{ key: DashboardView; label: string }> = [
 ];
 
 const RANGE_OPTIONS: DashboardTimeRange[] = ["24h", "7d", "30d"];
+const DASHBOARD_V2_ENABLED = process.env.NEXT_PUBLIC_DASHBOARD_V2 !== "false";
 
 export function DashboardHub() {
   const router = useRouter();
@@ -52,7 +55,13 @@ export function DashboardHub() {
   const range = resolveDashboardTimeRange(searchParams.get("range"));
   const hasToken = Boolean(getAuthToken());
 
-  const { data, isLoading, isError, error } = useDashboardOverview(view, range);
+  const { data, isLoading, isError, error } = useDashboardOverview(
+    view,
+    range,
+    {
+      enabled: hasToken && DASHBOARD_V2_ENABLED,
+    },
+  );
 
   const updateFilters = (
     nextView: DashboardView = view,
@@ -81,6 +90,28 @@ export function DashboardHub() {
             <Link href="/">
               <Button variant="gradient">Sign In</Button>
             </Link>
+          </GlassCardContent>
+        </GlassCard>
+      </div>
+    );
+  }
+
+  if (!DASHBOARD_V2_ENABLED) {
+    return (
+      <div className="min-h-[70vh] flex items-center justify-center">
+        <GlassCard className="max-w-xl">
+          <GlassCardContent className="py-8 space-y-3 text-center">
+            <h2 className="text-xl font-semibold text-white">
+              Dashboard V2 Disabled
+            </h2>
+            <p className="text-sm text-white/60">
+              `NEXT_PUBLIC_DASHBOARD_V2` is disabled for this environment.
+            </p>
+            <div className="flex justify-center">
+              <Link href="/compliance">
+                <Button variant="glass">Open Compliance</Button>
+              </Link>
+            </div>
           </GlassCardContent>
         </GlassCard>
       </div>
@@ -135,6 +166,16 @@ function DashboardToolbar({
   onViewChange: (view: DashboardView) => void;
   onRangeChange: (range: DashboardTimeRange) => void;
 }) {
+  const quickActions = [
+    { href: "/transaction-alerts", label: "Alert Queue", icon: AlertTriangle },
+    { href: "/cases", label: "Case Workspace", icon: FileSearch },
+    {
+      href: "/transaction-monitoring/rules",
+      label: "Rule Tuning",
+      icon: Route,
+    },
+  ];
+
   return (
     <div className="rounded-2xl border border-white/10 bg-void-925/30 backdrop-blur-md p-4">
       <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
@@ -145,11 +186,17 @@ function DashboardToolbar({
           </p>
         </div>
         <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
-          <div className="inline-flex rounded-xl border border-white/10 bg-white/5 p-1">
+          <div
+            className="inline-flex rounded-xl border border-white/10 bg-white/5 p-1"
+            role="tablist"
+            aria-label="Dashboard view selector"
+          >
             {VIEW_OPTIONS.map((option) => (
               <button
                 key={option.key}
                 onClick={() => onViewChange(option.key)}
+                role="tab"
+                aria-selected={option.key === view}
                 className={cn(
                   "rounded-lg px-3 py-1.5 text-xs font-semibold uppercase tracking-wide transition-colors",
                   option.key === view
@@ -166,6 +213,7 @@ function DashboardToolbar({
             onChange={(event) =>
               onRangeChange(event.target.value as DashboardTimeRange)
             }
+            aria-label="Dashboard time range"
             className="h-10 rounded-xl border border-white/10 bg-white/5 px-3 text-sm text-white focus:outline-none focus:ring-2 focus:ring-aurora-500/40"
           >
             {RANGE_OPTIONS.map((option) => (
@@ -175,6 +223,16 @@ function DashboardToolbar({
             ))}
           </select>
         </div>
+      </div>
+      <div className="mt-4 flex flex-wrap gap-2">
+        {quickActions.map((action) => (
+          <Link key={action.href} href={action.href}>
+            <Button variant="glass" size="sm">
+              <action.icon className="h-3.5 w-3.5 mr-1.5" />
+              {action.label}
+            </Button>
+          </Link>
+        ))}
       </div>
     </div>
   );
@@ -307,6 +365,12 @@ function AlertQueuePanel({
               <p className="text-[10px] text-white/45">
                 Priority {item.priority} • User {item.user_id}
               </p>
+              <Link
+                href={`/transaction-alerts/${item.id}`}
+                className="inline-flex text-[10px] text-cyan-300 hover:text-cyan-200"
+              >
+                Open alert details
+              </Link>
             </li>
           ))}
         </ul>
@@ -342,7 +406,16 @@ function HealthAndContextPanel({
         <GlassCardContent className="space-y-3">
           <div className="rounded-lg border border-white/10 bg-white/5 px-3 py-2">
             <p className="text-xs text-white/55">Status</p>
-            <p className="text-sm font-semibold text-white">
+            <p
+              className={cn(
+                "text-sm font-semibold",
+                data?.system_health.status === "healthy"
+                  ? "text-risk-low"
+                  : data?.system_health.status === "warning"
+                    ? "text-risk-medium"
+                    : "text-risk-critical",
+              )}
+            >
               {data?.system_health.status ?? "unknown"}
             </p>
           </div>
