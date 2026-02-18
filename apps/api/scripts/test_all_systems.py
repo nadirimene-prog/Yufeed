@@ -76,7 +76,7 @@ def test_deadline_reminders():
 
         print("\n  Testing auto-categorization:")
         from sqlalchemy.orm import sessionmaker
-        from sqlalchemy import create_engine
+        from sqlalchemy import create_engine, text
 
         engine = create_engine("sqlite:///./compliance.db")
         Session = sessionmaker(bind=engine)

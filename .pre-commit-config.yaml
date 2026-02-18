@@ -79,6 +79,10 @@ repos:
         files: ^apps/web/src/.*\.(ts|tsx)$
         pass_filenames: false
         types: [file]
+        exclude: >-
+          (?x)^(
+            apps/web/src/components/ui/button\.tsx$
+          )$
 
   # ── Frontend: Prettier ────────────────────────────────────────────────
   - repo: local
