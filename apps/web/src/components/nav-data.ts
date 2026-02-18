@@ -41,6 +41,11 @@ const OPERATIONS_ITEMS: NavItem[] = [
 /* ─── 2. COMPLIANCE ─────────────────────────────────────────────── */
 const COMPLIANCE_ITEMS: NavItem[] = [
   {
+    label: "Compliance Command",
+    href: "/dashboard?view=compliance",
+    description: "AMLCO triage and governance.",
+  },
+  {
     label: "Obligations",
     href: "/compliance/obligations",
     description: "Regulatory obligations.",
@@ -72,7 +77,7 @@ const COMPLIANCE_ITEMS: NavItem[] = [
   },
   {
     label: "Monitoring Dashboard",
-    href: "/transaction-monitoring/dashboard",
+    href: "/dashboard?view=monitoring",
     description: "Live metrics.",
   },
 ];
@@ -211,18 +216,23 @@ export const NAV_AREAS: NavArea[] = [
 
 const normalizePath = (pathname: string) => {
   if (!pathname) return "/";
-  if (pathname !== "/" && pathname.endsWith("/")) {
-    return pathname.slice(0, -1);
+  const basePath = pathname.split("?")[0] || "/";
+  if (basePath !== "/" && basePath.endsWith("/")) {
+    return basePath.slice(0, -1);
   }
-  return pathname;
+  return basePath;
 };
 
 export const isRouteMatch = (pathname: string, prefix: string) => {
   const normalized = normalizePath(pathname);
-  if (prefix === "/") {
+  const normalizedPrefix = normalizePath(prefix);
+  if (normalizedPrefix === "/") {
     return normalized === "/";
   }
-  return normalized === prefix || normalized.startsWith(`${prefix}/`);
+  return (
+    normalized === normalizedPrefix ||
+    normalized.startsWith(`${normalizedPrefix}/`)
+  );
 };
 
 export const getAutoAreaForPath = (pathname: string) => {

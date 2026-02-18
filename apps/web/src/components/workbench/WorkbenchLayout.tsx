@@ -19,6 +19,7 @@ interface WorkbenchLayoutProps {
   intelligencePanel?: React.ReactNode;
   title?: string;
   activeId?: string; // ID for shared element transitions
+  reduceDecorativeMotion?: boolean;
 }
 
 export function WorkbenchLayout({
@@ -27,6 +28,7 @@ export function WorkbenchLayout({
   intelligencePanel,
   title = "Sentinel Workbench",
   activeId,
+  reduceDecorativeMotion = true,
 }: WorkbenchLayoutProps) {
   const [isDiscoveryExpanded, setIsDiscoveryExpanded] = useState(true);
   const [isIntelligenceExpanded, setIsIntelligenceExpanded] = useState(true);
@@ -51,6 +53,7 @@ export function WorkbenchLayout({
 
   // Trigger wayfinding particles when activeId changes
   useEffect(() => {
+    if (reduceDecorativeMotion) return;
     if (activeId) {
       // Use requestAnimationFrame to avoid synchronous setState during render warning
       const rafId = requestAnimationFrame(() => {
@@ -62,7 +65,7 @@ export function WorkbenchLayout({
         clearTimeout(timer);
       };
     }
-  }, [activeId]);
+  }, [activeId, reduceDecorativeMotion]);
 
   return (
     <div className="relative flex flex-col min-h-[calc(100vh-theme(spacing.24))] w-full gap-2 p-2 md:p-4">
@@ -147,7 +150,7 @@ export function WorkbenchLayout({
 
         {/* Flow Particles Overlay */}
         <AnimatePresence>
-          {isFlowing && (
+          {!reduceDecorativeMotion && isFlowing && (
             <div className="absolute inset-0 pointer-events-none z-50 overflow-hidden">
               {[...Array(6)].map((_, i) => (
                 <motion.div
