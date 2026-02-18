@@ -53,6 +53,9 @@ def register_routers(app: FastAPI) -> None:
     from .api.decisioning import router as decisioning_router
 
     include_with_api_prefix(decisioning_router)
+    from .api.dashboard_overview import router as dashboard_overview_router
+
+    include_with_api_prefix(dashboard_overview_router)
     from .api.endpoints import router as endpoints_router
 
     include_with_api_prefix(endpoints_router)
@@ -86,6 +89,9 @@ def register_routers(app: FastAPI) -> None:
     from .api.monitoring_rules import router as monitoring_rules_router
 
     include_with_api_prefix(monitoring_rules_router)
+    from .api.rules_alias import router as rules_alias_router
+
+    include_with_api_prefix(rules_alias_router)
     from .api.network_analysis import router as network_analysis_router
 
     include_with_api_prefix(network_analysis_router)

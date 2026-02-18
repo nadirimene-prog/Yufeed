@@ -8,7 +8,7 @@ from fastapi import APIRouter, Depends, HTTPException, BackgroundTasks, Query
 from sqlalchemy.orm import Session
 from sqlalchemy import text
 from typing import List, Optional, Dict, Any
-from datetime import datetime, timezone
+from datetime import datetime, timezone, timedelta
 
 from src.database import get_db
 from src.auth.dependencies import require_any_role, CurrentUser
@@ -62,7 +62,7 @@ async def generate_policy(
         raise HTTPException(status_code=404, detail=f"Obligations not found: {missing}")
 
     # Add creator to request
-    request.created_by = current_user.id
+    request.created_by = current_user.user_id
 
     # Start generation
     try:
@@ -193,7 +193,7 @@ async def preview_generation(
                 "id": o.id,
                 "celex": o.celex,
                 "article_ref": o.article_ref,
-                "category": o.category,
+                "category": getattr(o, "category", None),
                 "text_preview": (
                     o.obligation_text[:100] + "..."
                     if len(o.obligation_text) > 100
@@ -309,7 +309,7 @@ def approve_generated_policy(
 
     try:
         policy_id = generator.approve_generation(
-            job_id=job_id, reviewed_by=current_user.id, notes=notes
+            job_id=job_id, reviewed_by=current_user.user_id, notes=notes
         )
 
         return {
@@ -347,7 +347,7 @@ def reject_generated_policy(
         WHERE job_id = :job_id
     """
         ),
-        {"job_id": job_id, "reviewer": current_user.id, "reason": reason},
+        {"job_id": job_id, "reviewer": current_user.user_id, "reason": reason},
     )
     db.commit()
 
@@ -434,7 +434,7 @@ def get_generator_stats(
     """
     Get policy generator usage statistics.
     """
-    since = datetime.now(timezone.utc).replace(day=datetime.now(timezone.utc).day - days)
+    since = datetime.now(timezone.utc) - timedelta(days=days)
 
     stats = db.execute(
         text(
@@ -494,7 +494,7 @@ async def quick_generate(
             "mlro_name": mlro_name,
             "jurisdiction": "European Union",
         },
-        created_by=current_user.id,
+        created_by=current_user.user_id,
     )
 
     generator = get_policy_generator(db)

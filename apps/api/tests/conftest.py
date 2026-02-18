@@ -16,6 +16,11 @@ from opensearchpy import OpenSearch
 from src.database import Base, get_db, get_async_db, SessionLocal
 from src.main import app
 from src.config import settings
+from src.audit import models as _audit_models  # noqa: F401 - register audit tables on Base metadata
+from src import models as _all_models  # noqa: F401 - register all ORM tables on Base metadata
+from src.models import (
+    associations as _association_models,
+)  # noqa: F401 - register association tables
 from src.models.user import User
 from src.models.tenant_models import Tenant, TenantUser
 from src.auth.jwt_handler import create_token_response
@@ -95,13 +100,18 @@ class SyncToAsyncSessionAdapter:
 # ============================================================================
 
 
-@pytest.fixture(scope="session")
+@pytest.fixture(scope="function")
 def test_db_engine():
     """
-    Create a test database engine using DATABASE_URL.
+    Create a test database engine.
+
+    Uses TEST_DATABASE_URL when explicitly provided. Otherwise defaults to
+    an in-memory SQLite database to keep tests isolated from the app/runtime
+    database configured in .env.
+
     For SQLite, reuse a shared file-backed DB to support async + sync sessions.
     """
-    db_url = os.getenv("DATABASE_URL", "sqlite:///:memory:")
+    db_url = os.getenv("TEST_DATABASE_URL", "sqlite:///:memory:")
     connect_args = {}
     poolclass = None
 
@@ -138,19 +148,12 @@ def test_db_engine():
 
 
 @pytest.fixture(scope="function")
-def db_session(request, test_db_engine) -> Generator[Session, None, None]:
+def db_session(test_db_engine) -> Generator[Session, None, None]:
     """
     Create a new database session for each test.
-    Automatically rolls back after each test for isolation.
+    A fresh engine is created per test, providing hard isolation.
     """
-    connection = test_db_engine.connect()
-    use_outer_tx = request.node.get_closest_marker("integration") is None
-
-    transaction = None
-    if use_outer_tx:
-        transaction = connection.begin()
-
-    TestSessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=connection)
+    TestSessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=test_db_engine)
     session = TestSessionLocal()
     # Bind factory_boy SQLAlchemy factories to this session.
     try:
@@ -184,11 +187,8 @@ def db_session(request, test_db_engine) -> Generator[Session, None, None]:
 
     yield session
 
-    # Rollback and cleanup
+    # Cleanup
     session.close()
-    if transaction is not None:
-        transaction.rollback()
-    connection.close()
 
 
 @pytest.fixture(scope="function")
@@ -351,6 +351,19 @@ def ensure_tenant_membership(db_session):
         return tenant
 
     return _ensure
+
+
+@pytest.fixture
+def tenant_factory(db_session):
+    """
+    Factory helper for creating tenants bound to the current test session.
+    """
+    from tests.factories import TenantFactory
+
+    def _create(**kwargs):
+        return TenantFactory(sqlalchemy_session=db_session, **kwargs)
+
+    return _create
 
 
 @pytest.fixture

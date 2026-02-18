@@ -240,7 +240,7 @@ class SARFilingSystem:
         self, case: Case, alerts: List[Alert], transactions: List[Transaction]
     ) -> str:
         """Generate manual narrative when AI is unavailable."""
-        narrative = f"Suspicious Activity Report\n\n"
+        narrative = "Suspicious Activity Report\n\n"
         narrative += f"Case: {case.case_id}\n"
         narrative += f"Summary: {case.summary or case.description}\n\n"
 

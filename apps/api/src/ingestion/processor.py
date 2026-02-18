@@ -203,13 +203,26 @@ class IngestionProcessor:
                     relation_type = relation.get("relation_type")
                     if not related_celex or not relation_type:
                         continue
+                    related_doc = (
+                        self.db.query(LegalDocument)
+                        .filter(LegalDocument.celex == related_celex)
+                        .first()
+                    )
+                    if not related_doc:
+                        logger.debug(
+                            "Skipping relation for %s (%s -> %s): related document not in database",
+                            celex,
+                            relation_type,
+                            related_celex,
+                        )
+                        continue
                     # Check if relation already exists (idempotency)
                     existing_relation = (
                         self.db.query(LegalRelation)
                         .filter(
                             LegalRelation.from_doc_id == new_doc.id,
                             LegalRelation.relation_type == relation_type,
-                            LegalRelation.to_celex == related_celex,
+                            LegalRelation.to_doc_id == related_doc.id,
                         )
                         .first()
                     )
@@ -217,7 +230,7 @@ class IngestionProcessor:
                         legal_relation = LegalRelation(
                             from_doc_id=new_doc.id,
                             relation_type=relation_type,
-                            to_celex=related_celex,
+                            to_doc_id=related_doc.id,
                         )
                         self.db.add(legal_relation)
                         logger.info(f"Stored relation: {celex} {relation_type} {related_celex}")

@@ -2,10 +2,11 @@
 
 export const dynamic = "force-dynamic";
 
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { handleApiError } from "@/lib/api-error-handler";
+import { getAuthUserProfile } from "@/lib/auth";
 import ObligationApprovalModal from "@/components/compliance/ObligationApprovalModal";
 import type { Obligation } from "@/types/compliance";
 import { getPolicies, getPolicySections } from "@/lib/compliance-api";
@@ -76,6 +77,7 @@ export default function ObligationDetailPage() {
     null,
   );
   const [showApprovalModal, setShowApprovalModal] = useState(false);
+  const currentUser = useMemo(() => getAuthUserProfile(), []);
 
   const policiesQuery = useQuery({
     queryKey: complianceKeys.policiesList(POLICIES_PARAMS),
@@ -191,7 +193,17 @@ export default function ObligationDetailPage() {
     }
   };
 
-  const actionsFor = (status?: string) => {
+  const isCurrentUserCreator = (createdBy?: string | null) => {
+    const actor = createdBy?.trim().toLowerCase();
+    if (!actor) return false;
+    const aliases = [currentUser?.email, currentUser?.userId]
+      .filter((value): value is string => typeof value === "string")
+      .map((value) => value.trim().toLowerCase())
+      .filter(Boolean);
+    return aliases.includes(actor);
+  };
+
+  const actionsFor = (status?: string, createdBy?: string | null) => {
     const normalized = (status ?? "draft").toLowerCase();
     if (normalized === "draft") {
       return [
@@ -200,10 +212,11 @@ export default function ObligationDetailPage() {
       ];
     }
     if (normalized === "in_review") {
-      return [
-        { label: "Approve", status: "approved" },
-        { label: "Reject", status: "rejected" },
-      ];
+      const actions = [{ label: "Reject", status: "rejected" }];
+      if (!isCurrentUserCreator(createdBy)) {
+        actions.unshift({ label: "Approve", status: "approved" });
+      }
+      return actions;
     }
     if (normalized === "rejected") {
       return [{ label: "Reopen", status: "draft" }];
@@ -245,7 +258,7 @@ export default function ObligationDetailPage() {
     return <div className="text-sm text-gray-500">Obligation not found.</div>;
   }
 
-  const actions = actionsFor(obligation.status);
+  const actions = actionsFor(obligation.status, obligation.created_by);
 
   return (
     <div className="space-y-6">

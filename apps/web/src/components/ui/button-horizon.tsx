@@ -85,8 +85,7 @@ const buttonVariants = cva(
    ───────────────────────────────────────────────────────────────────────────── */
 
 export interface ButtonProps
-  extends
-    React.ButtonHTMLAttributes<HTMLButtonElement>,
+  extends React.ButtonHTMLAttributes<HTMLButtonElement>,
     VariantProps<typeof buttonVariants> {
   asChild?: boolean;
   loading?: boolean;
@@ -138,10 +137,8 @@ Button.displayName = "Button";
    Icon Button Component
    ───────────────────────────────────────────────────────────────────────────── */
 
-export interface IconButtonProps extends Omit<
-  ButtonProps,
-  "leftIcon" | "rightIcon" | "size"
-> {
+export interface IconButtonProps
+  extends Omit<ButtonProps, "leftIcon" | "rightIcon" | "size"> {
   size?: "sm" | "md" | "lg";
   icon: React.ReactNode;
   label: string;

@@ -72,6 +72,7 @@ def validate_rule(
     }
 
 
+@router.post("", response_model=MonitoringRuleResponse, status_code=201, include_in_schema=False)
 @router.post("/", response_model=MonitoringRuleResponse, status_code=201)
 def create_rule(rule: MonitoringRuleCreate, db: Session = Depends(get_db)):
     """
@@ -134,6 +135,7 @@ def create_rule(rule: MonitoringRuleCreate, db: Session = Depends(get_db)):
     return db_rule
 
 
+@router.get("", response_model=List[MonitoringRuleResponse], include_in_schema=False)
 @router.get("/", response_model=List[MonitoringRuleResponse])
 def list_rules(
     skip: int = Query(0, ge=0),
@@ -164,6 +166,18 @@ def list_rules(
     rules = query.offset(skip).limit(limit).all()
 
     return rules
+
+
+def _list_versions(status: Optional[str], db: Session) -> List[RuleVersion]:
+    query = db.query(RuleVersion)
+    if status:
+        query = query.filter(RuleVersion.status == status)
+    return query.order_by(RuleVersion.created_at.desc()).all()
+
+
+@router.get("/versions", response_model=List[RuleVersionResponse])
+def list_versions(status: Optional[str] = None, db: Session = Depends(get_db)):
+    return _list_versions(status, db)
 
 
 @router.get("/{rule_id}", response_model=MonitoringRuleResponse)
@@ -376,20 +390,12 @@ def list_rule_versions(
     return versions
 
 
-@router.get("/versions", response_model=List[RuleVersionResponse])
-def list_versions(status: Optional[str] = None, db: Session = Depends(get_db)):
-    query = db.query(RuleVersion)
-    if status:
-        query = query.filter(RuleVersion.status == status)
-    return query.order_by(RuleVersion.created_at.desc()).all()
-
-
 @router.post("/{rule_id}/versions", response_model=RuleVersionResponse)
 def create_rule_version(
     rule_id: str,
     request: RuleVersionCreate,
     db: Session = Depends(get_db),
-    _: CurrentUser = Depends(
+    current_user: CurrentUser = Depends(
         require_any_role(["admin", "compliance", "aml_officer", "auditor", "user"])
     ),
     tenant_id: str = Depends(require_tenant),
@@ -428,7 +434,7 @@ def create_rule_version(
         conditions=request.conditions if request.conditions is not None else rule.conditions,
         thresholds=request.thresholds if request.thresholds is not None else rule.thresholds,
         enabled=request.enabled if request.enabled is not None else rule.enabled,
-        created_by=rule.created_by,
+        created_by=current_user.user_id,
         notes=request.notes,
     )
     db.add(version)
@@ -438,9 +444,9 @@ def create_rule_version(
     audit_entry = AuditLog(
         audit_id=uuid.uuid4().hex,
         tenant_id=tenant_id,
-        actor_id=_.user_id,
-        actor_email=_.email,
-        actor_role=_.role,
+        actor_id=current_user.user_id,
+        actor_email=current_user.email,
+        actor_role=current_user.role,
         actor_type="user",
         action="submit",
         method="POST",
@@ -461,14 +467,23 @@ def create_rule_version(
 def approve_rule_version(
     version_id: int,
     db: Session = Depends(get_db),
-    _: CurrentUser = Depends(require_any_role(["admin", "compliance", "aml_officer"])),
+    current_user: CurrentUser = Depends(require_any_role(["admin", "compliance", "aml_officer"])),
     tenant_id: str = Depends(require_tenant),
 ):
-    version = db.query(RuleVersion).filter(RuleVersion.id == version_id).first()
+    version = (
+        db.query(RuleVersion)
+        .filter(RuleVersion.id == version_id, RuleVersion.tenant_id == tenant_id)
+        .first()
+    )
     if not version:
         raise HTTPException(status_code=404, detail="Rule version not found")
     if version.status != "pending":
         raise HTTPException(status_code=400, detail="Rule version is not pending")
+    if version.created_by and current_user.user_id == version.created_by:
+        raise HTTPException(
+            status_code=409,
+            detail="4-eyes violation: approver cannot be the same as the rule version submitter",
+        )
 
     # Phase 4C: Tenant-filtered query for the associated rule
     rule = (
@@ -494,6 +509,7 @@ def approve_rule_version(
     rule.updated_at = utc_now()
 
     version.status = "approved"
+    version.approved_by = current_user.user_id
     version.approved_at = utc_now()
 
     db.commit()
@@ -502,9 +518,9 @@ def approve_rule_version(
     audit_entry = AuditLog(
         audit_id=uuid.uuid4().hex,
         tenant_id=tenant_id,
-        actor_id=_.user_id,
-        actor_email=_.email,
-        actor_role=_.role,
+        actor_id=current_user.user_id,
+        actor_email=current_user.email,
+        actor_role=current_user.role,
         actor_type="user",
         action="approve",
         method="POST",
@@ -525,27 +541,40 @@ def approve_rule_version(
 def reject_rule_version(
     version_id: int,
     db: Session = Depends(get_db),
-    _: CurrentUser = Depends(require_any_role(["admin", "compliance", "aml_officer"])),
+    current_user: CurrentUser = Depends(require_any_role(["admin", "compliance", "aml_officer"])),
+    tenant_id: str = Depends(require_tenant),
 ):
-    version = db.query(RuleVersion).filter(RuleVersion.id == version_id).first()
+    version = (
+        db.query(RuleVersion)
+        .filter(RuleVersion.id == version_id, RuleVersion.tenant_id == tenant_id)
+        .first()
+    )
     if not version:
         raise HTTPException(status_code=404, detail="Rule version not found")
     if version.status != "pending":
         raise HTTPException(status_code=400, detail="Rule version is not pending")
 
     version.status = "rejected"
+    version.approved_by = current_user.user_id
     version.approved_at = utc_now()
     db.commit()
     db.refresh(version)
 
-    rule = db.query(MonitoringRule).filter(MonitoringRule.id == version.rule_id).first()
+    rule = (
+        get_tenant_filtered_query(MonitoringRule, db)
+        .filter(MonitoringRule.id == version.rule_id)
+        .first()
+    )
+    if not rule:
+        raise HTTPException(status_code=404, detail="Rule not found")
+    ensure_tenant_match(rule, tenant_id)
 
     audit_entry = AuditLog(
         audit_id=uuid.uuid4().hex,
-        tenant_id=_.tenant_id or "default",
-        actor_id=_.user_id,
-        actor_email=_.email,
-        actor_role=_.role,
+        tenant_id=tenant_id,
+        actor_id=current_user.user_id,
+        actor_email=current_user.email,
+        actor_role=current_user.role,
         actor_type="user",
         action="reject",
         method="POST",
@@ -554,7 +583,7 @@ def reject_rule_version(
         entity_id=str(version.id),
         status_code=200,
         changes={"status": "rejected", "version_number": version.version_number},
-        metadata_json={"rule_id": rule.rule_id if rule else None},
+        metadata_json={"rule_id": rule.rule_id},
     )
     db.add(audit_entry)
     db.commit()

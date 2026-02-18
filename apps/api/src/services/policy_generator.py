@@ -36,7 +36,7 @@ class PolicyGenerationRequest:
     obligation_ids: List[int]
     variable_values: Dict[str, Any]
     base_policy_id: Optional[int] = None
-    created_by: int = 0
+    created_by: str = ""
 
 
 @dataclass
@@ -492,10 +492,14 @@ Generate the policy section content only, without the title:"""
         if len(obligations) > 3:
             obl_summary += f" and {len(obligations) - 3} more"
 
+        first_category = (
+            getattr(obligations[0], "category", None) if obligations else None
+        ) or "Compliance"
+
         summary = f"""This policy addresses {len(obligations)} regulatory obligations from {obl_summary}.
 
 Key areas covered:
-- {obligations[0].category if obligations else 'Compliance'} requirements
+- {first_category} requirements
 - Implementation procedures
 - Roles and responsibilities
 - Record keeping obligations
@@ -661,7 +665,7 @@ The policy is {len(content.split())} words and estimated reading time is {len(co
             estimated_reading_time=len(job[0].split()) // 200 if job[0] else 0,
         )
 
-    def approve_generation(self, job_id: str, reviewed_by: int, notes: Optional[str] = None) -> int:
+    def approve_generation(self, job_id: str, reviewed_by: str, notes: Optional[str] = None) -> int:
         """
         Approve a generated policy and create the actual policy document.
 
@@ -675,13 +679,17 @@ The policy is {len(content.split())} words and estimated reading time is {len(co
 
         # Create policy document
         policy = PolicyDocument(
-            title=f"AI Generated Policy - {datetime.now(timezone.utc).strftime('%Y-%m-%d')}",
+            policy_id=f"POL-{uuid.uuid4().hex[:10].upper()}",
+            name=f"AI Generated Policy - {datetime.now(timezone.utc).strftime('%Y-%m-%d')}",
             status="draft",
             content=result.generated_content,
             version="1.0",
-            is_ai_generated=True,
-            generation_job_id=job_id,
-            ai_confidence_score=result.ai_confidence,
+            owner=reviewed_by,
+            metadata_json={
+                "is_ai_generated": True,
+                "generation_job_id": job_id,
+                "ai_confidence_score": result.ai_confidence,
+            },
         )
 
         self.db.add(policy)
@@ -710,8 +718,7 @@ The policy is {len(content.split())} words and estimated reading time is {len(co
                 text(
                     """
                 UPDATE regulatory_obligations
-                SET generated_policy_id = :policy_id,
-                    coverage_status = 'covered'
+                SET linked_policy_id = :policy_id
                 WHERE id = :obl_id
             """
                 ),

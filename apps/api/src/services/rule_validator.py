@@ -16,7 +16,6 @@ import sqlalchemy as sa
 
 from src.models.transaction_models import Transaction
 
-
 FieldCategory = Literal["numeric", "string", "datetime", "boolean", "other"]
 
 

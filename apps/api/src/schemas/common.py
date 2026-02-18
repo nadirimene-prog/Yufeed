@@ -8,7 +8,6 @@ from pydantic import BaseModel, Field
 from typing import TypeVar, Generic, List, Optional, Any
 from datetime import datetime
 
-
 # Generic type for paginated items
 T = TypeVar("T")
 

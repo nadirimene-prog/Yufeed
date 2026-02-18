@@ -16,8 +16,6 @@ const eslintConfig = defineConfig([
     "out/**",
     "build/**",
     "next-env.d.ts",
-    // Files with known TypeScript config issues
-    "src/components/ui/button.tsx",
   ]),
   {
     files: ["**/*.ts", "**/*.tsx", "**/*.mts"],

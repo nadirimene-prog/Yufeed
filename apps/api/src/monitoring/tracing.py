@@ -71,7 +71,7 @@ def setup_tracing(app, engine):
 
         # Auto-instrument FastAPI
         FastAPIInstrumentor.instrument_app(app)
-        logger.info(f"FastAPI instrumented for tracing")
+        logger.info("FastAPI instrumented for tracing")
 
         # Auto-instrument SQLAlchemy
         SQLAlchemyInstrumentor().instrument(
@@ -79,16 +79,16 @@ def setup_tracing(app, engine):
             enable_commenter=True,
             commenter_options={"db_framework": True, "opentelemetry_values": True},
         )
-        logger.info(f"SQLAlchemy instrumented for tracing")
+        logger.info("SQLAlchemy instrumented for tracing")
 
         # Auto-instrument HTTPX (for external API calls)
         HTTPXClientInstrumentor().instrument()
-        logger.info(f"HTTPX instrumented for tracing")
+        logger.info("HTTPX instrumented for tracing")
 
         # Auto-instrument Redis
         try:
             RedisInstrumentor().instrument()
-            logger.info(f"Redis instrumented for tracing")
+            logger.info("Redis instrumented for tracing")
         except Exception as e:
             logger.warning(f"Failed to instrument Redis: {e}")
 

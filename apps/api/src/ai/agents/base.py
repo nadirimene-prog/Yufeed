@@ -407,7 +407,12 @@ class BaseAgent(ABC, Generic[T]):
                 messages=messages,
             )
 
-            content = response.content[0].text
+            text_chunks: List[str] = []
+            for block in response.content:
+                maybe_text = getattr(block, "text", None)
+                if isinstance(maybe_text, str):
+                    text_chunks.append(maybe_text)
+            content = "\n".join(text_chunks).strip()
             processing_time = int((time.time() - start_time) * 1000)
 
             logger.info(

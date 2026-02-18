@@ -374,30 +374,29 @@ class GapAnalyzer:
             celex = obl_row[1]
             doc_title = obl_row[2]
 
-            # Auto-categorize if not already done
-            if not obligation.category:
-                category = self.auto_categorize_obligation(obligation.obligation_text)
-                obligation.category = category.value
-                obligation.auto_categorized = True
+            # Auto-categorize if no persisted category attribute is present.
+            raw_category = getattr(obligation, "category", None)
+            if raw_category:
+                try:
+                    category = ObligationCategory(raw_category)
+                except ValueError:
+                    category = self.auto_categorize_obligation(obligation.obligation_text)
             else:
-                category = ObligationCategory(obligation.category)
+                category = self.auto_categorize_obligation(obligation.obligation_text)
 
             # Determine coverage status
             is_mapped = obligation.id in mapped_obligation_ids
             has_linked_policy = obligation.linked_policy_id is not None
 
             if is_mapped or has_linked_policy:
-                obligation.coverage_status = CoverageStatus.COVERED.value
                 covered_count += 1
                 category_stats[category]["covered"] += 1
             else:
-                obligation.coverage_status = CoverageStatus.UNCOVERED.value
                 uncovered_count += 1
                 category_stats[category]["uncovered"] += 1
 
                 # Calculate severity
                 severity = self.calculate_severity(obligation, category)
-                obligation.gap_severity = severity.value
 
                 # Calculate days until effective
                 days_until = None
@@ -442,9 +441,6 @@ class GapAnalyzer:
                 gaps.append(gap)
 
             category_stats[category]["total"] += 1
-
-        # Commit categorization updates
-        self.db.commit()
 
         # 4. Build metrics
         metrics = []
@@ -634,33 +630,16 @@ class GapAnalyzer:
                 },
             )
 
-            # Update obligation status
+            # Update linked policy pointer
             self.db.execute(
                 text(
                     """
                 UPDATE regulatory_obligations
-                SET coverage_status = 'covered',
-                    linked_policy_id = :policy_id
+                SET linked_policy_id = :policy_id
                 WHERE id = :obl_id
             """
                 ),
                 {"obl_id": obligation_id, "policy_id": policy_id},
-            )
-
-            # Update policy coverage count
-            self.db.execute(
-                text(
-                    """
-                UPDATE policy_documents
-                SET obligations_covered_count = (
-                    SELECT COUNT(*) FROM obligation_policy_mappings
-                    WHERE policy_id = :policy_id
-                ),
-                last_coverage_analysis = CURRENT_TIMESTAMP
-                WHERE id = :policy_id
-            """
-                ),
-                {"policy_id": policy_id},
             )
 
             self.db.commit()

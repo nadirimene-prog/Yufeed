@@ -106,7 +106,8 @@ FormLabel.displayName = "FormLabel";
    Form Description Component
    ───────────────────────────────────────────────────────────────────────────── */
 
-interface FormDescriptionProps extends React.HTMLAttributes<HTMLParagraphElement> {
+interface FormDescriptionProps
+  extends React.HTMLAttributes<HTMLParagraphElement> {
   children: React.ReactNode;
 }
 
@@ -192,8 +193,7 @@ const inputVariants = cva(
 );
 
 export interface InputProps
-  extends
-    Omit<React.InputHTMLAttributes<HTMLInputElement>, "size">,
+  extends Omit<React.InputHTMLAttributes<HTMLInputElement>, "size">,
     VariantProps<typeof inputVariants> {
   error?: boolean;
   success?: boolean;
@@ -287,8 +287,7 @@ const textareaVariants = cva(
 );
 
 export interface TextareaProps
-  extends
-    React.TextareaHTMLAttributes<HTMLTextAreaElement>,
+  extends React.TextareaHTMLAttributes<HTMLTextAreaElement>,
     VariantProps<typeof textareaVariants> {
   error?: boolean;
   maxLength?: number;
@@ -380,8 +379,7 @@ const selectVariants = cva(
 );
 
 export interface SelectProps
-  extends
-    React.SelectHTMLAttributes<HTMLSelectElement>,
+  extends React.SelectHTMLAttributes<HTMLSelectElement>,
     VariantProps<typeof selectVariants> {
   error?: boolean;
   placeholder?: string;
@@ -478,8 +476,7 @@ const checkboxVariants = cva(
 );
 
 export interface CheckboxProps
-  extends
-    Omit<React.InputHTMLAttributes<HTMLInputElement>, "type" | "size">,
+  extends Omit<React.InputHTMLAttributes<HTMLInputElement>, "type" | "size">,
     VariantProps<typeof checkboxVariants> {}
 
 const Checkbox = React.forwardRef<HTMLInputElement, CheckboxProps>(
@@ -556,8 +553,7 @@ const switchVariants = cva(
 );
 
 export interface SwitchProps
-  extends
-    Omit<React.InputHTMLAttributes<HTMLInputElement>, "type" | "size">,
+  extends Omit<React.InputHTMLAttributes<HTMLInputElement>, "type" | "size">,
     VariantProps<typeof switchVariants> {}
 
 const Switch = React.forwardRef<HTMLInputElement, SwitchProps>(

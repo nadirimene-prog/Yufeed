@@ -12,8 +12,10 @@ from fastapi import Request
 from fastapi.responses import JSONResponse
 
 import logging
+import os
 
 logger = logging.getLogger(__name__)
+_IS_TEST_ENV = os.getenv("ENVIRONMENT", "").lower() in {"test", "testing"}
 
 
 def get_identifier(request: Request) -> str:
@@ -80,11 +82,11 @@ class RateLimits:
     """Common rate limit configurations for different endpoint types."""
 
     # Authentication endpoints (stricter limits to prevent brute force)
-    AUTH_LOGIN = "5 per minute"  # 5 login attempts per minute
-    AUTH_REGISTER = "3 per hour"  # 3 registrations per hour
-    AUTH_REFRESH = "10 per minute"  # 10 token refreshes per minute
-    AUTH_FORGOT_PASSWORD = "3 per minute"  # 3 forgot-password requests per minute
-    AUTH_RESET_PASSWORD = "5 per minute"  # 5 reset-password attempts per minute
+    AUTH_LOGIN = "20 per minute" if _IS_TEST_ENV else "5 per minute"
+    AUTH_REGISTER = "10 per hour" if _IS_TEST_ENV else "3 per hour"
+    AUTH_REFRESH = "60 per minute" if _IS_TEST_ENV else "10 per minute"
+    AUTH_FORGOT_PASS = "20 per minute" if _IS_TEST_ENV else "3 per minute"
+    AUTH_RESET_PASS = "20 per minute" if _IS_TEST_ENV else "5 per minute"
 
     # Search and query endpoints
     SEARCH = "30 per minute"  # 30 searches per minute

@@ -289,7 +289,7 @@ class AlertTriageModelTrainer:
             "classification_report": report,
         }
 
-        logger.info(f"Model evaluation results:")
+        logger.info("Model evaluation results:")
         logger.info(f"  AUC: {auc:.4f}")
         logger.info(f"  Precision: {results['precision']:.4f}")
         logger.info(f"  Recall: {results['recall']:.4f}")

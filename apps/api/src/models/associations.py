@@ -8,7 +8,6 @@ from sqlalchemy import Table, Column, Integer, ForeignKey, UniqueConstraint, Ind
 
 from src.database import Base
 
-
 case_findings = Table(
     "case_findings",
     Base.metadata,

@@ -13,7 +13,6 @@ from src.auth.dependencies import require_any_role, CurrentUser
 from src.database import get_db
 from src.services.feature_store import FeatureStoreService
 
-
 router = APIRouter(prefix="/api/features", tags=["features"])
 
 

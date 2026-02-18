@@ -1,30 +1,9 @@
-# =============================================================================
-# YuFeed - Git Ignore
-# =============================================================================
+# MacOS
+.DS_Store
+.AppleDouble
+.LSOverride
 
-# -----------------------------------------------------------------------------
-# Environment & Secrets
-# -----------------------------------------------------------------------------
-.env
-.env.local
-.env.*.local
-.env.development
-.env.test
-.env.production
-!.env.example
-!.env.test.example
-
-# Secrets
-*.pem
-*.key
-*.crt
-secrets/
-.secrets
-secrets.baseline
-
-# -----------------------------------------------------------------------------
 # Python
-# -----------------------------------------------------------------------------
 __pycache__/
 *.py[cod]
 *$py.class
@@ -36,8 +15,8 @@ dist/
 downloads/
 eggs/
 .eggs/
-lib/
-lib64/
+**/lib/python*/
+**/lib64/
 parts/
 sdist/
 var/
@@ -45,184 +24,85 @@ wheels/
 *.egg-info/
 .installed.cfg
 *.egg
-MANIFEST
-
-# Virtual environments
+.venv/
 venv/
 ENV/
 env/
-.venv/
-env.bak/
-venv.bak/
 
 # Testing
-.tox/
-.nox/
-.coverage
-.coverage.*
-.cache
-nosetests.xml
-coverage.xml
-*.cover
-.hypothesis/
 .pytest_cache/
+.coverage
+coverage.xml
 htmlcov/
+coverage/
+.tox/
+.hypothesis/
 
-# Type checking
-.mypy_cache/
-.dmypy.json
-dmypy.json
-.pyre/
-.pytype/
-
-# Jupyter Notebook
-.ipynb_checkpoints
+# Temporary/generated files
+*.txt.tmp
+*.bak
+*.orig
+*.rej
+*.backup.*
+**/*.backup.*
+all_downs.txt
+all_revs.txt
+celerybeat-schedule
+celerybeat-schedule.*
+apps/api/celerybeat-schedule
+apps/api/celerybeat-schedule.*
+apps/api/extraction_progress.json
+apps/api/full_reextraction_report.json
+apps/api/reextraction_report.json
+apps/api/fix_report.json
+apps/web/lint_output.txt
+apps/web/SYNC_TEST.txt
 
 # IDEs
-.idea/
 .vscode/
+.idea/
 *.swp
 *.swo
 *~
-.DS_Store
-*.sublime-project
-*.sublime-workspace
 
-# -----------------------------------------------------------------------------
-# Node.js
-# -----------------------------------------------------------------------------
+# Node.js / Frontend
 node_modules/
-npm-debug.log*
-yarn-debug.log*
-yarn-error.log*
-.pnpm-debug.log*
-.yarn-integrity
-
-# Next.js
 .next/
 out/
-
-# Build outputs
-build/
-dist/
-*.tsbuildinfo
-
-# -----------------------------------------------------------------------------
-# Databases
-# -----------------------------------------------------------------------------
-*.db
-*.sqlite
-*.sqlite3
-*.db-journal
-*.db-wal
-*.db-shm
-
-# PostgreSQL
-data/
-pgsql_data/
-
-# Redis
-dump.rdb
-*.rdb
-
-# -----------------------------------------------------------------------------
-# Docker
-# -----------------------------------------------------------------------------
-.docker/
-docker-compose.override.yml
-docker-compose.*.yml
-!.dockerignore
-
-# -----------------------------------------------------------------------------
-# Logs
-# -----------------------------------------------------------------------------
-logs/
-*.log
+apps/web/coverage/
 npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
-lerna-debug.log*
 .pnpm-debug.log*
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
 
-# -----------------------------------------------------------------------------
-# Infrastructure & Deployment
-# -----------------------------------------------------------------------------
-.terraform/
-*.tfstate
-*.tfstate.*
-terraform.tfvars
-*.pem
-*.key
-kubeconfig*
-*.kubeconfig
+# Environment
+.env
 
-# Kubernetes
-kubernetes/secrets/
+# Database
+*.db
+*.sqlite
 
-# -----------------------------------------------------------------------------
-# AI/ML
-# -----------------------------------------------------------------------------
-models/
-*.pkl
-*.h5
-*.pb
-*.onnx
-*.pt
-*.pth
-chroma_data/
-vectorstore/
-embeddings/
+# Logs
+*.log
 
-# -----------------------------------------------------------------------------
-# Temporary Files
-# -----------------------------------------------------------------------------
-tmp/
-temp/
-*.tmp
-*.temp
-*.bak
-*.backup
-*.old
-*.orig
+# Docker
+.docker/
 
-# -----------------------------------------------------------------------------
-# OS Generated Files
-# -----------------------------------------------------------------------------
-.DS_Store
-.DS_Store?
-._*
-.Spotlight-V100
-.Trashes
-ehthumbs.db
+# OS
 Thumbs.db
-desktop.ini
+apply-v2.sh
 
-# -----------------------------------------------------------------------------
-# Specific to YuFeed
-# -----------------------------------------------------------------------------
-# Data directories
-data/
-datasets/
-uploads/
-media/
-staticfiles/
+# Secrets
+.env.bak
 
-# Local development
-docker-compose.override.yml
-.local/
+# Pre-commit
+.pre-commit-cache/
 
-# Documentation builds
-docs/_build/
-site/
-
-# E2E test artifacts
-test-results/
-playwright-report/
-playwright/.cache/
-
-# -----------------------------------------------------------------------------
-# Keep these files
-# -----------------------------------------------------------------------------
-!.github/
-!docs/
-!config/
+# Playwright
+apps/web/test-results/
+apps/web/playwright-report/
+apps/web/blob-report/

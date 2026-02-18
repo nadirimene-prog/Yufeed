@@ -17,7 +17,6 @@ from src.cache.cache_manager import cache_manager, cached, cache_aside
 from src.models.transaction_models import Alert, MonitoringRule, Transaction
 from src.models.models import LegalDocument
 
-
 # ============================================================================
 # USER RISK PROFILES (5min TTL)
 # ============================================================================

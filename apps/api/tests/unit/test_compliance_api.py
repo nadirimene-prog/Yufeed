@@ -105,3 +105,51 @@ class TestComplianceAPI:
         )
         assert resp.status_code == 200
         assert any(doc["celex"] == "CELEX-HIGH" for doc in resp.json())
+
+    def test_document_timeline_returns_publication_relation_and_version_events(
+        self, client, db_session, admin_headers
+    ):
+        doc = models.LegalDocument(
+            celex="CELEX-TL-1",
+            title="Primary Act",
+            publication_date=datetime(2024, 1, 1, tzinfo=timezone.utc),
+            entry_into_force_date=datetime(2024, 2, 1, tzinfo=timezone.utc),
+            last_modified=datetime(2024, 2, 1, tzinfo=timezone.utc),
+        )
+        related = models.LegalDocument(
+            celex="CELEX-TL-2",
+            title="Amending Act",
+            publication_date=datetime(2024, 3, 1, tzinfo=timezone.utc),
+            last_modified=datetime(2024, 3, 1, tzinfo=timezone.utc),
+        )
+        db_session.add_all([doc, related])
+        db_session.commit()
+
+        relation = models.LegalRelation(
+            from_doc_id=related.id,
+            relation_type="work_amends_work",
+            to_doc_id=doc.id,
+        )
+        version = models.LegalVersion(
+            doc_id=doc.id,
+            kind=models.VersionKind.CORRIGENDUM.value,
+            language="en",
+            retrieved_at=datetime(2024, 4, 1, tzinfo=timezone.utc),
+        )
+        db_session.add_all([relation, version])
+        db_session.commit()
+
+        resp = client.get(
+            f"/api/compliance/documents/{doc.celex}/timeline",
+            headers=admin_headers,
+        )
+        assert resp.status_code == 200
+        events = resp.json()
+        assert events
+
+        event_types = {event["type"] for event in events}
+        assert "PUBLICATION" in event_types
+        assert "ENTRY_INTO_FORCE" in event_types
+        assert "AMENDMENT" in event_types
+        assert "CORRIGENDUM" in event_types
+        assert any(event.get("related_doc_celex") == related.celex for event in events)

@@ -1,5 +1,6 @@
 import pytest
 from datetime import datetime, timezone
+from fastapi import HTTPException
 
 from src.api import policies as policies_api
 from src.auth.dependencies import CurrentUser
@@ -21,7 +22,8 @@ async def test_policy_crud_and_sections(db_session, monkeypatch):
 
     monkeypatch.setattr(policies_api.ws_manager, "broadcast", dummy_broadcast)
 
-    current_user = CurrentUser("user-1", "user@example.com", "admin")
+    creator_user = CurrentUser("user-1", "user@example.com", "admin")
+    approver_user = CurrentUser("user-2", "approver@example.com", "admin")
 
     created = await policies_api.create_policy(
         PolicyCreate(
@@ -34,7 +36,7 @@ async def test_policy_crud_and_sections(db_session, monkeypatch):
             metadata={"owner": "test"},
         ),
         db_session,
-        current_user,
+        creator_user,
     )
     assert created["name"] == "AML Policy"
 
@@ -58,17 +60,27 @@ async def test_policy_crud_and_sections(db_session, monkeypatch):
         policy_id,
         PolicyUpdate(status="in_review", metadata={"updated": True}),
         db_session,
-        current_user,
+        creator_user,
     )
     assert updated["status"] == "in_review"
+
+    with pytest.raises(HTTPException) as exc_info:
+        await policies_api.approve_policy(
+            policy_id,
+            PolicyApprove(note="Self approval attempt"),
+            db_session,
+            creator_user,
+        )
+    assert exc_info.value.status_code == 409
 
     approved = await policies_api.approve_policy(
         policy_id,
         PolicyApprove(note="Approved"),
         db_session,
-        current_user,
+        approver_user,
     )
     assert approved["status"] == "approved"
+    assert approved["metadata"]["approved_by"] == approver_user.email
 
     # Attach obligation for list_policy_obligations
     from src.models.models import LegalDocument
@@ -98,7 +110,7 @@ async def test_policy_crud_and_sections(db_session, monkeypatch):
         policy_id,
         PolicySectionCreate(section_ref="1", title="Intro", content="Intro", status="draft"),
         db_session,
-        current_user,
+        creator_user,
     )
     assert section["section_ref"] == "1"
 
@@ -109,15 +121,15 @@ async def test_policy_crud_and_sections(db_session, monkeypatch):
         section["id"],
         PolicySectionUpdate(title="Updated"),
         db_session,
-        current_user,
+        creator_user,
     )
     assert updated_section["title"] == "Updated"
 
-    delete_section = policies_api.delete_policy_section(section["id"], db_session, current_user)
+    delete_section = policies_api.delete_policy_section(section["id"], db_session, creator_user)
     assert delete_section["message"] == "Section deleted"
 
     with pytest.raises(Exception):
-        policies_api.delete_policy(policy_id, db_session, current_user)
+        policies_api.delete_policy(policy_id, db_session, creator_user)
 
     # Remove linked obligations then delete policy
     db_session.query(RegulatoryObligation).filter(
@@ -125,5 +137,36 @@ async def test_policy_crud_and_sections(db_session, monkeypatch):
     ).delete()
     db_session.commit()
 
-    delete_policy = policies_api.delete_policy(policy_id, db_session, current_user)
+    delete_policy = policies_api.delete_policy(policy_id, db_session, creator_user)
     assert delete_policy["message"] == "Policy deleted"
+
+    patch_policy = await policies_api.create_policy(
+        PolicyCreate(
+            name="Patch Approval Policy",
+            version="1.0",
+            owner="compliance",
+            status="in_review",
+            language="en",
+            content="Policy content",
+        ),
+        db_session,
+        creator_user,
+    )
+
+    with pytest.raises(HTTPException) as exc_info:
+        policies_api.update_policy(
+            patch_policy["id"],
+            PolicyUpdate(status="approved"),
+            db_session,
+            creator_user,
+        )
+    assert exc_info.value.status_code == 409
+
+    patched = policies_api.update_policy(
+        patch_policy["id"],
+        PolicyUpdate(status="approved"),
+        db_session,
+        approver_user,
+    )
+    assert patched["status"] == "approved"
+    assert patched["metadata"]["approved_by"] == approver_user.email

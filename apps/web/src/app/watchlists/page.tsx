@@ -58,130 +58,124 @@ export default function WatchlistsPage() {
   };
 
   return (
-    <LoadingBoundary
-      loading={isLoading}
-      error={error}
-      isEmpty={!watchlists || watchlists.length === 0}
-      emptyMessage="No watchlists yet"
-      emptyDescription="Create your first watchlist to start monitoring"
-    >
-      <div className="space-y-8 animate-in fade-in duration-500">
-        <div className="flex items-center justify-between">
-          <div>
-            <h1 className="text-3xl font-bold tracking-tight text-gray-900 dark:text-gray-100 sm:text-4xl">
-              Watchlists
-            </h1>
-            <p className="mt-2 text-lg text-gray-600 dark:text-gray-400">
-              Manage your legal monitoring feeds and alerts.
-            </p>
+    <div className="space-y-8 animate-in fade-in duration-500">
+      <div className="flex items-center justify-between">
+        <div>
+          <h1 className="text-3xl font-bold tracking-tight text-gray-900 dark:text-gray-100 sm:text-4xl">
+            Watchlists
+          </h1>
+          <p className="mt-2 text-lg text-gray-600 dark:text-gray-400">
+            Manage your legal monitoring feeds and alerts.
+          </p>
+        </div>
+        <div className="flex items-center gap-3">
+          <ExportButton
+            data={watchlists as unknown as Record<string, unknown>[]}
+            filename="watchlists"
+            pdfTitle="Watchlists Report"
+            loading={isLoading}
+          />
+          <button
+            onClick={() => setIsCreating(true)}
+            className="flex items-center rounded-lg bg-blue-600 px-5 py-2.5 text-sm font-medium text-white hover:bg-blue-700 transition-colors"
+          >
+            <Plus className="mr-2 h-4 w-4" />
+            New Watchlist
+          </button>
+        </div>
+      </div>
+
+      {isCreating && (
+        <div className="rounded-xl border border-gray-200 bg-white p-6 shadow-lg dark:border-gray-800 dark:bg-gray-950">
+          <h2 className="text-xl font-semibold mb-6">Create New Watchlist</h2>
+          <div className="grid gap-6">
+            <div className="space-y-2">
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">
+                Name
+              </label>
+              <input
+                type="text"
+                value={newWatchlist.name}
+                onChange={(e) =>
+                  setNewWatchlist({ ...newWatchlist, name: e.target.value })
+                }
+                className="w-full rounded-md border border-gray-300 px-3 py-2 bg-white dark:bg-gray-900 dark:border-gray-700"
+                placeholder="e.g. AML Regulations Tracker"
+              />
+            </div>
+            <div className="space-y-2">
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">
+                RSS URL (Optional)
+              </label>
+              <input
+                type="text"
+                value={newWatchlist.rss_url}
+                onChange={(e) =>
+                  setNewWatchlist({
+                    ...newWatchlist,
+                    rss_url: e.target.value,
+                  })
+                }
+                className="w-full rounded-md border border-gray-300 px-3 py-2 bg-white dark:bg-gray-900 dark:border-gray-700"
+                placeholder="https://eur-lex.europa.eu/..."
+              />
+            </div>
+            <div className="space-y-2">
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">
+                Recipients (comma separated)
+              </label>
+              <input
+                type="text"
+                value={newWatchlist.recipients_json.join(", ")}
+                onChange={(e) =>
+                  setNewWatchlist({
+                    ...newWatchlist,
+                    recipients_json: e.target.value
+                      .split(",")
+                      .map((s) => s.trim()),
+                  })
+                }
+                className="w-full rounded-md border border-gray-300 px-3 py-2 bg-white dark:bg-gray-900 dark:border-gray-700"
+                placeholder="user@example.com, team@example.com"
+              />
+            </div>
+            <div className="space-y-2">
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">
+                Schedule
+              </label>
+              <select
+                value={newWatchlist.schedule}
+                onChange={(e) =>
+                  setNewWatchlist({
+                    ...newWatchlist,
+                    schedule: e.target.value,
+                  })
+                }
+                className="w-full rounded-md border border-gray-300 px-3 py-2 bg-white dark:bg-gray-900 dark:border-gray-700"
+              >
+                <option value="daily">Daily</option>
+                <option value="weekly">Weekly</option>
+              </select>
+            </div>
           </div>
-          <div className="flex items-center gap-3">
-            <ExportButton
-              data={watchlists as unknown as Record<string, unknown>[]}
-              filename="watchlists"
-              pdfTitle="Watchlists Report"
-              loading={isLoading}
-            />
+          <div className="mt-6 flex justify-end gap-3">
             <button
-              onClick={() => setIsCreating(true)}
-              className="flex items-center rounded-lg bg-blue-600 px-5 py-2.5 text-sm font-medium text-white hover:bg-blue-700 transition-colors"
+              onClick={() => setIsCreating(false)}
+              className="px-4 py-2 text-sm text-gray-600 hover:text-gray-900"
             >
-              <Plus className="mr-2 h-4 w-4" />
-              New Watchlist
+              Cancel
+            </button>
+            <button
+              onClick={handleCreate}
+              className="rounded-md bg-blue-600 px-4 py-2 text-sm font-semibold text-white hover:bg-blue-700"
+            >
+              Create Watchlist
             </button>
           </div>
         </div>
+      )}
 
-        {isCreating && (
-          <div className="rounded-xl border border-gray-200 bg-white p-6 shadow-lg dark:border-gray-800 dark:bg-gray-950">
-            <h2 className="text-xl font-semibold mb-6">Create New Watchlist</h2>
-            <div className="grid gap-6">
-              <div className="space-y-2">
-                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">
-                  Name
-                </label>
-                <input
-                  type="text"
-                  value={newWatchlist.name}
-                  onChange={(e) =>
-                    setNewWatchlist({ ...newWatchlist, name: e.target.value })
-                  }
-                  className="w-full rounded-md border border-gray-300 px-3 py-2 bg-white dark:bg-gray-900 dark:border-gray-700"
-                  placeholder="e.g. AML Regulations Tracker"
-                />
-              </div>
-              <div className="space-y-2">
-                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">
-                  RSS URL (Optional)
-                </label>
-                <input
-                  type="text"
-                  value={newWatchlist.rss_url}
-                  onChange={(e) =>
-                    setNewWatchlist({
-                      ...newWatchlist,
-                      rss_url: e.target.value,
-                    })
-                  }
-                  className="w-full rounded-md border border-gray-300 px-3 py-2 bg-white dark:bg-gray-900 dark:border-gray-700"
-                  placeholder="https://eur-lex.europa.eu/..."
-                />
-              </div>
-              <div className="space-y-2">
-                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">
-                  Recipients (comma separated)
-                </label>
-                <input
-                  type="text"
-                  value={newWatchlist.recipients_json.join(", ")}
-                  onChange={(e) =>
-                    setNewWatchlist({
-                      ...newWatchlist,
-                      recipients_json: e.target.value
-                        .split(",")
-                        .map((s) => s.trim()),
-                    })
-                  }
-                  className="w-full rounded-md border border-gray-300 px-3 py-2 bg-white dark:bg-gray-900 dark:border-gray-700"
-                  placeholder="user@example.com, team@example.com"
-                />
-              </div>
-              <div className="space-y-2">
-                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">
-                  Schedule
-                </label>
-                <select
-                  value={newWatchlist.schedule}
-                  onChange={(e) =>
-                    setNewWatchlist({
-                      ...newWatchlist,
-                      schedule: e.target.value,
-                    })
-                  }
-                  className="w-full rounded-md border border-gray-300 px-3 py-2 bg-white dark:bg-gray-900 dark:border-gray-700"
-                >
-                  <option value="daily">Daily</option>
-                  <option value="weekly">Weekly</option>
-                </select>
-              </div>
-            </div>
-            <div className="mt-6 flex justify-end gap-3">
-              <button
-                onClick={() => setIsCreating(false)}
-                className="px-4 py-2 text-sm text-gray-600 hover:text-gray-900"
-              >
-                Cancel
-              </button>
-              <button
-                onClick={handleCreate}
-                className="rounded-md bg-blue-600 px-4 py-2 text-sm font-semibold text-white hover:bg-blue-700"
-              >
-                Create Watchlist
-              </button>
-            </div>
-          </div>
-        )}
-
+      <LoadingBoundary loading={isLoading} error={error} minHeight="320px">
         {watchlists.length === 0 ? (
           <div className="text-center py-12">
             <p className="text-gray-500">
@@ -245,7 +239,7 @@ export default function WatchlistsPage() {
             ))}
           </div>
         )}
-      </div>
-    </LoadingBoundary>
+      </LoadingBoundary>
+    </div>
   );
 }

@@ -12,7 +12,6 @@ from src.database import get_db
 from src.ai.rag_service import RAGService, ConversationManager
 import os
 
-
 router = APIRouter(prefix="/query", tags=["Natural Language Query"])
 
 

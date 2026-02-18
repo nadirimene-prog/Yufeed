@@ -9,6 +9,7 @@
 @import "tailwindcss";
 @import "tw-animate-css";
 @import "./design-system.css";
+@import "./design-tokens-v2.css";
 
 @custom-variant dark (&:is([data-theme="dark"] *));
 
@@ -48,6 +49,57 @@
   --color-risk-medium: var(--risk-medium);
   --color-risk-low: var(--risk-low);
   --color-risk-info: var(--risk-info);
+  --color-risk-clear: #00d4ff;
+  --color-risk-critical-soft: #ff336620;
+  --color-risk-high-soft: #ff8c4220;
+  --color-risk-medium-soft: #ffd16620;
+  --color-risk-low-soft: #06d6a020;
+  --color-risk-clear-soft: #00d4ff15;
+
+  /* Aurora / Cyan / Void scales */
+  --color-aurora-50: #f0f4ff;
+  --color-aurora-100: #e0e8ff;
+  --color-aurora-200: #c7d4ff;
+  --color-aurora-300: #a3b8ff;
+  --color-aurora-400: #7a8fff;
+  --color-aurora-500: #6d5acd;
+  --color-aurora-600: #5a45b5;
+  --color-aurora-700: #4a3799;
+  --color-aurora-800: #3d2e7d;
+  --color-aurora-900: #342866;
+  --color-aurora-950: #1a1a2e;
+
+  --color-cyan-50: #ecfeff;
+  --color-cyan-100: #cffafe;
+  --color-cyan-200: #a5f3fc;
+  --color-cyan-300: #67e8f9;
+  --color-cyan-400: #22d3ee;
+  --color-cyan-500: #00d4ff;
+  --color-cyan-600: #00a8cc;
+  --color-cyan-700: #0284a8;
+  --color-cyan-800: #086788;
+  --color-cyan-900: #0c5470;
+  --color-cyan-950: #083344;
+
+  --color-void-50: #f8fafc;
+  --color-void-100: #f1f5f9;
+  --color-void-200: #e2e8f0;
+  --color-void-300: #cbd5e1;
+  --color-void-400: #94a3b8;
+  --color-void-500: #64748b;
+  --color-void-600: #475569;
+  --color-void-700: #334155;
+  --color-void-800: #1e293b;
+  --color-void-900: #0f172a;
+  --color-void-925: #0a0a12;
+  --color-void-950: #020617;
+
+  --color-glass-bg-subtle: var(--glass-bg-subtle);
+  --color-glass-bg-medium: var(--glass-bg-medium);
+  --color-glass-bg-strong: var(--glass-bg-strong);
+  --color-glass-border-subtle: var(--glass-border-subtle);
+  --color-glass-border-medium: var(--glass-border-medium);
+  --color-glass-border-strong: var(--glass-border-strong);
 
   /* Fonts */
   --font-sans: var(--font-geist), ui-sans-serif, system-ui, sans-serif;
@@ -91,6 +143,10 @@
   --shadow-md: var(--shadow-md);
   --shadow-lg: var(--shadow-lg);
   --shadow-xl: var(--shadow-xl);
+  --shadow-glass: var(--shadow-glass);
+  --shadow-glass-lg: var(--shadow-glass-lg);
+  --shadow-glow-primary: var(--shadow-glow-primary);
+  --shadow-glow-cyan: var(--shadow-glow-cyan);
 }
 
 /* ═════════════════════════════════════════════════════════════════════════════
@@ -238,6 +294,63 @@
     background-color: var(--bg-floating);
   }
 
+  /* Sentinel semantic typography */
+  .text-label {
+    font-size: var(--text-xs);
+    letter-spacing: var(--tracking-widest);
+    text-transform: uppercase;
+    font-weight: var(--font-medium);
+  }
+
+  .text-display {
+    font-family: var(--font-display);
+    letter-spacing: var(--tracking-tight);
+  }
+
+  .text-metric {
+    font-family: var(--font-mono);
+    font-size: var(--text-3xl);
+    font-weight: var(--font-semibold);
+    letter-spacing: var(--tracking-tight);
+  }
+
+  /* Sentinel glass layers */
+  .glass-surface {
+    background: var(--glass-bg-subtle);
+    border: 1px solid var(--glass-border-subtle);
+    backdrop-filter: blur(var(--glass-blur-md));
+    -webkit-backdrop-filter: blur(var(--glass-blur-md));
+    box-shadow:
+      var(--shadow-glass),
+      inset 0 1px 0 rgba(255, 255, 255, 0.04);
+  }
+
+  .glass-interactive {
+    background: linear-gradient(
+      135deg,
+      var(--glass-bg-medium) 0%,
+      var(--glass-bg-subtle) 100%
+    );
+    border: 1px solid var(--glass-border-medium);
+    backdrop-filter: blur(var(--glass-blur-lg));
+    -webkit-backdrop-filter: blur(var(--glass-blur-lg));
+    box-shadow: var(--shadow-glass);
+    transition:
+      border-color var(--duration-fast) var(--ease-out),
+      box-shadow var(--duration-fast) var(--ease-out),
+      transform var(--duration-fast) var(--ease-out);
+  }
+
+  .glass-interactive:hover {
+    border-color: var(--glass-border-strong);
+    box-shadow: var(--shadow-glass), var(--shadow-glow-primary);
+    transform: translateY(-1px);
+  }
+
+  .glow-critical {
+    box-shadow: var(--shadow-glass), var(--color-risk-critical-glow);
+  }
+
   /* Glass effect — subtle and modern */
   .glass {
     background: rgba(255, 255, 255, 0.03);
@@ -345,6 +458,14 @@
     animation: pulse-soft 2s ease-in-out infinite;
   }
 
+  .animate-status-pulse {
+    animation: status-pulse 1.8s ease-in-out infinite;
+  }
+
+  .animate-pulse-glow {
+    animation: pulse-glow 2.2s ease-in-out infinite;
+  }
+
   /* Truncate utilities */
   .line-clamp-1 {
     display: -webkit-box;
@@ -430,6 +551,38 @@
   }
   50% {
     opacity: 0.5;
+  }
+}
+
+@keyframes status-pulse {
+  0% {
+    opacity: 0.95;
+    transform: scale(1);
+    box-shadow: 0 0 0 0 rgba(0, 212, 255, 0.55);
+  }
+  70% {
+    opacity: 0.45;
+    transform: scale(1.1);
+    box-shadow: 0 0 0 7px rgba(0, 212, 255, 0);
+  }
+  100% {
+    opacity: 0.95;
+    transform: scale(1);
+    box-shadow: 0 0 0 0 rgba(0, 212, 255, 0);
+  }
+}
+
+@keyframes pulse-glow {
+  0%,
+  100% {
+    opacity: 1;
+    transform: scale(1);
+    box-shadow: 0 0 10px rgba(6, 214, 160, 0.4);
+  }
+  50% {
+    opacity: 0.7;
+    transform: scale(1.05);
+    box-shadow: 0 0 18px rgba(6, 214, 160, 0.7);
   }
 }
 

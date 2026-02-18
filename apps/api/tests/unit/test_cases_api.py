@@ -17,10 +17,16 @@ def test_cases_workflow(db_session):
         regulation = LegalDocument(
             celex="32016R0679",
             title="GDPR",
+            type="regulation",
             publication_date=datetime(2016, 4, 27, tzinfo=timezone.utc),
         )
         db_session.add(regulation)
         db_session.commit()
+
+        from_alert_case = cases_api.create_case_from_alert(
+            alert.alert_id, assigned_to="analyst@example.com", db=db_session
+        )
+        assert from_alert_case.tenant_id == "default"
 
         case_payload = CaseCreate(
             case_type="investigation",
@@ -84,9 +90,9 @@ def test_cases_workflow(db_session):
         transactions = cases_api.get_case_transactions(case_id, db_session, tenant_id="default")
         assert transactions
 
-        setattr(cases_api.LegalDocument, "document_type", property(lambda self: self.type))
         regulations = cases_api.get_case_regulations(case_id, db_session, tenant_id="default")
         assert regulations
+        assert regulations[0]["document_type"] == "regulation"
 
         added = cases_api.add_alert_to_case(
             case_id, alert.alert_id, db_session, tenant_id="default"

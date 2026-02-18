@@ -154,6 +154,7 @@
   --risk-medium: #fcd34d;
   --risk-low: #34d399;
   --risk-info: #60a5fa;
+  --risk-clear: #00d4ff;
 
   /* Surface Colors for Risk States */
   --surface-critical: rgba(248, 113, 113, 0.1);
@@ -164,6 +165,21 @@
   --surface-medium-border: rgba(252, 211, 77, 0.25);
   --surface-low: rgba(52, 211, 153, 0.1);
   --surface-low-border: rgba(52, 211, 153, 0.25);
+  --surface-clear: rgba(0, 212, 255, 0.1);
+  --surface-clear-border: rgba(0, 212, 255, 0.25);
+
+  /* Glass defaults (overridden by design-tokens-v2 when loaded) */
+  --glass-bg-subtle: rgba(255, 255, 255, 0.03);
+  --glass-bg-medium: rgba(255, 255, 255, 0.05);
+  --glass-bg-strong: rgba(255, 255, 255, 0.08);
+  --glass-border-subtle: rgba(255, 255, 255, 0.06);
+  --glass-border-medium: rgba(255, 255, 255, 0.1);
+  --glass-border-strong: rgba(255, 255, 255, 0.15);
+
+  --shadow-glass: 0 8px 32px rgba(0, 0, 0, 0.12);
+  --shadow-glass-lg: 0 16px 48px rgba(0, 0, 0, 0.2);
+  --shadow-glow-primary:
+    0 0 20px rgba(109, 90, 205, 0.3), 0 0 40px rgba(109, 90, 205, 0.1);
 
   /* Borders */
   --border-subtle: rgba(148, 163, 184, 0.1);

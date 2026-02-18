@@ -5,7 +5,6 @@ from __future__ import annotations
 import re
 from typing import Optional
 
-
 _SERIES_MAP = {
     "JOL": "L",
     "JOC": "C",

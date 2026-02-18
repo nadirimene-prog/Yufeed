@@ -67,6 +67,41 @@ class ComplianceMetrics(BaseModel):
     by_domain: dict
 
 
+class TimelineEventResponse(BaseModel):
+    id: str
+    date: datetime
+    type: str
+    title: str
+    description: Optional[str] = None
+    status: str
+    related_doc_celex: Optional[str] = None
+
+
+def _relation_to_timeline_type(relation_type: str) -> str:
+    relation = (relation_type or "").lower()
+    if "repeal" in relation:
+        return "REPEAL"
+    if "correct" in relation:
+        return "CORRIGENDUM"
+    if "consolid" in relation:
+        return "CONSOLIDATION"
+    if "amend" in relation:
+        return "AMENDMENT"
+    if "base" in relation:
+        return "PROPOSAL"
+    return "AMENDMENT"
+
+
+def _as_utc(dt: datetime) -> datetime:
+    if dt.tzinfo is None:
+        return dt.replace(tzinfo=timezone.utc)
+    return dt.astimezone(timezone.utc)
+
+
+def _event_status_for_date(event_date: datetime, now: datetime) -> str:
+    return "future" if _as_utc(event_date) > _as_utc(now) else "completed"
+
+
 @router.post("/documents/{celex}/analyze")
 @limiter.limit(RateLimits.AI_ANALYSIS)
 def analyze_document_endpoint(
@@ -187,6 +222,125 @@ def delete_annotation(request: Request, annotation_id: int, db: Session = Depend
     db.delete(annotation)
     db.commit()
     return {"message": "Annotation deleted"}
+
+
+@router.get("/documents/{celex}/timeline", response_model=List[TimelineEventResponse])
+@limiter.limit(RateLimits.READ)
+def get_document_timeline(request: Request, celex: str, db: Session = Depends(get_db)):
+    """
+    Get timeline events for a legal document.
+    """
+    doc = db.query(models.LegalDocument).filter(models.LegalDocument.celex == celex).first()
+    if not doc:
+        raise HTTPException(status_code=404, detail="Document not found")
+
+    now = utc_now()
+    timeline_events: List[TimelineEventResponse] = []
+
+    if doc.publication_date:
+        publication_date = _as_utc(doc.publication_date)
+        timeline_events.append(
+            TimelineEventResponse(
+                id=f"{celex}:publication",
+                date=publication_date,
+                type="PUBLICATION",
+                title="Published",
+                description="Document publication date",
+                status=_event_status_for_date(publication_date, now),
+            )
+        )
+
+    if doc.entry_into_force_date:
+        entry_into_force_date = _as_utc(doc.entry_into_force_date)
+        timeline_events.append(
+            TimelineEventResponse(
+                id=f"{celex}:entry-into-force",
+                date=entry_into_force_date,
+                type="ENTRY_INTO_FORCE",
+                title="Entered into force",
+                description="Date when the act became legally binding",
+                status=_event_status_for_date(entry_into_force_date, now),
+            )
+        )
+
+    relations = (
+        db.query(models.LegalRelation)
+        .filter(
+            (models.LegalRelation.from_doc_id == doc.id)
+            | (models.LegalRelation.to_doc_id == doc.id)
+        )
+        .all()
+    )
+
+    for relation in relations:
+        related_doc = (
+            relation.to_document if relation.from_doc_id == doc.id else relation.from_document
+        )
+        if not related_doc:
+            continue
+
+        relation_date = (
+            related_doc.publication_date or related_doc.last_modified or doc.last_modified
+        )
+        if not relation_date:
+            continue
+        relation_date = _as_utc(relation_date)
+
+        if relation.from_doc_id == doc.id:
+            direction_text = f"Relates to {related_doc.celex} via {relation.relation_type}"
+            title = f"{relation.relation_type.replace('_', ' ').title()} {related_doc.celex}"
+        else:
+            direction_text = (
+                f"{related_doc.celex} relates to this document via {relation.relation_type}"
+            )
+            title = f"{related_doc.celex} {relation.relation_type.replace('_', ' ').title()}"
+
+        timeline_events.append(
+            TimelineEventResponse(
+                id=f"{celex}:relation:{relation.id}",
+                date=relation_date,
+                type=_relation_to_timeline_type(relation.relation_type),
+                title=title,
+                description=direction_text,
+                status=_event_status_for_date(relation_date, now),
+                related_doc_celex=related_doc.celex,
+            )
+        )
+
+    versions = (
+        db.query(models.LegalVersion)
+        .filter(models.LegalVersion.doc_id == doc.id)
+        .order_by(models.LegalVersion.retrieved_at.desc())
+        .all()
+    )
+    for version in versions:
+        if not version.retrieved_at:
+            continue
+        version_date = _as_utc(version.retrieved_at)
+
+        version_kind = (version.kind or "").lower()
+        if version_kind == "corrigendum":
+            event_type = "CORRIGENDUM"
+            title = "Corrigendum published"
+        elif version_kind == "consolidated":
+            event_type = "CONSOLIDATION"
+            title = "Consolidated version available"
+        else:
+            continue
+
+        timeline_events.append(
+            TimelineEventResponse(
+                id=f"{celex}:version:{version.id}",
+                date=version_date,
+                type=event_type,
+                title=title,
+                description=f"{version.kind} ({version.language})",
+                status=_event_status_for_date(version_date, now),
+            )
+        )
+
+    timeline_events.sort(key=lambda e: e.date, reverse=True)
+    return timeline_events
 
 
 @router.get("/dashboard/metrics", response_model=ComplianceMetrics)

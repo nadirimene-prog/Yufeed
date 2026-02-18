@@ -644,7 +644,7 @@ async def change_password(
 
 
 @router.post("/forgot-password", response_model=MessageResponse)
-@limiter.limit(RateLimits.AUTH_FORGOT_PASSWORD)
+@limiter.limit(RateLimits.AUTH_FORGOT_PASS)
 async def forgot_password(
     request: Request,
     body: ForgotPasswordRequest,
@@ -701,7 +701,7 @@ async def forgot_password(
 
 
 @router.post("/reset-password", response_model=MessageResponse)
-@limiter.limit(RateLimits.AUTH_RESET_PASSWORD)
+@limiter.limit(RateLimits.AUTH_RESET_PASS)
 async def reset_password(
     request: Request,
     body: ResetPasswordRequest,

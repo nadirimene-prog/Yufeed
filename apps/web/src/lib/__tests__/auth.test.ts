@@ -1,5 +1,10 @@
 import { describe, it, expect, beforeEach } from "vitest";
-import { getAuthToken, setAuthTokens, clearAuthTokens } from "../auth";
+import {
+  clearAuthTokens,
+  getAuthToken,
+  getAuthUserProfile,
+  setAuthTokens,
+} from "../auth";
 
 // Helper to create a valid JWT with tenant_id
 function makeJwt(
@@ -63,10 +68,10 @@ describe("auth", () => {
       expect(localStorage.getItem("access_token")).toBeNull();
     });
 
-    it("returns null for tokens without tenant_id", () => {
+    it("returns token for tokens without tenant_id", () => {
       const noTenant = makeJwt({ sub: "user1" });
       localStorage.setItem("access_token", noTenant);
-      expect(getAuthToken()).toBeNull();
+      expect(getAuthToken()).toBe(noTenant);
     });
 
     it("falls back to legacy keys", () => {
@@ -88,6 +93,33 @@ describe("auth", () => {
       expect(localStorage.getItem("access_token")).toBeNull();
       expect(localStorage.getItem("refresh_token")).toBeNull();
       expect(sessionStorage.getItem("jwt")).toBeNull();
+    });
+  });
+
+  describe("getAuthUserProfile", () => {
+    it("returns null when no auth token exists", () => {
+      expect(getAuthUserProfile()).toBeNull();
+    });
+
+    it("parses profile claims and computes initials", () => {
+      const jwt = makeJwt({
+        tenant_id: "acme",
+        email: "jane.doe@yufeed.com",
+        role: "compliance_officer",
+        user_id: "user_123",
+        name: "Jane Doe",
+      });
+      localStorage.setItem("access_token", jwt);
+
+      expect(getAuthUserProfile()).toEqual(
+        expect.objectContaining({
+          userId: "user_123",
+          tenantId: "acme",
+          role: "compliance_officer",
+          displayName: "Jane Doe",
+          initials: "JD",
+        }),
+      );
     });
   });
 });

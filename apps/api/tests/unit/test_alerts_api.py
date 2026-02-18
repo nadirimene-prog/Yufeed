@@ -37,6 +37,8 @@ class TestAlertCreation:
             },
         )
 
+        if response.status_code != 201:
+            print(f"Response: {response.text}")
         assert response.status_code == 201
         data = response.json()
         assert data["alert_type"] == "high_value_transaction"

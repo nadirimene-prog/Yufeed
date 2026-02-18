@@ -40,7 +40,7 @@ def test_process_transaction_task_is_tenant_scoped(db_session, test_db_engine, m
     db_session.add(
         MonitoringRule(
             tenant_id="tenant-b",
-            rule_id="RULE-TENANT-B-ALWAYS",
+            rule_id=f"RULE-TENANT-B-ALWAYS-{uuid.uuid4().hex[:8]}",
             name="Always trigger",
             description="Should never evaluate cross-tenant",
             category="amount_threshold",
