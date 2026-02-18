@@ -275,7 +275,7 @@ async def create_policy_from_template(
                     message=f"New master policy created: {policy.name}",
                     data={"policy_id": policy.policy_id, "name": policy.name},
                     priority="normal",
-                    link=f"/compliance/policies?id={policy.id}",
+                    link=f"/compliance/policies/{policy.id}",
                 )
             )
         except Exception:
@@ -364,7 +364,7 @@ async def create_policy(
                 message=f"New policy created: {policy.name}",
                 data={"policy_id": policy.policy_id, "name": policy.name},
                 priority="normal",
-                link=f"/compliance/policies?id={policy.id}",
+                link=f"/compliance/policies/{policy.id}",
             )
         )
     except Exception:
@@ -497,7 +497,7 @@ async def approve_policy(
                 message=f"Policy approved: {policy.name}",
                 data={"policy_id": policy.policy_id, "name": policy.name},
                 priority="normal",
-                link=f"/compliance/policies?id={policy.id}",
+                link=f"/compliance/policies/{policy.id}",
             )
         )
     except Exception:

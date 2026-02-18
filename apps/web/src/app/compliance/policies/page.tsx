@@ -622,6 +622,14 @@ export default function PoliciesPage() {
                 ? `Sections for ${selectedPolicy.name}.`
                 : "Select a policy to manage sections."}
             </p>
+            {selectedPolicy ? (
+              <Link
+                href={`/compliance/policies/${selectedPolicy.id}`}
+                className="mt-2 inline-flex text-xs font-medium text-indigo-600 hover:underline dark:text-indigo-300"
+              >
+                Open final policy view
+              </Link>
+            ) : null}
 
             <div className="mt-4 space-y-3 text-xs text-gray-600">
               {selectedPolicy ? (

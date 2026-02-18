@@ -14,7 +14,7 @@ export default function LinkedPolicyCard({
         Linked Policy
       </div>
       <Link
-        href={`/compliance/policies?id=${policy.id}`}
+        href={`/compliance/policies/${policy.id}`}
         className="mt-3 flex items-center gap-3 rounded-lg border border-gray-100 bg-gray-50/60 p-3 hover:bg-gray-100 dark:border-slate-800 dark:bg-slate-800/40 dark:hover:bg-slate-800"
       >
         <div className="flex-1">

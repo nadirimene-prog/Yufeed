@@ -245,7 +245,7 @@ def create_policy_notification(
         },
         priority="normal",
         user_id=user_id,
-        link=f"/compliance/policies?id={policy_id}",
+        link=f"/compliance/policies/{policy_id}",
     )
 
 
