@@ -93,4 +93,10 @@ export const dashboardKeys = {
   overview: (view: string, timeRange: string) =>
     [...dashboardKeys.all, "overview", view, timeRange] as const,
   badges: () => [...dashboardKeys.all, "badges"] as const,
+  workQueue: (params: unknown) =>
+    [...dashboardKeys.all, "work-queue", params] as const,
+  workItem: (kind: string, id: string) =>
+    [...dashboardKeys.all, "work-item", kind, id] as const,
+  workItemActions: (kind: string, id: string) =>
+    [...dashboardKeys.workItem(kind, id), "actions"] as const,
 } as const;
