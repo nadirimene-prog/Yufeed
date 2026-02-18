@@ -1,0 +1,145 @@
+"""Schemas for AMLCO Command Center v3 endpoints."""
+
+from datetime import datetime
+from typing import Any, Literal
+
+from pydantic import BaseModel, Field
+
+
+WorkItemKind = Literal["alert", "case", "approval", "reg_task"]
+SlaStatus = Literal["breached", "warning", "ok", "none"]
+
+
+class CriticalDecisionBar(BaseModel):
+    p1_sla_breaches: int = 0
+    p2_sla_breaches: int = 0
+    sanctions_hits_unreviewed: int = 0
+    sar_due_24h: int = 0
+    high_risk_cases_unassigned: int = 0
+    ingestion_lag_minutes: int = 0
+
+
+class QueueSummary(BaseModel):
+    alerts_open: int = 0
+    cases_open: int = 0
+    approvals_pending: int = 0
+    reg_tasks_due: int = 0
+
+
+class GovernanceSnapshot(BaseModel):
+    rule_drift_score: float = 0.0
+    alert_to_case_rate: float = 0.0
+    fp_proxy_rate: float = 0.0
+    audit_completeness_rate: float = 0.0
+
+
+class ThroughputSnapshot(BaseModel):
+    median_time_to_first_action_minutes: float = 0.0
+    median_case_resolution_hours: float = 0.0
+
+
+class ReviewRequirement(BaseModel):
+    required: bool = False
+    reasons: list[str] = Field(default_factory=list)
+
+
+class DashboardWorkQueueItem(BaseModel):
+    item_id: str
+    record_id: str
+    kind: WorkItemKind
+    ref_id: str
+    type_label: str
+    severity: str
+    entity: str
+    typology: str
+    jurisdiction: str
+    age_minutes: int
+    sla_due_at: datetime | None = None
+    sla_status: SlaStatus = "none"
+    owner: str | None = None
+    next_action: str
+    risk_score: float = 0.0
+    status: str
+    sar_required: bool = False
+    review_requirement: ReviewRequirement = Field(default_factory=ReviewRequirement)
+
+
+class DashboardWorkQueueResponse(BaseModel):
+    page: int
+    page_size: int
+    total: int
+    items: list[DashboardWorkQueueItem]
+
+
+class WorkItemTimelineEvent(BaseModel):
+    at: datetime
+    label: str
+    detail: str | None = None
+
+
+class AiRecommendation(BaseModel):
+    summary: str
+    confidence: float = 0.0
+    rationale: list[str] = Field(default_factory=list)
+
+
+class EvidenceChecklistItem(BaseModel):
+    id: str
+    label: str
+    completed: bool = False
+
+
+class ActionHistoryItem(BaseModel):
+    at: datetime
+    actor: str
+    action: str
+    notes: str | None = None
+
+
+class WorkItemDetailResponse(BaseModel):
+    work_item: DashboardWorkQueueItem
+    context_timeline: list[WorkItemTimelineEvent] = Field(default_factory=list)
+    linked_entities: list[str] = Field(default_factory=list)
+    linked_transactions: list[str] = Field(default_factory=list)
+    ai_recommendation: AiRecommendation
+    narrative: str = ""
+    evidence_checklist: list[EvidenceChecklistItem] = Field(default_factory=list)
+    action_history: list[ActionHistoryItem] = Field(default_factory=list)
+    review_requirement: ReviewRequirement = Field(default_factory=ReviewRequirement)
+    allowed_actions: list[str] = Field(default_factory=list)
+
+
+class WorkItemActionRequest(BaseModel):
+    action: Literal[
+        "assign",
+        "escalate",
+        "mark_in_progress",
+        "create_case",
+        "close",
+    ]
+    assignee: str | None = None
+    notes: str | None = None
+    sar_required: bool = False
+    metadata: dict[str, Any] = Field(default_factory=dict)
+
+
+class WorkItemActionResponse(BaseModel):
+    success: bool
+    message: str
+    updated_status: str
+    created_case_id: str | None = None
+
+
+class ReviewActionRequest(BaseModel):
+    proposed_action: Literal["close", "approve"] = "close"
+    decision: Literal["approve", "return"]
+    submitted_by: str
+    review_notes: str | None = None
+    sar_required: bool = False
+
+
+class ReviewActionResponse(BaseModel):
+    success: bool
+    review_status: Literal["approved", "returned"]
+    updated_status: str
+    message: str
