@@ -1,5 +1,6 @@
 "use client";
 
+import { useState } from "react";
 import Link from "next/link";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import {
@@ -24,6 +25,7 @@ import WorkbenchLayout from "@/components/workbench/WorkbenchLayout";
 import { Button } from "@/components/ui/button";
 import { getAuthToken } from "@/lib/auth";
 import {
+  AlertQueueItem,
   DashboardOverviewResponse,
   DashboardTimeRange,
   DashboardView,
@@ -50,6 +52,7 @@ export function DashboardHub() {
   const router = useRouter();
   const pathname = usePathname();
   const searchParams = useSearchParams();
+  const [selectedAlertId, setSelectedAlertId] = useState<number | null>(null);
 
   const view = resolveDashboardView(searchParams.get("view"));
   const range = resolveDashboardTimeRange(searchParams.get("range"));
@@ -62,6 +65,11 @@ export function DashboardHub() {
       enabled: hasToken && DASHBOARD_V2_ENABLED,
     },
   );
+  const alerts = data?.queues.alerts;
+  const selectedAlert =
+    (selectedAlertId != null
+      ? (alerts?.find((item) => item.id === selectedAlertId) ?? null)
+      : null) ?? (alerts?.length ? alerts[0] : null);
 
   const updateFilters = (
     nextView: DashboardView = view,
@@ -122,7 +130,13 @@ export function DashboardHub() {
     <WorkbenchLayout
       title="Unified Dashboard Hub"
       discoveryRail={
-        <AlertQueuePanel data={data} loading={isLoading} error={isError} />
+        <AlertQueuePanel
+          data={data}
+          loading={isLoading}
+          error={isError}
+          selectedAlertId={selectedAlert?.id ?? null}
+          onSelectAlert={setSelectedAlertId}
+        />
       }
       workspace={
         <div className="space-y-6">
@@ -144,12 +158,21 @@ export function DashboardHub() {
               }
             />
           ) : (
-            <DashboardBody data={data} range={range} />
+            <DashboardBody
+              data={data}
+              range={range}
+              selectedAlert={selectedAlert}
+            />
           )}
         </div>
       }
       intelligencePanel={
-        <HealthAndContextPanel data={data} loading={isLoading} range={range} />
+        <HealthAndContextPanel
+          data={data}
+          loading={isLoading}
+          range={range}
+          selectedAlert={selectedAlert}
+        />
       }
     />
   );
@@ -195,6 +218,7 @@ function DashboardToolbar({
               <button
                 key={option.key}
                 onClick={() => onViewChange(option.key)}
+                type="button"
                 role="tab"
                 aria-selected={option.key === view}
                 className={cn(
@@ -241,9 +265,11 @@ function DashboardToolbar({
 function DashboardBody({
   data,
   range,
+  selectedAlert,
 }: {
   data: DashboardOverviewResponse | undefined;
   range: DashboardTimeRange;
+  selectedAlert: AlertQueueItem | null;
 }) {
   if (!data) {
     return <ErrorState message="No dashboard data received." />;
@@ -251,6 +277,59 @@ function DashboardBody({
 
   return (
     <div className="space-y-6">
+      {selectedAlert ? (
+        <GlassCard
+          variant="interactive"
+          glow={selectedAlert.severity === "critical" ? "critical" : "primary"}
+          className="border border-white/10"
+        >
+          <GlassCardHeader className="flex items-center justify-between gap-3">
+            <GlassCardTitle className="text-white">
+              Investigation Focus
+            </GlassCardTitle>
+            <span
+              className={cn(
+                "text-[10px] uppercase rounded-full px-2 py-1",
+                severityBadgeClass(selectedAlert.severity),
+              )}
+            >
+              {selectedAlert.severity}
+            </span>
+          </GlassCardHeader>
+          <GlassCardContent className="space-y-3">
+            <p className="text-sm font-semibold text-white">
+              {selectedAlert.alert_type.replaceAll("_", " ")}
+            </p>
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 text-xs">
+              <FocusMeta
+                label="Alert ID"
+                value={selectedAlert.alert_id || `#${selectedAlert.id}`}
+              />
+              <FocusMeta
+                label="Risk Score"
+                value={selectedAlert.risk_score.toFixed(0)}
+              />
+              <FocusMeta
+                label="Detected"
+                value={formatAlertTimestamp(selectedAlert.created_at)}
+              />
+            </div>
+            <div className="flex flex-wrap gap-2">
+              <Link href={`/transaction-alerts/${selectedAlert.id}`}>
+                <Button size="sm" variant="secondary">
+                  Open alert workspace
+                </Button>
+              </Link>
+              <Link href="/cases">
+                <Button size="sm" variant="glass">
+                  Open case queue
+                </Button>
+              </Link>
+            </div>
+          </GlassCardContent>
+        </GlassCard>
+      ) : null}
+
       <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-4">
         <MetricCard
           title="Pending Alerts"
@@ -321,10 +400,14 @@ function AlertQueuePanel({
   data,
   loading,
   error,
+  selectedAlertId,
+  onSelectAlert,
 }: {
   data: DashboardOverviewResponse | undefined;
   loading: boolean;
   error: boolean;
+  selectedAlertId: number | null;
+  onSelectAlert: (id: number) => void;
 }) {
   return (
     <div className="space-y-3">
@@ -344,27 +427,44 @@ function AlertQueuePanel({
           {data.queues.alerts.map((item) => (
             <li
               key={item.id}
-              className="rounded-xl border border-white/10 bg-white/5 p-3 space-y-1"
+              className={cn(
+                "rounded-xl border bg-white/5 p-3 space-y-2 transition-colors",
+                selectedAlertId === item.id
+                  ? "border-aurora-500/40 bg-aurora-500/10"
+                  : "border-white/10",
+              )}
             >
-              <div className="flex items-start justify-between gap-3">
-                <p className="text-xs font-semibold text-white truncate">
-                  {item.alert_type.replaceAll("_", " ")}
+              <button
+                type="button"
+                onClick={() => onSelectAlert(item.id)}
+                className="w-full text-left space-y-1"
+                aria-pressed={selectedAlertId === item.id}
+              >
+                <div className="flex items-start justify-between gap-3">
+                  <p className="text-xs font-semibold text-white truncate">
+                    {item.alert_type.replaceAll("_", " ")}
+                  </p>
+                  <span
+                    className={cn(
+                      "text-[10px] rounded-full px-2 py-0.5",
+                      severityBadgeClass(item.severity),
+                    )}
+                  >
+                    {item.severity}
+                  </span>
+                </div>
+                <p className="text-[11px] text-white/60 truncate">
+                  {item.alert_id}
                 </p>
-                <span
-                  className={cn(
-                    "text-[10px] rounded-full px-2 py-0.5",
-                    severityBadgeClass(item.severity),
-                  )}
-                >
-                  {item.severity}
-                </span>
-              </div>
-              <p className="text-[11px] text-white/60 truncate">
-                {item.alert_id}
-              </p>
-              <p className="text-[10px] text-white/45">
-                Priority {item.priority} • User {item.user_id}
-              </p>
+                <div className="flex items-center justify-between gap-2">
+                  <p className="text-[10px] text-white/45 truncate">
+                    Priority {item.priority} • User {item.user_id}
+                  </p>
+                  <p className="text-[10px] text-white/35 whitespace-nowrap">
+                    {formatAlertTimestamp(item.created_at)}
+                  </p>
+                </div>
+              </button>
               <Link
                 href={`/transaction-alerts/${item.id}`}
                 className="inline-flex text-[10px] text-cyan-300 hover:text-cyan-200"
@@ -385,10 +485,12 @@ function HealthAndContextPanel({
   data,
   loading,
   range,
+  selectedAlert,
 }: {
   data: DashboardOverviewResponse | undefined;
   loading: boolean;
   range: DashboardTimeRange;
+  selectedAlert: AlertQueueItem | null;
 }) {
   if (loading) {
     return <LoadingList />;
@@ -451,6 +553,44 @@ function HealthAndContextPanel({
           <StatChip label="Cases Open" value={data?.badges.cases_open ?? 0} />
         </GlassCardContent>
       </GlassCard>
+
+      <GlassCard variant="surface">
+        <GlassCardHeader>
+          <GlassCardTitle className="text-white flex items-center gap-2">
+            <FileSearch className="h-4 w-4 text-aurora-300" />
+            Investigation Guidance
+          </GlassCardTitle>
+        </GlassCardHeader>
+        <GlassCardContent className="space-y-3">
+          {selectedAlert ? (
+            <>
+              <div className="rounded-lg border border-white/10 bg-white/5 px-3 py-2 space-y-1">
+                <p className="text-[11px] text-white/55">Focus Alert</p>
+                <p className="text-sm font-semibold text-white truncate">
+                  {selectedAlert.alert_id}
+                </p>
+                <p className="text-[11px] text-white/45">
+                  {selectedAlert.alert_type.replaceAll("_", " ")} • Risk{" "}
+                  {selectedAlert.risk_score.toFixed(0)}
+                </p>
+              </div>
+              <div className="text-[11px] text-white/60 space-y-1">
+                <p>
+                  1. Validate source transaction and linked customer profile.
+                </p>
+                <p>
+                  2. Escalate to a case within SLA if severity remains high.
+                </p>
+                <p>3. Record rationale and attach evidence before closure.</p>
+              </div>
+            </>
+          ) : (
+            <p className="text-xs text-white/55">
+              Select an alert from the queue to load targeted guidance.
+            </p>
+          )}
+        </GlassCardContent>
+      </GlassCard>
     </div>
   );
 }
@@ -460,6 +600,15 @@ function StatChip({ label, value }: { label: string; value: number }) {
     <div className="rounded-lg border border-white/10 bg-white/5 px-3 py-2">
       <p className="text-[11px] text-white/55">{label}</p>
       <p className="text-sm font-semibold text-white">{value}</p>
+    </div>
+  );
+}
+
+function FocusMeta({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="rounded-lg border border-white/10 bg-white/5 px-3 py-2">
+      <p className="text-[11px] text-white/55">{label}</p>
+      <p className="text-sm font-semibold text-white truncate">{value}</p>
     </div>
   );
 }
@@ -494,6 +643,19 @@ function ErrorState({ message }: { message: string }) {
       <p className="mt-2 text-sm text-white/70">{message}</p>
     </div>
   );
+}
+
+function formatAlertTimestamp(value: string | null): string {
+  if (!value) return "time unknown";
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return "time unknown";
+  const deltaMinutes = Math.round((Date.now() - date.getTime()) / 60_000);
+  if (deltaMinutes <= 0) return "just now";
+  if (deltaMinutes < 60) return `${deltaMinutes}m ago`;
+  const deltaHours = Math.round(deltaMinutes / 60);
+  if (deltaHours < 24) return `${deltaHours}h ago`;
+  const deltaDays = Math.round(deltaHours / 24);
+  return `${deltaDays}d ago`;
 }
 
 export default DashboardHub;
