@@ -307,7 +307,7 @@ export default function ComplianceDashboardPage() {
           {policies.slice(0, 4).map((policy) => (
             <Link
               key={policy.id}
-              href={`/compliance/policies?id=${policy.id}`}
+              href={`/compliance/policies/${policy.id}`}
               className="p-3 rounded-lg bg-white/5 border border-white/10 hover:bg-white/10 transition-colors"
             >
               <div className="flex items-center gap-2 mb-2">
