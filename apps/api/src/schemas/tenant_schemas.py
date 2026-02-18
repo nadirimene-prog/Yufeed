@@ -9,6 +9,10 @@ from typing import Optional, List, Dict, Any
 from pydantic import BaseModel, Field, validator
 from datetime import datetime
 
+
+VALID_INSTITUTION_TYPES = {"pi", "emi", "vasp", "credit_institution"}
+VALID_APPLICABILITY = {"full", "partial", "exempt"}
+
 # ============================================================================
 # TENANT SCHEMAS
 # ============================================================================
@@ -22,6 +26,11 @@ class TenantBase(BaseModel):
     contact_email: Optional[str] = Field(None, max_length=255)
     contact_name: Optional[str] = Field(None, max_length=255)
     tier: str = Field(default="standard", max_length=50)
+    institution_type: Optional[str] = Field(None, max_length=50)
+    license_number: Optional[str] = Field(None, max_length=255)
+    license_jurisdiction: Optional[str] = Field(None, max_length=10)
+    supervisory_authority: Optional[str] = Field(None, max_length=255)
+    regulatory_scope_tags: Optional[List[str]] = None
     primary_color: Optional[str] = Field(None, max_length=7)
     secondary_color: Optional[str] = Field(None, max_length=7)
     logo_url: Optional[str] = Field(None, max_length=500)
@@ -40,6 +49,22 @@ class TenantBase(BaseModel):
         if v not in allowed_tiers:
             raise ValueError(f'Tier must be one of: {", ".join(allowed_tiers)}')
         return v
+
+    @validator("institution_type")
+    def validate_institution_type(cls, v):
+        if v is None:
+            return None
+        normalized = v.strip().lower()
+        if normalized not in VALID_INSTITUTION_TYPES:
+            allowed = ", ".join(sorted(VALID_INSTITUTION_TYPES))
+            raise ValueError(f"institution_type must be one of: {allowed}")
+        return normalized
+
+    @validator("license_jurisdiction")
+    def validate_license_jurisdiction(cls, v):
+        if v is None:
+            return None
+        return v.strip().upper()
 
 
 class TenantCreate(TenantBase):
@@ -71,6 +96,27 @@ class TenantUpdate(BaseModel):
     settings: Optional[Dict[str, Any]] = None
     rate_limits: Optional[Dict[str, Any]] = None
     feature_flags: Optional[Dict[str, Any]] = None
+    institution_type: Optional[str] = None
+    license_number: Optional[str] = None
+    license_jurisdiction: Optional[str] = None
+    supervisory_authority: Optional[str] = None
+    regulatory_scope_tags: Optional[List[str]] = None
+
+    @validator("institution_type")
+    def validate_update_institution_type(cls, v):
+        if v is None:
+            return None
+        normalized = v.strip().lower()
+        if normalized not in VALID_INSTITUTION_TYPES:
+            allowed = ", ".join(sorted(VALID_INSTITUTION_TYPES))
+            raise ValueError(f"institution_type must be one of: {allowed}")
+        return normalized
+
+    @validator("license_jurisdiction")
+    def validate_update_license_jurisdiction(cls, v):
+        if v is None:
+            return None
+        return v.strip().upper()
 
 
 class TenantResponse(TenantBase):
@@ -255,3 +301,78 @@ class TenantConfigUpdate(BaseModel):
     settings: Optional[TenantSettings] = None
     rate_limits: Optional[RateLimitConfig] = None
     feature_flags: Optional[FeatureFlagConfig] = None
+
+
+# ============================================================================
+# TENANT REGULATORY PROFILE SCHEMAS
+# ============================================================================
+
+
+class TenantRegulatoryProfileUpdate(BaseModel):
+    """Schema for updating tenant regulatory profile fields."""
+
+    institution_type: Optional[str] = Field(None, max_length=50)
+    license_number: Optional[str] = Field(None, max_length=255)
+    license_jurisdiction: Optional[str] = Field(None, max_length=10)
+    supervisory_authority: Optional[str] = Field(None, max_length=255)
+    regulatory_scope_tags: Optional[List[str]] = None
+
+    @validator("institution_type")
+    def validate_institution_type(cls, v):
+        if v is None:
+            return None
+        normalized = v.strip().lower()
+        if normalized not in VALID_INSTITUTION_TYPES:
+            allowed = ", ".join(sorted(VALID_INSTITUTION_TYPES))
+            raise ValueError(f"institution_type must be one of: {allowed}")
+        return normalized
+
+    @validator("license_jurisdiction")
+    def validate_license_jurisdiction(cls, v):
+        if v is None:
+            return None
+        return v.strip().upper()
+
+
+class TenantRegulationAssignment(BaseModel):
+    """Schema for adding/updating/removing regulation applicability for a tenant."""
+
+    regulation_doc_id: int = Field(..., gt=0)
+    applicability: str = Field(default="full", max_length=20)
+    applicability_notes: Optional[str] = None
+    effective_from: Optional[datetime] = None
+    remove: bool = False
+
+    @validator("applicability")
+    def validate_applicability(cls, v):
+        normalized = v.strip().lower()
+        if normalized not in VALID_APPLICABILITY:
+            allowed = ", ".join(sorted(VALID_APPLICABILITY))
+            raise ValueError(f"applicability must be one of: {allowed}")
+        return normalized
+
+
+class TenantRegulationAssignmentResponse(BaseModel):
+    """Response for tenant regulation assignment endpoint."""
+
+    tenant_id: str
+    regulation_doc_id: int
+    applicability: Optional[str] = None
+    applicability_notes: Optional[str] = None
+    effective_from: Optional[datetime] = None
+    created: bool = False
+    removed: bool = False
+
+
+class ApplicableRegulationResponse(BaseModel):
+    """Applicable regulation summary for a tenant."""
+
+    regulation_doc_id: int
+    celex: str
+    title: str
+    publication_date: Optional[datetime] = None
+    scope_tags: List[str] = Field(default_factory=list)
+    applicability: str
+    applicability_source: str
+    applicability_notes: Optional[str] = None
+    effective_from: Optional[datetime] = None

@@ -2,6 +2,7 @@ import pytest
 from datetime import datetime, timedelta, timezone
 
 from src.models import models
+from src.models import compliance as comp_models
 
 
 @pytest.mark.unit
@@ -153,3 +154,106 @@ class TestComplianceAPI:
         assert "AMENDMENT" in event_types
         assert "CORRIGENDUM" in event_types
         assert any(event.get("related_doc_celex") == related.celex for event in events)
+
+    def test_kyc_reviews_due_set_cdd_and_initiate_review(self, client, db_session, admin_headers):
+        create_resp = client.post(
+            "/api/compliance/kyc",
+            json={
+                "type": "kyc",
+                "first_name": "Review",
+                "last_name": "User",
+                "email": "review.user@example.com",
+            },
+            headers=admin_headers,
+        )
+        assert create_resp.status_code == 200
+        profile_id = create_resp.json()["id"]
+
+        profile = (
+            db_session.query(comp_models.KYCProfile)
+            .filter(comp_models.KYCProfile.id == profile_id)
+            .first()
+        )
+        profile.status = comp_models.ComplianceStatus.APPROVED.value
+        profile.next_review_date = datetime.now(timezone.utc) - timedelta(days=1)
+        db_session.commit()
+
+        due_resp = client.get("/api/compliance/kyc/reviews-due", headers=admin_headers)
+        assert due_resp.status_code == 200
+        payload = due_resp.json()
+        assert payload["total_due"] >= 1
+        assert any(item["id"] == profile_id for item in payload["items"])
+
+        cdd_resp = client.post(
+            f"/api/compliance/kyc/{profile_id}/set-cdd-level",
+            json={"cdd_level": "enhanced", "reason": "manual escalation"},
+            headers=admin_headers,
+        )
+        assert cdd_resp.status_code == 200
+        assert cdd_resp.json()["cdd_level"] == "enhanced"
+        assert cdd_resp.json()["cdd_reason"] == "manual escalation"
+
+        review_resp = client.post(
+            f"/api/compliance/kyc/{profile_id}/initiate-review",
+            headers=admin_headers,
+        )
+        assert review_resp.status_code == 200
+        assert review_resp.json()["status"] == "manual_review"
+        assert review_resp.json()["profile_id"] == profile_id
+
+    def test_kyc_screen_and_verify_document_endpoints(self, client, admin_headers, monkeypatch):
+        create_resp = client.post(
+            "/api/compliance/kyc",
+            json={
+                "type": "kyc",
+                "first_name": "Screen",
+                "last_name": "User",
+                "email": "screen.user@example.com",
+            },
+            headers=admin_headers,
+        )
+        assert create_resp.status_code == 200
+        profile_id = create_resp.json()["id"]
+
+        from src.api import compliance as compliance_api
+
+        now = datetime.now(timezone.utc)
+        monkeypatch.setattr(
+            compliance_api.KYCOnboardingService,
+            "screen_customer",
+            lambda self, profile_id, tenant_id=None: {
+                "profile_id": profile_id,
+                "sanctions_status": "clear",
+                "screened_at": now,
+                "is_hit": False,
+                "highest_score": 0.0,
+                "match_count": 0,
+                "findings_created": 0,
+            },
+        )
+        monkeypatch.setattr(
+            compliance_api.KYCOnboardingService,
+            "verify_documents",
+            lambda self, profile_id, tenant_id=None: {
+                "profile_id": profile_id,
+                "processed_count": 0,
+                "verified_count": 0,
+                "rejected_count": 0,
+                "error_count": 0,
+                "findings_created": 0,
+                "documents": [],
+            },
+        )
+
+        screen_resp = client.post(f"/api/compliance/kyc/{profile_id}/screen", headers=admin_headers)
+        assert screen_resp.status_code == 200
+        assert screen_resp.json()["profile_id"] == profile_id
+        assert screen_resp.json()["sanctions_status"] == "clear"
+
+        verify_resp = client.post(
+            f"/api/compliance/kyc/{profile_id}/verify-documents",
+            headers=admin_headers,
+        )
+        assert verify_resp.status_code == 200
+        assert verify_resp.json()["profile_id"] == profile_id
+        assert verify_resp.json()["processed_count"] == 0

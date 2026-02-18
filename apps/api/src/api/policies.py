@@ -6,7 +6,7 @@ import uuid
 
 from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.orm import Session
-from sqlalchemy import func
+from sqlalchemy import func, or_
 
 from src.database import get_db
 from src.auth.dependencies import require_any_role, CurrentUser
@@ -15,6 +15,7 @@ from src.models.compliance_workflow import (
     PolicySection,
     RegulatoryObligation,
     PolicyTemplate,
+    ObligationPolicyMapping,
 )
 from src.schemas.policy_schemas import (
     PolicyCreate,
@@ -115,6 +116,42 @@ def _enforce_policy_four_eyes(policy: PolicyDocument, current_user: CurrentUser)
         raise HTTPException(status_code=409, detail=FOUR_EYES_POLICY_DETAIL)
 
 
+def _effective_tenant_id(
+    current_user: Optional[CurrentUser],
+    requested_tenant_id: Optional[str] = None,
+) -> Optional[str]:
+    if isinstance(requested_tenant_id, str) and requested_tenant_id.strip():
+        return requested_tenant_id.strip()
+    if current_user is None:
+        return None
+    return current_user.tenant_id
+
+
+def _is_policy_visible_to_tenant(policy: PolicyDocument, tenant_id: Optional[str]) -> bool:
+    if tenant_id is None:
+        return True
+    return policy.tenant_id in (None, tenant_id)
+
+
+def _enforce_policy_visibility(policy: PolicyDocument, current_user: CurrentUser) -> None:
+    tenant_id = _effective_tenant_id(current_user)
+    if not _is_policy_visible_to_tenant(policy, tenant_id):
+        raise HTTPException(status_code=404, detail="Policy not found")
+
+
+def _enforce_policy_writable(policy: PolicyDocument, current_user: CurrentUser) -> None:
+    _enforce_policy_visibility(policy, current_user)
+    if (
+        policy.is_master
+        and _effective_tenant_id(current_user) is not None
+        and not current_user.is_superuser
+    ):
+        raise HTTPException(
+            status_code=403,
+            detail="Master policies are read-only for tenant-scoped users",
+        )
+
+
 def policy_to_dict(policy: PolicyDocument, db: Session) -> dict:
     """Convert policy model to response dict."""
     sections_count = (
@@ -123,8 +160,17 @@ def policy_to_dict(policy: PolicyDocument, db: Session) -> dict:
     )
 
     linked_obligations_count = (
-        db.query(func.count(RegulatoryObligation.id))
-        .filter(RegulatoryObligation.linked_policy_id == policy.id)
+        db.query(func.count(func.distinct(RegulatoryObligation.id)))
+        .outerjoin(
+            ObligationPolicyMapping,
+            ObligationPolicyMapping.obligation_id == RegulatoryObligation.id,
+        )
+        .filter(
+            or_(
+                RegulatoryObligation.linked_policy_id == policy.id,
+                ObligationPolicyMapping.policy_id == policy.id,
+            )
+        )
         .scalar()
         or 0
     )
@@ -132,6 +178,9 @@ def policy_to_dict(policy: PolicyDocument, db: Session) -> dict:
     return {
         "id": policy.id,
         "policy_id": policy.policy_id,
+        "tenant_id": policy.tenant_id,
+        "is_master": bool(policy.is_master),
+        "master_policy_id": policy.master_policy_id,
         "name": policy.name,
         "version": policy.version,
         "owner": policy.owner,
@@ -179,6 +228,8 @@ def template_to_dict(template: PolicyTemplate) -> dict:
         "owner": template.owner,
         "review_frequency_months": template.review_frequency_months,
         "regulatory_basis": template.regulatory_basis,
+        "institution_types": template.institution_types,
+        "applicable_regulations": template.applicable_regulations,
         "source_url": template.source_url,
         "content": template.content,
         "metadata": template.metadata_json,
@@ -188,9 +239,50 @@ def template_to_dict(template: PolicyTemplate) -> dict:
     }
 
 
+def _build_policy_from_master(
+    master_policy: PolicyDocument,
+    tenant_id: str,
+    payload: PolicyFromTemplateCreate,
+    current_user: CurrentUser,
+) -> PolicyDocument:
+    requested_status = (payload.status or "draft").lower().strip()
+    if requested_status == "approved":
+        raise HTTPException(status_code=409, detail=FOUR_EYES_CREATE_POLICY_DETAIL)
+
+    metadata = dict(master_policy.metadata_json or {})
+    if payload.metadata:
+        metadata.update(payload.metadata)
+    metadata["template_id"] = metadata.get("template_id") or master_policy.policy_id
+    metadata["source_master_policy_id"] = master_policy.id
+    metadata["is_master_policy"] = False
+    metadata[POLICY_CREATED_BY_METADATA_KEY] = current_user.email or current_user.user_id
+
+    return PolicyDocument(
+        policy_id=generate_policy_id(),
+        tenant_id=tenant_id,
+        is_master=False,
+        master_policy_id=master_policy.id,
+        name=payload.name or master_policy.name,
+        version=master_policy.version,
+        owner=payload.owner or current_user.email or master_policy.owner,
+        status=requested_status,
+        language=payload.language or master_policy.language,
+        effective_date=payload.effective_date or master_policy.effective_date,
+        source_url=payload.source_url or master_policy.source_url,
+        content=payload.content or master_policy.content,
+        metadata_json=metadata,
+        created_at=utc_now(),
+        updated_at=utc_now(),
+    )
+
+
 @router.get("/templates")
 def list_policy_templates(
     category: Optional[str] = Query(None, description="Filter by category"),
+    institution_type: Optional[str] = Query(
+        None,
+        description="Filter templates by institution type (pi, emi, vasp, credit_institution)",
+    ),
     q: Optional[str] = Query(None, description="Search by name or template_id"),
     skip: int = Query(0, ge=0),
     limit: int = Query(50, ge=1, le=200),
@@ -208,8 +300,17 @@ def list_policy_templates(
             (PolicyTemplate.name.ilike(like)) | (PolicyTemplate.template_id.ilike(like))
         )
 
-    total = query.count()
-    items = query.order_by(PolicyTemplate.name.asc()).offset(skip).limit(limit).all()
+    items = query.order_by(PolicyTemplate.name.asc()).all()
+    if institution_type:
+        normalized = institution_type.strip().lower()
+        items = [
+            template
+            for template in items
+            if not template.institution_types or normalized in (template.institution_types or [])
+        ]
+
+    total = len(items)
+    items = items[skip : skip + limit]
     return {"total": total, "items": [template_to_dict(item) for item in items]}
 
 
@@ -246,34 +347,88 @@ async def create_policy_from_template(
         raise HTTPException(status_code=404, detail="Policy template not found")
 
     # Templates represent the canonical policy library: ensure (idempotently) the master policy exists.
-    policy, stats = ensure_master_policy_for_template(db, template)
+    master_policy, stats = ensure_master_policy_for_template(db, template)
+    target_tenant_id = _effective_tenant_id(current_user, payload.tenant_id)
 
-    # Apply optional metadata overrides without clobbering canonical template markers.
-    if payload.metadata:
-        merged = dict(policy.metadata_json or {})
-        merged.update(payload.metadata)
-        merged["template_id"] = template.template_id
-        merged["category"] = template.category
-        merged["regulatory_basis"] = template.regulatory_basis
-        merged["review_frequency_months"] = template.review_frequency_months
-        merged["template_version"] = template.version
-        merged["is_master_policy"] = True
-        policy.metadata_json = merged or None
-        policy.updated_at = utc_now()
+    created = False
+    if target_tenant_id:
+        policy = (
+            db.query(PolicyDocument)
+            .filter(
+                PolicyDocument.master_policy_id == master_policy.id,
+                PolicyDocument.tenant_id == target_tenant_id,
+            )
+            .order_by(PolicyDocument.updated_at.desc())
+            .first()
+        )
+        if policy is None:
+            policy = _build_policy_from_master(
+                master_policy=master_policy,
+                tenant_id=target_tenant_id,
+                payload=payload,
+                current_user=current_user,
+            )
+            db.add(policy)
+            created = True
+        else:
+            if payload.status:
+                requested_status = payload.status.lower().strip()
+                if requested_status == "approved":
+                    raise HTTPException(status_code=409, detail=FOUR_EYES_CREATE_POLICY_DETAIL)
+                policy.status = requested_status
+            if payload.name:
+                policy.name = payload.name
+            if payload.owner:
+                policy.owner = payload.owner
+            if payload.language:
+                policy.language = payload.language
+            if payload.effective_date:
+                policy.effective_date = payload.effective_date
+            if payload.source_url:
+                policy.source_url = payload.source_url
+            if payload.content:
+                policy.content = payload.content
+            if payload.metadata:
+                merged = dict(policy.metadata_json or {})
+                merged.update(payload.metadata)
+                merged["source_master_policy_id"] = master_policy.id
+                merged["is_master_policy"] = False
+                policy.metadata_json = merged
+            policy.updated_at = utc_now()
+            _set_policy_creator(policy, current_user)
+    else:
+        policy = master_policy
+        # Apply optional metadata overrides without clobbering canonical template markers.
+        if payload.metadata:
+            merged = dict(policy.metadata_json or {})
+            merged.update(payload.metadata)
+            merged["template_id"] = template.template_id
+            merged["category"] = template.category
+            merged["regulatory_basis"] = template.regulatory_basis
+            merged["review_frequency_months"] = template.review_frequency_months
+            merged["template_version"] = template.version
+            merged["is_master_policy"] = True
+            policy.metadata_json = merged or None
+            policy.updated_at = utc_now()
 
-    _set_policy_creator(policy, current_user, force=bool(stats.get("created")))
+        _set_policy_creator(policy, current_user, force=bool(stats.get("created")))
+        created = bool(stats.get("created"))
 
     db.commit()
     db.refresh(policy)
 
-    if stats.get("created"):
+    if created:
         try:
             await ws_manager.send_notification(
                 NotificationEvent(
                     event_type=EventType.POLICY_CREATED,
                     title="Policy Created",
-                    message=f"New master policy created: {policy.name}",
-                    data={"policy_id": policy.policy_id, "name": policy.name},
+                    message=f"New policy created: {policy.name}",
+                    data={
+                        "policy_id": policy.policy_id,
+                        "name": policy.name,
+                        "tenant_id": policy.tenant_id,
+                    },
                     priority="normal",
                     link=f"/compliance/policies/{policy.id}",
                 )
@@ -291,12 +446,18 @@ def list_policies(
     q: Optional[str] = Query(None, description="Search by name or policy_id"),
     skip: int = Query(0, ge=0),
     limit: int = Query(50, ge=1, le=200),
+    tenant_id: Optional[str] = Query(
+        None,
+        description="Filter by tenant. Defaults to current user tenant when available.",
+    ),
+    include_master: bool = Query(True, description="Include shared master policies"),
     db: Session = Depends(get_db),
     _: CurrentUser = Depends(
         require_any_role(["admin", "compliance", "aml_officer", "auditor", "user"])
     ),
 ):
     """List all policies with optional filters."""
+    current_user = _
     query = db.query(PolicyDocument)
 
     if status:
@@ -312,6 +473,18 @@ def list_policies(
         query = query.filter(
             (PolicyDocument.name.ilike(like)) | (PolicyDocument.policy_id.ilike(like))
         )
+
+    effective_tenant_id = _effective_tenant_id(current_user, tenant_id)
+    if effective_tenant_id:
+        if include_master:
+            query = query.filter(
+                or_(
+                    PolicyDocument.tenant_id == effective_tenant_id,
+                    PolicyDocument.tenant_id.is_(None),
+                )
+            )
+        else:
+            query = query.filter(PolicyDocument.tenant_id == effective_tenant_id)
 
     total = query.count()
     policies = query.order_by(PolicyDocument.updated_at.desc()).offset(skip).limit(limit).all()
@@ -338,6 +511,9 @@ async def create_policy(
 
     policy = PolicyDocument(
         policy_id=generate_policy_id(),
+        tenant_id=payload.tenant_id or current_user.tenant_id,
+        is_master=False,
+        master_policy_id=payload.master_policy_id,
         name=payload.name,
         version=payload.version,
         owner=payload.owner or current_user.email,
@@ -385,6 +561,7 @@ def get_policy(
     policy = db.query(PolicyDocument).filter(PolicyDocument.id == policy_id).first()
     if not policy:
         raise HTTPException(status_code=404, detail="Policy not found")
+    _enforce_policy_visibility(policy, current_user=_)
 
     return policy_to_dict(policy, db)
 
@@ -400,6 +577,7 @@ def update_policy(
     policy = db.query(PolicyDocument).filter(PolicyDocument.id == policy_id).first()
     if not policy:
         raise HTTPException(status_code=404, detail="Policy not found")
+    _enforce_policy_writable(policy, current_user)
 
     previous_status = (policy.status or "draft").lower()
     update_data = payload.model_dump(exclude_unset=True)
@@ -443,11 +621,21 @@ def delete_policy(
     policy = db.query(PolicyDocument).filter(PolicyDocument.id == policy_id).first()
     if not policy:
         raise HTTPException(status_code=404, detail="Policy not found")
+    _enforce_policy_writable(policy, current_user)
 
     # Check for linked obligations
     linked_count = (
-        db.query(func.count(RegulatoryObligation.id))
-        .filter(RegulatoryObligation.linked_policy_id == policy.id)
+        db.query(func.count(func.distinct(RegulatoryObligation.id)))
+        .outerjoin(
+            ObligationPolicyMapping,
+            ObligationPolicyMapping.obligation_id == RegulatoryObligation.id,
+        )
+        .filter(
+            or_(
+                RegulatoryObligation.linked_policy_id == policy.id,
+                ObligationPolicyMapping.policy_id == policy.id,
+            )
+        )
         .scalar()
         or 0
     )
@@ -474,6 +662,7 @@ async def approve_policy(
     policy = db.query(PolicyDocument).filter(PolicyDocument.id == policy_id).first()
     if not policy:
         raise HTTPException(status_code=404, detail="Policy not found")
+    _enforce_policy_writable(policy, current_user)
 
     if policy.status not in ("draft", "in_review"):
         raise HTTPException(status_code=400, detail="Policy cannot be approved from current status")
@@ -520,9 +709,21 @@ def list_policy_obligations(
     policy = db.query(PolicyDocument).filter(PolicyDocument.id == policy_id).first()
     if not policy:
         raise HTTPException(status_code=404, detail="Policy not found")
+    _enforce_policy_visibility(policy, current_user=_)
 
-    query = db.query(RegulatoryObligation).filter(
-        RegulatoryObligation.linked_policy_id == policy_id
+    query = (
+        db.query(RegulatoryObligation)
+        .outerjoin(
+            ObligationPolicyMapping,
+            ObligationPolicyMapping.obligation_id == RegulatoryObligation.id,
+        )
+        .filter(
+            or_(
+                RegulatoryObligation.linked_policy_id == policy_id,
+                ObligationPolicyMapping.policy_id == policy_id,
+            )
+        )
+        .distinct()
     )
 
     total = query.count()
@@ -561,6 +762,7 @@ async def link_obligation_to_policy(
     policy = db.query(PolicyDocument).filter(PolicyDocument.id == policy_id).first()
     if not policy:
         raise HTTPException(status_code=404, detail="Policy not found")
+    _enforce_policy_writable(policy, current_user)
 
     obligation = (
         db.query(RegulatoryObligation).filter(RegulatoryObligation.id == obligation_id).first()
@@ -570,6 +772,26 @@ async def link_obligation_to_policy(
 
     obligation.linked_policy_id = policy.id
     obligation.updated_at = utc_now()
+
+    mapping = (
+        db.query(ObligationPolicyMapping)
+        .filter(
+            ObligationPolicyMapping.obligation_id == obligation.id,
+            ObligationPolicyMapping.policy_id == policy.id,
+        )
+        .first()
+    )
+    if mapping is None:
+        mapping = ObligationPolicyMapping(
+            obligation_id=obligation.id,
+            policy_id=policy.id,
+        )
+        db.add(mapping)
+    mapping.mapped_by = f"user:{current_user.user_id}"
+    mapping.mapping_confidence = 1.0
+    mapping.notes = "Manual mapping from policy endpoint"
+    mapping.mapped_at = utc_now()
+
     db.commit()
     db.refresh(obligation)
 
@@ -612,6 +834,7 @@ def list_policy_sections(
     policy = db.query(PolicyDocument).filter(PolicyDocument.id == policy_id).first()
     if not policy:
         raise HTTPException(status_code=404, detail="Policy not found")
+    _enforce_policy_visibility(policy, current_user=_)
 
     sections = (
         db.query(PolicySection)
@@ -634,6 +857,7 @@ def create_policy_section(
     policy = db.query(PolicyDocument).filter(PolicyDocument.id == policy_id).first()
     if not policy:
         raise HTTPException(status_code=404, detail="Policy not found")
+    _enforce_policy_writable(policy, current_user)
 
     section = PolicySection(
         policy_id=policy_id,
@@ -664,6 +888,9 @@ def update_policy_section(
     section = db.query(PolicySection).filter(PolicySection.id == section_id).first()
     if not section:
         raise HTTPException(status_code=404, detail="Section not found")
+    policy = db.query(PolicyDocument).filter(PolicyDocument.id == section.policy_id).first()
+    if policy:
+        _enforce_policy_writable(policy, current_user)
 
     update_data = payload.model_dump(exclude_unset=True)
     for key, value in update_data.items():
@@ -686,6 +913,9 @@ def delete_policy_section(
     section = db.query(PolicySection).filter(PolicySection.id == section_id).first()
     if not section:
         raise HTTPException(status_code=404, detail="Section not found")
+    policy = db.query(PolicyDocument).filter(PolicyDocument.id == section.policy_id).first()
+    if policy:
+        _enforce_policy_writable(policy, current_user)
 
     db.delete(section)
     db.commit()

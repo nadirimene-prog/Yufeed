@@ -38,6 +38,10 @@ class FindingType(str, enum.Enum):
     TX_ALERT = "TX_ALERT"
     OBLIGATION_BREACH = "OBLIGATION_BREACH"
     SANCTIONS_HIT = "SANCTIONS_HIT"
+    KYC_FAILURE = "KYC_FAILURE"
+    KYC_EXPIRY = "KYC_EXPIRY"
+    ONBOARDING_RISK = "ONBOARDING_RISK"
+    EDD_TRIGGER = "EDD_TRIGGER"
     REG_CHANGE = "REG_CHANGE"
     ONCHAIN_RISK = "ONCHAIN_RISK"
     OTHER = "OTHER"
@@ -106,3 +110,21 @@ class Finding(Base):
         back_populates="findings",
         lazy="selectin",
     )
+
+    @property
+    def source_refs(self):
+        """API-facing alias for serialized source references."""
+        return self.source_refs_json
+
+    @source_refs.setter
+    def source_refs(self, value):
+        self.source_refs_json = value
+
+    @property
+    def explainability(self):
+        """API-facing alias for serialized explainability payload."""
+        return self.explainability_json
+
+    @explainability.setter
+    def explainability(self, value):
+        self.explainability_json = value

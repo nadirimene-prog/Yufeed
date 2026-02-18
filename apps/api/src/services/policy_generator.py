@@ -11,6 +11,7 @@ import re
 import uuid
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
+from decimal import Decimal, InvalidOperation
 from typing import Dict, List, Optional, Any
 
 from sqlalchemy.orm import Session
@@ -21,8 +22,14 @@ from src.models.compliance_workflow import (
     PolicyDocument,
     PolicyTemplate,
     PolicySection,
+    ObligationPolicyMapping,
+    InternalRule,
+    InternalRuleMapping,
 )
 from src.models.models import LegalDocument
+from src.models.transaction_models import MonitoringRule
+from src.services.rules_engine import RuleBuilder
+from src.tenancy.context import get_current_tenant
 from src.config import settings
 
 logger = logging.getLogger(__name__)
@@ -665,21 +672,28 @@ The policy is {len(content.split())} words and estimated reading time is {len(co
             estimated_reading_time=len(job[0].split()) // 200 if job[0] else 0,
         )
 
-    def approve_generation(self, job_id: str, reviewed_by: str, notes: Optional[str] = None) -> int:
+    def approve_generation(
+        self, job_id: str, reviewed_by: str, notes: Optional[str] = None
+    ) -> Dict[str, Any]:
         """
         Approve a generated policy and create the actual policy document.
 
         Returns:
-            ID of the created policy document
+            Dict with created policy ID and monitoring rule suggestions
         """
         # Get generation result
         result = self.get_generation_result(job_id)
         if not result:
             raise ValueError(f"Generation job {job_id} not found or not completed")
 
+        tenant_id = get_current_tenant() or "default"
+
         # Create policy document
         policy = PolicyDocument(
             policy_id=f"POL-{uuid.uuid4().hex[:10].upper()}",
+            tenant_id=tenant_id,
+            is_master=False,
+            master_policy_id=None,
             name=f"AI Generated Policy - {datetime.now(timezone.utc).strftime('%Y-%m-%d')}",
             status="draft",
             content=result.generated_content,
@@ -689,6 +703,7 @@ The policy is {len(content.split())} words and estimated reading time is {len(co
                 "is_ai_generated": True,
                 "generation_job_id": job_id,
                 "ai_confidence_score": result.ai_confidence,
+                "reviewed_by": reviewed_by,
             },
         )
 
@@ -712,24 +727,199 @@ The policy is {len(content.split())} words and estimated reading time is {len(co
             {"job_id": job_id, "reviewer": reviewed_by, "notes": notes, "policy_id": policy.id},
         )
 
-        # Update obligations
+        # Update obligations and create explicit obligation->policy mappings.
         for obl_id in result.obligations_covered:
-            self.db.execute(
-                text(
-                    """
-                UPDATE regulatory_obligations
-                SET linked_policy_id = :policy_id
-                WHERE id = :obl_id
-            """
-                ),
-                {"policy_id": policy.id, "obl_id": obl_id},
+            obligation = (
+                self.db.query(RegulatoryObligation)
+                .filter(RegulatoryObligation.id == obl_id)
+                .first()
             )
+            if obligation:
+                obligation.linked_policy_id = policy.id
+
+            mapping = (
+                self.db.query(ObligationPolicyMapping)
+                .filter(
+                    ObligationPolicyMapping.obligation_id == obl_id,
+                    ObligationPolicyMapping.policy_id == policy.id,
+                )
+                .first()
+            )
+            if not mapping:
+                mapping = ObligationPolicyMapping(
+                    obligation_id=obl_id,
+                    policy_id=policy.id,
+                )
+                self.db.add(mapping)
+            mapping.mapped_by = f"user:{reviewed_by}"
+            mapping.mapping_confidence = 1.0
+            mapping.notes = "Auto-mapped from approved policy generation"
+            mapping.mapped_at = datetime.now(timezone.utc)
 
         self.db.commit()
 
+        suggestions = self._suggest_monitoring_rules(
+            policy=policy,
+            obligation_ids=result.obligations_covered,
+            reviewed_by=reviewed_by,
+            tenant_id=tenant_id,
+        )
+
         logger.info(f"Policy generation {job_id} approved, created policy {policy.id}")
 
-        return policy.id
+        return {
+            "policy_id": policy.id,
+            "suggested_monitoring_rules": suggestions,
+            "suggestion_count": len(suggestions),
+        }
+
+    def _suggest_monitoring_rules(
+        self,
+        *,
+        policy: PolicyDocument,
+        obligation_ids: List[int],
+        reviewed_by: str,
+        tenant_id: str,
+    ) -> List[Dict[str, Any]]:
+        suggestions: List[Dict[str, Any]] = []
+
+        for obl_id in obligation_ids:
+            obligation = (
+                self.db.query(RegulatoryObligation)
+                .filter(RegulatoryObligation.id == obl_id)
+                .first()
+            )
+            if not obligation:
+                continue
+
+            internal_rule = (
+                self.db.query(InternalRule)
+                .filter(
+                    InternalRule.obligation_id == obligation.id,
+                    InternalRule.tenant_id == tenant_id,
+                )
+                .first()
+            )
+            internal_rule_created = False
+            if not internal_rule:
+                internal_rule = InternalRule(
+                    internal_rule_id=f"IR-{uuid.uuid4().hex[:8].upper()}",
+                    tenant_id=tenant_id,
+                    obligation_id=obligation.id,
+                    name=f"Control for {obligation.obligation_id}",
+                    description=(
+                        f"Auto-generated control suggestion from approved policy {policy.policy_id}"
+                    ),
+                    control_owner=reviewed_by,
+                    status="draft",
+                )
+                self.db.add(internal_rule)
+                self.db.flush()
+                internal_rule_created = True
+
+            existing_mapping = (
+                self.db.query(InternalRuleMapping)
+                .filter(
+                    InternalRuleMapping.internal_rule_id == internal_rule.id,
+                    InternalRuleMapping.tenant_id == tenant_id,
+                    InternalRuleMapping.monitoring_rule_id.is_not(None),
+                )
+                .first()
+            )
+            if existing_mapping:
+                monitoring_rule = (
+                    self.db.query(MonitoringRule)
+                    .filter(MonitoringRule.id == existing_mapping.monitoring_rule_id)
+                    .first()
+                )
+                suggestions.append(
+                    {
+                        "obligation_id": obligation.id,
+                        "obligation_key": obligation.obligation_id,
+                        "internal_rule_id": internal_rule.id,
+                        "internal_rule_key": internal_rule.internal_rule_id,
+                        "internal_rule_created": internal_rule_created,
+                        "status": "already_mapped",
+                        "existing_monitoring_rule": (
+                            {
+                                "id": monitoring_rule.id,
+                                "rule_id": monitoring_rule.rule_id,
+                                "name": monitoring_rule.name,
+                            }
+                            if monitoring_rule
+                            else None
+                        ),
+                        "suggested_monitoring_rule": None,
+                    }
+                )
+                continue
+
+            suggestion_payload = self._build_monitoring_rule_suggestion(obligation)
+            suggestions.append(
+                {
+                    "obligation_id": obligation.id,
+                    "obligation_key": obligation.obligation_id,
+                    "internal_rule_id": internal_rule.id,
+                    "internal_rule_key": internal_rule.internal_rule_id,
+                    "internal_rule_created": internal_rule_created,
+                    "status": "suggested",
+                    "existing_monitoring_rule": None,
+                    "suggested_monitoring_rule": suggestion_payload,
+                }
+            )
+
+        self.db.commit()
+        return suggestions
+
+    def _build_monitoring_rule_suggestion(self, obligation: RegulatoryObligation) -> Dict[str, Any]:
+        text_value = (obligation.obligation_text or "").lower()
+        article = obligation.article_ref
+        source_id = obligation.doc_id
+        base_name = f"Auto rule for {obligation.obligation_id}"
+
+        if any(
+            keyword in text_value for keyword in ["sanction", "high-risk country", "jurisdiction"]
+        ):
+            return RuleBuilder.create_high_risk_country_rule(
+                name=base_name,
+                country_codes=["IR", "KP", "SY", "RU", "BY"],
+                regulatory_source_id=source_id,
+                regulation_article=article,
+                severity="high",
+            )
+
+        threshold = self._extract_amount_threshold(obligation.obligation_text or "")
+        if threshold is not None:
+            return RuleBuilder.create_transaction_limit_rule(
+                name=base_name,
+                amount_limit=threshold,
+                currency="EUR",
+                regulatory_source_id=source_id,
+                regulation_article=article,
+                regulatory_requirement=obligation.obligation_text[:500],
+                severity="medium",
+            )
+
+        return RuleBuilder.create_velocity_rule(
+            name=base_name,
+            max_transactions=10,
+            time_window_hours=24,
+            regulatory_source_id=source_id,
+            severity="medium",
+        )
+
+    @staticmethod
+    def _extract_amount_threshold(obligation_text: str) -> Optional[Decimal]:
+        number_matches = re.findall(r"(\d[\d,\.\s]{2,})", obligation_text or "")
+        for raw in number_matches:
+            normalized = raw.replace(" ", "").replace(",", "")
+            try:
+                value = Decimal(normalized)
+            except InvalidOperation:
+                continue
+            if value >= Decimal("1000"):
+                return value
+        return None
 
 
 # Global instance

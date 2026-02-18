@@ -17,7 +17,13 @@ from collections import defaultdict
 from sqlalchemy.orm import Session
 from sqlalchemy import func, and_, or_, text
 
-from src.models.compliance_workflow import RegulatoryObligation, PolicyDocument, PolicyTemplate
+from src.models.compliance_workflow import (
+    RegulatoryObligation,
+    PolicyDocument,
+    PolicyTemplate,
+    ObligationPolicyMapping,
+    TenantObligationApplicability,
+)
 from src.models.models import LegalDocument
 
 logger = logging.getLogger(__name__)
@@ -324,7 +330,10 @@ class GapAnalyzer:
             return GapSeverity.INFO
 
     def analyze_coverage(
-        self, scope_filter: Optional[List[str]] = None, doc_id: Optional[int] = None
+        self,
+        scope_filter: Optional[List[str]] = None,
+        doc_id: Optional[int] = None,
+        tenant_id: Optional[str] = None,
     ) -> GapAnalysisReport:
         """
         Run complete gap analysis.
@@ -350,14 +359,50 @@ class GapAnalyzer:
 
         obligations = query.all()
 
+        if tenant_id and obligations:
+            obligation_ids = [row[0].id for row in obligations]
+            applicability_rows = (
+                self.db.query(TenantObligationApplicability)
+                .filter(
+                    TenantObligationApplicability.tenant_id == tenant_id,
+                    TenantObligationApplicability.obligation_id.in_(obligation_ids),
+                )
+                .all()
+            )
+            applicability_by_obligation = {row.obligation_id: row for row in applicability_rows}
+            allowed = {"applicable", "partially_applicable"}
+            obligations = [
+                row
+                for row in obligations
+                if (
+                    applicability_by_obligation.get(row[0].id) is None
+                    or applicability_by_obligation[row[0].id].applicability in allowed
+                )
+            ]
+
         # 2. Get all policy mappings
-        mappings = (
-            self.db.query(text("obligation_id, policy_id, mapping_confidence"))
-            .select_from(text("obligation_policy_mappings"))
-            .all()
+        mapping_query = self.db.query(
+            ObligationPolicyMapping.obligation_id,
+            ObligationPolicyMapping.policy_id,
+            ObligationPolicyMapping.mapping_confidence,
         )
+        if tenant_id:
+            mapping_query = mapping_query.join(
+                PolicyDocument,
+                PolicyDocument.id == ObligationPolicyMapping.policy_id,
+            ).filter(or_(PolicyDocument.tenant_id.is_(None), PolicyDocument.tenant_id == tenant_id))
+        mappings = mapping_query.all()
 
         mapped_obligation_ids = {m[0] for m in mappings}
+        linked_policy_ids = {
+            row[0].linked_policy_id for row in obligations if row[0].linked_policy_id
+        }
+        policy_tenant_by_id = {}
+        if linked_policy_ids:
+            for policy in (
+                self.db.query(PolicyDocument).filter(PolicyDocument.id.in_(linked_policy_ids)).all()
+            ):
+                policy_tenant_by_id[policy.id] = policy.tenant_id
 
         # 3. Calculate metrics by category
         category_stats = defaultdict(
@@ -387,6 +432,9 @@ class GapAnalyzer:
             # Determine coverage status
             is_mapped = obligation.id in mapped_obligation_ids
             has_linked_policy = obligation.linked_policy_id is not None
+            if has_linked_policy and tenant_id:
+                linked_policy_tenant = policy_tenant_by_id.get(obligation.linked_policy_id)
+                has_linked_policy = linked_policy_tenant in (None, tenant_id)
 
             if is_mapped or has_linked_policy:
                 covered_count += 1
@@ -608,39 +656,34 @@ class GapAnalyzer:
             notes: Optional notes
         """
         try:
-            self.db.execute(
-                text(
-                    """
-                INSERT INTO obligation_policy_mappings
-                (obligation_id, policy_id, mapped_by, mapping_confidence, notes)
-                VALUES (:obl_id, :policy_id, :mapped_by, :confidence, :notes)
-                ON CONFLICT(obligation_id, policy_id) DO UPDATE SET
-                    mapped_by = excluded.mapped_by,
-                    mapping_confidence = excluded.mapping_confidence,
-                    notes = excluded.notes,
-                    mapped_at = CURRENT_TIMESTAMP
-            """
-                ),
-                {
-                    "obl_id": obligation_id,
-                    "policy_id": policy_id,
-                    "mapped_by": mapped_by,
-                    "confidence": confidence,
-                    "notes": notes,
-                },
+            mapping = (
+                self.db.query(ObligationPolicyMapping)
+                .filter(
+                    ObligationPolicyMapping.obligation_id == obligation_id,
+                    ObligationPolicyMapping.policy_id == policy_id,
+                )
+                .first()
             )
+            if mapping is None:
+                mapping = ObligationPolicyMapping(
+                    obligation_id=obligation_id,
+                    policy_id=policy_id,
+                )
+                self.db.add(mapping)
 
-            # Update linked policy pointer
-            self.db.execute(
-                text(
-                    """
-                UPDATE regulatory_obligations
-                SET linked_policy_id = :policy_id
-                WHERE id = :obl_id
-            """
-                ),
-                {"obl_id": obligation_id, "policy_id": policy_id},
+            mapping.mapped_by = mapped_by
+            mapping.mapping_confidence = confidence
+            mapping.notes = notes
+            mapping.mapped_at = datetime.now(timezone.utc)
+
+            obligation = (
+                self.db.query(RegulatoryObligation)
+                .filter(RegulatoryObligation.id == obligation_id)
+                .first()
             )
+            if obligation:
+                obligation.linked_policy_id = policy_id
+                obligation.updated_at = datetime.now(timezone.utc)
 
             self.db.commit()
             logger.info(f"Mapped obligation {obligation_id} to policy {policy_id}")

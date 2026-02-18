@@ -25,9 +25,16 @@ from src.models.compliance_workflow import (
     PolicySection,
     RiskEntry,
     ObligationRiskLink,
+    TenantObligationApplicability,
+    ObligationPolicyMapping,
 )
 from src.models.models import LegalDocument
-from src.schemas.obligation_schemas import ObligationUpdate, ObligationApproval
+from src.models.tenant_models import Tenant
+from src.schemas.obligation_schemas import (
+    ObligationUpdate,
+    ObligationApproval,
+    TenantObligationApplicabilityUpdate,
+)
 from src.compliance.scope import normalize_scopes, scope_keywords
 from src.websocket.manager import ws_manager
 from src.websocket.events import EventType, NotificationEvent
@@ -72,7 +79,10 @@ def _enforce_obligation_four_eyes(
 
 
 def _obligation_to_dict(
-    obligation: RegulatoryObligation, doc: LegalDocument, db: Session = None
+    obligation: RegulatoryObligation,
+    doc: LegalDocument,
+    db: Session = None,
+    tenant_id: Optional[str] = None,
 ) -> dict:
     title = doc.title or doc.celex or doc.source_reference or "Untitled document"
 
@@ -84,7 +94,7 @@ def _obligation_to_dict(
             .filter(PolicyDocument.id == obligation.linked_policy_id)
             .first()
         )
-        if policy:
+        if policy and (tenant_id is None or policy.tenant_id in (None, tenant_id)):
             linked_policy = {
                 "id": policy.id,
                 "policy_id": policy.policy_id,
@@ -104,9 +114,12 @@ def _obligation_to_dict(
     # Get internal rules count
     internal_rules_count = 0
     if db:
-        internal_rules_count = (
-            db.query(InternalRule).filter(InternalRule.obligation_id == obligation.id).count()
-        )
+        rule_query = db.query(InternalRule).filter(InternalRule.obligation_id == obligation.id)
+        if tenant_id:
+            rule_query = rule_query.filter(
+                or_(InternalRule.tenant_id.is_(None), InternalRule.tenant_id == tenant_id)
+            )
+        internal_rules_count = rule_query.count()
 
     return {
         "id": obligation.id,
@@ -302,6 +315,7 @@ def _ensure_internal_rule_for_obligation(
     db: Session,
     obligation: RegulatoryObligation,
     *,
+    tenant_id: Optional[str],
     policy_section_id: Optional[int],
     current_user_email: str,
     name: str,
@@ -315,6 +329,9 @@ def _ensure_internal_rule_for_obligation(
     )
     if existing:
         changed = False
+        if existing.tenant_id is None and tenant_id is not None:
+            existing.tenant_id = tenant_id
+            changed = True
         if existing.policy_section_id is None and policy_section_id is not None:
             existing.policy_section_id = policy_section_id
             changed = True
@@ -327,6 +344,7 @@ def _ensure_internal_rule_for_obligation(
 
     rule = InternalRule(
         internal_rule_id=f"IR-{uuid.uuid4().hex[:8].upper()}",
+        tenant_id=tenant_id,
         obligation_id=obligation.id,
         policy_section_id=policy_section_id,
         name=name,
@@ -340,6 +358,49 @@ def _ensure_internal_rule_for_obligation(
     return rule, True
 
 
+def _effective_tenant_id(
+    current_user: Optional[CurrentUser],
+    requested_tenant_id: Optional[str] = None,
+) -> Optional[str]:
+    if isinstance(requested_tenant_id, str) and requested_tenant_id.strip():
+        return requested_tenant_id.strip()
+    if current_user is None:
+        return None
+    return current_user.tenant_id
+
+
+def _is_policy_visible_to_tenant(policy: PolicyDocument, tenant_id: Optional[str]) -> bool:
+    if tenant_id is None:
+        return True
+    return policy.tenant_id in (None, tenant_id)
+
+
+def _upsert_obligation_policy_mapping(
+    db: Session,
+    obligation_id: int,
+    policy_id: int,
+    *,
+    mapped_by: str,
+    confidence: float = 1.0,
+    notes: Optional[str] = None,
+) -> None:
+    mapping = (
+        db.query(ObligationPolicyMapping)
+        .filter(
+            ObligationPolicyMapping.obligation_id == obligation_id,
+            ObligationPolicyMapping.policy_id == policy_id,
+        )
+        .first()
+    )
+    if mapping is None:
+        mapping = ObligationPolicyMapping(obligation_id=obligation_id, policy_id=policy_id)
+        db.add(mapping)
+    mapping.mapped_by = mapped_by
+    mapping.mapping_confidence = confidence
+    mapping.notes = notes
+    mapping.mapped_at = utc_now()
+
+
 @router.get("")
 def list_obligations(
     status: Optional[str] = Query(None, description="Comma-separated statuses"),
@@ -350,6 +411,10 @@ def list_obligations(
     include_status_counts: bool = Query(
         False, description="Include counts of obligations by status"
     ),
+    tenant_id: Optional[str] = Query(
+        None,
+        description="Filter by tenant applicability (defaults to current user tenant)",
+    ),
     skip: int = Query(0, ge=0),
     limit: int = Query(50, ge=1, le=200),
     db: Session = Depends(get_db),
@@ -357,6 +422,8 @@ def list_obligations(
         require_any_role(["admin", "compliance", "aml_officer", "auditor", "user"])
     ),
 ):
+    current_user = _
+    effective_tenant_id = _effective_tenant_id(current_user, tenant_id)
     statuses = _normalize_statuses(status)
 
     query = db.query(RegulatoryObligation, LegalDocument).join(
@@ -382,6 +449,22 @@ def list_obligations(
             )
         )
 
+    if effective_tenant_id:
+        query = query.outerjoin(
+            TenantObligationApplicability,
+            sa.and_(
+                TenantObligationApplicability.obligation_id == RegulatoryObligation.id,
+                TenantObligationApplicability.tenant_id == effective_tenant_id,
+            ),
+        ).filter(
+            or_(
+                TenantObligationApplicability.id.is_(None),
+                TenantObligationApplicability.applicability.in_(
+                    ["applicable", "partially_applicable"]
+                ),
+            )
+        )
+
     total = query.count()
     status_counts = None
     if include_status_counts:
@@ -399,7 +482,10 @@ def list_obligations(
 
     response = {
         "total": total,
-        "items": [_obligation_to_dict(obligation, doc, db) for obligation, doc in rows],
+        "items": [
+            _obligation_to_dict(obligation, doc, db, tenant_id=effective_tenant_id)
+            for obligation, doc in rows
+        ],
     }
     if status_counts is not None:
         response["status_counts"] = status_counts
@@ -411,10 +497,11 @@ def list_obligations(
 def get_obligation(
     obligation_id: int,
     db: Session = Depends(get_db),
-    _: CurrentUser = Depends(
+    current_user: CurrentUser = Depends(
         require_any_role(["admin", "compliance", "aml_officer", "auditor", "user"])
     ),
 ):
+    effective_tenant_id = _effective_tenant_id(current_user)
     row = (
         db.query(RegulatoryObligation, LegalDocument)
         .join(LegalDocument, RegulatoryObligation.doc_id == LegalDocument.id)
@@ -425,7 +512,22 @@ def get_obligation(
         raise HTTPException(status_code=404, detail="Obligation not found")
 
     obligation, doc = row
-    result = _obligation_to_dict(obligation, doc, db)
+    if effective_tenant_id:
+        tenant_applicability = (
+            db.query(TenantObligationApplicability)
+            .filter(
+                TenantObligationApplicability.tenant_id == effective_tenant_id,
+                TenantObligationApplicability.obligation_id == obligation.id,
+            )
+            .first()
+        )
+        if tenant_applicability and tenant_applicability.applicability not in (
+            "applicable",
+            "partially_applicable",
+        ):
+            raise HTTPException(status_code=404, detail="Obligation not found")
+
+    result = _obligation_to_dict(obligation, doc, db, tenant_id=effective_tenant_id)
 
     # Get linked risks details
     risk_links = (
@@ -448,7 +550,19 @@ def get_obligation(
 
     # Get internal rules
     internal_rules = (
-        db.query(InternalRule).filter(InternalRule.obligation_id == obligation.id).all()
+        db.query(InternalRule)
+        .filter(
+            InternalRule.obligation_id == obligation.id,
+            (
+                or_(
+                    InternalRule.tenant_id.is_(None),
+                    InternalRule.tenant_id == effective_tenant_id,
+                )
+                if effective_tenant_id
+                else sa.true()
+            ),
+        )
+        .all()
     )
     result["internal_rules"] = [
         {
@@ -469,7 +583,7 @@ def get_policy_template_suggestions(
     obligation_id: int,
     limit: int = Query(3, ge=1, le=10),
     db: Session = Depends(get_db),
-    _: CurrentUser = Depends(
+    current_user: CurrentUser = Depends(
         require_any_role(["admin", "compliance", "aml_officer", "auditor", "user"])
     ),
 ):
@@ -493,6 +607,18 @@ def get_policy_template_suggestions(
     )
 
     templates = db.query(PolicyTemplate).filter(PolicyTemplate.is_active == True).all()
+    effective_tenant_id = _effective_tenant_id(current_user)
+    if effective_tenant_id:
+        tenant = db.query(Tenant).filter(Tenant.tenant_id == effective_tenant_id).first()
+        institution_type = (tenant.institution_type or "").lower() if tenant else ""
+        if institution_type:
+            templates = [
+                template
+                for template in templates
+                if not template.institution_types
+                or institution_type in (template.institution_types or [])
+            ]
+
     template_ids = [t.template_id for t in templates]
     master_policies = {}
     if template_ids:
@@ -544,6 +670,59 @@ def get_policy_template_suggestions(
     return {"items": results}
 
 
+@router.post("/{obligation_id}/applicability")
+def set_tenant_obligation_applicability(
+    obligation_id: int,
+    payload: TenantObligationApplicabilityUpdate,
+    db: Session = Depends(get_db),
+    current_user: CurrentUser = Depends(require_any_role(["admin", "compliance", "aml_officer"])),
+):
+    obligation = (
+        db.query(RegulatoryObligation).filter(RegulatoryObligation.id == obligation_id).first()
+    )
+    if not obligation:
+        raise HTTPException(status_code=404, detail="Obligation not found")
+
+    tenant = db.query(Tenant).filter(Tenant.tenant_id == payload.tenant_id).first()
+    if not tenant:
+        raise HTTPException(status_code=404, detail="Tenant not found")
+
+    row = (
+        db.query(TenantObligationApplicability)
+        .filter(
+            TenantObligationApplicability.tenant_id == payload.tenant_id,
+            TenantObligationApplicability.obligation_id == obligation_id,
+        )
+        .first()
+    )
+    created = False
+    if row is None:
+        row = TenantObligationApplicability(
+            tenant_id=payload.tenant_id,
+            obligation_id=obligation_id,
+        )
+        db.add(row)
+        created = True
+
+    row.applicability = payload.applicability
+    row.notes = payload.notes
+    row.assessed_by = current_user.email
+    row.assessed_at = utc_now()
+    row.updated_at = utc_now()
+    db.commit()
+    db.refresh(row)
+
+    return {
+        "tenant_id": row.tenant_id,
+        "obligation_id": row.obligation_id,
+        "applicability": row.applicability,
+        "assessed_by": row.assessed_by,
+        "assessed_at": row.assessed_at.isoformat() if row.assessed_at else None,
+        "notes": row.notes,
+        "created": created,
+    }
+
+
 @router.patch("/{obligation_id}")
 async def update_obligation(
     obligation_id: int,
@@ -551,6 +730,7 @@ async def update_obligation(
     db: Session = Depends(get_db),
     current_user: CurrentUser = Depends(require_any_role(["admin", "compliance", "aml_officer"])),
 ):
+    effective_tenant_id = _effective_tenant_id(current_user)
     obligation = (
         db.query(RegulatoryObligation).filter(RegulatoryObligation.id == obligation_id).first()
     )
@@ -598,8 +778,31 @@ async def update_obligation(
         if not doc:
             raise HTTPException(status_code=404, detail="Linked document not found")
 
+        linked_policy: Optional[PolicyDocument] = None
+        if obligation.linked_policy_id:
+            linked_policy = (
+                db.query(PolicyDocument)
+                .filter(PolicyDocument.id == obligation.linked_policy_id)
+                .first()
+            )
+            if linked_policy and not _is_policy_visible_to_tenant(
+                linked_policy, effective_tenant_id
+            ):
+                linked_policy = None
+                obligation.linked_policy_id = None
+
         if not obligation.linked_policy_id:
             templates = db.query(PolicyTemplate).filter(PolicyTemplate.is_active == True).all()
+            if effective_tenant_id:
+                tenant = db.query(Tenant).filter(Tenant.tenant_id == effective_tenant_id).first()
+                institution_type = (tenant.institution_type or "").lower() if tenant else ""
+                if institution_type:
+                    templates = [
+                        template
+                        for template in templates
+                        if not template.institution_types
+                        or institution_type in (template.institution_types or [])
+                    ]
             if not templates:
                 raise HTTPException(
                     status_code=409, detail="No policy templates/master policies available"
@@ -620,6 +823,7 @@ async def update_obligation(
                 )
 
             policy, _ = ensure_master_policy_for_template(db, best_template)
+            linked_policy = policy
             obligation.linked_policy_id = policy.id
 
             auto_note = f"[{utc_now().isoformat()}] {current_user.email}: Auto-linked to policy {policy.policy_id} (score={best_score})"
@@ -627,10 +831,28 @@ async def update_obligation(
                 f"{(obligation.review_notes or '').rstrip()}\n{auto_note}".strip()
             )
 
+        if linked_policy is None and obligation.linked_policy_id:
+            linked_policy = (
+                db.query(PolicyDocument)
+                .filter(PolicyDocument.id == obligation.linked_policy_id)
+                .first()
+            )
+
+        if obligation.linked_policy_id:
+            _upsert_obligation_policy_mapping(
+                db,
+                obligation.id,
+                obligation.linked_policy_id,
+                mapped_by=f"user:{current_user.user_id}",
+                confidence=1.0,
+                notes="Auto-linked during obligation approval",
+            )
+
         policy_section = _get_or_create_obligation_section(db, obligation.linked_policy_id)
         _ensure_internal_rule_for_obligation(
             db,
             obligation,
+            tenant_id=linked_policy.tenant_id if linked_policy else None,
             policy_section_id=policy_section.id if policy_section else None,
             current_user_email=current_user.email,
             name=f"Implement {obligation.obligation_id}",
@@ -677,7 +899,7 @@ async def update_obligation(
     except Exception:
         pass
 
-    return _obligation_to_dict(obligation, doc, db)
+    return _obligation_to_dict(obligation, doc, db, tenant_id=effective_tenant_id)
 
 
 @router.patch("/{obligation_id}/approve")
@@ -688,6 +910,7 @@ async def approve_obligation(
     current_user: CurrentUser = Depends(require_any_role(["admin", "compliance", "aml_officer"])),
 ):
     """Enhanced approval with policy linking and internal rule creation."""
+    effective_tenant_id = _effective_tenant_id(current_user)
     obligation = (
         db.query(RegulatoryObligation).filter(RegulatoryObligation.id == obligation_id).first()
     )
@@ -729,6 +952,8 @@ async def approve_obligation(
         )
         if not linked_policy:
             raise HTTPException(status_code=404, detail="Linked policy not found")
+        if not _is_policy_visible_to_tenant(linked_policy, effective_tenant_id):
+            raise HTTPException(status_code=404, detail="Linked policy not found")
         obligation.linked_policy_id = linked_policy.id
 
     # Update status
@@ -748,6 +973,16 @@ async def approve_obligation(
         # Ensure approved obligations are always linked to a policy (auto-assign from master policies if missing).
         if not obligation.linked_policy_id:
             templates = db.query(PolicyTemplate).filter(PolicyTemplate.is_active == True).all()
+            if effective_tenant_id:
+                tenant = db.query(Tenant).filter(Tenant.tenant_id == effective_tenant_id).first()
+                institution_type = (tenant.institution_type or "").lower() if tenant else ""
+                if institution_type:
+                    templates = [
+                        template
+                        for template in templates
+                        if not template.institution_types
+                        or institution_type in (template.institution_types or [])
+                    ]
             if not templates:
                 raise HTTPException(
                     status_code=409, detail="No policy templates/master policies available"
@@ -790,6 +1025,22 @@ async def approve_obligation(
                 status_code=409, detail="Approved obligation must be linked to a policy"
             )
 
+        if linked_policy is None:
+            linked_policy = (
+                db.query(PolicyDocument)
+                .filter(PolicyDocument.id == obligation.linked_policy_id)
+                .first()
+            )
+
+        _upsert_obligation_policy_mapping(
+            db,
+            obligation.id,
+            obligation.linked_policy_id,
+            mapped_by=f"user:{current_user.user_id}",
+            confidence=1.0,
+            notes="Mapped during obligation approval",
+        )
+
         policy_section = _get_or_create_obligation_section(db, obligation.linked_policy_id)
         rule_name = payload.internal_rule_name or f"Implement {obligation.obligation_id}"
         description = (
@@ -802,6 +1053,7 @@ async def approve_obligation(
         internal_rule, internal_rule_created = _ensure_internal_rule_for_obligation(
             db,
             obligation,
+            tenant_id=linked_policy.tenant_id if linked_policy else None,
             policy_section_id=policy_section.id if policy_section else None,
             current_user_email=current_user.email,
             name=rule_name,
@@ -886,7 +1138,7 @@ async def approve_obligation(
     except Exception:
         pass
 
-    result = _obligation_to_dict(obligation, doc, db)
+    result = _obligation_to_dict(obligation, doc, db, tenant_id=effective_tenant_id)
     if internal_rule and internal_rule_created:
         result["created_internal_rule"] = {
             "id": internal_rule.id,
@@ -945,18 +1197,24 @@ def get_obligation_risks(
 def get_obligation_internal_rules(
     obligation_id: int,
     db: Session = Depends(get_db),
-    _: CurrentUser = Depends(
+    current_user: CurrentUser = Depends(
         require_any_role(["admin", "compliance", "aml_officer", "auditor", "user"])
     ),
 ):
     """Get internal rules for an obligation."""
+    effective_tenant_id = _effective_tenant_id(current_user)
     obligation = (
         db.query(RegulatoryObligation).filter(RegulatoryObligation.id == obligation_id).first()
     )
     if not obligation:
         raise HTTPException(status_code=404, detail="Obligation not found")
 
-    rules = db.query(InternalRule).filter(InternalRule.obligation_id == obligation_id).all()
+    query = db.query(InternalRule).filter(InternalRule.obligation_id == obligation_id)
+    if effective_tenant_id:
+        query = query.filter(
+            or_(InternalRule.tenant_id.is_(None), InternalRule.tenant_id == effective_tenant_id)
+        )
+    rules = query.all()
 
     return {
         "items": [

@@ -1,5 +1,17 @@
 from datetime import datetime
-from sqlalchemy import Column, Integer, String, DateTime, Text, Boolean, ForeignKey, JSON, Date
+from sqlalchemy import (
+    Column,
+    Integer,
+    String,
+    DateTime,
+    Text,
+    Boolean,
+    ForeignKey,
+    JSON,
+    Date,
+    Float,
+    UniqueConstraint,
+)
 from sqlalchemy.orm import relationship
 from sqlalchemy.dialects.postgresql import JSONB
 
@@ -108,6 +120,9 @@ class PolicyDocument(Base):
 
     id = Column(Integer, primary_key=True)
     policy_id = Column(String(64), unique=True, nullable=False, index=True)
+    tenant_id = Column(String(255), nullable=True, index=True)  # NULL = shared master policy
+    is_master = Column(Boolean, default=False, nullable=False)
+    master_policy_id = Column(Integer, ForeignKey("policy_documents.id"), nullable=True, index=True)
     name = Column(String(255), nullable=False)
     version = Column(String(50), nullable=True)
     owner = Column(String(255), nullable=True)
@@ -122,6 +137,7 @@ class PolicyDocument(Base):
     updated_at = Column(DateTime, default=utc_now, onupdate=utc_now)
 
     sections = relationship("PolicySection", back_populates="policy", cascade="all, delete-orphan")
+    master_policy = relationship("PolicyDocument", remote_side=[id], backref="tenant_policies")
 
 
 class PolicyTemplate(Base):
@@ -135,6 +151,8 @@ class PolicyTemplate(Base):
     owner = Column(String(255), nullable=True)
     review_frequency_months = Column(Integer, nullable=True)
     regulatory_basis = Column(JSON().with_variant(JSONB(), "postgresql"), nullable=True)
+    institution_types = Column(JSON().with_variant(JSONB(), "postgresql"), nullable=True)
+    applicable_regulations = Column(JSON().with_variant(JSONB(), "postgresql"), nullable=True)
     source_url = Column(String(1000), nullable=True)
     content = Column(Text, nullable=True)
     metadata_json = Column("metadata", JSON().with_variant(JSONB(), "postgresql"), nullable=True)
@@ -165,6 +183,7 @@ class InternalRule(Base):
 
     id = Column(Integer, primary_key=True)
     internal_rule_id = Column(String(64), unique=True, nullable=False, index=True)
+    tenant_id = Column(String(255), nullable=True, index=True)
     obligation_id = Column(
         Integer, ForeignKey("regulatory_obligations.id"), nullable=False, index=True
     )
@@ -191,6 +210,7 @@ class InternalRuleMapping(Base):
 
     id = Column(Integer, primary_key=True)
     internal_rule_id = Column(Integer, ForeignKey("internal_rules.id"), nullable=False, index=True)
+    tenant_id = Column(String(255), nullable=True, index=True)
     monitoring_rule_id = Column(
         Integer, ForeignKey("monitoring_rules.id"), nullable=True, index=True
     )
@@ -198,6 +218,50 @@ class InternalRuleMapping(Base):
     created_at = Column(DateTime, default=utc_now)
 
     internal_rule = relationship("InternalRule", backref="mappings")
+    monitoring_rule = relationship("MonitoringRule")
+
+
+class TenantObligationApplicability(Base):
+    __tablename__ = "tenant_obligation_applicability"
+    __table_args__ = (
+        UniqueConstraint("tenant_id", "obligation_id", name="uq_tenant_obligation_applicability"),
+    )
+
+    id = Column(Integer, primary_key=True)
+    tenant_id = Column(String(255), nullable=False, index=True)
+    obligation_id = Column(
+        Integer, ForeignKey("regulatory_obligations.id"), nullable=False, index=True
+    )
+    applicability = Column(String(32), nullable=False, default="applicable")
+    assessed_by = Column(String(255), nullable=True)
+    assessed_at = Column(DateTime, nullable=True)
+    notes = Column(Text, nullable=True)
+    created_at = Column(DateTime, default=utc_now)
+    updated_at = Column(DateTime, default=utc_now, onupdate=utc_now)
+
+    obligation = relationship("RegulatoryObligation", backref="tenant_applicability")
+
+
+class ObligationPolicyMapping(Base):
+    __tablename__ = "obligation_policy_mappings"
+    __table_args__ = (
+        UniqueConstraint("obligation_id", "policy_id", name="uq_obligation_policy_mapping"),
+    )
+
+    id = Column(Integer, primary_key=True)
+    obligation_id = Column(
+        Integer, ForeignKey("regulatory_obligations.id"), nullable=False, index=True
+    )
+    policy_id = Column(Integer, ForeignKey("policy_documents.id"), nullable=False, index=True)
+    mapped_by = Column(String(255), nullable=True)
+    mapping_confidence = Column(Float, nullable=True)
+    notes = Column(Text, nullable=True)
+    mapped_at = Column(DateTime, default=utc_now)
+    created_at = Column(DateTime, default=utc_now)
+    updated_at = Column(DateTime, default=utc_now, onupdate=utc_now)
+
+    obligation = relationship("RegulatoryObligation", backref="policy_mappings")
+    policy = relationship("PolicyDocument", backref="obligation_mappings")
 
 
 class RiskCategory(Base):

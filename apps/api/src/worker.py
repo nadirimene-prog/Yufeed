@@ -107,6 +107,24 @@ celery_app.conf.update(
             "task": "src.worker.archive_old_audit_logs",
             "schedule": crontab(hour=3, minute=0, day_of_week=0),  # Sunday 3 AM
         },
+        # KYC lifecycle checks
+        "periodic-kyc-review-scan": {
+            "task": "tasks.task_periodic_kyc_review_scan",
+            "schedule": crontab(minute=15, hour=2),  # Daily at 02:15 UTC
+        },
+        "kyc-document-expiry-check": {
+            "task": "tasks.task_document_expiry_check",
+            "schedule": crontab(minute=30, hour=2),  # Daily at 02:30 UTC
+            "args": (30,),
+        },
+        "compliance-calendar-overdue-check": {
+            "task": "tasks.task_check_overdue_events",
+            "schedule": crontab(minute=45, hour=2),  # Daily at 02:45 UTC
+        },
+        "compliance-calendar-reminders": {
+            "task": "tasks.task_send_calendar_reminders",
+            "schedule": crontab(minute=0, hour=3),  # Daily at 03:00 UTC
+        },
     },
 )
 

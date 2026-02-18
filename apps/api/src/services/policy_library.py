@@ -63,6 +63,8 @@ def ensure_master_policy_for_template(
     if existing_policies is None:
         candidates = db.query(PolicyDocument).all()
         for policy in candidates:
+            if policy.tenant_id is not None and not bool(getattr(policy, "is_master", False)):
+                continue
             if policy.policy_id == template_id and policy not in policies:
                 policies.append(policy)
             meta_template_id = (policy.metadata_json or {}).get("template_id")
@@ -73,6 +75,9 @@ def ensure_master_policy_for_template(
     if not policies:
         canonical = PolicyDocument(
             policy_id=template_id,
+            tenant_id=None,
+            is_master=True,
+            master_policy_id=None,
             name=template.name,
             version=template.version,
             owner=template.owner,
@@ -98,10 +103,26 @@ def ensure_master_policy_for_template(
         canonical.status = "active"
         changed = True
 
+    if canonical.tenant_id is not None:
+        canonical.tenant_id = None
+        changed = True
+
+    if canonical.is_master is not True:
+        canonical.is_master = True
+        changed = True
+
+    if canonical.master_policy_id is not None:
+        canonical.master_policy_id = None
+        changed = True
+
     if canonical.policy_id != template_id:
         conflict = (
             db.query(PolicyDocument)
-            .filter(PolicyDocument.policy_id == template_id, PolicyDocument.id != canonical.id)
+            .filter(
+                PolicyDocument.policy_id == template_id,
+                PolicyDocument.id != canonical.id,
+                PolicyDocument.tenant_id.is_(None),
+            )
             .first()
         )
         if not conflict:
@@ -145,6 +166,8 @@ def ensure_master_policy_for_template(
     # Retire duplicates
     for other in policies:
         if other.id == canonical.id:
+            continue
+        if other.tenant_id is not None and not bool(getattr(other, "is_master", False)):
             continue
         other_changed = False
         if (other.status or "").lower() != "retired":
@@ -190,6 +213,8 @@ def ensure_master_policies(db: Optional[Session] = None) -> Dict[str, int]:
         template_ids = set(by_template.keys())
 
         for policy in policies:
+            if policy.tenant_id is not None and not bool(getattr(policy, "is_master", False)):
+                continue
             matched_ids = set()
             if policy.policy_id in template_ids:
                 matched_ids.add(policy.policy_id)

@@ -47,6 +47,9 @@ def register_routers(app: FastAPI) -> None:
     from .api.compliance import router as compliance_router
 
     include_with_api_prefix(compliance_router)
+    from .api.compliance_calendar import router as compliance_calendar_router
+
+    include_with_api_prefix(compliance_calendar_router)
     from .api.compliance_workflow import router as compliance_workflow_router
 
     include_with_api_prefix(compliance_workflow_router)
@@ -125,6 +128,9 @@ def register_routers(app: FastAPI) -> None:
     from .api.transactions import router as transactions_router
 
     include_with_api_prefix(transactions_router)
+    from .api.traceability_matrix import router as traceability_matrix_router
+
+    include_with_api_prefix(traceability_matrix_router)
     from .api.travel_rule import router as travel_rule_router
 
     include_with_api_prefix(travel_rule_router)

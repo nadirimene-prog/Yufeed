@@ -6,6 +6,7 @@ from fastapi import APIRouter, Depends, HTTPException, Request
 from sqlalchemy.orm import Session
 from typing import List, Optional
 from datetime import datetime, timedelta, timezone
+import logging
 
 
 def utc_now() -> datetime:
@@ -21,10 +22,15 @@ from src.schemas import schemas
 from src.schemas import compliance as comp_schemas
 from src.ai.analyzer import analyze_document
 from src.services.obligation_service import seed_obligations_for_doc
+from src.services.kyc_onboarding import KYCOnboardingService
+from src.services.kyc_periodic_review import KYCPeriodicReviewService
 from src.compliance.scope import infer_scope_tags
 from pydantic import BaseModel
 from src.models import compliance as comp_models
 from src.middleware import limiter, RateLimits
+from src.tenancy.context import get_current_tenant
+
+logger = logging.getLogger(__name__)
 
 router = APIRouter(
     prefix="/compliance",
@@ -100,6 +106,16 @@ def _as_utc(dt: datetime) -> datetime:
 
 def _event_status_for_date(event_date: datetime, now: datetime) -> str:
     return "future" if _as_utc(event_date) > _as_utc(now) else "completed"
+
+
+def _resolve_tenant_id(request: Request) -> str:
+    request_user = getattr(request.state, "user", None)
+    return getattr(request_user, "tenant_id", None) or get_current_tenant() or "default"
+
+
+def _resolve_user_id(request: Request) -> Optional[str]:
+    request_user = getattr(request.state, "user", None)
+    return getattr(request_user, "user_id", None)
 
 
 @router.post("/documents/{celex}/analyze")
@@ -453,14 +469,33 @@ def create_kyc_profile(
     """
     Submit a new KYC application.
     """
+    tenant_id = profile.tenant_id or _resolve_tenant_id(request)
+    user_id = profile.user_id or _resolve_user_id(request)
     db_profile = comp_models.KYCProfile(
-        **profile.model_dump(exclude={"type"}),
+        **profile.model_dump(exclude={"type", "tenant_id", "user_id"}),
+        tenant_id=tenant_id,
+        user_id=user_id,
         status=comp_models.ComplianceStatus.PENDING,
         risk_level=comp_models.RiskLevel.LOW,  # Default, to be updated by risk engine
     )
     db.add(db_profile)
     db.commit()
     db.refresh(db_profile)
+
+    # Best-effort onboarding bootstrap (screening + CDD baseline).
+    try:
+        onboarding_service = KYCOnboardingService(db)
+        onboarding_service.initiate_onboarding(
+            profile_id=db_profile.id,
+            tenant_id=tenant_id,
+            user_id=user_id,
+        )
+        db.commit()
+        db.refresh(db_profile)
+    except Exception as exc:
+        db.rollback()
+        logger.warning("KYC onboarding bootstrap failed for profile %s: %s", db_profile.id, exc)
+
     return db_profile
 
 
@@ -472,8 +507,12 @@ def create_kyb_profile(
     """
     Submit a new KYB application.
     """
+    tenant_id = profile.tenant_id or _resolve_tenant_id(request)
+    user_id = profile.user_id or _resolve_user_id(request)
     db_profile = comp_models.KYBProfile(
-        **profile.model_dump(exclude={"type"}),
+        **profile.model_dump(exclude={"type", "tenant_id", "user_id"}),
+        tenant_id=tenant_id,
+        user_id=user_id,
         status=comp_models.ComplianceStatus.PENDING,
         risk_level=comp_models.RiskLevel.LOW,
     )
@@ -481,6 +520,104 @@ def create_kyb_profile(
     db.commit()
     db.refresh(db_profile)
     return db_profile
+
+
+@router.post("/kyc/{id}/screen", response_model=comp_schemas.KYCScreenResponse)
+@limiter.limit(RateLimits.UPDATE)
+def screen_kyc_profile(request: Request, id: int, db: Session = Depends(get_db)):
+    """Run sanctions/PEP screening for a KYC profile."""
+    tenant_id = _resolve_tenant_id(request)
+    service = KYCOnboardingService(db)
+    try:
+        result = service.screen_customer(profile_id=id, tenant_id=tenant_id)
+        db.commit()
+        return result
+    except ValueError as exc:
+        db.rollback()
+        raise HTTPException(status_code=404, detail=str(exc))
+
+
+@router.post("/kyc/{id}/verify-documents", response_model=comp_schemas.DocumentVerificationResponse)
+@limiter.limit(RateLimits.UPDATE)
+def verify_kyc_documents(request: Request, id: int, db: Session = Depends(get_db)):
+    """Run KYC vendor document verification for all customer documents."""
+    tenant_id = _resolve_tenant_id(request)
+    service = KYCOnboardingService(db)
+    try:
+        result = service.verify_documents(profile_id=id, tenant_id=tenant_id)
+        db.commit()
+        return result
+    except ValueError as exc:
+        db.rollback()
+        raise HTTPException(status_code=404, detail=str(exc))
+
+
+@router.post("/kyc/{id}/set-cdd-level", response_model=comp_schemas.ComplianceProfileRead)
+@limiter.limit(RateLimits.UPDATE)
+def set_kyc_cdd_level(
+    request: Request,
+    id: int,
+    payload: comp_schemas.SetCDDLevelRequest,
+    db: Session = Depends(get_db),
+):
+    """Set or adjust CDD level on a customer profile."""
+    tenant_id = _resolve_tenant_id(request)
+    service = KYCOnboardingService(db)
+    try:
+        service.determine_cdd_level(
+            profile_id=id,
+            tenant_id=tenant_id,
+            requested_level=payload.cdd_level,
+            reason=payload.reason,
+        )
+        profile = (
+            db.query(comp_models.KYCProfile)
+            .filter(
+                comp_models.KYCProfile.id == id,
+                comp_models.KYCProfile.tenant_id == tenant_id,
+            )
+            .first()
+        )
+        if not profile:
+            db.rollback()
+            raise HTTPException(status_code=404, detail="KYC profile not found")
+        db.commit()
+        db.refresh(profile)
+        return profile
+    except ValueError as exc:
+        db.rollback()
+        raise HTTPException(status_code=404, detail=str(exc))
+
+
+@router.get("/kyc/reviews-due", response_model=comp_schemas.KYCReviewListResponse)
+@limiter.limit(RateLimits.READ)
+def get_kyc_reviews_due(request: Request, limit: int = 100, db: Session = Depends(get_db)):
+    """List KYC profiles due for periodic review."""
+    tenant_id = _resolve_tenant_id(request)
+    review_service = KYCPeriodicReviewService(db)
+    due_profiles = review_service.find_profiles_due_for_review(tenant_id=tenant_id, limit=limit)
+    return {"total_due": len(due_profiles), "items": due_profiles}
+
+
+@router.post("/kyc/{id}/initiate-review", response_model=comp_schemas.KYCReviewResponse)
+@limiter.limit(RateLimits.UPDATE)
+def initiate_kyc_review(request: Request, id: int, db: Session = Depends(get_db)):
+    """Move a KYC profile to manual periodic review."""
+    tenant_id = _resolve_tenant_id(request)
+    review_service = KYCPeriodicReviewService(db)
+    try:
+        profile = review_service.initiate_review(profile_id=id, tenant_id=tenant_id)
+        db.commit()
+        db.refresh(profile)
+        return {
+            "profile_id": profile.id,
+            "status": profile.status,
+            "last_review_date": profile.last_review_date,
+            "next_review_date": profile.next_review_date,
+        }
+    except ValueError as exc:
+        db.rollback()
+        raise HTTPException(status_code=404, detail=str(exc))
 
 
 @router.get("/cases", response_model=List[comp_schemas.ComplianceProfileRead])
@@ -496,7 +633,10 @@ def get_compliance_cases(
     """
     Get list of compliance cases (KYC/KYB) for the dashboard.
     """
-    query = db.query(comp_models.ComplianceProfile)
+    tenant_id = _resolve_tenant_id(request)
+    query = db.query(comp_models.ComplianceProfile).filter(
+        comp_models.ComplianceProfile.tenant_id == tenant_id
+    )
 
     if status:
         query = query.filter(comp_models.ComplianceProfile.status == status)
@@ -519,9 +659,13 @@ def get_compliance_case(request: Request, id: int, db: Session = Depends(get_db)
     """
     Get detailed view of a compliance case.
     """
+    tenant_id = _resolve_tenant_id(request)
     profile = (
         db.query(comp_models.ComplianceProfile)
-        .filter(comp_models.ComplianceProfile.id == id)
+        .filter(
+            comp_models.ComplianceProfile.id == id,
+            comp_models.ComplianceProfile.tenant_id == tenant_id,
+        )
         .first()
     )
     if not profile:
@@ -546,9 +690,13 @@ def review_compliance_case(
     """
     Approve or Reject a compliance case.
     """
+    tenant_id = _resolve_tenant_id(request)
     profile = (
         db.query(comp_models.ComplianceProfile)
-        .filter(comp_models.ComplianceProfile.id == id)
+        .filter(
+            comp_models.ComplianceProfile.id == id,
+            comp_models.ComplianceProfile.tenant_id == tenant_id,
+        )
         .first()
     )
     if not profile:

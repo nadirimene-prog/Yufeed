@@ -26,8 +26,16 @@ from src.auth.dependencies import (
     require_superuser,
     CurrentUser,
 )
-from src.models.tenant_models import Tenant, TenantAPIKey, TenantUser, TenantAuditLog
+from src.models.models import LegalDocument
+from src.models.tenant_models import (
+    Tenant,
+    TenantAPIKey,
+    TenantUser,
+    TenantAuditLog,
+    TenantRegulatoryProfile,
+)
 from src.models.transaction_models import Transaction, Alert, Case
+from src.services.tenant_compliance import TenantComplianceService
 from src.schemas.tenant_schemas import (
     TenantCreate,
     TenantUpdate,
@@ -42,6 +50,10 @@ from src.schemas.tenant_schemas import (
     TenantUserUpdate,
     TenantUserResponse,
     TenantConfigUpdate,
+    TenantRegulatoryProfileUpdate,
+    TenantRegulationAssignment,
+    TenantRegulationAssignmentResponse,
+    ApplicableRegulationResponse,
 )
 
 logger = logging.getLogger(__name__)
@@ -346,6 +358,184 @@ def update_tenant_config(
 
     logger.info(f"Updated config for tenant: {tenant_id}")
     return tenant
+
+
+# ============================================================================
+# TENANT REGULATORY PROFILE
+# ============================================================================
+
+
+@router.patch("/{tenant_id}/regulatory-profile", response_model=TenantResponse)
+def update_tenant_regulatory_profile(
+    tenant_id: str,
+    profile: TenantRegulatoryProfileUpdate,
+    db: Session = Depends(get_db),
+    current_user: CurrentUser = Depends(require_superuser()),
+):
+    """
+    Update tenant institution type and regulatory profile metadata.
+    """
+    tenant = (
+        db.query(Tenant).filter(Tenant.tenant_id == tenant_id, Tenant.deleted_at.is_(None)).first()
+    )
+    if not tenant:
+        raise HTTPException(status_code=404, detail="Tenant not found")
+
+    updates = profile.dict(exclude_unset=True)
+
+    if "institution_type" in updates:
+        try:
+            updates["institution_type"] = TenantComplianceService.validate_institution_type(
+                updates["institution_type"]
+            )
+        except ValueError as exc:
+            raise HTTPException(status_code=400, detail=str(exc)) from exc
+
+    if "regulatory_scope_tags" in updates:
+        updates["regulatory_scope_tags"] = TenantComplianceService.derive_scope_tags(
+            institution_type=updates.get("institution_type", tenant.institution_type),
+            explicit_scope_tags=updates["regulatory_scope_tags"],
+        )
+
+    for field, value in updates.items():
+        setattr(tenant, field, value)
+
+    tenant.updated_at = utc_now()
+    db.add(
+        TenantAuditLog(
+            tenant_id=tenant.id,
+            action_type="tenant.regulatory_profile.updated",
+            actor_user_id=current_user.user_id,
+            description="Tenant regulatory profile updated",
+            details=updates,
+        )
+    )
+
+    db.commit()
+    db.refresh(tenant)
+
+    return tenant
+
+
+@router.get(
+    "/{tenant_id}/applicable-regulations",
+    response_model=List[ApplicableRegulationResponse],
+)
+def get_applicable_regulations(
+    tenant_id: str,
+    include_exempt: bool = Query(False, description="Include regulations explicitly marked exempt"),
+    db: Session = Depends(get_db),
+    current_user: CurrentUser = Depends(require_superuser()),
+):
+    """
+    List regulations applicable to the tenant according to institution profile
+    and explicit per-regulation overrides.
+    """
+    tenant = (
+        db.query(Tenant).filter(Tenant.tenant_id == tenant_id, Tenant.deleted_at.is_(None)).first()
+    )
+    if not tenant:
+        raise HTTPException(status_code=404, detail="Tenant not found")
+
+    return TenantComplianceService.get_applicable_regulations(
+        db=db,
+        tenant=tenant,
+        include_exempt=include_exempt,
+    )
+
+
+@router.post(
+    "/{tenant_id}/regulatory-profile/regulations",
+    response_model=TenantRegulationAssignmentResponse,
+)
+def upsert_tenant_regulation_applicability(
+    tenant_id: str,
+    assignment: TenantRegulationAssignment,
+    db: Session = Depends(get_db),
+    current_user: CurrentUser = Depends(require_superuser()),
+):
+    """
+    Add, update, or remove a regulation applicability override for a tenant.
+    """
+    tenant = (
+        db.query(Tenant).filter(Tenant.tenant_id == tenant_id, Tenant.deleted_at.is_(None)).first()
+    )
+    if not tenant:
+        raise HTTPException(status_code=404, detail="Tenant not found")
+
+    regulation = (
+        db.query(LegalDocument).filter(LegalDocument.id == assignment.regulation_doc_id).first()
+    )
+    if not regulation:
+        raise HTTPException(status_code=404, detail="Regulation document not found")
+
+    if assignment.remove:
+        existing = (
+            db.query(TenantRegulatoryProfile)
+            .filter(
+                TenantRegulatoryProfile.tenant_id == tenant.id,
+                TenantRegulatoryProfile.regulation_doc_id == assignment.regulation_doc_id,
+            )
+            .first()
+        )
+
+        if existing:
+            db.delete(existing)
+            db.add(
+                TenantAuditLog(
+                    tenant_id=tenant.id,
+                    action_type="tenant.regulation.removed",
+                    actor_user_id=current_user.user_id,
+                    description="Tenant regulation applicability removed",
+                    details={"regulation_doc_id": assignment.regulation_doc_id},
+                )
+            )
+            db.commit()
+
+        return TenantRegulationAssignmentResponse(
+            tenant_id=tenant.tenant_id,
+            regulation_doc_id=assignment.regulation_doc_id,
+            removed=bool(existing),
+        )
+
+    try:
+        row, created = TenantComplianceService.upsert_regulation_override(
+            db=db,
+            tenant=tenant,
+            regulation_doc_id=assignment.regulation_doc_id,
+            applicability=assignment.applicability,
+            applicability_notes=assignment.applicability_notes,
+            effective_from=assignment.effective_from,
+            actor_user_id=current_user.user_id,
+        )
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+
+    db.add(
+        TenantAuditLog(
+            tenant_id=tenant.id,
+            action_type="tenant.regulation.upserted",
+            actor_user_id=current_user.user_id,
+            description="Tenant regulation applicability upserted",
+            details={
+                "regulation_doc_id": assignment.regulation_doc_id,
+                "applicability": row.applicability,
+                "created": created,
+            },
+        )
+    )
+    db.commit()
+    db.refresh(row)
+
+    return TenantRegulationAssignmentResponse(
+        tenant_id=tenant.tenant_id,
+        regulation_doc_id=row.regulation_doc_id,
+        applicability=row.applicability,
+        applicability_notes=row.applicability_notes,
+        effective_from=row.effective_from,
+        created=created,
+        removed=False,
+    )
 
 
 # ============================================================================

@@ -22,6 +22,15 @@ class ObligationApproval(BaseModel):
     link_risk_entry_ids: Optional[List[int]] = None
 
 
+class TenantObligationApplicabilityUpdate(BaseModel):
+    tenant_id: str = Field(..., min_length=1, max_length=255)
+    applicability: str = Field(
+        ...,
+        pattern="^(applicable|not_applicable|partially_applicable)$",
+    )
+    notes: Optional[str] = None
+
+
 class ObligationDocumentSummary(BaseModel):
     id: int
     celex: str

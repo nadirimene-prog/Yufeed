@@ -18,6 +18,7 @@ from src.database import SessionLocal
 from src.models.transaction_models import Transaction, Alert, FailedTransactionProcessingItem
 from src.services.risk_scoring import RiskScoringService
 from src.services.rules_engine import RulesEngine
+from src.services.customer_lifecycle import CustomerLifecycleService
 from src.tenancy.context import TenantContext
 from src.utils.time import utc_now
 from src.worker import celery_app
@@ -107,6 +108,13 @@ def process_transaction_sync(db: Session, transaction_db_id: int, tenant_id: str
     # Update user risk profile (tenant scoped)
     risk_service.update_user_risk_profile(transaction.user_id, tenant_id=tenant_id)
 
+    lifecycle_service = CustomerLifecycleService(db)
+    lifecycle_service.sync_kyc_to_risk_profile(transaction.user_id, tenant_id=tenant_id)
+    edd_result = lifecycle_service.trigger_edd_from_transactions(
+        transaction_db_id=transaction_db_id,
+        tenant_id=tenant_id,
+    )
+
     db.commit()
 
     return {
@@ -116,6 +124,7 @@ def process_transaction_sync(db: Session, transaction_db_id: int, tenant_id: str
         "transaction_id": transaction.transaction_id,
         "risk_score": float(risk_score),
         "alerts_created": len(alerts) + len(velocity_alerts),
+        "edd_triggered": bool(edd_result.get("triggered")),
     }
 
 

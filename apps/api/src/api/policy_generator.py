@@ -308,8 +308,18 @@ def approve_generated_policy(
     generator = get_policy_generator(db)
 
     try:
-        policy_id = generator.approve_generation(
+        approval_result = generator.approve_generation(
             job_id=job_id, reviewed_by=current_user.user_id, notes=notes
+        )
+        policy_id = (
+            approval_result["policy_id"]
+            if isinstance(approval_result, dict)
+            else int(approval_result)
+        )
+        suggestions = (
+            approval_result.get("suggested_monitoring_rules", [])
+            if isinstance(approval_result, dict)
+            else []
         )
 
         return {
@@ -318,6 +328,8 @@ def approve_generated_policy(
             "job_id": job_id,
             "policy_id": policy_id,
             "policy_url": f"/api/policies/{policy_id}",
+            "monitoring_rule_suggestions": suggestions,
+            "suggestion_count": len(suggestions),
         }
 
     except ValueError as e:

@@ -23,6 +23,7 @@ def utc_now() -> datetime:
 
 
 from src.models.transaction_models import Transaction, UserRiskProfile, Alert, FeatureValue
+from src.models.compliance import ComplianceProfile
 from src.tenancy.context import get_current_tenant
 
 logger = logging.getLogger(__name__)
@@ -68,6 +69,9 @@ class RiskScoringService:
 
         # 5. Velocity risk (0-15 points)
         score += self._score_velocity(transaction)
+
+        # 6. KYC risk (0-30 points)
+        score += self._score_kyc(transaction)
 
         return min(Decimal("100"), score)
 
@@ -232,6 +236,67 @@ class RiskScoringService:
 
         return min(Decimal("15"), score)
 
+    def _score_kyc(self, transaction: Transaction) -> Decimal:
+        """
+        Score based on KYC/CDD posture.
+
+        Business rules:
+        - CDD enhanced -> +10
+        - PEP/RCA -> +15
+        - No approved KYC -> +5
+        """
+        tenant_id = transaction.tenant_id or get_current_tenant()
+        if not tenant_id:
+            return Decimal("0")
+
+        score = Decimal("0")
+        resolved_status = None
+        resolved_cdd_level = None
+        resolved_pep_status = None
+
+        user_profile = (
+            self.db.query(UserRiskProfile)
+            .filter(
+                UserRiskProfile.tenant_id == tenant_id,
+                UserRiskProfile.user_id == transaction.user_id,
+            )
+            .first()
+        )
+
+        if user_profile:
+            resolved_status = user_profile.kyc_status
+            resolved_cdd_level = user_profile.kyc_cdd_level
+            resolved_pep_status = user_profile.kyc_pep_status
+
+        compliance_profile = (
+            self.db.query(ComplianceProfile)
+            .filter(
+                ComplianceProfile.tenant_id == tenant_id,
+                ComplianceProfile.user_id == transaction.user_id,
+            )
+            .order_by(ComplianceProfile.updated_at.desc(), ComplianceProfile.id.desc())
+            .first()
+        )
+
+        if compliance_profile:
+            resolved_status = resolved_status or compliance_profile.status
+            resolved_cdd_level = resolved_cdd_level or compliance_profile.cdd_level
+            resolved_pep_status = resolved_pep_status or compliance_profile.pep_status
+        else:
+            if not user_profile:
+                return Decimal("0")
+
+        if str(resolved_cdd_level or "").lower() == "enhanced":
+            score += Decimal("10")
+
+        if str(resolved_pep_status or "").lower() in {"pep", "rca"}:
+            score += Decimal("15")
+
+        if str(resolved_status or "").lower() != "approved":
+            score += Decimal("5")
+
+        return min(Decimal("30"), score)
+
     def get_risk_level(self, risk_score: Decimal) -> str:
         """
         Convert numeric risk score to risk level category.
@@ -320,6 +385,9 @@ class RiskScoringService:
         profile.critical_alerts = alert_stats.critical or 0
         profile.resolved_alerts = alert_stats.resolved or 0
 
+        # Sync KYC data from compliance profile before overall scoring.
+        self._sync_kyc_from_compliance(profile, user_id=user_id, tenant_id=tenant_id)
+
         # Calculate overall risk score
         profile.overall_risk_score = self._calculate_user_risk_score(profile)
         profile.risk_level = self.get_risk_level(profile.overall_risk_score)
@@ -333,6 +401,60 @@ class RiskScoringService:
         logger.info(f"Updated risk profile for user {user_id}: {profile.risk_level}")
 
         return profile
+
+    def _sync_kyc_from_compliance(
+        self, profile: UserRiskProfile, *, user_id: str, tenant_id: Optional[str]
+    ) -> None:
+        """Mirror the latest KYC profile into UserRiskProfile."""
+        if not tenant_id:
+            return
+
+        compliance_profile = (
+            self.db.query(ComplianceProfile)
+            .filter(
+                ComplianceProfile.tenant_id == tenant_id,
+                ComplianceProfile.user_id == user_id,
+            )
+            .order_by(ComplianceProfile.updated_at.desc(), ComplianceProfile.id.desc())
+            .first()
+        )
+        if not compliance_profile:
+            return
+
+        profile.compliance_profile_id = compliance_profile.id
+        profile.kyc_status = compliance_profile.status
+        profile.kyc_cdd_level = compliance_profile.cdd_level
+        profile.kyc_pep_status = compliance_profile.pep_status
+        profile.kyc_last_synced_at = utc_now()
+        profile.kyc_last_updated = compliance_profile.updated_at or utc_now()
+
+        kyc_score = Decimal("0")
+        if str(compliance_profile.cdd_level or "").lower() == "enhanced":
+            kyc_score += Decimal("10")
+        if str(compliance_profile.pep_status or "").lower() in {"pep", "rca"}:
+            kyc_score += Decimal("15")
+        if str(compliance_profile.status or "").lower() != "approved":
+            kyc_score += Decimal("5")
+
+        profile.kyc_risk_score = min(Decimal("30"), kyc_score)
+        profile.enhanced_due_diligence = profile.enhanced_due_diligence or (
+            str(compliance_profile.cdd_level or "").lower() == "enhanced"
+        )
+        profile.sanctions_screened_at = (
+            compliance_profile.sanctions_screened_at or profile.sanctions_screened_at
+        )
+        profile.sanctions_match = str(compliance_profile.sanctions_status or "").lower() == "hit"
+
+        sanctions_details = dict(profile.sanctions_details or {})
+        sanctions_details.update(
+            {
+                "kyc_profile_id": compliance_profile.id,
+                "sanctions_status": compliance_profile.sanctions_status,
+                "pep_status": compliance_profile.pep_status,
+                "cdd_level": compliance_profile.cdd_level,
+            }
+        )
+        profile.sanctions_details = sanctions_details
 
     def _calculate_pattern_score(self, transactions: list) -> Decimal:
         """
@@ -415,6 +537,10 @@ class RiskScoringService:
         if profile.enhanced_due_diligence:
             score += Decimal("10")
 
+        # KYC/CDD posture copied from compliance.
+        if profile.kyc_risk_score:
+            score += profile.kyc_risk_score * Decimal("0.5")
+
         return min(Decimal("100"), score)
 
     def _build_risk_factors(self, profile: UserRiskProfile) -> Dict[str, Any]:
@@ -440,6 +566,12 @@ class RiskScoringService:
 
         if profile.enhanced_due_diligence:
             factors["edd_required"] = "Enhanced due diligence required"
+
+        if profile.kyc_cdd_level:
+            factors["kyc_cdd_level"] = profile.kyc_cdd_level
+
+        if profile.kyc_pep_status and profile.kyc_pep_status.lower() in {"pep", "rca"}:
+            factors["pep_rca"] = profile.kyc_pep_status
 
         if profile.transaction_pattern_score and profile.transaction_pattern_score > 30:
             factors["suspicious_patterns"] = "Unusual transaction patterns detected"

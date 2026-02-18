@@ -3,7 +3,7 @@ from datetime import datetime, timedelta, timezone
 from decimal import Decimal
 
 from src.services.risk_scoring import RiskScoringService
-from src.models.transaction_models import Alert, Transaction
+from src.models.transaction_models import Alert, Transaction, UserRiskProfile
 from src.tenancy.context import set_current_tenant, clear_current_tenant
 from tests.factories import TransactionFactory
 
@@ -84,5 +84,39 @@ def test_update_user_risk_profile_builds_factors(db_session):
         assert "high_volume" in (profile.risk_factors or {})
         assert "high_risk_countries" in (profile.risk_factors or {})
         assert "critical_alerts" in (profile.risk_factors or {})
+    finally:
+        clear_current_tenant()
+
+
+@pytest.mark.unit
+def test_score_transaction_includes_kyc_risk_modifiers(db_session):
+    set_current_tenant("default")
+    try:
+        user_id = "user_kyc_score"
+        tx = TransactionFactory(
+            sqlalchemy_session=db_session,
+            tenant_id="default",
+            user_id=user_id,
+            amount=Decimal("800"),
+            country_code="US",
+            transaction_type="deposit",
+            timestamp=datetime.now(timezone.utc),
+        )
+
+        # KYC modifiers should add +25 (enhanced CDD + PEP/RCA).
+        risk_profile = UserRiskProfile(
+            tenant_id="default",
+            user_id=user_id,
+            kyc_status="approved",
+            kyc_cdd_level="enhanced",
+            kyc_pep_status="pep",
+        )
+        db_session.add(risk_profile)
+        db_session.commit()
+
+        service = RiskScoringService(db_session)
+        score = service.score_transaction(tx.id)
+
+        assert score >= Decimal("25")
     finally:
         clear_current_tenant()
