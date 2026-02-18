@@ -472,3 +472,52 @@
   --color-risk-low-soft: #dcfce7;
   --color-risk-low-border: #86efac;
 }
+
+/* Legacy semantic aliases used by existing components.
+   Kept during dashboard v2 migration to avoid token drift. */
+:root {
+  --bg-base: var(--background);
+  --bg-elevated: var(--background-elevated);
+  --bg-overlay: color-mix(in srgb, var(--background-elevated) 90%, #ffffff 10%);
+  --bg-floating: color-mix(
+    in srgb,
+    var(--background-elevated) 84%,
+    #ffffff 16%
+  );
+
+  --text-primary: var(--foreground);
+  --text-secondary: var(--foreground-muted);
+  --text-tertiary: var(--foreground-subtle);
+  --text-disabled: color-mix(
+    in srgb,
+    var(--foreground-subtle) 75%,
+    transparent
+  );
+  --text-inverse: var(--color-void-950);
+
+  --brand-primary: var(--primary);
+  --brand-primary-hover: var(--primary-hover);
+  --brand-primary-active: var(--color-aurora-600);
+  --brand-secondary: var(--accent);
+  --brand-secondary-hover: var(--accent-hover);
+  --brand-secondary-active: var(--color-cyan-600);
+
+  --risk-critical: var(--color-risk-critical);
+  --risk-high: var(--color-risk-high);
+  --risk-medium: var(--color-risk-medium);
+  --risk-low: var(--color-risk-low);
+  --risk-info: var(--color-info);
+
+  --surface-critical: var(--color-risk-critical-soft);
+  --surface-critical-border: var(--color-risk-critical-border);
+  --surface-high: var(--color-risk-high-soft);
+  --surface-high-border: var(--color-risk-high-border);
+  --surface-medium: var(--color-risk-medium-soft);
+  --surface-medium-border: var(--color-risk-medium-border);
+  --surface-low: var(--color-risk-low-soft);
+  --surface-low-border: var(--color-risk-low-border);
+
+  --border-default: var(--border);
+  --border-strong: color-mix(in srgb, var(--border) 70%, #ffffff 30%);
+  --border-focus: var(--ring);
+}

@@ -4,9 +4,10 @@ from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 from sqlalchemy.pool import StaticPool
 
-from src.database import Base, get_db
+from src.database import Base, get_db, get_async_db
 from src.main import app
 from src.models import compliance as comp_models
+from tests.conftest import SyncToAsyncSessionAdapter
 
 # Setup Test Database
 SQLALCHEMY_DATABASE_URL = "sqlite:///:memory:"
@@ -27,9 +28,18 @@ def override_get_db():
         db.close()
 
 
+async def override_get_async_db():
+    db = TestingSessionLocal()
+    try:
+        yield SyncToAsyncSessionAdapter(db)
+    finally:
+        db.close()
+
+
 @pytest.fixture
 def client():
     app.dependency_overrides[get_db] = override_get_db
+    app.dependency_overrides[get_async_db] = override_get_async_db
     with TestClient(app) as test_client:
         yield test_client
     app.dependency_overrides.clear()
@@ -42,7 +52,7 @@ def init_db():
     Base.metadata.drop_all(bind=engine)
 
 
-def test_create_kyc_profile(client, admin_headers):
+def test_create_kyc_profile(client, superuser_headers):
     response = client.post(
         "/api/compliance/kyc",
         json={
@@ -52,7 +62,7 @@ def test_create_kyc_profile(client, admin_headers):
             "email": "john@example.com",
             "country": "US",
         },
-        headers=admin_headers,
+        headers=superuser_headers,
     )
     assert response.status_code == 200
     data = response.json()
@@ -62,7 +72,7 @@ def test_create_kyc_profile(client, admin_headers):
     assert data["type"] == "kyc"
 
 
-def test_create_kyb_profile(client, admin_headers):
+def test_create_kyb_profile(client, superuser_headers):
     response = client.post(
         "/api/compliance/kyb",
         json={
@@ -71,7 +81,7 @@ def test_create_kyb_profile(client, admin_headers):
             "registration_number": "12345678",
             "jurisdiction": "US",
         },
-        headers=admin_headers,
+        headers=superuser_headers,
     )
     assert response.status_code == 200
     data = response.json()
@@ -79,7 +89,7 @@ def test_create_kyb_profile(client, admin_headers):
     assert data["type"] == "kyb"
 
 
-def test_get_cases(client, admin_headers):
+def test_get_cases(client, superuser_headers):
     # Create a profile first
     client.post(
         "/api/compliance/kyc",
@@ -89,17 +99,17 @@ def test_get_cases(client, admin_headers):
             "last_name": "Wonder",
             "email": "alice@example.com",
         },
-        headers=admin_headers,
+        headers=superuser_headers,
     )
 
-    response = client.get("/api/compliance/cases", headers=admin_headers)
+    response = client.get("/api/compliance/cases", headers=superuser_headers)
     assert response.status_code == 200
     data = response.json()
     assert len(data) >= 1
     assert data[0]["email"] == "alice@example.com"
 
 
-def test_review_case(client, admin_headers):
+def test_review_case(client, superuser_headers):
     # Create
     create_res = client.post(
         "/api/compliance/kyc",
@@ -109,7 +119,7 @@ def test_review_case(client, admin_headers):
             "last_name": "Builder",
             "email": "bob@example.com",
         },
-        headers=admin_headers,
+        headers=superuser_headers,
     )
     profile_id = create_res.json()["id"]
 
@@ -117,7 +127,7 @@ def test_review_case(client, admin_headers):
     response = client.post(
         f"/api/compliance/cases/{profile_id}/review",
         json={"action": "approve"},
-        headers=admin_headers,
+        headers=superuser_headers,
     )
     assert response.status_code == 200
     assert response.json()["status"] == "approved"

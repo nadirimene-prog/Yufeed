@@ -100,7 +100,7 @@ class SyncToAsyncSessionAdapter:
 # ============================================================================
 
 
-@pytest.fixture(scope="session")
+@pytest.fixture(scope="function")
 def test_db_engine():
     """
     Create a test database engine.
@@ -151,21 +151,9 @@ def test_db_engine():
 def db_session(test_db_engine) -> Generator[Session, None, None]:
     """
     Create a new database session for each test.
-    Automatically rolls back after each test for isolation.
-
-    We always open an outer transaction and bind the test session with
-    savepoint semantics so that explicit ``session.commit()`` calls inside
-    application code do not leak data between tests.
+    A fresh engine is created per test, providing hard isolation.
     """
-    connection = test_db_engine.connect()
-    transaction = connection.begin()
-
-    TestSessionLocal = sessionmaker(
-        autocommit=False,
-        autoflush=False,
-        bind=connection,
-        join_transaction_mode="create_savepoint",
-    )
+    TestSessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=test_db_engine)
     session = TestSessionLocal()
     # Bind factory_boy SQLAlchemy factories to this session.
     try:
@@ -199,10 +187,8 @@ def db_session(test_db_engine) -> Generator[Session, None, None]:
 
     yield session
 
-    # Rollback and cleanup
+    # Cleanup
     session.close()
-    transaction.rollback()
-    connection.close()
 
 
 @pytest.fixture(scope="function")

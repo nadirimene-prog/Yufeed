@@ -24,7 +24,11 @@ class TestComplianceWorkflow:
     """Test complete compliance workflow from policy to rules."""
 
     def test_policy_to_obligation_to_rule_flow(
-        self, client: TestClient, db_session: Session, admin_headers: dict
+        self,
+        client: TestClient,
+        db_session: Session,
+        admin_headers: dict,
+        superuser_headers: dict,
     ):
         """
         Test complete compliance workflow:
@@ -91,7 +95,7 @@ class TestComplianceWorkflow:
 
         approve_response = client.post(
             f"/api/compliance/obligations/{obligation_id}/approve",
-            headers=admin_headers,
+            headers=superuser_headers,
             json={
                 "reviewer_notes": "Approved for implementation",
                 "implementation_priority": "high",
@@ -159,7 +163,11 @@ class TestComplianceWorkflow:
         assert isinstance(alerts, list)
 
     def test_compliance_http_accepts_business_identifiers(
-        self, client: TestClient, db_session: Session, admin_headers: dict
+        self,
+        client: TestClient,
+        db_session: Session,
+        admin_headers: dict,
+        superuser_headers: dict,
     ):
         """Exercise compliance endpoints using business IDs over HTTP."""
         policy_response = client.post(
@@ -186,7 +194,7 @@ class TestComplianceWorkflow:
 
         patch_policy_response = client.patch(
             f"/api/compliance/policies/{policy_id}",
-            headers=admin_headers,
+            headers=superuser_headers,
             json={"status": "approved"},
         )
         assert patch_policy_response.status_code == 200

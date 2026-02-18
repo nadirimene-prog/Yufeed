@@ -1,5 +1,5 @@
 import re
-from typing import Optional
+from typing import Any, Optional
 from uuid import uuid4
 
 from fastapi import APIRouter, Depends, HTTPException, Query
@@ -30,6 +30,76 @@ from src.tenancy.context import get_current_tenant
 from src.utils.time import utc_now
 
 router = APIRouter(prefix="/api/compliance", tags=["compliance-workflow"])
+
+FOUR_EYES_POLICY_DETAIL = "4-eyes violation: approver cannot be the same as the policy creator"
+FOUR_EYES_OBLIGATION_DETAIL = (
+    "4-eyes violation: approver cannot be the same as the obligation creator"
+)
+FOUR_EYES_CREATE_POLICY_DETAIL = "4-eyes violation: policy cannot be created directly as approved"
+POLICY_CREATED_BY_METADATA_KEY = "created_by"
+POLICY_APPROVED_BY_METADATA_KEY = "approved_by"
+POLICY_APPROVED_AT_METADATA_KEY = "approved_at"
+
+
+def _normalize_actor(value: Optional[str]) -> Optional[str]:
+    if value is None:
+        return None
+    normalized = value.strip().lower()
+    return normalized or None
+
+
+def _user_actor_aliases(current_user: Optional[CurrentUser]) -> set[str]:
+    if current_user is None:
+        return set()
+    aliases = {
+        _normalize_actor(current_user.user_id),
+        _normalize_actor(current_user.email),
+    }
+    return {alias for alias in aliases if alias}
+
+
+def _policy_metadata_dict(policy: PolicyDocument) -> dict[str, Any]:
+    if isinstance(policy.metadata_json, dict):
+        return dict(policy.metadata_json)
+    return {}
+
+
+def _policy_creator(policy: PolicyDocument) -> Optional[str]:
+    metadata = _policy_metadata_dict(policy)
+    creator = metadata.get(POLICY_CREATED_BY_METADATA_KEY)
+    if isinstance(creator, str) and creator.strip():
+        return creator.strip()
+
+    if isinstance(policy.owner, str) and policy.owner.strip():
+        return policy.owner.strip()
+    return None
+
+
+def _mark_policy_approval(policy: PolicyDocument, current_user: Optional[CurrentUser]) -> None:
+    if current_user is None:
+        return
+    metadata = _policy_metadata_dict(policy)
+    metadata[POLICY_APPROVED_BY_METADATA_KEY] = current_user.email or current_user.user_id
+    metadata[POLICY_APPROVED_AT_METADATA_KEY] = utc_now().isoformat()
+    policy.metadata_json = metadata
+
+
+def _enforce_policy_four_eyes(policy: PolicyDocument, current_user: Optional[CurrentUser]) -> None:
+    if current_user is None:
+        return
+    creator = _normalize_actor(_policy_creator(policy))
+    if creator and creator in _user_actor_aliases(current_user):
+        raise HTTPException(status_code=409, detail=FOUR_EYES_POLICY_DETAIL)
+
+
+def _enforce_obligation_four_eyes(
+    obligation: RegulatoryObligation, current_user: Optional[CurrentUser]
+) -> None:
+    if current_user is None:
+        return
+    creator = _normalize_actor(obligation.created_by)
+    if creator and creator in _user_actor_aliases(current_user):
+        raise HTTPException(status_code=409, detail=FOUR_EYES_OBLIGATION_DETAIL)
 
 
 def _policy_to_dict(policy: PolicyDocument) -> dict:
@@ -271,16 +341,24 @@ def create_policy(
 ):
     policy_id = payload.policy_id or f"POL-{uuid4().hex[:8].upper()}"
     tenant_id = _current_tenant_id(current_user)
+    requested_status = (payload.status or "draft").lower().strip()
+    if requested_status == "approved":
+        raise HTTPException(status_code=409, detail=FOUR_EYES_CREATE_POLICY_DETAIL)
+
+    metadata_json: dict[str, Any] = {"tenant_id": tenant_id}
+    if current_user is not None:
+        metadata_json[POLICY_CREATED_BY_METADATA_KEY] = current_user.email or current_user.user_id
+
     policy = PolicyDocument(
         policy_id=policy_id,
         name=payload.name,
         owner=payload.owner,
-        status=payload.status or "draft",
+        status=requested_status,
         language=payload.language or "en",
         effective_date=payload.effective_date,
         source_url=payload.source_url,
         content=payload.content,
-        metadata_json={"tenant_id": tenant_id},
+        metadata_json=metadata_json,
     )
     db.add(policy)
     db.commit()
@@ -400,6 +478,9 @@ def approve_obligation(
     if not obligation or not _obligation_visible_to_tenant(db, obligation, tenant_id):
         raise HTTPException(status_code=404, detail="Obligation not found")
 
+    if (obligation.status or "draft").lower() != "approved":
+        _enforce_obligation_four_eyes(obligation, current_user)
+
     obligation.status = "approved"
     obligation.reviewed_by = current_user.email
     obligation.approved_by = current_user.email
@@ -428,8 +509,24 @@ def update_policy(
     if not policy or not _policy_visible_to_tenant(policy, tenant_id):
         raise HTTPException(status_code=404, detail="Policy not found")
 
-    for field, value in payload.model_dump(exclude_unset=True).items():
+    previous_status = (policy.status or "draft").lower()
+    update_data = payload.model_dump(exclude_unset=True)
+
+    requested_status = update_data.get("status")
+    if isinstance(requested_status, str):
+        requested_status = requested_status.lower().strip()
+    else:
+        requested_status = None
+
+    if requested_status == "approved" and previous_status != "approved":
+        _enforce_policy_four_eyes(policy, current_user)
+
+    for field, value in update_data.items():
         setattr(policy, field, value)
+
+    if requested_status == "approved" and previous_status != "approved":
+        policy.last_reviewed_at = utc_now()
+        _mark_policy_approval(policy, current_user)
 
     db.commit()
     db.refresh(policy)

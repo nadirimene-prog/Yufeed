@@ -31,6 +31,23 @@ export function WorkbenchLayout({
   const [isDiscoveryExpanded, setIsDiscoveryExpanded] = useState(true);
   const [isIntelligenceExpanded, setIsIntelligenceExpanded] = useState(true);
   const [isFlowing, setIsFlowing] = useState(false);
+  const [isDesktop, setIsDesktop] = useState(() => {
+    if (typeof window === "undefined") return false;
+    return window.matchMedia("(min-width: 1280px)").matches;
+  });
+
+  useEffect(() => {
+    const media = window.matchMedia("(min-width: 1280px)");
+    const apply = () => setIsDesktop(media.matches);
+
+    apply();
+    if (media.addEventListener) {
+      media.addEventListener("change", apply);
+      return () => media.removeEventListener("change", apply);
+    }
+    media.addListener(apply);
+    return () => media.removeListener(apply);
+  }, []);
 
   // Trigger wayfinding particles when activeId changes
   useEffect(() => {
@@ -48,22 +65,28 @@ export function WorkbenchLayout({
   }, [activeId]);
 
   return (
-    <div className="flex flex-col h-[calc(100vh-theme(spacing.24))] w-full gap-2 p-2 md:p-4">
+    <div className="relative flex flex-col min-h-[calc(100vh-theme(spacing.24))] w-full gap-2 p-2 md:p-4">
       {/* Global HUD */}
       <SentinelHUD />
 
-      <div className="flex flex-1 w-full gap-4 overflow-hidden">
+      <div
+        className={cn(
+          "flex flex-1 w-full gap-4",
+          isDesktop ? "flex-row overflow-hidden" : "flex-col overflow-visible",
+        )}
+      >
         {/* Discovery Rail (Left) */}
         <AnimatePresence initial={false}>
           <motion.aside
             layout
             initial={false}
             animate={{
-              width: isDiscoveryExpanded ? 320 : 64,
+              width: isDesktop ? (isDiscoveryExpanded ? 320 : 64) : "100%",
+              height: isDesktop ? "auto" : isDiscoveryExpanded ? 260 : 56,
               opacity: 1,
             }}
             className={cn(
-              "relative flex flex-col overflow-hidden rounded-2xl border border-white/10 bg-void-925/40 backdrop-blur-xl transition-colors duration-300 hover:border-white/20",
+              "order-2 xl:order-1 relative flex flex-col overflow-hidden rounded-2xl border border-white/10 bg-void-925/40 backdrop-blur-xl transition-colors duration-300 hover:border-white/20",
               !isDiscoveryExpanded && "items-center",
             )}
           >
@@ -75,6 +98,11 @@ export function WorkbenchLayout({
               )}
               <button
                 onClick={() => setIsDiscoveryExpanded(!isDiscoveryExpanded)}
+                aria-label={
+                  isDiscoveryExpanded
+                    ? "Collapse discovery rail"
+                    : "Expand discovery rail"
+                }
                 className="rounded-lg p-1.5 text-white/40 hover:bg-white/5 hover:text-white"
               >
                 {isDiscoveryExpanded ? (
@@ -151,7 +179,12 @@ export function WorkbenchLayout({
         </AnimatePresence>
 
         {/* Main Workspace (Center) */}
-        <main className="relative flex flex-1 flex-col overflow-hidden rounded-2xl border border-white/10 bg-void-925/20 backdrop-blur-md shadow-2xl">
+        <main
+          className={cn(
+            "order-1 xl:order-2 relative flex flex-1 flex-col rounded-2xl border border-white/10 bg-void-925/20 backdrop-blur-md shadow-2xl",
+            isDesktop ? "overflow-hidden" : "overflow-visible min-h-[420px]",
+          )}
+        >
           <header className="flex h-12 items-center justify-between border-b border-white/5 px-6 shrink-0">
             <div className="flex items-center gap-3">
               <h2 className="text-sm font-semibold text-white/90">{title}</h2>
@@ -164,6 +197,7 @@ export function WorkbenchLayout({
             </div>
             <div className="flex items-center gap-2">
               <button className="rounded-lg p-1.5 text-white/40 hover:bg-white/5 hover:text-white">
+                <span className="sr-only">Expand workspace</span>
                 <Maximize2 size={14} />
               </button>
             </div>
@@ -193,11 +227,12 @@ export function WorkbenchLayout({
             layout
             initial={false}
             animate={{
-              width: isIntelligenceExpanded ? 380 : 64,
+              width: isDesktop ? (isIntelligenceExpanded ? 380 : 64) : "100%",
+              height: isDesktop ? "auto" : isIntelligenceExpanded ? 300 : 56,
               opacity: 1,
             }}
             className={cn(
-              "relative flex flex-col overflow-hidden rounded-2xl border border-white/10 bg-void-925/40 backdrop-blur-xl transition-colors duration-300 hover:border-white/20",
+              "order-3 relative flex flex-col overflow-hidden rounded-2xl border border-white/10 bg-void-925/40 backdrop-blur-xl transition-colors duration-300 hover:border-white/20",
               !isIntelligenceExpanded && "items-center",
             )}
           >
@@ -205,6 +240,11 @@ export function WorkbenchLayout({
               <button
                 onClick={() =>
                   setIsIntelligenceExpanded(!isIntelligenceExpanded)
+                }
+                aria-label={
+                  isIntelligenceExpanded
+                    ? "Collapse intelligence panel"
+                    : "Expand intelligence panel"
                 }
                 className="rounded-lg p-1.5 text-white/40 hover:bg-white/5 hover:text-white"
               >

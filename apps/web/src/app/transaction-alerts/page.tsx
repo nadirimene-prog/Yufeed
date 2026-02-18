@@ -399,6 +399,11 @@ function AlertCard({
   severityColors: AlertCardColors;
   statusColors: AlertCardColors;
 }) {
+  const riskScore = Number(alert.risk_score);
+  const hasRiskScore = Number.isFinite(riskScore);
+  const aiConfidence = Number(alert.ai_confidence);
+  const hasAiConfidence = Number.isFinite(aiConfidence);
+
   return (
     <motion.div
       initial={{ opacity: 0, y: 20 }}
@@ -460,22 +465,22 @@ function AlertCard({
               <div className="text-xs text-gray-500 dark:text-gray-400 mb-1">
                 Priority {alert.priority}
               </div>
-              {alert.risk_score && (
+              {hasRiskScore && (
                 <div
                   className={`text-lg font-bold ${
-                    alert.risk_score >= 70
+                    riskScore >= 70
                       ? "text-red-600"
-                      : alert.risk_score >= 40
+                      : riskScore >= 40
                         ? "text-orange-600"
                         : "text-green-600"
                   }`}
                 >
-                  {alert.risk_score.toFixed(0)}
+                  {riskScore.toFixed(0)}
                 </div>
               )}
-              {alert.ai_confidence && (
+              {hasAiConfidence && (
                 <div className="text-xs text-purple-600 dark:text-purple-400 mt-1">
-                  {(alert.ai_confidence * 100).toFixed(0)}% conf
+                  {(aiConfidence * 100).toFixed(0)}% conf
                 </div>
               )}
             </div>

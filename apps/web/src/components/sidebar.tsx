@@ -6,117 +6,13 @@ import { usePathname } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
 import { cn } from "@/lib/utils";
 import { IconButton } from "@/components/ui/button-horizon";
-import { CountBadge } from "@/components/ui/badge-horizon";
-import {
-  LayoutDashboard,
-  FileText,
-  Shield,
-  Gavel,
-  Search,
-  Settings,
-  ChevronLeft,
-  ChevronRight,
-  Bell,
-  HelpCircle,
-  type LucideIcon,
-} from "lucide-react";
+import { Shield, ChevronLeft, ChevronRight } from "lucide-react";
+import { NAV_AREAS, isRouteMatch } from "@/components/nav-data";
 
 /**
  * Horizon Sidebar System
- * Collapsible, accessible navigation with modern aesthetics
+ * Collapsible, accessible navigation with canonical IA from nav-data
  */
-
-/* ─────────────────────────────────────────────────────────────────────────────
-   Navigation Items Configuration
-   ───────────────────────────────────────────────────────────────────────────── */
-
-interface NavItem {
-  id: string;
-  label: string;
-  href: string;
-  icon: LucideIcon;
-  badge?: number;
-  badgeVariant?: "default" | "critical";
-  children?: NavItem[];
-}
-
-const mainNavItems: NavItem[] = [
-  {
-    id: "dashboard",
-    label: "Dashboard",
-    href: "/dashboard",
-    icon: LayoutDashboard,
-  },
-  {
-    id: "compliance",
-    label: "Compliance",
-    href: "/compliance",
-    icon: Shield,
-    badge: 3,
-    badgeVariant: "critical",
-    children: [
-      {
-        id: "obligations",
-        label: "Obligations",
-        href: "/compliance/obligations",
-        icon: FileText,
-      },
-      {
-        id: "policies",
-        label: "Policies",
-        href: "/compliance/policies",
-        icon: FileText,
-      },
-      {
-        id: "deadlines",
-        label: "Deadlines",
-        href: "/compliance/deadlines",
-        icon: FileText,
-      },
-    ],
-  },
-  {
-    id: "aml",
-    label: "AML Officer",
-    href: "/aml-officer",
-    icon: Gavel,
-    children: [
-      {
-        id: "investigations",
-        label: "Investigations",
-        href: "/aml-officer/investigations",
-        icon: FileText,
-      },
-      { id: "alerts", label: "Alerts", href: "/aml-officer", icon: FileText },
-      { id: "sar", label: "SAR", href: "/aml-officer/sar", icon: FileText },
-    ],
-  },
-  {
-    id: "cases",
-    label: "Cases",
-    href: "/cases",
-    icon: FileText,
-    badge: 12,
-  },
-  {
-    id: "search",
-    label: "Search",
-    href: "/search",
-    icon: Search,
-  },
-];
-
-const bottomNavItems: NavItem[] = [
-  {
-    id: "notifications",
-    label: "Notifications",
-    href: "#",
-    icon: Bell,
-    badge: 5,
-  },
-  { id: "help", label: "Help & Support", href: "#", icon: HelpCircle },
-  { id: "settings", label: "Settings", href: "/settings", icon: Settings },
-];
 
 /* ─────────────────────────────────────────────────────────────────────────────
    Sidebar Component
@@ -129,22 +25,21 @@ interface SidebarProps {
 export default function Sidebar({ className }: SidebarProps) {
   const pathname = usePathname();
   const [collapsed, setCollapsed] = React.useState(false);
-  const [expandedItems, setExpandedItems] = React.useState<string[]>([
-    "compliance",
-  ]);
+  const [expandedAreas, setExpandedAreas] = React.useState<string[]>(() =>
+    NAV_AREAS.map((area) => area.id),
+  );
 
-  const toggleExpanded = (itemId: string) => {
-    setExpandedItems((prev) =>
-      prev.includes(itemId)
-        ? prev.filter((id) => id !== itemId)
-        : [...prev, itemId],
+  const toggleExpanded = (areaId: string) => {
+    setExpandedAreas((prev) =>
+      prev.includes(areaId)
+        ? prev.filter((id) => id !== areaId)
+        : [...prev, areaId],
     );
   };
 
-  const isActive = (href: string) => {
-    if (href === "/") return pathname === href;
-    return pathname === href || pathname.startsWith(`${href}/`);
-  };
+  const isPathActive = (href: string) => isRouteMatch(pathname, href);
+  const isAreaActive = (routePrefixes: string[]) =>
+    routePrefixes.some((prefix) => isRouteMatch(pathname, prefix));
 
   return (
     <motion.aside
@@ -183,75 +78,15 @@ export default function Sidebar({ className }: SidebarProps) {
 
       {/* Main Navigation */}
       <nav className="flex-1 overflow-y-auto py-4 px-3">
-        <ul className="space-y-1">
-          {mainNavItems.map((item) => {
-            const active = isActive(item.href);
-            const hasChildren = item.children && item.children.length > 0;
-            const isExpanded = expandedItems.includes(item.id);
-
-            return (
-              <li key={item.id}>
-                {hasChildren && !collapsed ? (
-                  <>
-                    <button
-                      onClick={() => toggleExpanded(item.id)}
-                      className={cn(
-                        "w-full flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition-colors",
-                        active
-                          ? "bg-primary/10 text-primary"
-                          : "text-foreground-secondary hover:bg-bg-overlay hover:text-foreground",
-                      )}
-                    >
-                      <item.icon className="h-4 w-4 shrink-0" />
-                      <span className="flex-1 text-left">{item.label}</span>
-                      {item.badge && (
-                        <CountBadge
-                          count={item.badge}
-                          variant={item.badgeVariant}
-                        />
-                      )}
-                      <motion.div
-                        animate={{ rotate: isExpanded ? 90 : 0 }}
-                        transition={{ duration: 0.15 }}
-                      >
-                        <ChevronRight className="h-4 w-4 text-foreground-tertiary" />
-                      </motion.div>
-                    </button>
-                    <AnimatePresence>
-                      {isExpanded && (
-                        <motion.ul
-                          initial={{ height: 0, opacity: 0 }}
-                          animate={{ height: "auto", opacity: 1 }}
-                          exit={{ height: 0, opacity: 0 }}
-                          transition={{ duration: 0.2, ease: [0, 0, 0.2, 1] }}
-                          className="overflow-hidden"
-                        >
-                          {item.children?.map((child) => {
-                            const childActive = isActive(child.href);
-                            return (
-                              <li key={child.id}>
-                                <Link
-                                  href={child.href}
-                                  className={cn(
-                                    "flex items-center gap-3 rounded-lg py-2 pl-10 pr-3 text-sm transition-colors",
-                                    childActive
-                                      ? "text-primary font-medium"
-                                      : "text-foreground-tertiary hover:text-foreground",
-                                  )}
-                                >
-                                  {child.label}
-                                </Link>
-                              </li>
-                            );
-                          })}
-                        </motion.ul>
-                      )}
-                    </AnimatePresence>
-                  </>
-                ) : collapsed ? (
-                  <Tooltip content={item.label} side="right">
+        {collapsed ? (
+          <ul className="space-y-1">
+            {NAV_AREAS.map((area) => {
+              const active = isAreaActive(area.routePrefixes);
+              return (
+                <li key={area.id}>
+                  <Tooltip content={area.label} side="right">
                     <Link
-                      href={item.href}
+                      href={area.defaultHref}
                       className={cn(
                         "flex items-center justify-center rounded-lg p-2 transition-colors",
                         active
@@ -259,99 +94,96 @@ export default function Sidebar({ className }: SidebarProps) {
                           : "text-foreground-secondary hover:bg-bg-overlay hover:text-foreground",
                       )}
                     >
-                      <item.icon className="h-5 w-5" />
-                      {item.badge && item.badge > 0 && (
-                        <span className="absolute top-1 right-1 h-2 w-2 rounded-full bg-critical-500" />
-                      )}
+                      <area.icon className="h-5 w-5" />
                     </Link>
                   </Tooltip>
-                ) : (
-                  <Link
-                    href={item.href}
+                </li>
+              );
+            })}
+          </ul>
+        ) : (
+          <div className="space-y-2">
+            {NAV_AREAS.map((area) => {
+              const isExpanded = expandedAreas.includes(area.id);
+              const areaActive = isAreaActive(area.routePrefixes);
+
+              return (
+                <section
+                  key={area.id}
+                  className="rounded-lg border border-transparent data-[active=true]:bg-primary/5 data-[active=true]:border-primary/20"
+                  data-active={areaActive}
+                >
+                  <button
+                    onClick={() => toggleExpanded(area.id)}
                     className={cn(
-                      "flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition-colors",
-                      active
-                        ? "bg-primary/10 text-primary"
-                        : "text-foreground-secondary hover:bg-bg-overlay hover:text-foreground",
+                      "w-full flex items-center gap-3 rounded-lg px-3 py-2 text-xs font-semibold uppercase tracking-wider transition-colors",
+                      areaActive
+                        ? "text-primary"
+                        : "text-foreground-tertiary hover:text-foreground",
                     )}
                   >
-                    <item.icon className="h-4 w-4 shrink-0" />
-                    <span className="flex-1">{item.label}</span>
-                    {item.badge && (
-                      <CountBadge
-                        count={item.badge}
-                        variant={item.badgeVariant}
-                      />
+                    <area.icon className="h-4 w-4 shrink-0" />
+                    <span className="flex-1 text-left">{area.label}</span>
+                    <motion.div
+                      animate={{ rotate: isExpanded ? 90 : 0 }}
+                      transition={{ duration: 0.15 }}
+                    >
+                      <ChevronRight className="h-4 w-4" />
+                    </motion.div>
+                  </button>
+                  <AnimatePresence initial={false}>
+                    {isExpanded && (
+                      <motion.ul
+                        initial={{ height: 0, opacity: 0 }}
+                        animate={{ height: "auto", opacity: 1 }}
+                        exit={{ height: 0, opacity: 0 }}
+                        transition={{ duration: 0.2, ease: [0, 0, 0.2, 1] }}
+                        className="overflow-hidden pb-2"
+                      >
+                        {area.items.map((item) => {
+                          const itemActive = isPathActive(item.href);
+                          return (
+                            <li key={`${area.id}:${item.href}`}>
+                              <Link
+                                href={item.href}
+                                className={cn(
+                                  "mx-2 block rounded-md px-3 py-2 text-sm transition-colors",
+                                  itemActive
+                                    ? "bg-primary/10 text-primary font-medium"
+                                    : "text-foreground-secondary hover:bg-bg-overlay hover:text-foreground",
+                                )}
+                              >
+                                {item.label}
+                              </Link>
+                            </li>
+                          );
+                        })}
+                      </motion.ul>
                     )}
-                  </Link>
-                )}
-              </li>
-            );
-          })}
-        </ul>
+                  </AnimatePresence>
+                </section>
+              );
+            })}
+          </div>
+        )}
       </nav>
 
-      {/* Bottom Navigation */}
       <div className="border-t border-border-subtle p-3">
-        <ul className="space-y-1">
-          {bottomNavItems.map((item) => {
-            const active = isActive(item.href);
-            return collapsed ? (
-              <li key={item.id}>
-                <Tooltip content={item.label} side="right">
-                  <Link
-                    href={item.href}
-                    className={cn(
-                      "flex items-center justify-center rounded-lg p-2 transition-colors",
-                      active
-                        ? "bg-primary/10 text-primary"
-                        : "text-foreground-secondary hover:bg-bg-overlay hover:text-foreground",
-                    )}
-                  >
-                    <item.icon className="h-5 w-5" />
-                    {item.badge && item.badge > 0 && (
-                      <span className="absolute top-1 right-1 h-2 w-2 rounded-full bg-critical-500" />
-                    )}
-                  </Link>
-                </Tooltip>
-              </li>
-            ) : (
-              <li key={item.id}>
-                <Link
-                  href={item.href}
-                  className={cn(
-                    "flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition-colors",
-                    active
-                      ? "bg-primary/10 text-primary"
-                      : "text-foreground-secondary hover:bg-bg-overlay hover:text-foreground",
-                  )}
-                >
-                  <item.icon className="h-4 w-4 shrink-0" />
-                  <span className="flex-1">{item.label}</span>
-                  {item.badge && <CountBadge count={item.badge} />}
-                </Link>
-              </li>
-            );
-          })}
-        </ul>
-
         {/* Collapse Toggle */}
-        <div className="mt-3 pt-3 border-t border-border-subtle">
-          <IconButton
-            variant="ghost"
-            size="md"
-            icon={
-              collapsed ? (
-                <ChevronRight className="h-4 w-4" />
-              ) : (
-                <ChevronLeft className="h-4 w-4" />
-              )
-            }
-            label={collapsed ? "Expand sidebar" : "Collapse sidebar"}
-            onClick={() => setCollapsed(!collapsed)}
-            className={cn("w-full", collapsed && "justify-center")}
-          />
-        </div>
+        <IconButton
+          variant="ghost"
+          size="md"
+          icon={
+            collapsed ? (
+              <ChevronRight className="h-4 w-4" />
+            ) : (
+              <ChevronLeft className="h-4 w-4" />
+            )
+          }
+          label={collapsed ? "Expand sidebar" : "Collapse sidebar"}
+          onClick={() => setCollapsed(!collapsed)}
+          className={cn("w-full", collapsed && "justify-center")}
+        />
       </div>
     </motion.aside>
   );

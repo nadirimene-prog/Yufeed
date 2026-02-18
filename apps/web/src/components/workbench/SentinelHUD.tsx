@@ -10,9 +10,21 @@ import {
   Info,
   ChevronDown,
 } from "lucide-react";
+import { getAuthUserProfile } from "@/lib/auth";
 
-export function SentinelHUD() {
+interface SentinelHUDProps {
+  latencyMs?: number | null;
+  signalsPerSecond?: number | null;
+  complianceBadge?: string;
+}
+
+export function SentinelHUD({
+  latencyMs = null,
+  signalsPerSecond = null,
+  complianceBadge = "SOC2 Verified",
+}: SentinelHUDProps) {
   const [pulseScale, setPulseScale] = useState(1);
+  const profile = React.useMemo(() => getAuthUserProfile(), []);
 
   // Artificial AI "Heartbeat" effect
   useEffect(() => {
@@ -43,7 +55,8 @@ export function SentinelHUD() {
               Sentinel AI
             </span>
             <span className="text-[9px] text-white/30 font-medium">
-              Core Active • Latency 14ms
+              Core Active •{" "}
+              {latencyMs != null ? `Latency ${latencyMs}ms` : "Latency live"}
             </span>
           </div>
         </div>
@@ -54,13 +67,15 @@ export function SentinelHUD() {
           <div className="flex items-center gap-1.5 px-2 py-0.5 rounded-full bg-aurora-500/5 border border-aurora-500/10">
             <ShieldCheck size={10} className="text-aurora-400" />
             <span className="text-[10px] font-semibold text-aurora-400">
-              SOC2 Verified
+              {complianceBadge}
             </span>
           </div>
           <div className="flex items-center gap-1.5">
             <Zap size={10} className="text-emerald-400" />
             <span className="text-[10px] font-medium text-white/40">
-              3.2k signals/sec
+              {signalsPerSecond != null
+                ? `${signalsPerSecond.toLocaleString()} signals/sec`
+                : "Signals live"}
             </span>
           </div>
         </div>
@@ -101,11 +116,11 @@ export function SentinelHUD() {
         <div className="flex items-center gap-2 pl-2 cursor-pointer group/user">
           <div className="h-6 w-6 rounded-full bg-gradient-to-tr from-aurora-500 to-cyan-500 p-[1px]">
             <div className="h-full w-full rounded-full bg-void-925 flex items-center justify-center text-[9px] font-bold text-white">
-              IN
+              {profile?.initials ?? "YU"}
             </div>
           </div>
           <span className="text-[11px] font-medium text-white/60 group-hover/user:text-white transition-colors">
-            Imene Nadir
+            {profile?.displayName ?? "Workspace User"}
           </span>
           <ChevronDown
             size={12}

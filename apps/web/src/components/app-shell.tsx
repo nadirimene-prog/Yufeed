@@ -1,9 +1,10 @@
 "use client";
 
 import * as React from "react";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
 import { cn } from "@/lib/utils";
+import { getAuthToken } from "@/lib/auth";
 import Sidebar from "./sidebar";
 import Header from "./header";
 
@@ -82,18 +83,47 @@ interface AppShellProps {
 
 export default function AppShell({ children }: AppShellProps) {
   const pathname = usePathname();
+  const router = useRouter();
   const breadcrumbs = useBreadcrumbs(pathname);
   const [mobileSidebarOpen, setMobileSidebarOpen] = React.useState(false);
+  const [authChecked, setAuthChecked] = React.useState(false);
 
   // Chromeless routes (no sidebar/header)
-  const isChromeless = ["/", "/forgot-password", "/request-access"].includes(
-    pathname,
-  );
+  const isChromeless = [
+    "/",
+    "/login",
+    "/forgot-password",
+    "/request-access",
+  ].includes(pathname);
+
+  React.useEffect(() => {
+    if (isChromeless) {
+      setAuthChecked(true);
+      return;
+    }
+
+    if (!getAuthToken()) {
+      router.replace("/");
+      return;
+    }
+
+    setAuthChecked(true);
+  }, [isChromeless, pathname, router]);
 
   if (isChromeless) {
     return (
       <div className="min-h-screen bg-bg-base">
         <PageTransition>{children}</PageTransition>
+      </div>
+    );
+  }
+
+  if (!authChecked) {
+    return (
+      <div className="flex min-h-screen items-center justify-center bg-bg-base">
+        <div className="text-sm text-foreground-secondary">
+          Checking session...
+        </div>
       </div>
     );
   }
