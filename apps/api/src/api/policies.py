@@ -1,7 +1,7 @@
 """Policy management API endpoints."""
 
 from datetime import datetime, timezone
-from typing import Optional
+from typing import Any, Optional
 import uuid
 
 from fastapi import APIRouter, Depends, HTTPException, Query
@@ -43,6 +43,76 @@ router = APIRouter(prefix="/api/policies", tags=["policies"])
 def generate_policy_id() -> str:
     """Generate a unique policy ID."""
     return f"POL-{uuid.uuid4().hex[:8].upper()}"
+
+
+FOUR_EYES_POLICY_DETAIL = "4-eyes violation: approver cannot be the same as the policy creator"
+FOUR_EYES_CREATE_POLICY_DETAIL = "4-eyes violation: policy cannot be created directly as approved"
+POLICY_CREATED_BY_METADATA_KEY = "created_by"
+POLICY_APPROVED_BY_METADATA_KEY = "approved_by"
+POLICY_APPROVED_AT_METADATA_KEY = "approved_at"
+
+
+def _normalize_actor(value: Optional[str]) -> Optional[str]:
+    if value is None:
+        return None
+    normalized = value.strip().lower()
+    return normalized or None
+
+
+def _user_actor_aliases(current_user: CurrentUser) -> set[str]:
+    aliases = {
+        _normalize_actor(current_user.user_id),
+        _normalize_actor(current_user.email),
+    }
+    return {alias for alias in aliases if alias}
+
+
+def _is_same_actor(actor: Optional[str], current_user: CurrentUser) -> bool:
+    normalized_actor = _normalize_actor(actor)
+    if not normalized_actor:
+        return False
+    return normalized_actor in _user_actor_aliases(current_user)
+
+
+def _policy_metadata_dict(policy: PolicyDocument) -> dict[str, Any]:
+    if isinstance(policy.metadata_json, dict):
+        return dict(policy.metadata_json)
+    return {}
+
+
+def _set_policy_creator(
+    policy: PolicyDocument, current_user: CurrentUser, *, force: bool = False
+) -> None:
+    metadata = _policy_metadata_dict(policy)
+    actor = current_user.email or current_user.user_id
+    existing = metadata.get(POLICY_CREATED_BY_METADATA_KEY)
+    if force or not isinstance(existing, str) or not existing.strip():
+        metadata[POLICY_CREATED_BY_METADATA_KEY] = actor
+    policy.metadata_json = metadata
+
+
+def _policy_creator(policy: PolicyDocument) -> Optional[str]:
+    metadata = _policy_metadata_dict(policy)
+    creator = metadata.get(POLICY_CREATED_BY_METADATA_KEY)
+    if isinstance(creator, str) and creator.strip():
+        return creator.strip()
+
+    if isinstance(policy.owner, str) and policy.owner.strip():
+        return policy.owner.strip()
+    return None
+
+
+def _mark_policy_approval(policy: PolicyDocument, current_user: CurrentUser) -> None:
+    metadata = _policy_metadata_dict(policy)
+    metadata[POLICY_APPROVED_BY_METADATA_KEY] = current_user.email or current_user.user_id
+    metadata[POLICY_APPROVED_AT_METADATA_KEY] = utc_now().isoformat()
+    policy.metadata_json = metadata
+
+
+def _enforce_policy_four_eyes(policy: PolicyDocument, current_user: CurrentUser) -> None:
+    creator = _policy_creator(policy)
+    if creator and _is_same_actor(creator, current_user):
+        raise HTTPException(status_code=409, detail=FOUR_EYES_POLICY_DETAIL)
 
 
 def policy_to_dict(policy: PolicyDocument, db: Session) -> dict:
@@ -191,6 +261,8 @@ async def create_policy_from_template(
         policy.metadata_json = merged or None
         policy.updated_at = utc_now()
 
+    _set_policy_creator(policy, current_user, force=bool(stats.get("created")))
+
     db.commit()
     db.refresh(policy)
 
@@ -257,17 +329,24 @@ async def create_policy(
     current_user: CurrentUser = Depends(require_any_role(["admin", "compliance", "aml_officer"])),
 ):
     """Create a new policy document."""
+    requested_status = (payload.status or "draft").lower().strip()
+    if requested_status == "approved":
+        raise HTTPException(status_code=409, detail=FOUR_EYES_CREATE_POLICY_DETAIL)
+
+    policy_metadata = dict(payload.metadata or {})
+    policy_metadata[POLICY_CREATED_BY_METADATA_KEY] = current_user.email or current_user.user_id
+
     policy = PolicyDocument(
         policy_id=generate_policy_id(),
         name=payload.name,
         version=payload.version,
         owner=payload.owner or current_user.email,
-        status=payload.status,
+        status=requested_status,
         language=payload.language,
         effective_date=payload.effective_date,
         source_url=payload.source_url,
         content=payload.content,
-        metadata_json=payload.metadata,
+        metadata_json=policy_metadata,
         created_at=utc_now(),
         updated_at=utc_now(),
     )
@@ -322,12 +401,30 @@ def update_policy(
     if not policy:
         raise HTTPException(status_code=404, detail="Policy not found")
 
+    previous_status = (policy.status or "draft").lower()
     update_data = payload.model_dump(exclude_unset=True)
     if "metadata" in update_data:
-        update_data["metadata_json"] = update_data.pop("metadata")
+        merged_metadata = _policy_metadata_dict(policy)
+        new_metadata = update_data.pop("metadata")
+        if isinstance(new_metadata, dict):
+            merged_metadata.update(new_metadata)
+        update_data["metadata_json"] = merged_metadata or None
+
+    requested_status = update_data.get("status")
+    if isinstance(requested_status, str):
+        requested_status = requested_status.lower().strip()
+    else:
+        requested_status = None
+
+    if requested_status == "approved" and previous_status != "approved":
+        _enforce_policy_four_eyes(policy, current_user)
 
     for key, value in update_data.items():
         setattr(policy, key, value)
+
+    if requested_status == "approved" and previous_status != "approved":
+        policy.last_reviewed_at = utc_now()
+        _mark_policy_approval(policy, current_user)
 
     policy.updated_at = utc_now()
     db.commit()
@@ -381,9 +478,12 @@ async def approve_policy(
     if policy.status not in ("draft", "in_review"):
         raise HTTPException(status_code=400, detail="Policy cannot be approved from current status")
 
+    _enforce_policy_four_eyes(policy, current_user)
+
     policy.status = "approved"
     policy.last_reviewed_at = utc_now()
     policy.updated_at = utc_now()
+    _mark_policy_approval(policy, current_user)
 
     db.commit()
     db.refresh(policy)

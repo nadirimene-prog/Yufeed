@@ -1,5 +1,6 @@
 import pytest
 from datetime import datetime, timezone
+from fastapi import HTTPException
 
 from src.api import obligations as obligations_api
 from src.auth.dependencies import CurrentUser
@@ -39,6 +40,7 @@ async def test_obligation_workflow_endpoints(db_session, monkeypatch):
         document=doc,
         obligation_text="Payment services must monitor transactions.",
         status="draft",
+        created_by="user@example.com",
         scope_tags=["psp"],
         updated_at=now,
     )
@@ -110,6 +112,20 @@ async def test_obligation_workflow_endpoints(db_session, monkeypatch):
     )
     assert updated["status"] == "in_review"
 
+    with pytest.raises(HTTPException) as exc_info:
+        await obligations_api.approve_obligation(
+            obligation.id,
+            ObligationApproval(
+                status="approved",
+                note="Self approval attempt",
+                linked_policy_id=policy.id,
+            ),
+            db_session,
+            current_user,
+        )
+    assert exc_info.value.status_code == 409
+
+    approver_user = CurrentUser("user-2", "approver@example.com", "admin")
     approved = await obligations_api.approve_obligation(
         obligation.id,
         ObligationApproval(
@@ -121,10 +137,11 @@ async def test_obligation_workflow_endpoints(db_session, monkeypatch):
             link_risk_entry_ids=[risk_entry.id],
         ),
         db_session,
-        current_user,
+        approver_user,
     )
     assert approved["status"] == "approved"
     assert approved.get("created_internal_rule")
+    assert approved["approved_by"] == approver_user.email
 
     fetched = obligations_api.get_obligation(obligation.id, db_session, None)
     assert fetched["obligation_id"] == obligation.obligation_id

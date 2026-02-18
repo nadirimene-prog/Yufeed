@@ -115,9 +115,16 @@ def test_monitoring_rules_crud_and_simulation(db_session):
             "default",
         )
         assert version.status == "pending"
+        assert version.created_by == current_user.user_id
 
-        approved = rules_api.approve_rule_version(version.id, db_session, current_user, "default")
+        with pytest.raises(HTTPException) as exc:
+            rules_api.approve_rule_version(version.id, db_session, current_user, "default")
+        assert exc.value.status_code == 409
+
+        approver_user = CurrentUser("user-2", "approver@example.com", "admin")
+        approved = rules_api.approve_rule_version(version.id, db_session, approver_user, "default")
         assert approved.status == "approved"
+        assert approved.approved_by == approver_user.user_id
 
         versions = rules_api.list_rule_versions(rule.rule_id, db_session, "default")
         assert versions
@@ -175,5 +182,44 @@ def test_monitoring_rules_crud_and_simulation(db_session):
 
         deleted = rules_api.delete_rule(rule.rule_id, db_session, "default")
         assert deleted["status"] == "deleted"
+    finally:
+        clear_current_tenant()
+
+
+@pytest.mark.unit
+def test_reject_rule_version_is_tenant_scoped(db_session):
+    set_current_tenant("default")
+    try:
+        rule_payload = MonitoringRuleCreate(
+            name="Tenant Scoped Rule",
+            description="Tenant check",
+            category="amount_threshold",
+            severity="high",
+            conditions={
+                "conditions": [{"field": "amount", "operator": ">", "value": 1000}],
+                "logic": "AND",
+            },
+            thresholds=None,
+            enabled=True,
+        )
+        rule = rules_api.create_rule(rule_payload, db_session)
+
+        submitter = CurrentUser("submitter-1", "submitter@example.com", "admin")
+        version = rules_api.create_rule_version(
+            rule.rule_id,
+            RuleVersionCreate(description="Reject this version"),
+            db_session,
+            submitter,
+            "default",
+        )
+
+        reviewer = CurrentUser("reviewer-1", "reviewer@example.com", "admin")
+        with pytest.raises(HTTPException) as exc:
+            rules_api.reject_rule_version(version.id, db_session, reviewer, "other-tenant")
+        assert exc.value.status_code == 404
+
+        rejected = rules_api.reject_rule_version(version.id, db_session, reviewer, "default")
+        assert rejected.status == "rejected"
+        assert rejected.approved_by == reviewer.user_id
     finally:
         clear_current_tenant()

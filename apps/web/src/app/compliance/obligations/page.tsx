@@ -5,6 +5,7 @@ export const dynamic = "force-dynamic";
 import { useMemo, useState } from "react";
 import Link from "next/link";
 import { handleApiError } from "@/lib/api-error-handler";
+import { getAuthUserProfile } from "@/lib/auth";
 import {
   useObligationsList,
   useUpdateObligationStatus,
@@ -37,6 +38,7 @@ export default function ObligationsPage() {
   const [query, setQuery] = useState("");
   const [page, setPage] = useState(0);
   const [actionLoading, setActionLoading] = useState<string | null>(null);
+  const currentUser = useMemo(() => getAuthUserProfile(), []);
 
   const pageSize = 20;
 
@@ -81,7 +83,18 @@ export default function ObligationsPage() {
     }
   };
 
-  const actionsFor = (status?: string) => {
+  const isCurrentUserCreator = (createdBy?: string | null) => {
+    const actor = createdBy?.trim().toLowerCase();
+    if (!actor) return false;
+    const aliases = [currentUser?.email, currentUser?.userId]
+      .filter((value): value is string => typeof value === "string")
+      .map((value) => value.trim().toLowerCase())
+      .filter(Boolean);
+    return aliases.includes(actor);
+  };
+
+  const actionsFor = (item: Obligation) => {
+    const status = item.status;
     const normalized = (status ?? "draft").toLowerCase();
     if (normalized === "draft") {
       return [
@@ -90,10 +103,11 @@ export default function ObligationsPage() {
       ];
     }
     if (normalized === "in_review") {
-      return [
-        { label: "Approve", status: "approved" },
-        { label: "Reject", status: "rejected" },
-      ];
+      const actions = [{ label: "Reject", status: "rejected" }];
+      if (!isCurrentUserCreator(item.created_by)) {
+        actions.unshift({ label: "Approve", status: "approved" });
+      }
+      return actions;
     }
     if (normalized === "rejected") {
       return [{ label: "Reopen", status: "draft" }];
@@ -241,9 +255,9 @@ export default function ObligationsPage() {
                   <span>•</span>
                   <span>Updated {formatDate(item.updated_at)}</span>
                 </div>
-                {actionsFor(item.status).length ? (
+                {actionsFor(item).length ? (
                   <div className="mt-3 flex flex-wrap gap-2">
-                    {actionsFor(item.status).map((action) => (
+                    {actionsFor(item).map((action) => (
                       <button
                         key={action.status}
                         onClick={() => updateStatus(item.id, action.status)}

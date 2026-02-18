@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useMemo } from "react";
 import {
   Dialog,
   DialogContent,
@@ -33,6 +33,7 @@ import {
   approveObligation,
   getPolicyTemplateSuggestions,
 } from "@/lib/compliance-api";
+import { getAuthUserProfile } from "@/lib/auth";
 import { logger } from "@/lib/logger";
 
 interface ObligationApprovalModalProps {
@@ -76,6 +77,7 @@ export default function ObligationApprovalModal({
   obligation,
   onSuccess,
 }: ObligationApprovalModalProps) {
+  const currentUser = useMemo(() => getAuthUserProfile(), []);
   const [selectedStatus, setSelectedStatus] =
     useState<ObligationStatus>("approved");
   const [note, setNote] = useState("");
@@ -100,6 +102,25 @@ export default function ObligationApprovalModal({
     }>
   >([]);
   const [loadingData, setLoadingData] = useState(false);
+
+  const isSelfApprovalBlocked = useMemo(() => {
+    if (!obligation?.created_by) return false;
+    const actor = obligation.created_by.trim().toLowerCase();
+    if (!actor) return false;
+    const aliases = [currentUser?.email, currentUser?.userId]
+      .filter((value): value is string => typeof value === "string")
+      .map((value) => value.trim().toLowerCase())
+      .filter(Boolean);
+    return aliases.includes(actor);
+  }, [currentUser?.email, currentUser?.userId, obligation?.created_by]);
+
+  const availableStatusOptions = useMemo(
+    () =>
+      statusOptions.filter(
+        (option) => !(isSelfApprovalBlocked && option.value === "approved"),
+      ),
+    [isSelfApprovalBlocked],
+  );
 
   // Load policies and risk entries when modal opens
   useEffect(() => {
@@ -129,7 +150,7 @@ export default function ObligationApprovalModal({
         .finally(() => setLoadingData(false));
 
       // Reset form state
-      setSelectedStatus("approved");
+      setSelectedStatus(isSelfApprovalBlocked ? "in_review" : "approved");
       setNote("");
       setLinkedPolicyId(obligation?.linked_policy_id);
       setInternalRuleName("");
@@ -137,10 +158,14 @@ export default function ObligationApprovalModal({
       setSelectedRiskIds([]);
       setError(null);
     }
-  }, [open, obligation?.linked_policy_id]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [open, obligation?.linked_policy_id, isSelfApprovalBlocked]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const handleSubmit = async () => {
     if (!obligation) return;
+    if (isSelfApprovalBlocked && selectedStatus === "approved") {
+      setError("4-eyes control: the creator cannot approve this obligation.");
+      return;
+    }
 
     setIsSubmitting(true);
     setError(null);
@@ -209,8 +234,13 @@ export default function ObligationApprovalModal({
             <label className="text-sm font-medium text-white/70">
               Decision
             </label>
+            {isSelfApprovalBlocked && (
+              <p className="text-xs text-amber-300">
+                4-eyes control active: approval requires a different reviewer.
+              </p>
+            )}
             <div className="grid grid-cols-3 gap-2">
-              {statusOptions.map((option) => (
+              {availableStatusOptions.map((option) => (
                 <button
                   key={option.value}
                   onClick={() => setSelectedStatus(option.value)}

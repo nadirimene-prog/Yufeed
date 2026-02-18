@@ -240,6 +240,8 @@ export default function AlertDetailPage() {
       "bg-yellow-100 text-yellow-800 dark:bg-yellow-900/20 dark:text-yellow-400 border-yellow-200",
     low: "bg-blue-100 text-blue-800 dark:bg-blue-900/20 dark:text-blue-400 border-blue-200",
   };
+  const riskScore = Number(alert.risk_score);
+  const hasRiskScore = Number.isFinite(riskScore);
 
   return (
     <div className="min-h-screen bg-gray-50 dark:bg-gray-900 p-6">
@@ -344,14 +346,14 @@ export default function AlertDetailPage() {
                     </p>
                     <p
                       className={`text-2xl font-bold ${
-                        alert.risk_score >= 70
+                        riskScore >= 70
                           ? "text-red-600"
-                          : alert.risk_score >= 40
+                          : riskScore >= 40
                             ? "text-orange-600"
                             : "text-green-600"
                       }`}
                     >
-                      {alert.risk_score.toFixed(0)}
+                      {hasRiskScore ? riskScore.toFixed(0) : "N/A"}
                     </p>
                   </div>
                   <div>

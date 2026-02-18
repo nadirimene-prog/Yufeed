@@ -43,6 +43,34 @@ def _normalize_statuses(status: Optional[str]) -> Optional[List[str]]:
     return statuses or None
 
 
+FOUR_EYES_OBLIGATION_DETAIL = (
+    "4-eyes violation: approver cannot be the same as the obligation creator"
+)
+
+
+def _normalize_actor(value: Optional[str]) -> Optional[str]:
+    if value is None:
+        return None
+    normalized = value.strip().lower()
+    return normalized or None
+
+
+def _user_actor_aliases(current_user: CurrentUser) -> set[str]:
+    aliases = {
+        _normalize_actor(current_user.user_id),
+        _normalize_actor(current_user.email),
+    }
+    return {alias for alias in aliases if alias}
+
+
+def _enforce_obligation_four_eyes(
+    obligation: RegulatoryObligation, current_user: CurrentUser
+) -> None:
+    creator = _normalize_actor(obligation.created_by)
+    if creator and creator in _user_actor_aliases(current_user):
+        raise HTTPException(status_code=409, detail=FOUR_EYES_OBLIGATION_DETAIL)
+
+
 def _obligation_to_dict(
     obligation: RegulatoryObligation, doc: LegalDocument, db: Session = None
 ) -> dict:
@@ -548,6 +576,10 @@ async def update_obligation(
             detail=f"Invalid status transition from {current_status} to {new_status}",
         )
 
+    is_approval_transition = new_status == "approved" and current_status != "approved"
+    if is_approval_transition:
+        _enforce_obligation_four_eyes(obligation, current_user)
+
     obligation.status = new_status
     obligation.updated_at = utc_now()
 
@@ -684,6 +716,10 @@ async def approve_obligation(
             status_code=400,
             detail=f"Invalid status transition from {current_status} to {new_status}",
         )
+
+    is_approval_transition = new_status == "approved" and current_status != "approved"
+    if is_approval_transition:
+        _enforce_obligation_four_eyes(obligation, current_user)
 
     # Validate linked policy if provided
     linked_policy: Optional[PolicyDocument] = None
