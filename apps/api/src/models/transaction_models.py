@@ -310,6 +310,9 @@ class UserRiskProfile(Base):
     id = Column(Integer, primary_key=True)
     tenant_id = Column(String(255), nullable=False, index=True)  # Multi-tenancy support
     user_id = Column(String(255), nullable=False, index=True)
+    compliance_profile_id = Column(
+        Integer, ForeignKey("compliance_profiles.id"), nullable=True, index=True
+    )
 
     # Computed risk
     overall_risk_score = Column(Numeric(5, 2))
@@ -324,6 +327,10 @@ class UserRiskProfile(Base):
 
     # KYC/CDD status
     kyc_status = Column(String(50))
+    kyc_risk_score = Column(Numeric(5, 2))
+    kyc_cdd_level = Column(String(32))
+    kyc_pep_status = Column(String(20))
+    kyc_last_synced_at = Column(DateTime)
     kyc_last_updated = Column(DateTime)
     enhanced_due_diligence = Column(Boolean, default=False)
 
@@ -348,6 +355,8 @@ class UserRiskProfile(Base):
     last_calculated_at = Column(DateTime, default=utc_now)
     created_at = Column(DateTime, default=utc_now)
     updated_at = Column(DateTime, default=utc_now, onupdate=utc_now)
+
+    compliance_profile = relationship("ComplianceProfile", foreign_keys=[compliance_profile_id])
 
 
 class FeatureValue(Base):

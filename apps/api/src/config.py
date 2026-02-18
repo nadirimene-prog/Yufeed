@@ -132,6 +132,7 @@ class Settings(BaseSettings):
     FEATURE_DEADLINE_ALERTS: bool = True
     FEATURE_AUDIT_TRAIL: bool = True
     DASHBOARD_V2_ENABLED: bool = True
+    DASHBOARD_AMLCO_V3_ENABLED: bool = True
 
     @property
     def deadline_thresholds(self) -> list:

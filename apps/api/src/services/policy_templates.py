@@ -317,6 +317,30 @@ POLICY_TEMPLATES: List[Dict[str, Any]] = [
 ]
 
 
+def _default_institution_types(template: Dict[str, Any]) -> List[str]:
+    category = (template.get("category") or "").upper()
+    template_id = (template.get("template_id") or "").lower()
+
+    if category == "EMI":
+        return ["pi", "emi"]
+    if category == "CASP":
+        return ["vasp"]
+    if category == "AML/CFT":
+        if "travel-rule" in template_id:
+            return ["vasp"]
+        return ["pi", "emi", "vasp"]
+    if category in {"GDPR", "GOVERNANCE", "HR"}:
+        return ["pi", "emi", "vasp"]
+    return ["pi", "emi", "vasp"]
+
+
+def _default_applicable_regulations(template: Dict[str, Any]) -> List[str]:
+    basis = template.get("regulatory_basis") or []
+    if isinstance(basis, list):
+        return [str(item) for item in basis]
+    return [str(basis)] if basis else []
+
+
 def seed_policy_templates(db: Optional[Session] = None) -> dict:
     owns_session = db is None
     if db is None:
@@ -339,6 +363,10 @@ def seed_policy_templates(db: Optional[Session] = None) -> dict:
                 "owner": template.get("owner"),
                 "review_frequency_months": template.get("review_frequency_months", 12),
                 "regulatory_basis": template.get("regulatory_basis"),
+                "institution_types": template.get("institution_types")
+                or _default_institution_types(template),
+                "applicable_regulations": template.get("applicable_regulations")
+                or _default_applicable_regulations(template),
                 "source_url": template.get("source_url"),
                 "content": template.get("content"),
                 "metadata_json": template.get("metadata"),

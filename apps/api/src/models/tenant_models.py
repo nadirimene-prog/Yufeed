@@ -51,6 +51,13 @@ class Tenant(Base):
     contact_email = Column(String(255))
     contact_name = Column(String(255))
 
+    # Regulatory profile
+    institution_type = Column(String(50))  # 'pi', 'emi', 'vasp', 'credit_institution'
+    license_number = Column(String(255))
+    license_jurisdiction = Column(String(10))  # ISO country code
+    supervisory_authority = Column(String(255))
+    regulatory_scope_tags = Column(JSON().with_variant(JSONB(), "postgresql"))
+
     # Configuration
     settings = Column(JSON().with_variant(JSONB(), "postgresql"))  # Tenant-specific settings
     rate_limits = Column(JSON().with_variant(JSONB(), "postgresql"))  # Per-tenant rate limits
@@ -72,6 +79,41 @@ class Tenant(Base):
     # Relationships
     api_keys = relationship("TenantAPIKey", back_populates="tenant", cascade="all, delete-orphan")
     users = relationship("TenantUser", back_populates="tenant", cascade="all, delete-orphan")
+    regulatory_profiles = relationship(
+        "TenantRegulatoryProfile",
+        back_populates="tenant",
+        cascade="all, delete-orphan",
+    )
+
+
+class TenantRegulatoryProfile(Base):
+    """
+    Per-tenant applicability overrides for regulatory documents.
+
+    Regulatory obligations remain global. This model captures whether a
+    specific regulation is fully applicable, partially applicable, or exempt
+    for a given tenant.
+    """
+
+    __tablename__ = "tenant_regulatory_profiles"
+    __table_args__ = (
+        UniqueConstraint("tenant_id", "regulation_doc_id", name="uq_tenant_regulatory_profile"),
+    )
+
+    id = Column(Integer, primary_key=True)
+    tenant_id = Column(Integer, ForeignKey("tenants.id"), nullable=False, index=True)
+    regulation_doc_id = Column(
+        Integer, ForeignKey("legal_documents.id"), nullable=False, index=True
+    )
+    applicability = Column(String(20), nullable=False, default="full")  # full | partial | exempt
+    applicability_notes = Column(Text)
+    effective_from = Column(DateTime)
+    created_by = Column(String(255))
+    created_at = Column(DateTime, default=utc_now, nullable=False)
+    updated_at = Column(DateTime, default=utc_now, onupdate=utc_now)
+
+    tenant = relationship("Tenant", back_populates="regulatory_profiles")
+    regulation = relationship("LegalDocument")
 
 
 class TenantAPIKey(Base):

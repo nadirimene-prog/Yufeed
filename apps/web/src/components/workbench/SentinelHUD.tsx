@@ -16,23 +16,25 @@ interface SentinelHUDProps {
   latencyMs?: number | null;
   signalsPerSecond?: number | null;
   complianceBadge?: string;
+  animateStatus?: boolean;
 }
 
 export function SentinelHUD({
   latencyMs = null,
   signalsPerSecond = null,
   complianceBadge = "SOC2 Verified",
+  animateStatus = false,
 }: SentinelHUDProps) {
   const [pulseScale, setPulseScale] = useState(1);
   const profile = React.useMemo(() => getAuthUserProfile(), []);
 
-  // Artificial AI "Heartbeat" effect
   useEffect(() => {
+    if (!animateStatus) return;
     const interval = setInterval(() => {
       setPulseScale((s) => (s === 1 ? 1.4 : 1));
     }, 2000);
     return () => clearInterval(interval);
-  }, []);
+  }, [animateStatus]);
 
   return (
     <div className="flex h-11 w-full items-center justify-between px-6 bg-void-950/20 backdrop-blur-md border border-white/5 rounded-2xl mb-4 group hover:bg-void-950/40 transition-colors duration-500">

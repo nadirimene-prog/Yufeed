@@ -20,6 +20,8 @@ class PolicyCreate(BaseModel):
     )
     content: Optional[str] = None
     metadata: Optional[Dict[str, Any]] = None
+    tenant_id: Optional[str] = Field(None, max_length=255)
+    master_policy_id: Optional[int] = None
 
 
 class PolicyUpdate(BaseModel):
@@ -34,6 +36,8 @@ class PolicyUpdate(BaseModel):
     source_url: Optional[str] = Field(None, max_length=1000)
     content: Optional[str] = None
     metadata: Optional[Dict[str, Any]] = None
+    tenant_id: Optional[str] = Field(None, max_length=255)
+    master_policy_id: Optional[int] = None
 
 
 class PolicyApprove(BaseModel):
@@ -91,6 +95,8 @@ class PolicyTemplateResponse(BaseModel):
     owner: Optional[str] = None
     review_frequency_months: Optional[int] = None
     regulatory_basis: Optional[List[str]] = None
+    institution_types: Optional[List[str]] = None
+    applicable_regulations: Optional[List[str]] = None
     source_url: Optional[str] = None
     content: Optional[str] = None
     metadata: Optional[Dict[str, Any]] = None
@@ -120,6 +126,11 @@ class PolicyFromTemplateCreate(BaseModel):
     source_url: Optional[str] = Field(None, max_length=1000)
     content: Optional[str] = None
     metadata: Optional[Dict[str, Any]] = None
+    tenant_id: Optional[str] = Field(
+        None,
+        max_length=255,
+        description="Target tenant. If omitted, uses current_user.tenant_id when available.",
+    )
 
 
 class PolicyResponse(BaseModel):
@@ -127,6 +138,9 @@ class PolicyResponse(BaseModel):
 
     id: int
     policy_id: str
+    tenant_id: Optional[str] = None
+    is_master: bool = False
+    master_policy_id: Optional[int] = None
     name: str
     version: Optional[str] = None
     owner: Optional[str] = None
