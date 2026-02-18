@@ -60,9 +60,15 @@ def test_dashboard_overview_returns_expected_contract(db_session):
     assert "kpis" in payload
     assert "system_health" in payload
     assert "queues" in payload
+    assert "critical_bar" in payload
+    assert "queue_summary" in payload
+    assert "governance" in payload
+    assert "throughput" in payload
     assert isinstance(payload["queues"]["alerts"], list)
     assert isinstance(payload["queues"]["cases"], list)
     assert payload["kpis"]["pending_alerts"] >= 1
+    assert isinstance(payload["critical_bar"]["p1_sla_breaches"], int)
+    assert isinstance(payload["governance"]["alert_to_case_rate"], float)
 
 
 @pytest.mark.unit
