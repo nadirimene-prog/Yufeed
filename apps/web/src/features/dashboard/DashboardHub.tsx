@@ -13,7 +13,6 @@ import {
   GlassCardHeader,
   GlassCardTitle,
 } from "@/components/ui/glass-card";
-import apiClient from "@/lib/http";
 import { getAuthToken, getAuthUserProfile } from "@/lib/auth";
 import {
   DashboardQueueFilter,
@@ -218,7 +217,7 @@ export function DashboardHub() {
     },
   );
 
-  const { performAction, reviewAction, bulkAction, saveDraft } =
+  const { performAction, reviewAction, bulkAction, saveDraft, snoozeAlert } =
     useWorkItemActions(
       selectedItem?.kind ?? null,
       selectedItem?.record_id ?? null,
@@ -374,20 +373,16 @@ export function DashboardHub() {
     if (!selectedItem || selectedItem.kind !== "alert") return;
     setWorkspaceMessage(null);
     try {
-      await apiClient.post(
-        `/api/alerts/${encodeURIComponent(selectedItem.ref_id)}/snooze`,
-        {
-          duration_hours: payload.durationHours,
-          reason: payload.reason,
-          snoozed_by: profile?.userId ?? undefined,
-        },
-      );
+      await snoozeAlert.mutateAsync({
+        alertRefId: selectedItem.ref_id,
+        durationHours: payload.durationHours,
+        reason: payload.reason,
+        snoozedBy: profile?.userId ?? undefined,
+      });
       setWorkspaceMessage({
         text: `Alert snoozed for ${payload.durationHours}h.`,
         type: "success",
       });
-      queueQuery.refetch();
-      detailQuery.refetch();
     } catch (error) {
       setWorkspaceMessage({
         text: parseErrorMessage(error, "Failed to snooze alert"),

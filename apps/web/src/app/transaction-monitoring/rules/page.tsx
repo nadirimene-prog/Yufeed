@@ -614,6 +614,12 @@ export default function RuleManagementPage() {
                     </span>
                   </div>
                   <div className="flex items-center gap-2">
+                    <a
+                      href={`/transaction-monitoring/rules/${encodeURIComponent(rule.rule_id)}/backtest`}
+                      className="rounded-lg border border-gray-200 px-3 py-2 text-xs font-semibold text-gray-600 transition-colors hover:bg-gray-50 dark:border-gray-800 dark:text-gray-300 dark:hover:bg-gray-900"
+                    >
+                      Backtest
+                    </a>
                     <button
                       className={cn(
                         "p-2 rounded-lg transition-colors border",

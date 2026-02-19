@@ -170,30 +170,6 @@
   --spacing-24: 6rem;
   --spacing-32: 8rem;
 
-  /* Legacy aliases retained during migration */
-  --space-0: var(--spacing-0);
-  --space-px: var(--spacing-px);
-  --space-0-5: var(--spacing-0-5);
-  --space-1: var(--spacing-1);
-  --space-1-5: var(--spacing-1-5);
-  --space-2: var(--spacing-2);
-  --space-2-5: var(--spacing-2-5);
-  --space-3: var(--spacing-3);
-  --space-3-5: var(--spacing-3-5);
-  --space-4: var(--spacing-4);
-  --space-5: var(--spacing-5);
-  --space-6: var(--spacing-6);
-  --space-7: var(--spacing-7);
-  --space-8: var(--spacing-8);
-  --space-9: var(--spacing-9);
-  --space-10: var(--spacing-10);
-  --space-12: var(--spacing-12);
-  --space-14: var(--spacing-14);
-  --space-16: var(--spacing-16);
-  --space-20: var(--spacing-20);
-  --space-24: var(--spacing-24);
-  --space-32: var(--spacing-32);
-
   /* ───────────────────────────────────────────────────────────────────────────
      Border Radius — Refined Scale
      ─────────────────────────────────────────────────────────────────────────── */

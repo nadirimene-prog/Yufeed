@@ -42,6 +42,7 @@ export function WorkspaceTabs({
             role="tab"
             aria-selected={activeTab === tab.id}
             aria-controls={`workspace-tabpanel-${tabsId}-${tab.id}`}
+            tabIndex={activeTab === tab.id ? 0 : -1}
             onClick={() => onTabChange(tab.id)}
             className={cn(
               "rounded-lg px-3 py-1.5 text-xs font-semibold uppercase tracking-wide transition",

@@ -104,10 +104,33 @@ export function useWorkItemActions(
     },
   });
 
+  const snoozeAlert = useMutation({
+    mutationFn: async (payload: {
+      alertRefId: string;
+      durationHours: number;
+      reason?: string;
+      snoozedBy?: string;
+    }) => {
+      const response = await apiClient.post(
+        `/api/alerts/${encodeURIComponent(payload.alertRefId)}/snooze`,
+        {
+          duration_hours: payload.durationHours,
+          reason: payload.reason,
+          snoozed_by: payload.snoozedBy,
+        },
+      );
+      return response.data;
+    },
+    onSuccess: async () => {
+      await invalidateDashboard();
+    },
+  });
+
   return {
     performAction,
     reviewAction,
     bulkAction,
     saveDraft,
+    snoozeAlert,
   };
 }

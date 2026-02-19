@@ -25,6 +25,11 @@ const OPERATIONS_ITEMS: NavItem[] = [
     description: "Daily overview and KPIs.",
   },
   {
+    label: "Analyst Performance",
+    href: "/dashboard/operations",
+    description: "Team throughput and SLA performance.",
+  },
+  {
     label: "Findings Triage",
     href: "/findings",
     description: "Triage, acknowledge, escalate.",

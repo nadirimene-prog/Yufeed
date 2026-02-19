@@ -1,451 +1,358 @@
 "use client";
 
-import { getApiBaseUrl } from "@/lib/apiBaseUrl";
-
-import { useState } from "react";
-import { Plus, Trash2, Code, Eye, Save, TriangleAlert } from "lucide-react";
-import { cn } from "@/lib/utils";
-import { fetchWithAuth } from "@/lib/auth";
+import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
+import { AlertTriangle, Code2, Eye, Save, WandSparkles } from "lucide-react";
+import { Button } from "@/components/ui/button-horizon";
+import { cn } from "@/lib/utils";
+import {
+  RuleConditionBuilder,
+  buildRuleConditionsPayload,
+  createDefaultRuleGroup,
+  type RuleConditionGroupNode,
+} from "@/components/rules/RuleConditionBuilder";
+import { useCreateRule } from "@/hooks/queries/useRulesData";
 
-type Operator =
-  | "equals"
-  | "not_equals"
-  | "greater_than"
-  | "less_than"
-  | "greater_than_or_equal"
-  | "less_than_or_equal"
-  | "contains"
-  | "in"
-  | "not_in"
-  | "starts_with"
-  | "ends_with";
-
-interface Condition {
-  id: string;
-  field: string;
-  operator: Operator;
-  value: string;
-}
-
-interface LogicGroup {
-  id: string;
-  logic: "AND" | "OR";
-  conditions: (Condition | LogicGroup)[];
-}
-
-const isCondition = (value: Condition | LogicGroup): value is Condition =>
-  "field" in value;
+const SEVERITY_OPTIONS = ["low", "medium", "high", "critical"] as const;
+const DEFAULT_ACTION_OPTIONS = [
+  "flag_for_review",
+  "accept",
+  "decline",
+  "escalate",
+] as const;
 
 export default function RuleBuilderPage() {
   const router = useRouter();
+  const createRule = useCreateRule();
+
   const [name, setName] = useState("");
   const [description, setDescription] = useState("");
   const [category, setCategory] = useState("velocity");
-  const [severity, setSeverity] = useState("medium");
+  const [severity, setSeverity] =
+    useState<(typeof SEVERITY_OPTIONS)[number]>("medium");
   const [enabled, setEnabled] = useState(true);
   const [thresholds, setThresholds] = useState("{}");
-  const [error, setError] = useState<string | null>(null);
-  const [saving, setSaving] = useState(false);
+  const [conditionsGroup, setConditionsGroup] =
+    useState<RuleConditionGroupNode>(createDefaultRuleGroup);
 
-  const [rootGroup, setRootGroup] = useState<LogicGroup>({
-    id: "root",
-    logic: "AND",
-    conditions: [
-      { id: "1", field: "amount", operator: "greater_than", value: "1000" },
-    ],
-  });
+  const [defaultAction, setDefaultAction] =
+    useState<(typeof DEFAULT_ACTION_OPTIONS)[number]>("flag_for_review");
+  const [variantAPercent, setVariantAPercent] = useState(100);
 
   const [activeTab, setActiveTab] = useState<"builder" | "preview">("builder");
+  const [error, setError] = useState<string | null>(null);
 
-  const addCondition = () => {
-    setRootGroup((prev) => ({
-      ...prev,
-      conditions: [
-        ...prev.conditions,
-        {
-          id: crypto.randomUUID(),
-          field: "amount",
-          operator: "greater_than",
-          value: "1000",
-        },
-      ],
-    }));
-  };
+  const conditionsPayload = useMemo(
+    () => buildRuleConditionsPayload(conditionsGroup),
+    [conditionsGroup],
+  );
 
-  const updateCondition = (
-    id: string,
-    field: keyof Condition,
-    value: string,
-  ) => {
-    setRootGroup((prev) => ({
-      ...prev,
-      conditions: prev.conditions.map((condition) =>
-        isCondition(condition) && condition.id === id
-          ? { ...condition, [field]: value }
-          : condition,
-      ),
-    }));
-  };
-
-  const removeCondition = (id: string) => {
-    setRootGroup((prev) => ({
-      ...prev,
-      conditions: prev.conditions.filter(
-        (condition) => !(isCondition(condition) && condition.id === id),
-      ),
-    }));
-  };
-
-  const parseValue = (value: string) => {
-    if (value === "") return value;
-    const numeric = Number(value);
-    if (!Number.isNaN(numeric) && value.trim() !== "") {
-      return numeric;
-    }
-    return value;
-  };
+  const previewPayload = useMemo(
+    () => ({
+      name,
+      description,
+      category,
+      severity,
+      enabled,
+      conditions: conditionsPayload,
+      thresholds,
+      workflow: {
+        default_action: defaultAction,
+        variant_a_percent: variantAPercent,
+        variant_b_percent: Math.max(0, 100 - variantAPercent),
+      },
+    }),
+    [
+      category,
+      conditionsPayload,
+      defaultAction,
+      description,
+      enabled,
+      name,
+      severity,
+      thresholds,
+      variantAPercent,
+    ],
+  );
 
   const handleSave = async () => {
-    setSaving(true);
     setError(null);
-    try {
-      const conditions = {
-        logic: rootGroup.logic,
-        conditions: rootGroup.conditions
-          .filter(isCondition)
-          .map((condition) => ({
-            field: condition.field,
-            operator: condition.operator,
-            value: parseValue(condition.value),
-          })),
-      };
-      const thresholdsPayload = thresholds.trim()
-        ? JSON.parse(thresholds)
-        : undefined;
 
-      const payload: Record<string, unknown> = {
-        name,
-        description: description || undefined,
-        category: category || undefined,
+    if (name.trim().length < 3) {
+      setError("Rule name must be at least 3 characters.");
+      return;
+    }
+
+    if (conditionsPayload.conditions.length === 0) {
+      setError("Add at least one condition to save the rule.");
+      return;
+    }
+
+    let thresholdsPayload: Record<string, unknown> | undefined;
+    try {
+      thresholdsPayload = thresholds.trim()
+        ? (JSON.parse(thresholds) as Record<string, unknown>)
+        : undefined;
+    } catch {
+      setError("Thresholds must be valid JSON.");
+      return;
+    }
+
+    if (variantAPercent < 0 || variantAPercent > 100) {
+      setError("A/B split must be between 0 and 100.");
+      return;
+    }
+
+    try {
+      await createRule.mutateAsync({
+        name: name.trim(),
+        description: description.trim() || undefined,
+        category: category.trim() || undefined,
         severity,
         enabled,
-        conditions,
-        thresholds: thresholdsPayload,
-      };
-
-      const res = await fetchWithAuth(
-        `${getApiBaseUrl()}/api/monitoring-rules/`,
-        {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(payload),
+        conditions: conditionsPayload as unknown as Record<string, unknown>,
+        thresholds: {
+          ...(thresholdsPayload ?? {}),
+          workflow: {
+            default_action: defaultAction,
+            variant_a_percent: variantAPercent,
+            variant_b_percent: Math.max(0, 100 - variantAPercent),
+          },
         },
-      );
-      if (!res.ok) throw new Error(await res.text());
+      });
       router.push("/transaction-monitoring/rules");
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to save rule");
-    } finally {
-      setSaving(false);
+    } catch (saveError) {
+      const message =
+        saveError instanceof Error
+          ? saveError.message
+          : "Failed to create rule";
+      setError(message);
     }
   };
 
   return (
-    <div className="h-[calc(100vh-120px)] flex flex-col gap-6 animate-in fade-in duration-500 overflow-hidden">
-      {/* Header */}
-      <div className="flex items-center justify-between shrink-0">
+    <div className="flex h-[calc(100vh-7rem)] flex-col gap-4 overflow-hidden">
+      <header className="flex items-center justify-between gap-3">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900 dark:text-white">
-            Rule Builder
+          <h1 className="text-2xl font-display font-semibold text-foreground">
+            Visual Workflow Builder
           </h1>
-          <p className="text-sm text-gray-500">
-            Design advanced logic for transaction monitoring.
+          <p className="text-sm text-foreground-secondary">
+            Build transaction decision logic with reusable conditions and
+            rollout settings.
           </p>
         </div>
-        <div className="flex gap-3">
-          <button
+
+        <div className="flex items-center gap-2">
+          <Button
+            variant="glass"
             onClick={() => router.push("/transaction-monitoring/rules")}
-            className="inline-flex items-center gap-2 rounded-lg border border-gray-200 bg-white px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50 dark:border-gray-800 dark:bg-gray-950 dark:text-gray-300"
           >
             Cancel
-          </button>
-          <button
+          </Button>
+          <Button
             onClick={handleSave}
-            disabled={saving}
-            className="inline-flex items-center gap-2 rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700 shadow-sm disabled:opacity-50"
+            loading={createRule.isPending}
+            leftIcon={<Save className="h-4 w-4" />}
           >
-            <Save className="h-4 w-4" />
-            {saving ? "Saving..." : "Save Rule"}
-          </button>
+            Save Rule
+          </Button>
         </div>
-      </div>
+      </header>
 
-      {error && (
-        <div className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700 dark:border-red-900/50 dark:bg-red-900/20 dark:text-red-200">
+      {error ? (
+        <div className="rounded-xl border border-risk-critical/40 bg-risk-critical-soft px-4 py-3 text-sm text-risk-critical">
           {error}
         </div>
-      )}
+      ) : null}
 
-      <div className="flex flex-1 gap-6 overflow-hidden">
-        {/* Sidebar Info */}
-        <div className="w-80 shrink-0 space-y-6 overflow-y-auto pr-2">
-          <div className="space-y-4 rounded-xl border border-gray-200 bg-white p-6 dark:border-gray-800 dark:bg-gray-950 shadow-sm">
-            <h3 className="font-semibold text-gray-900 dark:text-white">
-              Global Settings
+      <div className="grid min-h-0 flex-1 gap-4 lg:grid-cols-[320px_1fr]">
+        <aside className="min-h-0 space-y-4 overflow-auto rounded-2xl border border-border-default bg-bg-elevated p-4">
+          <div className="space-y-3">
+            <h2 className="text-sm font-semibold uppercase tracking-wide text-foreground-secondary">
+              Rule Metadata
+            </h2>
+
+            <label className="space-y-1 text-xs text-foreground-secondary">
+              <span>Name</span>
+              <input
+                value={name}
+                onChange={(event) => setName(event.target.value)}
+                placeholder="Unusual High Value Transfer"
+                className="h-10 w-full rounded-lg border border-border-default bg-bg-overlay px-3 text-sm"
+              />
+            </label>
+
+            <label className="space-y-1 text-xs text-foreground-secondary">
+              <span>Severity</span>
+              <select
+                value={severity}
+                onChange={(event) =>
+                  setSeverity(
+                    event.target.value as (typeof SEVERITY_OPTIONS)[number],
+                  )
+                }
+                className="h-10 w-full rounded-lg border border-border-default bg-bg-overlay px-3 text-sm"
+              >
+                {SEVERITY_OPTIONS.map((option) => (
+                  <option key={option} value={option}>
+                    {option}
+                  </option>
+                ))}
+              </select>
+            </label>
+
+            <label className="space-y-1 text-xs text-foreground-secondary">
+              <span>Category</span>
+              <input
+                value={category}
+                onChange={(event) => setCategory(event.target.value)}
+                placeholder="velocity"
+                className="h-10 w-full rounded-lg border border-border-default bg-bg-overlay px-3 text-sm"
+              />
+            </label>
+
+            <label className="space-y-1 text-xs text-foreground-secondary">
+              <span>Description</span>
+              <textarea
+                value={description}
+                onChange={(event) => setDescription(event.target.value)}
+                rows={4}
+                className="w-full rounded-lg border border-border-default bg-bg-overlay px-3 py-2 text-sm"
+              />
+            </label>
+
+            <label className="inline-flex items-center gap-2 text-sm text-foreground-secondary">
+              <input
+                type="checkbox"
+                checked={enabled}
+                onChange={(event) => setEnabled(event.target.checked)}
+              />
+              Enabled on publish
+            </label>
+          </div>
+
+          <div className="space-y-3 rounded-xl border border-border-subtle bg-bg-overlay p-3">
+            <h3 className="text-xs font-semibold uppercase tracking-wide text-foreground-secondary">
+              Decision Workflow
             </h3>
-            <div className="space-y-4">
-              <div className="space-y-1.5">
-                <label className="text-xs font-bold uppercase tracking-wider text-gray-400">
-                  Rule Name
-                </label>
-                <input
-                  type="text"
-                  value={name}
-                  onChange={(e) => setName(e.target.value)}
-                  placeholder="e.g. Unusual High Value Transfer"
-                  className="w-full rounded-lg border border-gray-200 bg-gray-50 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none dark:border-gray-800 dark:bg-gray-900"
-                />
-              </div>
-              <div className="space-y-1.5">
-                <label className="text-xs font-bold uppercase tracking-wider text-gray-400">
-                  Severity
-                </label>
-                <select
-                  value={severity}
-                  onChange={(e) => setSeverity(e.target.value)}
-                  className="w-full rounded-lg border border-gray-200 bg-gray-50 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none dark:border-gray-800 dark:bg-gray-900"
-                >
-                  <option value="low">Low</option>
-                  <option value="medium">Medium</option>
-                  <option value="high">High</option>
-                  <option value="critical">Critical</option>
-                </select>
-              </div>
-              <div className="space-y-1.5">
-                <label className="text-xs font-bold uppercase tracking-wider text-gray-400">
-                  Category
-                </label>
-                <input
-                  value={category}
-                  onChange={(e) => setCategory(e.target.value)}
-                  className="w-full rounded-lg border border-gray-200 bg-gray-50 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none dark:border-gray-800 dark:bg-gray-900"
-                />
-              </div>
-              <div className="space-y-1.5">
-                <label className="text-xs font-bold uppercase tracking-wider text-gray-400">
-                  Description
-                </label>
-                <textarea
-                  value={description}
-                  onChange={(e) => setDescription(e.target.value)}
-                  rows={4}
-                  className="w-full rounded-lg border border-gray-200 bg-gray-50 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none dark:border-gray-800 dark:bg-gray-900"
-                />
-              </div>
-              <label className="flex items-center gap-2 text-sm text-gray-600 dark:text-gray-300">
-                <input
-                  type="checkbox"
-                  checked={enabled}
-                  onChange={(e) => setEnabled(e.target.checked)}
-                />
-                Enabled
-              </label>
-              <div className="space-y-1.5">
-                <label className="text-xs font-bold uppercase tracking-wider text-gray-400">
-                  Thresholds (JSON)
-                </label>
-                <textarea
-                  value={thresholds}
-                  onChange={(e) => setThresholds(e.target.value)}
-                  rows={4}
-                  className="w-full rounded-lg border border-gray-200 bg-gray-50 px-3 py-2 text-xs font-mono focus:border-blue-500 focus:outline-none dark:border-gray-800 dark:bg-gray-900"
-                />
-              </div>
-            </div>
+            <label className="space-y-1 text-xs text-foreground-secondary">
+              <span>Default action</span>
+              <select
+                value={defaultAction}
+                onChange={(event) =>
+                  setDefaultAction(
+                    event.target
+                      .value as (typeof DEFAULT_ACTION_OPTIONS)[number],
+                  )
+                }
+                className="h-9 w-full rounded-lg border border-border-default bg-bg-base px-2 text-sm"
+              >
+                {DEFAULT_ACTION_OPTIONS.map((option) => (
+                  <option key={option} value={option}>
+                    {option.replaceAll("_", " ")}
+                  </option>
+                ))}
+              </select>
+            </label>
+
+            <label className="space-y-1 text-xs text-foreground-secondary">
+              <span>A/B traffic split (Variant A)</span>
+              <input
+                type="number"
+                min={0}
+                max={100}
+                value={variantAPercent}
+                onChange={(event) =>
+                  setVariantAPercent(Number(event.target.value || 0))
+                }
+                className="h-9 w-full rounded-lg border border-border-default bg-bg-base px-2 text-sm"
+              />
+            </label>
+            <p className="text-[11px] text-foreground-tertiary">
+              Variant B receives {Math.max(0, 100 - variantAPercent)}% of
+              traffic. Keep at 0% until experiments are approved.
+            </p>
           </div>
 
-          <div className="rounded-xl bg-blue-50 p-4 dark:bg-blue-900/10 border border-blue-100 dark:border-blue-900/30">
-            <div className="flex gap-3">
-              <TriangleAlert className="h-5 w-5 text-blue-600 shrink-0" />
-              <div className="text-sm">
-                <p className="font-semibold text-blue-900 dark:text-blue-100">
-                  Pro Tip
-                </p>
-                <p className="text-blue-700/80 dark:text-blue-300">
-                  Rules with &apos;Critical&apos; severity will automatically
-                  trigger a block on the transaction.
-                </p>
-              </div>
-            </div>
+          <div className="space-y-1 text-xs text-foreground-secondary">
+            <label htmlFor="thresholds-json">Thresholds JSON</label>
+            <textarea
+              id="thresholds-json"
+              value={thresholds}
+              onChange={(event) => setThresholds(event.target.value)}
+              rows={5}
+              className="w-full rounded-lg border border-border-default bg-bg-overlay px-3 py-2 font-mono text-xs"
+            />
           </div>
-        </div>
 
-        {/* Main Editor Section */}
-        <div className="flex-1 flex flex-col rounded-2xl border border-gray-200 bg-white dark:border-gray-800 dark:bg-gray-950 shadow-lg overflow-hidden">
-          {/* Tabs */}
-          <div className="flex border-b border-gray-100 dark:border-gray-800 shrink-0">
+          <div className="rounded-xl border border-primary/30 bg-primary/10 p-3 text-xs text-primary">
+            <p className="mb-1 font-semibold">Workflow note</p>
+            <p>
+              Version history and rollback remain available through the rule
+              approval flow in the rules index.
+            </p>
+          </div>
+        </aside>
+
+        <section className="flex min-h-0 flex-col overflow-hidden rounded-2xl border border-border-default bg-bg-elevated">
+          <div className="flex items-center gap-1 border-b border-border-subtle p-2">
             <button
+              type="button"
               onClick={() => setActiveTab("builder")}
               className={cn(
-                "px-6 py-4 text-sm font-medium transition-all border-b-2",
+                "inline-flex items-center gap-1 rounded-lg px-3 py-2 text-xs font-semibold uppercase tracking-wide",
                 activeTab === "builder"
-                  ? "border-blue-600 text-blue-600 bg-blue-50/20"
-                  : "border-transparent text-gray-500 hover:text-gray-700",
+                  ? "bg-primary/20 text-primary"
+                  : "text-foreground-secondary hover:bg-bg-overlay",
               )}
             >
-              <div className="flex items-center gap-2">
-                <Eye className="h-4 w-4" />
-                <span>Visual Builder</span>
-              </div>
+              <WandSparkles className="h-3.5 w-3.5" />
+              Builder
             </button>
             <button
+              type="button"
               onClick={() => setActiveTab("preview")}
               className={cn(
-                "px-6 py-4 text-sm font-medium transition-all border-b-2",
+                "inline-flex items-center gap-1 rounded-lg px-3 py-2 text-xs font-semibold uppercase tracking-wide",
                 activeTab === "preview"
-                  ? "border-blue-600 text-blue-600 bg-blue-50/20"
-                  : "border-transparent text-gray-500 hover:text-gray-700",
+                  ? "bg-primary/20 text-primary"
+                  : "text-foreground-secondary hover:bg-bg-overlay",
               )}
             >
-              <div className="flex items-center gap-2">
-                <Code className="h-4 w-4" />
-                <span>JSON Preview</span>
-              </div>
+              <Code2 className="h-3.5 w-3.5" />
+              JSON Preview
             </button>
           </div>
 
-          <div className="flex-1 overflow-y-auto p-12 bg-gray-50/30 dark:bg-gray-900/10">
+          <div className="min-h-0 flex-1 overflow-auto p-4">
             {activeTab === "builder" ? (
-              <div className="max-w-4xl mx-auto space-y-6">
-                {/* Logic Group */}
-                <div className="relative rounded-2xl border-2 border-dashed border-gray-200 dark:border-gray-800 p-8 pt-10">
-                  <div className="absolute -top-4 left-6 flex items-center gap-2 rounded-lg bg-blue-600 px-3 py-1.5 text-xs font-bold text-white uppercase tracking-widest shadow-lg">
-                    {rootGroup.logic}
-                  </div>
-
-                  <div className="space-y-4">
-                    {rootGroup.conditions
-                      .filter(isCondition)
-                      .map((condition) => (
-                        <div
-                          key={condition.id}
-                          className="flex items-center gap-3 animate-in slide-in-from-left-4 duration-300"
-                        >
-                          <div className="h-px w-6 bg-gray-200 dark:bg-gray-800" />
-                          <div className="flex-1 flex items-center gap-4 p-4 rounded-xl border border-gray-100 bg-white dark:border-gray-800 dark:bg-gray-950 shadow-sm">
-                            <select
-                              value={condition.field}
-                              onChange={(e) =>
-                                updateCondition(
-                                  condition.id,
-                                  "field",
-                                  e.target.value,
-                                )
-                              }
-                              className="bg-transparent text-sm font-medium outline-none"
-                            >
-                              <option value="amount">amount</option>
-                              <option value="currency">currency</option>
-                              <option value="country_code">country_code</option>
-                              <option value="transaction_type">
-                                transaction_type
-                              </option>
-                              <option value="user_id">user_id</option>
-                            </select>
-                            <span className="text-gray-300">/</span>
-                            <select
-                              value={condition.operator}
-                              onChange={(e) =>
-                                updateCondition(
-                                  condition.id,
-                                  "operator",
-                                  e.target.value,
-                                )
-                              }
-                              className="bg-transparent text-sm font-bold text-blue-600 outline-none"
-                            >
-                              <option value="greater_than">greater_than</option>
-                              <option value="greater_than_or_equal">
-                                greater_than_or_equal
-                              </option>
-                              <option value="less_than">less_than</option>
-                              <option value="less_than_or_equal">
-                                less_than_or_equal
-                              </option>
-                              <option value="equals">equals</option>
-                              <option value="not_equals">not_equals</option>
-                              <option value="contains">contains</option>
-                              <option value="starts_with">starts_with</option>
-                              <option value="ends_with">ends_with</option>
-                              <option value="in">in</option>
-                              <option value="not_in">not_in</option>
-                            </select>
-                            <input
-                              type="text"
-                              value={condition.value}
-                              onChange={(e) =>
-                                updateCondition(
-                                  condition.id,
-                                  "value",
-                                  e.target.value,
-                                )
-                              }
-                              className="flex-1 bg-transparent text-sm outline-none px-2"
-                              placeholder="Value..."
-                            />
-                            <button
-                              onClick={() => removeCondition(condition.id)}
-                              className="text-gray-300 hover:text-red-500 transition-colors"
-                            >
-                              <Trash2 className="h-4 w-4" />
-                            </button>
-                          </div>
-                        </div>
-                      ))}
-                  </div>
-
-                  <div className="mt-8 flex items-center gap-4">
-                    <button
-                      onClick={addCondition}
-                      className="inline-flex items-center gap-2 rounded-lg border border-gray-200 bg-white px-4 py-2 text-xs font-bold text-gray-700 hover:border-blue-200 hover:bg-blue-50/30 transition-all dark:border-gray-800 dark:bg-gray-950 dark:text-gray-300"
-                    >
-                      <Plus className="h-3.5 w-3.5" />
-                      ADD CONDITION
-                    </button>
-                  </div>
-                </div>
-              </div>
+              <RuleConditionBuilder
+                group={conditionsGroup}
+                onChange={setConditionsGroup}
+              />
             ) : (
-              <div className="h-full rounded-xl bg-gray-950 p-8 font-mono text-sm text-green-400 overflow-auto border border-gray-800">
-                <pre>
-                  {JSON.stringify(
-                    {
-                      name,
-                      description,
-                      category,
-                      severity,
-                      enabled,
-                      conditions: {
-                        logic: rootGroup.logic,
-                        conditions: rootGroup.conditions
-                          .filter(isCondition)
-                          .map((c) => ({
-                            field: c.field,
-                            operator: c.operator,
-                            value: c.value,
-                          })),
-                      },
-                    },
-                    null,
-                    2,
-                  )}
+              <div className="h-full rounded-xl border border-border-subtle bg-black/40 p-4">
+                <p className="mb-2 inline-flex items-center gap-1 text-xs uppercase tracking-wide text-foreground-tertiary">
+                  <Eye className="h-3.5 w-3.5" />
+                  Payload Preview
+                </p>
+                <pre className="overflow-auto font-mono text-xs text-cyan-200">
+                  {JSON.stringify(previewPayload, null, 2)}
                 </pre>
               </div>
             )}
           </div>
-        </div>
+        </section>
       </div>
+
+      <footer className="rounded-xl border border-border-subtle bg-bg-elevated px-4 py-3 text-xs text-foreground-tertiary">
+        <p className="inline-flex items-center gap-1.5">
+          <AlertTriangle className="h-3.5 w-3.5 text-risk-high" />
+          Rules are tenant-scoped and submitted through the approval workflow
+          for production changes.
+        </p>
+      </footer>
     </div>
   );
 }
