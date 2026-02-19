@@ -63,9 +63,9 @@ const riskConfig: Record<
   critical: {
     label: "Critical",
     icon: AlertOctagon,
-    bg: "bg-[#ff3366]/15",
-    border: "border-[#ff3366]/40",
-    text: "text-[#ff3366]",
+    bg: "bg-risk-critical-soft",
+    border: "border-risk-critical/40",
+    text: "text-risk-critical",
     glow: "shadow-[0_0_12px_rgba(255,51,102,0.3)]",
     glowStrong: "shadow-[0_0_20px_rgba(255,51,102,0.5)]",
     shouldPulse: true,
@@ -73,9 +73,9 @@ const riskConfig: Record<
   high: {
     label: "High",
     icon: AlertTriangle,
-    bg: "bg-[#ff8c42]/15",
-    border: "border-[#ff8c42]/40",
-    text: "text-[#ff8c42]",
+    bg: "bg-risk-high-soft",
+    border: "border-risk-high/40",
+    text: "text-risk-high",
     glow: "shadow-[0_0_10px_rgba(255,140,66,0.25)]",
     glowStrong: "shadow-[0_0_16px_rgba(255,140,66,0.4)]",
     shouldPulse: true,
@@ -83,9 +83,9 @@ const riskConfig: Record<
   medium: {
     label: "Medium",
     icon: AlertCircle,
-    bg: "bg-[#ffd166]/15",
-    border: "border-[#ffd166]/40",
-    text: "text-[#ffd166]",
+    bg: "bg-risk-medium-soft",
+    border: "border-risk-medium/40",
+    text: "text-risk-medium",
     glow: "shadow-[0_0_8px_rgba(255,209,102,0.2)]",
     glowStrong: "shadow-[0_0_14px_rgba(255,209,102,0.35)]",
     shouldPulse: false,
@@ -93,9 +93,9 @@ const riskConfig: Record<
   low: {
     label: "Low",
     icon: CheckCircle,
-    bg: "bg-[#06d6a0]/15",
-    border: "border-[#06d6a0]/40",
-    text: "text-[#06d6a0]",
+    bg: "bg-risk-low-soft",
+    border: "border-risk-low/40",
+    text: "text-risk-low",
     glow: "shadow-[0_0_6px_rgba(6,214,160,0.15)]",
     glowStrong: "shadow-[0_0_12px_rgba(6,214,160,0.3)]",
     shouldPulse: false,
@@ -103,9 +103,9 @@ const riskConfig: Record<
   clear: {
     label: "Clear",
     icon: ShieldCheck,
-    bg: "bg-[#00d4ff]/10",
-    border: "border-[#00d4ff]/30",
-    text: "text-[#00d4ff]",
+    bg: "bg-risk-clear-soft",
+    border: "border-risk-clear/30",
+    text: "text-risk-clear",
     glow: "shadow-[0_0_6px_rgba(0,212,255,0.15)]",
     glowStrong: "shadow-[0_0_12px_rgba(0,212,255,0.25)]",
     shouldPulse: false,
@@ -323,11 +323,11 @@ export function RiskIndicator({
   };
 
   const bgColors: Record<RiskLevel, string> = {
-    critical: "bg-[#ff3366]",
-    high: "bg-[#ff8c42]",
-    medium: "bg-[#ffd166]",
-    low: "bg-[#06d6a0]",
-    clear: "bg-[#00d4ff]",
+    critical: "bg-risk-critical",
+    high: "bg-risk-high",
+    medium: "bg-risk-medium",
+    low: "bg-risk-low",
+    clear: "bg-risk-clear",
     unknown: "bg-gray-400",
   };
 

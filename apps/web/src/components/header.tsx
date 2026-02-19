@@ -74,35 +74,11 @@ function Breadcrumbs({ items }: { items: BreadcrumbItem[] }) {
    ───────────────────────────────────────────────────────────────────────────── */
 
 function GlobalSearch() {
-  const [isOpen, setIsOpen] = React.useState(false);
-  const inputRef = React.useRef<HTMLInputElement>(null);
-
-  React.useEffect(() => {
-    const handleKeyDown = (e: KeyboardEvent) => {
-      if ((e.metaKey || e.ctrlKey) && e.key === "k") {
-        e.preventDefault();
-        setIsOpen(true);
-      }
-      if (e.key === "Escape") {
-        setIsOpen(false);
-      }
-    };
-
-    window.addEventListener("keydown", handleKeyDown);
-    return () => window.removeEventListener("keydown", handleKeyDown);
-  }, []);
-
-  React.useEffect(() => {
-    if (isOpen && inputRef.current) {
-      inputRef.current.focus();
-    }
-  }, [isOpen]);
-
   return (
     <>
       {/* Search Trigger */}
       <button
-        onClick={() => setIsOpen(true)}
+        onClick={() => window.dispatchEvent(new Event("open-command-palette"))}
         className={cn(
           "hidden md:flex items-center gap-2 rounded-lg border border-border-subtle bg-bg-elevated px-3 py-2 text-sm text-foreground-tertiary transition-colors hover:border-border-default hover:text-foreground-secondary",
           "w-64 lg:w-80",
@@ -114,106 +90,6 @@ function GlobalSearch() {
           ⌘K
         </kbd>
       </button>
-
-      {/* Search Modal */}
-      <AnimatePresence>
-        {isOpen && (
-          <>
-            <motion.div
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
-              transition={{ duration: 0.15 }}
-              className="fixed inset-0 z-50 bg-black/50"
-              onClick={() => setIsOpen(false)}
-            />
-            <motion.div
-              initial={{ opacity: 0, scale: 0.95, y: -10 }}
-              animate={{ opacity: 1, scale: 1, y: 0 }}
-              exit={{ opacity: 0, scale: 0.95, y: -10 }}
-              transition={{ duration: 0.15, ease: [0, 0, 0.2, 1] }}
-              className="fixed left-1/2 top-24 z-50 w-full max-w-2xl -translate-x-1/2"
-            >
-              <div className="overflow-hidden rounded-xl border border-border-default bg-bg-overlay shadow-2xl">
-                {/* Search Input */}
-                <div className="flex items-center gap-3 border-b border-border-subtle px-4 py-3">
-                  <Search className="h-5 w-5 text-foreground-tertiary" />
-                  <input
-                    ref={inputRef}
-                    type="text"
-                    placeholder="Search documents, cases, alerts..."
-                    className="flex-1 bg-transparent text-foreground placeholder:text-foreground-tertiary focus:outline-none"
-                  />
-                  <kbd
-                    className="rounded bg-bg-floating px-2 py-1 text-xs font-mono text-foreground-tertiary cursor-pointer hover:text-foreground"
-                    onClick={() => setIsOpen(false)}
-                  >
-                    ESC
-                  </kbd>
-                </div>
-
-                {/* Search Results */}
-                <div className="max-h-[60vh] overflow-y-auto p-2">
-                  <div className="px-3 py-2 text-xs font-medium text-foreground-tertiary uppercase tracking-wider">
-                    Recent Searches
-                  </div>
-                  <ul className="space-y-1">
-                    {[
-                      "AML Regulation 2024/1234",
-                      "Case #45231",
-                      "SAR Q4 Report",
-                      "GDPR Compliance Check",
-                    ].map((item) => (
-                      <li key={item}>
-                        <button className="flex w-full items-center gap-3 rounded-lg px-3 py-2 text-left text-sm text-foreground-secondary hover:bg-bg-elevated hover:text-foreground">
-                          <Search className="h-4 w-4" />
-                          {item}
-                        </button>
-                      </li>
-                    ))}
-                  </ul>
-
-                  <div className="mt-4 px-3 py-2 text-xs font-medium text-foreground-tertiary uppercase tracking-wider">
-                    Quick Actions
-                  </div>
-                  <ul className="space-y-1">
-                    {[
-                      { label: "Create New Case", shortcut: "⌘N" },
-                      { label: "Submit SAR", shortcut: "⌘⇧S" },
-                      { label: "View Dashboard", shortcut: "⌘D" },
-                    ].map((item) => (
-                      <li key={item.label}>
-                        <button className="flex w-full items-center justify-between rounded-lg px-3 py-2 text-left text-sm text-foreground-secondary hover:bg-bg-elevated hover:text-foreground">
-                          <span>{item.label}</span>
-                          <kbd className="rounded bg-bg-floating px-1.5 py-0.5 text-xs font-mono text-foreground-tertiary">
-                            {item.shortcut}
-                          </kbd>
-                        </button>
-                      </li>
-                    ))}
-                  </ul>
-                </div>
-
-                {/* Footer */}
-                <div className="border-t border-border-subtle px-4 py-2 text-xs text-foreground-tertiary flex items-center justify-between">
-                  <div className="flex items-center gap-3">
-                    <span>
-                      <kbd className="rounded bg-bg-floating px-1">↑</kbd>{" "}
-                      <kbd className="rounded bg-bg-floating px-1">↓</kbd> to
-                      navigate
-                    </span>
-                    <span>
-                      <kbd className="rounded bg-bg-floating px-1.5">↵</kbd> to
-                      select
-                    </span>
-                  </div>
-                  <span>AI-powered search</span>
-                </div>
-              </div>
-            </motion.div>
-          </>
-        )}
-      </AnimatePresence>
     </>
   );
 }

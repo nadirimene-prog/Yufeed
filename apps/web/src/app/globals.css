@@ -5,7 +5,6 @@
  * ═══════════════════════════════════════════════════════════════════════════════
  */
 
-@import "./fonts.css";
 @import "tailwindcss";
 @import "tw-animate-css";
 @import "./design-system.css";
@@ -49,12 +48,19 @@
   --color-risk-medium: var(--risk-medium);
   --color-risk-low: var(--risk-low);
   --color-risk-info: var(--risk-info);
-  --color-risk-clear: #00d4ff;
-  --color-risk-critical-soft: #ff336620;
-  --color-risk-high-soft: #ff8c4220;
-  --color-risk-medium-soft: #ffd16620;
-  --color-risk-low-soft: #06d6a020;
-  --color-risk-clear-soft: #00d4ff15;
+  --color-risk-clear: var(--risk-clear);
+  --color-risk-critical-soft: var(--surface-critical);
+  --color-risk-high-soft: var(--surface-high);
+  --color-risk-medium-soft: var(--surface-medium);
+  --color-risk-low-soft: var(--surface-low);
+  --color-risk-clear-soft: color-mix(
+    in srgb,
+    var(--color-risk-clear) 15%,
+    transparent
+  );
+  --color-trend-up: var(--color-risk-low);
+  --color-trend-down: var(--color-risk-critical);
+  --color-trend-neutral: var(--foreground-tertiary);
 
   /* Aurora / Cyan / Void scales */
   --color-aurora-50: #f0f4ff;
@@ -90,6 +96,7 @@
   --color-void-600: #475569;
   --color-void-700: #334155;
   --color-void-800: #1e293b;
+  --color-void-850: #141c2e;
   --color-void-900: #0f172a;
   --color-void-925: #0a0a12;
   --color-void-950: #020617;
@@ -145,8 +152,11 @@
   --shadow-xl: var(--shadow-xl);
   --shadow-glass: var(--shadow-glass);
   --shadow-glass-lg: var(--shadow-glass-lg);
+  --shadow-aurora-glow: 0 0 20px rgba(109, 90, 205, 0.3);
   --shadow-glow-primary: var(--shadow-glow-primary);
+  --shadow-glow-aurora: var(--shadow-glow-aurora);
   --shadow-glow-cyan: var(--shadow-glow-cyan);
+  --shadow-glow-critical: var(--shadow-glow-critical);
 }
 
 /* ═════════════════════════════════════════════════════════════════════════════
@@ -211,7 +221,11 @@
 
   /* Selection styling */
   ::selection {
-    background-color: rgba(139, 92, 246, 0.3);
+    background-color: color-mix(
+      in srgb,
+      var(--color-aurora-500) 30%,
+      transparent
+    );
     color: var(--text-primary);
   }
 
@@ -643,7 +657,7 @@
     border-radius: var(--radius-lg);
     border: 1px solid;
     background-color: transparent;
-    padding: var(--space-2) var(--space-3);
+    padding: var(--spacing-2) var(--spacing-3);
     font-size: var(--text-sm);
     transition-property: color, background-color, border-color;
     transition-duration: var(--duration-fast);
@@ -695,7 +709,7 @@
   left: 50%;
   transform: translateX(-50%);
   z-index: var(--z-max);
-  padding: var(--space-2) var(--space-4);
+  padding: var(--spacing-2) var(--spacing-4);
   background: var(--bg-elevated);
   color: var(--text-primary);
   border-radius: var(--radius-lg);
@@ -705,7 +719,7 @@
 }
 
 .skip-link:focus {
-  top: var(--space-4);
+  top: var(--spacing-4);
 }
 
 /* Focus visible for mouse users */

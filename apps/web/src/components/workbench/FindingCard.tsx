@@ -11,7 +11,7 @@ import {
 import { motion } from "framer-motion";
 import { cn } from "@/lib/utils";
 import type { Finding } from "@/types/workbench";
-import { AnimatedButton } from "@/components/ui/button";
+import { Button } from "@/components/ui/button";
 
 interface FindingCardProps {
   finding: Finding;
@@ -180,7 +180,7 @@ export function FindingCard({
         {/* Action micro-interactions */}
         <div className="flex items-center gap-2 opacity-0 group-hover:opacity-100 transition-opacity translate-x-2 group-hover:translate-x-0 transition-transform">
           {finding.status === "open" && (
-            <AnimatedButton
+            <Button
               variant="glass"
               size="sm"
               className="h-7 px-2 text-[10px] bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-400 border-emerald-500/20"
@@ -191,10 +191,10 @@ export function FindingCard({
               leftIcon={<CheckCircle2 size={12} />}
             >
               Acknowledge
-            </AnimatedButton>
+            </Button>
           )}
           {finding.status !== "escalated" && (
-            <AnimatedButton
+            <Button
               variant="glass"
               size="sm"
               className="h-7 px-2 text-[10px] bg-aurora-500/10 hover:bg-aurora-500/20 text-aurora-400 border-aurora-500/20"
@@ -205,7 +205,7 @@ export function FindingCard({
               leftIcon={<Zap size={12} />}
             >
               Escalate
-            </AnimatedButton>
+            </Button>
           )}
         </div>
       </div>

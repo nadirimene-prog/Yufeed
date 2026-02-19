@@ -105,7 +105,7 @@ export function FilterBar({
                 className={cn(
                   "inline-flex items-center justify-center",
                   "h-5 min-w-[20px] rounded-full px-1.5",
-                  "bg-[#6d5acd] text-[10px] font-semibold text-white",
+                  "bg-primary text-[10px] font-semibold text-white",
                   "shadow-[0_0_8px_rgba(109,90,205,0.4)]",
                 )}
               >
@@ -211,7 +211,7 @@ function SearchFilter({
         <Search
           className={cn(
             "absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 transition-colors duration-200",
-            isFocused ? "text-[#6d5acd]" : "text-white/30",
+            isFocused ? "text-primary" : "text-white/30",
           )}
         />
         <input
@@ -227,8 +227,8 @@ function SearchFilter({
             "transition-all duration-200 ease-out",
             "focus:outline-none focus:ring-2 focus:ring-offset-0",
             "border-white/[0.08] bg-white/[0.03] backdrop-blur-sm",
-            "focus:border-[#6d5acd]/40 focus:bg-white/[0.05]",
-            "focus:ring-[#6d5acd]/20",
+            "focus:border-primary/40 focus:bg-white/[0.05]",
+            "focus:ring-primary/20",
             "focus:shadow-[0_0_20px_rgba(109,90,205,0.15)]",
           )}
         />
@@ -279,8 +279,8 @@ function SelectFilter({
             "transition-all duration-200 ease-out",
             "focus:outline-none focus:ring-2 focus:ring-offset-0",
             "border-white/[0.08] bg-white/[0.03] backdrop-blur-sm",
-            "focus:border-[#6d5acd]/40 focus:bg-white/[0.05]",
-            "focus:ring-[#6d5acd]/20",
+            "focus:border-primary/40 focus:bg-white/[0.05]",
+            "focus:ring-primary/20",
             "focus:shadow-[0_0_20px_rgba(109,90,205,0.15)]",
             "cursor-pointer",
             // Style options for the dropdown overlay (dark background)
@@ -295,7 +295,7 @@ function SelectFilter({
         </select>
         <div className="pointer-events-none absolute right-2.5 top-1/2 -translate-y-1/2 flex items-center gap-1">
           {hasNonDefaultValue && (
-            <span className="h-1.5 w-1.5 rounded-full bg-[#6d5acd]" />
+            <span className="h-1.5 w-1.5 rounded-full bg-primary" />
           )}
           <ChevronDown className="h-3.5 w-3.5 text-white/30" />
         </div>
@@ -344,8 +344,8 @@ function DateRangeFilter({
               "transition-all duration-200 ease-out",
               "focus:outline-none focus:ring-2 focus:ring-offset-0",
               "border-white/[0.08] bg-white/[0.03] backdrop-blur-sm",
-              "focus:border-[#6d5acd]/40 focus:bg-white/[0.05]",
-              "focus:ring-[#6d5acd]/20",
+              "focus:border-primary/40 focus:bg-white/[0.05]",
+              "focus:ring-primary/20",
               "[color-scheme:dark]",
             )}
           />
@@ -361,8 +361,8 @@ function DateRangeFilter({
               "transition-all duration-200 ease-out",
               "focus:outline-none focus:ring-2 focus:ring-offset-0",
               "border-white/[0.08] bg-white/[0.03] backdrop-blur-sm",
-              "focus:border-[#6d5acd]/40 focus:bg-white/[0.05]",
-              "focus:ring-[#6d5acd]/20",
+              "focus:border-primary/40 focus:bg-white/[0.05]",
+              "focus:ring-primary/20",
               "[color-scheme:dark]",
             )}
           />

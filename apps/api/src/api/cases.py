@@ -20,7 +20,7 @@ import uuid
 from pydantic import BaseModel, Field
 
 from src.database import get_db
-from src.auth.dependencies import get_current_user
+from src.auth.dependencies import CurrentUser, get_current_user
 from src.models.transaction_models import Case, Alert, Transaction
 from src.models.models import LegalDocument
 from src.models.finding_models import Finding
@@ -168,13 +168,14 @@ def list_cases(
     status: Optional[str] = None,
     priority: Optional[str] = None,
     assigned_to: Optional[str] = None,
+    subject_id: Optional[str] = None,
     case_type: Optional[str] = None,
     db: Session = Depends(get_db),
 ):
     """
     List cases with filtering.
 
-    Supports filtering by status, priority, assignee, and type.
+    Supports filtering by status, priority, assignee, subject, and type.
     """
     # Phase 4C: Tenant-filtered query
     query = get_tenant_filtered_query(Case, db)
@@ -188,6 +189,9 @@ def list_cases(
 
     if assigned_to:
         query = query.filter(Case.assigned_to == assigned_to)
+
+    if subject_id:
+        query = query.filter(Case.subject_id == subject_id)
 
     if case_type:
         query = query.filter(Case.case_type == case_type)
@@ -772,10 +776,9 @@ def add_case_note(
     payload: CaseNoteCreate,
     db: Session = Depends(get_db),
     tenant_id: str = Depends(require_tenant),
+    current_user: CurrentUser = Depends(get_current_user),
 ):
     """Add a note to a case."""
-    from src.auth.dependencies import get_current_user
-
     case = get_tenant_filtered_query(Case, db).filter(Case.case_id == case_id).first()
     if not case:
         raise HTTPException(status_code=404, detail="Case not found")
@@ -784,8 +787,8 @@ def add_case_note(
     note = CaseNote(
         tenant_id=tenant_id,
         case_id=case.id,
-        author_id="system",
-        author_email="system",
+        author_id=current_user.user_id,
+        author_email=current_user.email,
         content=payload.content,
         note_type=payload.note_type or "general",
     )
@@ -821,3 +824,115 @@ def list_case_notes(
         .all()
     )
     return notes
+
+
+class CaseCommentCreate(BaseModel):
+    content: str = Field(..., min_length=1)
+    parent_comment_id: Optional[int] = None
+    mentions: Optional[List[str]] = None
+
+
+class CaseCommentResponse(BaseModel):
+    id: int
+    case_id: str
+    author_id: str
+    author_email: str
+    content: str
+    note_type: str
+    parent_comment_id: Optional[int] = None
+    mentions: List[str] = []
+    created_at: datetime
+
+
+def _serialize_case_comment(note: CaseNote, case_ref: str) -> CaseCommentResponse:
+    raw_mentions = note.mentions if isinstance(note.mentions, list) else []
+    mentions = [value for value in raw_mentions if isinstance(value, str)]
+    return CaseCommentResponse(
+        id=note.id,
+        case_id=case_ref,
+        author_id=note.author_id,
+        author_email=note.author_email,
+        content=note.content,
+        note_type=note.note_type,
+        parent_comment_id=note.parent_note_id,
+        mentions=mentions,
+        created_at=note.created_at,
+    )
+
+
+@router.post("/{case_id}/comments", response_model=CaseCommentResponse, status_code=201)
+def add_case_comment(
+    case_id: str,
+    payload: CaseCommentCreate,
+    db: Session = Depends(get_db),
+    tenant_id: str = Depends(require_tenant),
+    current_user: CurrentUser = Depends(get_current_user),
+):
+    """Add a threaded comment to a case."""
+    case = get_tenant_filtered_query(Case, db).filter(Case.case_id == case_id).first()
+    if not case:
+        raise HTTPException(status_code=404, detail="Case not found")
+    ensure_tenant_match(case, tenant_id)
+
+    if payload.parent_comment_id is not None:
+        parent = (
+            db.query(CaseNote)
+            .filter(
+                CaseNote.id == payload.parent_comment_id,
+                CaseNote.case_id == case.id,
+                CaseNote.tenant_id == tenant_id,
+            )
+            .first()
+        )
+        if not parent:
+            raise HTTPException(status_code=404, detail="Parent comment not found")
+
+    comment = CaseNote(
+        tenant_id=tenant_id,
+        case_id=case.id,
+        parent_note_id=payload.parent_comment_id,
+        author_id=current_user.user_id,
+        author_email=current_user.email,
+        content=payload.content,
+        note_type="comment",
+        mentions=payload.mentions or [],
+    )
+    db.add(comment)
+    db.flush()
+    case.updated_at = utc_now()
+
+    record_event(
+        db,
+        event_type="case.comment_added",
+        entity_type="case",
+        entity_id=case.case_id,
+        payload={"comment_id": comment.id, "parent_comment_id": payload.parent_comment_id},
+    )
+    db.commit()
+    db.refresh(comment)
+    return _serialize_case_comment(comment, case.case_id)
+
+
+@router.get("/{case_id}/comments", response_model=List[CaseCommentResponse])
+def list_case_comments(
+    case_id: str,
+    db: Session = Depends(get_db),
+    tenant_id: str = Depends(require_tenant),
+):
+    """List case comments with optional threading metadata."""
+    case = get_tenant_filtered_query(Case, db).filter(Case.case_id == case_id).first()
+    if not case:
+        raise HTTPException(status_code=404, detail="Case not found")
+    ensure_tenant_match(case, tenant_id)
+
+    notes = (
+        db.query(CaseNote)
+        .filter(
+            CaseNote.case_id == case.id,
+            CaseNote.tenant_id == tenant_id,
+            or_(CaseNote.note_type == "comment", CaseNote.note_type == "general"),
+        )
+        .order_by(CaseNote.created_at.asc())
+        .all()
+    )
+    return [_serialize_case_comment(note, case.case_id) for note in notes]

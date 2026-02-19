@@ -4,6 +4,7 @@ import pytest
 
 from src.api import dashboard_work_queue as queue_api
 from src.models.case_decision import CaseDecision
+from src.models.tenant_models import Tenant, TenantUser
 from src.models.transaction_models import Alert, Case, Transaction
 
 
@@ -186,3 +187,43 @@ def test_work_queue_filtering_pagination_and_sorting(db_session):
     )
     assert search_results.total >= 1
     assert any("alert_q_critical" in item.ref_id for item in search_results.items)
+
+
+@pytest.mark.unit
+def test_workspace_users_endpoint_respects_tenant_scope(db_session):
+    tenant = Tenant(tenant_id="tenant-workspace", name="Workspace Tenant")
+    db_session.add(tenant)
+    db_session.flush()
+
+    user_a = TenantUser(
+        tenant_id=tenant.id,
+        user_id="analyst_a",
+        role="analyst",
+        is_active=True,
+    )
+    user_b = TenantUser(
+        tenant_id=tenant.id,
+        user_id="analyst_b",
+        role="reviewer",
+        is_active=False,
+    )
+    db_session.add_all([user_a, user_b])
+    db_session.commit()
+
+    current_user = _FakeUser(tenant_id="tenant-workspace")
+
+    active_users = queue_api._list_workspace_users(
+        tenant_id=None,
+        is_active=True,
+        db=db_session,
+        current_user=current_user,
+    )
+    inactive_users = queue_api._list_workspace_users(
+        tenant_id=None,
+        is_active=False,
+        db=db_session,
+        current_user=current_user,
+    )
+
+    assert [user.user_id for user in active_users] == ["analyst_a"]
+    assert [user.user_id for user in inactive_users] == ["analyst_b"]

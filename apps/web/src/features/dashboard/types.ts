@@ -226,3 +226,8 @@ export interface DashboardWorkQueueParams {
   search: string;
   savedView: DashboardSavedView;
 }
+
+export interface WorkspaceMessage {
+  text: string;
+  type: "success" | "error";
+}

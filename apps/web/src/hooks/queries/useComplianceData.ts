@@ -13,6 +13,7 @@ import { complianceKeys, dashboardKeys } from "@/lib/queryKeys";
 import type { ObligationsListResponse } from "@/lib/compliance-api";
 import type { DashboardOverviewResponse } from "@/features/dashboard/types";
 import apiClient from "@/lib/http";
+import type { ComplianceProfile } from "@/types/compliance";
 
 const DASHBOARD_OBLIGATIONS_PARAMS = {
   limit: 10,
@@ -167,6 +168,163 @@ export function useUpdateObligationStatus() {
         updated,
       );
       queryClient.invalidateQueries({ queryKey: complianceKeys.obligations() });
+    },
+  });
+}
+
+export function useComplianceCases(params?: {
+  status?: string;
+  user_id?: string;
+  limit?: number;
+}) {
+  const queryParams = {
+    ...(params?.status ? { status: params.status } : {}),
+    ...(params?.user_id ? { user_id: params.user_id } : {}),
+    ...(typeof params?.limit === "number" ? { limit: params.limit } : {}),
+  };
+
+  return useQuery({
+    queryKey: [...complianceKeys.all, "cases", queryParams] as const,
+    queryFn: async () => {
+      const response = await apiClient.get<ComplianceProfile[]>(
+        "/api/compliance/cases",
+        {
+          params: queryParams,
+        },
+      );
+      return response.data;
+    },
+  });
+}
+
+function complianceCaseKey(id: number | null) {
+  return typeof id === "number"
+    ? ([...complianceKeys.all, "case", id] as const)
+    : (["compliance", "case", "disabled"] as const);
+}
+
+export function useComplianceCase(id: number | null) {
+  return useQuery({
+    queryKey: complianceCaseKey(id),
+    queryFn: async () => {
+      if (typeof id !== "number") {
+        throw new Error("Compliance case id is required");
+      }
+      const response = await apiClient.get<ComplianceProfile>(
+        `/api/compliance/cases/${id}`,
+      );
+      return response.data;
+    },
+    enabled: typeof id === "number",
+  });
+}
+
+export function useReviewComplianceCase() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async ({
+      id,
+      action,
+      reason,
+    }: {
+      id: number;
+      action: "approve" | "reject";
+      reason?: string;
+    }) => {
+      const response = await apiClient.post<ComplianceProfile>(
+        `/api/compliance/cases/${id}/review`,
+        { action, reason },
+      );
+      return response.data;
+    },
+    onSuccess: async (updated) => {
+      queryClient.setQueryData(complianceCaseKey(updated.id), updated);
+      await queryClient.invalidateQueries({
+        queryKey: [...complianceKeys.all, "cases"],
+      });
+    },
+  });
+}
+
+interface KYCScreenResponse {
+  profile_id: number;
+  sanctions_status: string;
+  screened_at: string;
+  is_hit: boolean;
+  highest_score: number;
+  match_count: number;
+  findings_created: number;
+}
+
+interface DocumentVerificationResponse {
+  profile_id: number;
+  processed_count: number;
+  verified_count: number;
+  rejected_count: number;
+  error_count: number;
+  findings_created: number;
+}
+
+export function useScreenComplianceCase() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async (id: number) => {
+      const response = await apiClient.post<KYCScreenResponse>(
+        `/api/compliance/kyc/${id}/screen`,
+      );
+      return response.data;
+    },
+    onSuccess: async (_data, id) => {
+      await queryClient.invalidateQueries({ queryKey: complianceCaseKey(id) });
+    },
+  });
+}
+
+export function useVerifyComplianceCaseDocuments() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async (id: number) => {
+      const response = await apiClient.post<DocumentVerificationResponse>(
+        `/api/compliance/kyc/${id}/verify-documents`,
+      );
+      return response.data;
+    },
+    onSuccess: async (_data, id) => {
+      await queryClient.invalidateQueries({ queryKey: complianceCaseKey(id) });
+    },
+  });
+}
+
+export function useSetComplianceCDDLevel() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async ({
+      id,
+      cddLevel,
+      reason,
+    }: {
+      id: number;
+      cddLevel: "simplified" | "standard" | "enhanced";
+      reason?: string;
+    }) => {
+      const response = await apiClient.post<ComplianceProfile>(
+        `/api/compliance/kyc/${id}/set-cdd-level`,
+        {
+          cdd_level: cddLevel,
+          reason,
+        },
+      );
+      return response.data;
+    },
+    onSuccess: async (updated) => {
+      queryClient.setQueryData(complianceCaseKey(updated.id), updated);
+      await queryClient.invalidateQueries({
+        queryKey: [...complianceKeys.all, "cases"],
+      });
     },
   });
 }

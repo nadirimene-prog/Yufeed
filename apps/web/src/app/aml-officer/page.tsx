@@ -36,6 +36,7 @@ import {
 } from "@/components/ui/glass-card";
 import { BentoGrid } from "@/components/ui/bento-grid";
 import { Button } from "@/components/ui/button";
+import { RiskBadge } from "@/components/ui/badge-horizon";
 import { StatusIndicator } from "@/components/ui/status-indicator";
 import { staggerContainer, staggerItem } from "@/lib/motion";
 import { RecentAlertsTable } from "./recent-alerts-table";
@@ -80,6 +81,17 @@ export default function AMLOfficerDashboard() {
   const openCases = briefing?.cases.open ?? 0;
   const sarPending = briefing?.cases.sar_pending ?? 0;
 
+  const toRiskLevel = (
+    severity: string,
+  ): "critical" | "high" | "medium" | "low" | "info" => {
+    const normalized = severity.toLowerCase();
+    if (normalized === "critical") return "critical";
+    if (normalized === "high") return "high";
+    if (normalized === "medium") return "medium";
+    if (normalized === "low") return "low";
+    return "info";
+  };
+
   return (
     <LoadingBoundary
       loading={isLoading}
@@ -101,13 +113,10 @@ export default function AMLOfficerDashboard() {
           className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between"
         >
           <div>
-            <div className="flex items-center gap-2 text-xs uppercase tracking-[0.25em] text-[#00d4ff]/70 mb-2">
+            <div className="mb-2 flex items-center gap-2 text-xs uppercase tracking-[0.25em] text-cyan-500/70">
               <Sparkles className="h-3.5 w-3.5" />
               AI Sentinel
             </div>
-            <h1 className="text-3xl font-bold tracking-tight text-white font-display">
-              Note: Page Reskin In Progress
-            </h1>
             <h1 className="text-3xl font-bold tracking-tight text-white font-display">
               AML Officer Cockpit
             </h1>
@@ -337,18 +346,12 @@ export default function AMLOfficerDashboard() {
                       className={`p-3 rounded-lg border border-white/5 bg-white/[0.02]`}
                     >
                       <div className="flex justify-between items-start mb-1">
-                        <span
-                          className={`text-[10px] font-bold uppercase px-1.5 py-0.5 rounded-full
-                                        ${
-                                          alert.severity === "critical"
-                                            ? "bg-red-500/20 text-red-500"
-                                            : alert.severity === "high"
-                                              ? "bg-orange-500/20 text-orange-500"
-                                              : "bg-blue-500/20 text-blue-500"
-                                        }`}
+                        <RiskBadge
+                          level={toRiskLevel(alert.severity)}
+                          className="text-[10px] font-bold uppercase"
                         >
                           {alert.severity}
-                        </span>
+                        </RiskBadge>
                       </div>
                       <p className="text-sm font-medium text-white mb-1">
                         {alert.message}

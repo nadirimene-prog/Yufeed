@@ -7,6 +7,9 @@ import { cn } from "@/lib/utils";
 import { getAuthToken } from "@/lib/auth";
 import Sidebar from "./sidebar";
 import Header from "./header";
+import { CopilotProvider } from "@/components/aml-officer/copilot-context";
+import { CopilotWidget } from "@/components/aml-officer/copilot-widget";
+import { CommandPalette } from "@/components/command-palette/CommandPalette";
 
 /**
  * Horizon App Shell
@@ -86,6 +89,7 @@ export default function AppShell({ children }: AppShellProps) {
   const router = useRouter();
   const breadcrumbs = useBreadcrumbs(pathname);
   const [mobileSidebarOpen, setMobileSidebarOpen] = React.useState(false);
+  const [sidebarCollapsed, setSidebarCollapsed] = React.useState(true);
   const [authChecked, setAuthChecked] = React.useState(false);
 
   // Chromeless routes (no sidebar/header)
@@ -129,59 +133,64 @@ export default function AppShell({ children }: AppShellProps) {
   }
 
   return (
-    <div className="min-h-screen bg-bg-base">
-      <SkipLink />
+    <CopilotProvider>
+      <div className="min-h-screen bg-bg-base">
+        <SkipLink />
 
-      {/* Sidebar - Desktop */}
-      <div className="hidden lg:block">
-        <Sidebar />
+        {/* Sidebar - Desktop */}
+        <div className="hidden lg:block">
+          <Sidebar onCollapsedChange={setSidebarCollapsed} />
+        </div>
+
+        {/* Sidebar - Mobile */}
+        <AnimatePresence>
+          {mobileSidebarOpen && (
+            <>
+              <motion.div
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                exit={{ opacity: 0 }}
+                transition={{ duration: 0.2 }}
+                className="fixed inset-0 z-40 bg-black/50 lg:hidden"
+                onClick={() => setMobileSidebarOpen(false)}
+              />
+              <motion.div
+                initial={{ x: "-100%" }}
+                animate={{ x: 0 }}
+                exit={{ x: "-100%" }}
+                transition={{ type: "spring", damping: 25, stiffness: 200 }}
+                className="fixed left-0 top-0 z-50 h-screen w-64 lg:hidden"
+              >
+                <Sidebar forceExpanded />
+              </motion.div>
+            </>
+          )}
+        </AnimatePresence>
+
+        {/* Main Content Area */}
+        <div className={cn(sidebarCollapsed ? "lg:ml-16" : "lg:ml-64")}>
+          {/* Header */}
+          <Header
+            onMenuClick={() => setMobileSidebarOpen(true)}
+            breadcrumbs={breadcrumbs}
+          />
+
+          {/* Main Content */}
+          <main
+            id="main-content"
+            className="min-h-[calc(100vh-3.5rem)] p-4 lg:p-6"
+            tabIndex={-1}
+          >
+            <div className="mx-auto max-w-7xl">
+              <PageTransition key={pathname}>{children}</PageTransition>
+            </div>
+          </main>
+        </div>
+
+        <CopilotWidget />
+        <CommandPalette />
       </div>
-
-      {/* Sidebar - Mobile */}
-      <AnimatePresence>
-        {mobileSidebarOpen && (
-          <>
-            <motion.div
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
-              transition={{ duration: 0.2 }}
-              className="fixed inset-0 z-40 bg-black/50 lg:hidden"
-              onClick={() => setMobileSidebarOpen(false)}
-            />
-            <motion.div
-              initial={{ x: "-100%" }}
-              animate={{ x: 0 }}
-              exit={{ x: "-100%" }}
-              transition={{ type: "spring", damping: 25, stiffness: 200 }}
-              className="fixed left-0 top-0 z-50 h-screen w-64 lg:hidden"
-            >
-              <Sidebar />
-            </motion.div>
-          </>
-        )}
-      </AnimatePresence>
-
-      {/* Main Content Area */}
-      <div className="lg:ml-64">
-        {/* Header */}
-        <Header
-          onMenuClick={() => setMobileSidebarOpen(true)}
-          breadcrumbs={breadcrumbs}
-        />
-
-        {/* Main Content */}
-        <main
-          id="main-content"
-          className="min-h-[calc(100vh-3.5rem)] p-4 lg:p-6"
-          tabIndex={-1}
-        >
-          <div className="mx-auto max-w-7xl">
-            <PageTransition key={pathname}>{children}</PageTransition>
-          </div>
-        </main>
-      </div>
-    </div>
+    </CopilotProvider>
   );
 }
 

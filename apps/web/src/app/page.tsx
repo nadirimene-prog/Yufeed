@@ -89,13 +89,13 @@ export default function Home() {
 
   return (
     <section className="relative overflow-hidden">
-      <div className="pointer-events-none absolute -top-24 left-12 h-60 w-60 rounded-full bg-[#6d5acd]/20 blur-3xl" />
-      <div className="pointer-events-none absolute -bottom-20 right-0 h-72 w-72 rounded-full bg-[#00d4ff]/15 blur-3xl" />
+      <div className="pointer-events-none absolute -top-24 left-12 h-60 w-60 rounded-full bg-primary/20 blur-3xl" />
+      <div className="pointer-events-none absolute -bottom-20 right-0 h-72 w-72 rounded-full bg-cyan-500/15 blur-3xl" />
 
       <div className="grid items-center gap-10 lg:grid-cols-[1.1fr_0.9fr]">
         <div className="space-y-6">
           <div className="space-y-3">
-            <div className="text-xs uppercase tracking-[0.3em] text-[#00d4ff]/80">
+            <div className="text-xs uppercase tracking-[0.3em] text-cyan-500/80">
               YuFeed Sentinel
             </div>
             <h1 className="text-3xl font-semibold text-foreground md:text-4xl">
@@ -110,7 +110,7 @@ export default function Home() {
           <div className="space-y-4">
             {highlights.map((item) => (
               <div key={item.title} className="flex gap-3">
-                <div className="mt-1 flex h-10 w-10 items-center justify-center rounded-xl bg-white/5 text-[#00d4ff] shadow-[0_0_20px_rgba(0,212,255,0.12)]">
+                <div className="mt-1 flex h-10 w-10 items-center justify-center rounded-xl bg-white/5 text-cyan-500 shadow-glow-cyan">
                   <item.icon className="h-5 w-5" />
                 </div>
                 <div>
@@ -146,7 +146,7 @@ export default function Home() {
           <div className="space-y-6">
             <div className="space-y-2">
               <div className="inline-flex items-center gap-2 text-xs uppercase tracking-[0.2em] text-white/40">
-                <Sparkles className="h-4 w-4 text-[#6d5acd]" />
+                <Sparkles className="h-4 w-4 text-primary" />
                 Secure Console
               </div>
               <h2 className="text-xl font-semibold text-foreground">
@@ -200,7 +200,7 @@ export default function Home() {
                     id="tenant"
                     value={selectedTenant}
                     onChange={(event) => setSelectedTenant(event.target.value)}
-                    className="h-11 w-full rounded-xl border border-white/10 bg-white/5 px-3 text-sm text-white focus:outline-none focus:ring-1 focus:ring-[#6d5acd]"
+                    className="h-11 w-full rounded-xl border border-white/10 bg-white/5 px-3 text-sm text-white focus:outline-none focus:ring-1 focus:ring-primary"
                     required
                   >
                     {availableTenants.map((tenant) => (
@@ -253,7 +253,7 @@ export default function Home() {
                 </label>
                 <Link
                   href="/forgot-password"
-                  className="text-[#00d4ff]/80 hover:text-[#00d4ff]"
+                  className="text-cyan-500/80 hover:text-cyan-500"
                 >
                   Forgot password?
                 </Link>
@@ -264,7 +264,7 @@ export default function Home() {
                   id={errorId}
                   role="alert"
                   aria-live="polite"
-                  className="rounded-lg border border-[#ff3366]/30 bg-[#ff3366]/10 px-3 py-2 text-xs text-[#ff99b3]"
+                  className="rounded-lg border border-risk-critical/30 bg-risk-critical-soft px-3 py-2 text-xs text-risk-critical"
                 >
                   {error}
                 </div>
@@ -287,7 +287,7 @@ export default function Home() {
                 New here?{" "}
                 <Link
                   href="/request-access"
-                  className="text-[#00d4ff]/80 hover:text-[#00d4ff]"
+                  className="text-cyan-500/80 hover:text-cyan-500"
                 >
                   Request access
                 </Link>

@@ -45,6 +45,11 @@ const glowStyles: Record<RiskGlow, string> = {
   primary: "glow-primary",
 };
 
+const glowIntensityStyles: Record<Exclude<GlowIntensity, "none">, string> = {
+  subtle: "shadow-[0_0_15px_rgba(109,90,205,0.1)]",
+  strong: "shadow-[0_0_30px_rgba(109,90,205,0.3)]",
+};
+
 const variantStyles: Record<GlassCardVariant, string> = {
   surface: "glass-surface",
   interactive: "glass-interactive",
@@ -73,7 +78,11 @@ export const GlassCard = forwardRef<HTMLDivElement, GlassCardProps>(
       "clear",
       "primary",
     ].includes(glow);
-    const glowClass = isRiskGlow ? glowStyles[glow as RiskGlow] : "";
+    const glowClass = isRiskGlow
+      ? glowStyles[glow as RiskGlow]
+      : glow === "subtle" || glow === "strong"
+        ? glowIntensityStyles[glow]
+        : "";
 
     // Base card styles
     const baseStyles = cn(

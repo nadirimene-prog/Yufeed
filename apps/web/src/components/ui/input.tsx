@@ -11,8 +11,7 @@ import { cn } from "@/lib/utils";
  * ═══════════════════════════════════════════════════════════════════
  */
 
-export interface InputProps
-  extends React.InputHTMLAttributes<HTMLInputElement> {
+export interface InputProps extends React.InputHTMLAttributes<HTMLInputElement> {
   /** Input variant */
   variant?: "default" | "glass" | "ghost";
   /** Left icon/element */
@@ -50,11 +49,11 @@ const Input = React.forwardRef<HTMLInputElement, InputProps>(
     const variantStyles = {
       default: cn(
         "border-white/10 bg-white/5",
-        "focus:border-[#6d5acd]/50 focus:ring-[#6d5acd]/20",
+        "focus:border-primary/50 focus:ring-primary/20",
       ),
       glass: cn(
         "border-white/[0.08] bg-white/[0.03] backdrop-blur-sm",
-        "focus:border-[#6d5acd]/40 focus:bg-white/[0.05]",
+        "focus:border-primary/40 focus:bg-white/[0.05]",
         "focus:shadow-[0_0_20px_rgba(109,90,205,0.15)]",
       ),
       ghost: cn(
@@ -86,7 +85,7 @@ const Input = React.forwardRef<HTMLInputElement, InputProps>(
               leftElement && "pl-10",
               rightElement && "pr-10",
               error &&
-                "border-[#ff3366]/50 focus:border-[#ff3366] focus:ring-[#ff3366]/20",
+                "border-risk-critical/50 focus:border-risk-critical focus:ring-risk-critical/20",
               className,
             )}
             ref={ref}
@@ -128,7 +127,7 @@ const Input = React.forwardRef<HTMLInputElement, InputProps>(
         {error && errorMessage && (
           <p
             id={resolvedErrorId}
-            className="mt-1.5 text-xs text-[#ff3366]"
+            className="mt-1.5 text-xs text-risk-critical"
             aria-live="polite"
           >
             {errorMessage}
@@ -202,8 +201,7 @@ SearchInput.displayName = "SearchInput";
 /**
  * Textarea - Glass-styled textarea
  */
-export interface TextareaProps
-  extends React.TextareaHTMLAttributes<HTMLTextAreaElement> {
+export interface TextareaProps extends React.TextareaHTMLAttributes<HTMLTextAreaElement> {
   /** Textarea variant */
   variant?: "default" | "glass" | "ghost";
   /** Error state */
@@ -231,11 +229,11 @@ const Textarea = React.forwardRef<HTMLTextAreaElement, TextareaProps>(
     const variantStyles = {
       default: cn(
         "border-white/10 bg-white/5",
-        "focus:border-[#6d5acd]/50 focus:ring-[#6d5acd]/20",
+        "focus:border-primary/50 focus:ring-primary/20",
       ),
       glass: cn(
         "border-white/[0.08] bg-white/[0.03] backdrop-blur-sm",
-        "focus:border-[#6d5acd]/40 focus:bg-white/[0.05]",
+        "focus:border-primary/40 focus:bg-white/[0.05]",
         "focus:shadow-[0_0_20px_rgba(109,90,205,0.15)]",
       ),
       ghost: cn(
@@ -256,7 +254,7 @@ const Textarea = React.forwardRef<HTMLTextAreaElement, TextareaProps>(
             "resize-none",
             variantStyles[variant],
             error &&
-              "border-[#ff3366]/50 focus:border-[#ff3366] focus:ring-[#ff3366]/20",
+              "border-risk-critical/50 focus:border-risk-critical focus:ring-risk-critical/20",
             className,
           )}
           ref={ref}
@@ -267,7 +265,7 @@ const Textarea = React.forwardRef<HTMLTextAreaElement, TextareaProps>(
         {error && errorMessage && (
           <p
             id={resolvedErrorId}
-            className="mt-1.5 text-xs text-[#ff3366]"
+            className="mt-1.5 text-xs text-risk-critical"
             aria-live="polite"
           >
             {errorMessage}

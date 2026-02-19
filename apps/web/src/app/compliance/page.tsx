@@ -1,211 +1,286 @@
 "use client";
 
-import React, { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
-import { ComplianceProfile } from "@/types/compliance";
-import { RiskBadge } from "@/components/ui/risk-badge";
-import StatusChip from "@/components/compliance/StatusChip";
-import { fetchWithAuth } from "@/lib/auth";
-import { getApiBaseUrl } from "@/lib/apiBaseUrl";
-import { logger } from "@/lib/logger";
+import { useRouter } from "next/navigation";
+import { AlertTriangle, CheckCircle2, Clock3, ShieldCheck } from "lucide-react";
+import { useComplianceCases } from "@/hooks/queries/useComplianceData";
+import { useCopilot } from "@/components/aml-officer/copilot-context";
+import { LoadingBoundary } from "@/components/shared/LoadingBoundary";
+import { EmptyState } from "@/components/ui/empty-state";
+import {
+  GlassCard,
+  GlassCardContent,
+  GlassCardHeader,
+  GlassCardTitle,
+} from "@/components/ui/glass-card";
+import { MetricCard } from "@/components/ui/metric-card";
+import { Button } from "@/components/ui/button-horizon";
+import DataTable, { type Column } from "@/components/ui/data-table-horizon";
+import { RiskBadge, StatusBadge } from "@/components/ui/badge-horizon";
+import type { ComplianceProfile } from "@/types/compliance";
 
-export default function ComplianceDashboard() {
-  const [cases, setCases] = useState<ComplianceProfile[]>([]);
-  const [loading, setLoading] = useState(true);
+function toStatusBadgeStatus(
+  status: string,
+):
+  | "draft"
+  | "pending"
+  | "in_review"
+  | "approved"
+  | "rejected"
+  | "active"
+  | "inactive"
+  | "critical"
+  | "warning"
+  | "expired"
+  | "archived" {
+  const normalized = status.toLowerCase();
+  if (normalized === "approved") return "approved";
+  if (normalized === "rejected") return "rejected";
+  if (normalized === "manual_review") return "in_review";
+  if (normalized === "pending") return "pending";
+  return "pending";
+}
 
+function toEntityName(profile: ComplianceProfile) {
+  if (profile.type === "kyb") {
+    return profile.company_name || `Business ${profile.id}`;
+  }
+  const fullName =
+    `${profile.first_name ?? ""} ${profile.last_name ?? ""}`.trim();
+  return fullName || profile.email || `Customer ${profile.id}`;
+}
+
+export default function ComplianceDashboardPage() {
+  const router = useRouter();
+  const [statusFilter, setStatusFilter] = useState<
+    "all" | "pending" | "manual_review" | "approved" | "rejected"
+  >("all");
+  const [search, setSearch] = useState("");
+
+  const { setPageContext } = useCopilot();
   useEffect(() => {
-    // Fetch cases from API
-    // Assuming API is at localhost:8000 or proxied
-    const fetchCases = async () => {
-      try {
-        // Adjust URL based on actual setup. Assuming direct for now or env var.
-        const apiUrl = getApiBaseUrl();
-        const res = await fetchWithAuth(`${apiUrl}/compliance/cases`);
-        if (res.ok) {
-          const data = await res.json();
-          setCases(data);
-        } else {
-          logger.error("Failed to fetch cases");
-        }
-      } catch (error) {
-        logger.error("Error fetching cases:", error);
-      } finally {
-        setLoading(false);
-      }
-    };
+    setPageContext("Compliance Dashboard: Review KYC/KYB applications");
+  }, [setPageContext]);
 
-    fetchCases();
-  }, []);
+  const casesQuery = useComplianceCases(
+    statusFilter === "all"
+      ? { limit: 200 }
+      : { status: statusFilter, limit: 200 },
+  );
+
+  const allCases = useMemo(() => casesQuery.data ?? [], [casesQuery.data]);
+
+  const filteredCases = useMemo(() => {
+    const q = search.trim().toLowerCase();
+    if (!q) return allCases;
+
+    return allCases.filter((profile) => {
+      return (
+        String(profile.id).includes(q) ||
+        toEntityName(profile).toLowerCase().includes(q) ||
+        (profile.email ?? "").toLowerCase().includes(q) ||
+        (profile.registration_number ?? "").toLowerCase().includes(q) ||
+        (profile.company_name ?? "").toLowerCase().includes(q)
+      );
+    });
+  }, [allCases, search]);
+
+  const columns = useMemo<Column<ComplianceProfile>[]>(
+    () => [
+      {
+        key: "entity",
+        header: "Entity",
+        accessor: (profile) => (
+          <div className="min-w-0">
+            <p className="truncate text-sm font-medium text-foreground">
+              {toEntityName(profile)}
+            </p>
+            <p className="truncate text-xs text-foreground-secondary">
+              {profile.type === "kyb"
+                ? profile.registration_number || "-"
+                : profile.email || "-"}
+            </p>
+          </div>
+        ),
+      },
+      {
+        key: "type",
+        header: "Type",
+        accessor: (profile) => (
+          <StatusBadge status="active">
+            {profile.type.toUpperCase()}
+          </StatusBadge>
+        ),
+      },
+      {
+        key: "created",
+        header: "Submitted",
+        sortable: true,
+        accessor: (profile) => (
+          <span className="text-sm text-foreground-secondary">
+            {new Date(profile.created_at).toLocaleDateString()}
+          </span>
+        ),
+      },
+      {
+        key: "risk",
+        header: "Risk",
+        accessor: (profile) => (
+          <RiskBadge level={profile.risk_level}>{profile.risk_level}</RiskBadge>
+        ),
+      },
+      {
+        key: "status",
+        header: "Status",
+        accessor: (profile) => (
+          <StatusBadge status={toStatusBadgeStatus(profile.status)}>
+            {profile.status.replaceAll("_", " ")}
+          </StatusBadge>
+        ),
+      },
+      {
+        key: "action",
+        header: "Action",
+        align: "right",
+        accessor: (profile) => (
+          <Link
+            href={`/compliance/case/${profile.id}`}
+            className="text-sm text-primary hover:underline"
+          >
+            View
+          </Link>
+        ),
+      },
+    ],
+    [],
+  );
 
   return (
-    <div className="p-8 max-w-7xl mx-auto">
-      <header className="mb-8 flex justify-between items-center">
-        <div>
-          <h1 className="text-2xl font-semibold text-gray-900">
-            Compliance Dashboard
-          </h1>
-          <p className="text-sm text-gray-500 mt-1">
-            Monitor and review KYC/KYB applications.
-          </p>
-        </div>
-        <div className="flex gap-3">
-          <button className="px-4 py-2 bg-white border border-gray-300 rounded-lg text-sm font-medium text-gray-700 hover:bg-gray-50">
-            Export Report
-          </button>
-          <button className="px-4 py-2 bg-indigo-600 text-white rounded-lg text-sm font-medium hover:bg-indigo-700 shadow-sm">
-            + New Application
-          </button>
-        </div>
+    <div className="space-y-6 bg-bg-base text-foreground">
+      <header className="space-y-1">
+        <h1 className="text-3xl font-display font-semibold">
+          Compliance Dashboard
+        </h1>
+        <p className="text-foreground-secondary">
+          Review and disposition KYC/KYB applications in one queue.
+        </p>
       </header>
 
-      {/* Metrics Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-8">
-        {[
-          {
-            label: "Pending Reviews",
-            value: cases.filter((c) => c.status === "pending").length,
-            color: "border-l-4 border-yellow-400",
-          },
-          {
-            label: "High Risk",
-            value: cases.filter((c) => c.risk_level === "high").length,
-            color: "border-l-4 border-rose-500",
-          },
-          {
-            label: "Approved Today",
-            value: cases.filter((c) => c.status === "approved").length,
-            color: "border-l-4 border-blue-500",
-          }, // Mock calculation
-          {
-            label: "Total Cases",
-            value: cases.length,
-            color: "border-l-4 border-gray-300",
-          },
-        ].map((stat, i) => (
-          <div
-            key={i}
-            className={`bg-white p-4 rounded-lg shadow-sm border border-gray-100 ${stat.color}`}
-          >
-            <div className="text-sm text-gray-500 font-medium">
-              {stat.label}
-            </div>
-            <div className="text-2xl font-semibold text-gray-900 mt-1">
-              {stat.value}
+      <section className="grid grid-cols-1 gap-4 md:grid-cols-4">
+        <MetricCard
+          title="Pending"
+          value={
+            allCases.filter((profile) => profile.status === "pending").length
+          }
+          color="yellow"
+          icon={<Clock3 className="h-5 w-5" />}
+        />
+        <MetricCard
+          title="Manual Review"
+          value={
+            allCases.filter((profile) => profile.status === "manual_review")
+              .length
+          }
+          color="orange"
+          icon={<AlertTriangle className="h-5 w-5" />}
+        />
+        <MetricCard
+          title="Approved"
+          value={
+            allCases.filter((profile) => profile.status === "approved").length
+          }
+          color="green"
+          icon={<CheckCircle2 className="h-5 w-5" />}
+        />
+        <MetricCard
+          title="High Risk"
+          value={
+            allCases.filter(
+              (profile) =>
+                profile.risk_level === "high" ||
+                profile.risk_level === "critical",
+            ).length
+          }
+          color="red"
+          icon={<ShieldCheck className="h-5 w-5" />}
+          glow
+        />
+      </section>
+
+      <GlassCard>
+        <GlassCardHeader className="gap-3">
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <GlassCardTitle className="text-base">Applications</GlassCardTitle>
+            <div className="flex flex-wrap items-center gap-2">
+              <input
+                value={search}
+                onChange={(event) => setSearch(event.target.value)}
+                placeholder="Search by entity, id, email..."
+                className="h-10 min-w-[220px] rounded-lg border border-border-default bg-bg-overlay px-3 text-sm"
+              />
+              <Button variant="secondary">Export Report</Button>
             </div>
           </div>
-        ))}
-      </div>
 
-      {/* Cases Table */}
-      <div className="bg-white border border-gray-200 rounded-xl shadow-sm overflow-hidden">
-        <div className="px-6 py-4 border-b border-gray-100 flex justify-between items-center bg-gray-50/50">
-          <h2 className="text-base font-medium text-gray-900">
-            Recent Applications
-          </h2>
-          <div className="flex gap-2">
-            {["All", "Pending", "High Risk"].map((filter) => (
-              <button
-                key={filter}
-                className="text-xs font-medium px-3 py-1.5 rounded-full bg-white border border-gray-200 text-gray-600 hover:border-gray-300"
+          <div className="flex flex-wrap gap-2">
+            {[
+              { key: "all", label: "All" },
+              { key: "pending", label: "Pending" },
+              { key: "manual_review", label: "Manual Review" },
+              { key: "approved", label: "Approved" },
+              { key: "rejected", label: "Rejected" },
+            ].map((option) => (
+              <Button
+                key={option.key}
+                size="sm"
+                variant={statusFilter === option.key ? "primary" : "glass"}
+                onClick={() =>
+                  setStatusFilter(option.key as typeof statusFilter)
+                }
               >
-                {filter}
-              </button>
+                {option.label}
+              </Button>
             ))}
           </div>
-        </div>
+        </GlassCardHeader>
 
-        {loading ? (
-          <div className="p-8 text-center text-gray-500">Loading cases...</div>
-        ) : (
-          <table className="min-w-full divide-y divide-gray-200">
-            <thead className="bg-gray-50">
-              <tr>
-                <th
-                  scope="col"
-                  className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
-                >
-                  Entity
-                </th>
-                <th
-                  scope="col"
-                  className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
-                >
-                  Type
-                </th>
-                <th
-                  scope="col"
-                  className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
-                >
-                  Date
-                </th>
-                <th
-                  scope="col"
-                  className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
-                >
-                  Risk Level
-                </th>
-                <th
-                  scope="col"
-                  className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
-                >
-                  Status
-                </th>
-                <th
-                  scope="col"
-                  className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider"
-                >
-                  Action
-                </th>
-              </tr>
-            </thead>
-            <tbody className="bg-white divide-y divide-gray-200">
-              {cases.map((c) => (
-                <tr key={c.id} className="hover:bg-gray-50 transition-colors">
-                  <td className="px-6 py-4 whitespace-nowrap">
-                    <div className="flex items-center">
-                      <div className="h-8 w-8 rounded bg-gray-100 flex items-center justify-center text-xs font-bold text-gray-500 mr-3">
-                        {c.type === "kyb" ? "B" : "C"}
-                      </div>
-                      <div>
-                        <div className="text-sm font-medium text-gray-900">
-                          {c.type === "kyb"
-                            ? c.company_name
-                            : `${c.first_name} ${c.last_name}`}
-                        </div>
-                        <div className="text-xs text-gray-500">
-                          {c.type === "kyb" ? c.registration_number : c.email}
-                        </div>
-                      </div>
-                    </div>
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap">
-                    <span className="text-xs font-medium text-gray-500 uppercase">
-                      {c.type}
-                    </span>
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                    {new Date(c.created_at).toLocaleDateString()}
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap">
-                    <RiskBadge level={c.risk_level} />
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap">
-                    <StatusChip status={c.status} />
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-                    <Link
-                      href={`/compliance/case/${c.id}`}
-                      className="text-indigo-600 hover:text-indigo-900"
-                    >
-                      View
-                    </Link>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        )}
-      </div>
+        <GlassCardContent>
+          <LoadingBoundary
+            loading={casesQuery.isLoading}
+            error={casesQuery.error as Error | undefined}
+            isEmpty={filteredCases.length === 0}
+            emptyMessage="No compliance applications"
+            emptyDescription="No records match your selected filters."
+            minHeight="260px"
+          >
+            {filteredCases.length === 0 ? (
+              <EmptyState
+                title="No compliance applications"
+                description="Try changing filters or searching with a different entity identifier."
+                variant="no-results"
+                compact
+              />
+            ) : (
+              <DataTable
+                data={filteredCases}
+                columns={columns}
+                keyExtractor={(profile) => String(profile.id)}
+                loading={casesQuery.isFetching}
+                searchable={false}
+                pagination
+                pageSize={10}
+                striped
+                bordered
+                captionText="Compliance applications table"
+                onRowClick={(profile) =>
+                  router.push(`/compliance/case/${profile.id}`)
+                }
+              />
+            )}
+          </LoadingBoundary>
+        </GlassCardContent>
+      </GlassCard>
     </div>
   );
 }

@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
+import Link from "next/link";
 import {
   ArrowLeft,
   Folder,
@@ -15,6 +16,8 @@ import {
 import { fetchWithAuth } from "@/lib/auth";
 import { getApiBaseUrl } from "@/lib/apiBaseUrl";
 import { logger } from "@/lib/logger";
+import { useWorkspaceUsers } from "@/hooks/queries/useSpecializedData";
+import CaseComments from "@/components/workbench/CaseComments";
 
 const API_URL = getApiBaseUrl();
 
@@ -67,6 +70,7 @@ export default function CaseDetailPage() {
   const [alerts, setAlerts] = useState<Alert[]>([]);
   const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [loading, setLoading] = useState(true);
+  const workspaceUsersQuery = useWorkspaceUsers();
 
   const fetchCaseDetails = useCallback(async () => {
     if (!caseId) return;
@@ -320,9 +324,12 @@ export default function CaseDetailPage() {
                         <p className="text-sm text-gray-600 dark:text-gray-400 mb-1">
                           Subject ID
                         </p>
-                        <p className="text-gray-900 dark:text-white font-mono">
+                        <Link
+                          href={`/entities/user/${caseData.subject_id}`}
+                          className="text-gray-900 dark:text-white font-mono hover:text-blue-500 hover:underline"
+                        >
                           {caseData.subject_id}
-                        </p>
+                        </Link>
                       </div>
                     </>
                   )}
@@ -376,6 +383,14 @@ export default function CaseDetailPage() {
                   )}
                 </div>
               </div>
+            </div>
+
+            {/* Related Alerts */}
+            <div className="bg-white dark:bg-gray-800 rounded-lg shadow p-6">
+              <h2 className="text-xl font-semibold text-gray-900 dark:text-white mb-4">
+                Comments
+              </h2>
+              <CaseComments caseId={caseData.case_id} />
             </div>
 
             {/* Related Alerts */}
@@ -513,9 +528,11 @@ export default function CaseDetailPage() {
                       <option value="" disabled>
                         Assign to...
                       </option>
-                      <option value="analyst1">Analyst 1</option>
-                      <option value="analyst2">Analyst 2</option>
-                      <option value="senior_analyst">Senior Analyst</option>
+                      {(workspaceUsersQuery.data ?? []).map((user) => (
+                        <option key={user.user_id} value={user.user_id}>
+                          {user.user_id}
+                        </option>
+                      ))}
                     </select>
 
                     <button

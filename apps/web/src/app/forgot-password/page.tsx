@@ -124,9 +124,11 @@ export default function ForgotPasswordPage() {
               <Mail className="h-4 w-4" />
               Email support
             </Button>
-            <Button asChild variant="ghost" size="lg">
-              <Link href="/">Back to sign in</Link>
-            </Button>
+            <Link href="/">
+              <Button variant="ghost" size="lg">
+                Back to sign in
+              </Button>
+            </Link>
           </div>
         </div>
       </GlassCard>

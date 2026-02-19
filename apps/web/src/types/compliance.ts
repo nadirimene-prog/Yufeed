@@ -25,6 +25,12 @@ export interface ComplianceProfile {
   id: number;
   status: ComplianceStatus;
   risk_level: RiskLevel;
+  cdd_level?: "simplified" | "standard" | "enhanced" | string;
+  cdd_reason?: string;
+  sanctions_status?: string;
+  source_of_funds?: string;
+  source_of_wealth?: string;
+  occupation?: string;
   created_at: string;
   updated_at: string;
   type: "kyc" | "kyb";

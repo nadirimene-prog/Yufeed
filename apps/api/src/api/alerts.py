@@ -8,7 +8,7 @@ from sqlalchemy.orm import Session, joinedload
 from sqlalchemy import func, and_, or_
 from typing import List, Optional
 from datetime import datetime, timedelta, timezone
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 
 def utc_now() -> datetime:
@@ -70,6 +70,12 @@ class AlertNoteCreate(BaseModel):
     author: Optional[str] = None
 
 
+class AlertSnoozeRequest(BaseModel):
+    duration_hours: int = Field(default=24, ge=1, le=24 * 30)
+    reason: Optional[str] = None
+    snoozed_by: Optional[str] = None
+
+
 # ============================================================================
 # ALERT CREATION & MANAGEMENT
 # ============================================================================
@@ -92,7 +98,7 @@ def create_alert(alert: AlertCreate, db: Session = Depends(get_db)):
             raise HTTPException(status_code=404, detail="Transaction not found")
 
     # Create alert
-    alert_payload = alert.dict(exclude={"matched_rules", "rule_id"})
+    alert_payload = alert.dict(exclude={"matched_rules"})
     db_alert = Alert(alert_id=alert_id, matched_rules_data=alert.matched_rules, **alert_payload)
 
     # Phase 4C: Set tenant context on new alert
@@ -225,6 +231,10 @@ def list_alerts(
     user_id: Optional[str] = None,
     assigned_to: Optional[str] = None,
     sar_filed: Optional[bool] = None,
+    include_snoozed: bool = Query(
+        True,
+        description="Include currently snoozed alerts in the response",
+    ),
     start_date: Optional[datetime] = None,
     end_date: Optional[datetime] = None,
     db: Session = Depends(get_db),
@@ -268,6 +278,12 @@ def list_alerts(
 
     # Pagination
     alerts = query.offset(skip).limit(limit).all()
+
+    if not include_snoozed:
+        now = utc_now()
+        alerts = [
+            alert for alert in alerts if not alert.snoozed_until or alert.snoozed_until <= now
+        ]
 
     return alerts
 
@@ -545,6 +561,53 @@ def assign_alert(
     db.commit()
     db.refresh(alert)
 
+    return alert
+
+
+@router.post("/{alert_id}/snooze", response_model=AlertResponse)
+def snooze_alert(
+    alert_id: str,
+    payload: AlertSnoozeRequest,
+    db: Session = Depends(get_db),
+    tenant_id: str = Depends(require_tenant),
+):
+    """
+    Snooze an alert for a cool-off window while keeping it monitored.
+    """
+    alert = get_tenant_filtered_query(Alert, db).filter(Alert.alert_id == alert_id).first()
+
+    if not alert:
+        raise HTTPException(status_code=404, detail="Alert not found")
+
+    ensure_tenant_match(alert, tenant_id)
+
+    now = utc_now()
+    snoozed_until = now + timedelta(hours=payload.duration_hours)
+    # Clone JSON payload so SQLAlchemy detects a real value change.
+    base_evidence = alert.evidence if isinstance(alert.evidence, dict) else {}
+    evidence = {**base_evidence}
+    evidence["snooze"] = {
+        "until": snoozed_until.isoformat(),
+        "reason": payload.reason,
+        "snoozed_by": payload.snoozed_by,
+    }
+    alert.evidence = evidence
+    alert.updated_at = now
+
+    record_event(
+        db,
+        event_type="alert.snoozed",
+        entity_type="alert",
+        entity_id=alert.alert_id,
+        payload={
+            "duration_hours": payload.duration_hours,
+            "snoozed_until": snoozed_until.isoformat(),
+            "reason": payload.reason,
+            "snoozed_by": payload.snoozed_by,
+        },
+    )
+    db.commit()
+    db.refresh(alert)
     return alert
 
 

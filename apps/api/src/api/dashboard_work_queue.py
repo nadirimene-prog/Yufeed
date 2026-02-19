@@ -13,6 +13,7 @@ from src.auth.dependencies import CurrentUser, require_any_role
 from src.config import settings
 from src.database import get_db
 from src.models.case_decision import CaseDecision
+from src.models.tenant_models import Tenant, TenantUser
 from src.models.transaction_models import Alert, Case, Transaction
 from src.schemas.dashboard_v3 import (
     ActionHistoryItem,
@@ -23,10 +24,13 @@ from src.schemas.dashboard_v3 import (
     ReviewActionRequest,
     ReviewActionResponse,
     ReviewRequirement,
+    WorkItemDraftUpdateRequest,
+    WorkItemDraftUpdateResponse,
     WorkItemActionRequest,
     WorkItemActionResponse,
     WorkItemDetailResponse,
     WorkItemKind,
+    WorkspaceUser,
     WorkItemTimelineEvent,
 )
 
@@ -443,6 +447,72 @@ def get_dashboard_work_queue(
     )
 
 
+@router.get("/workspace-users", response_model=list[WorkspaceUser])
+def get_workspace_users(
+    tenant_id: str | None = Query(None),
+    is_active: bool = Query(True),
+    db: Session = Depends(get_db),
+    current_user: CurrentUser = Depends(
+        require_any_role(["admin", "compliance", "auditor", "user"])
+    ),
+):
+    """
+    List assignable users for the current workspace tenant.
+
+    Non-superusers are restricted to their JWT tenant context.
+    """
+    return _list_workspace_users(
+        tenant_id=tenant_id,
+        is_active=is_active,
+        db=db,
+        current_user=current_user,
+    )
+
+
+def _list_workspace_users(
+    tenant_id: str | None = None,
+    is_active: bool = True,
+    db: Session | None = None,
+    current_user: CurrentUser | None = None,
+):
+    """
+    List assignable users for the current workspace tenant.
+
+    Non-superusers are restricted to their JWT tenant context.
+    """
+    if db is None or current_user is None:
+        raise HTTPException(status_code=500, detail="Workspace user context missing")
+
+    target_tenant = tenant_id or current_user.tenant_id
+    if not target_tenant:
+        raise HTTPException(
+            status_code=400,
+            detail="tenant_id is required when no tenant claim is present",
+        )
+
+    if not current_user.is_superuser and current_user.tenant_id != target_tenant:
+        raise HTTPException(
+            status_code=403,
+            detail="Cannot access users outside current tenant",
+        )
+
+    tenant = (
+        db.query(Tenant)
+        .filter(Tenant.tenant_id == target_tenant, Tenant.deleted_at.is_(None))
+        .first()
+    )
+    if not tenant:
+        raise HTTPException(status_code=404, detail="Tenant not found")
+
+    query = db.query(TenantUser).filter(TenantUser.tenant_id == tenant.id)
+    query = query.filter(TenantUser.is_active.is_(is_active))
+    users = query.order_by(TenantUser.user_id.asc()).all()
+    return [
+        WorkspaceUser(user_id=user.user_id, role=user.role, is_active=user.is_active)
+        for user in users
+    ]
+
+
 @router.get("/work-items/{kind}/{item_id}", response_model=WorkItemDetailResponse)
 def get_work_item_detail(
     kind: WorkItemKind,
@@ -675,6 +745,61 @@ def get_work_item_detail(
         review_requirement=queue_item.review_requirement,
         allowed_actions=["mark_in_progress", "close"],
     )
+
+
+@router.patch("/work-items/{kind}/{item_id}", response_model=WorkItemDraftUpdateResponse)
+def update_work_item_draft(
+    kind: WorkItemKind,
+    item_id: str,
+    payload: WorkItemDraftUpdateRequest,
+    db: Session = Depends(get_db),
+    current_user: CurrentUser = Depends(
+        require_any_role(["admin", "compliance", "auditor", "user"])
+    ),
+):
+    """Persist editable narrative/notes drafts for workspace items."""
+    if not settings.DASHBOARD_AMLCO_V3_ENABLED:
+        raise HTTPException(status_code=503, detail="Dashboard AMLCO v3 is currently disabled")
+
+    now = utc_now()
+
+    if kind == "alert":
+        alert = _resolve_alert(item_id, db, current_user)
+        if payload.narrative is not None:
+            alert.description = payload.narrative
+        if payload.notes is not None:
+            alert.resolution_notes = payload.notes
+        alert.updated_at = now
+        db.commit()
+        return WorkItemDraftUpdateResponse(
+            success=True, message="Alert draft updated", updated_at=alert.updated_at or now
+        )
+
+    if kind in {"case", "reg_task"}:
+        case = _resolve_case(item_id, db, current_user)
+        if payload.narrative is not None:
+            case.summary = payload.narrative
+        if payload.notes is not None:
+            case.outcome_notes = payload.notes
+        case.updated_at = now
+        db.commit()
+        return WorkItemDraftUpdateResponse(
+            success=True, message="Case draft updated", updated_at=case.updated_at or now
+        )
+
+    if kind == "approval":
+        decision = _resolve_approval(item_id, db, current_user)
+        if payload.narrative is not None:
+            decision.rationale = payload.narrative
+        if payload.notes is not None:
+            decision.rejection_reason = payload.notes
+        decision.updated_at = now
+        db.commit()
+        return WorkItemDraftUpdateResponse(
+            success=True, message="Approval draft updated", updated_at=decision.updated_at or now
+        )
+
+    raise HTTPException(status_code=400, detail="Unsupported work item kind")
 
 
 @router.post("/work-items/{kind}/{item_id}/actions", response_model=WorkItemActionResponse)

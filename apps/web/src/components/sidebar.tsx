@@ -6,7 +6,7 @@ import { usePathname } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
 import { cn } from "@/lib/utils";
 import { IconButton } from "@/components/ui/button-horizon";
-import { Shield, ChevronLeft, ChevronRight } from "lucide-react";
+import { Shield, ChevronLeft, ChevronRight, Lock, Unlock } from "lucide-react";
 import { NAV_AREAS, isRouteMatch } from "@/components/nav-data";
 
 /**
@@ -20,14 +20,60 @@ import { NAV_AREAS, isRouteMatch } from "@/components/nav-data";
 
 interface SidebarProps {
   className?: string;
+  onCollapsedChange?: (collapsed: boolean) => void;
+  forceExpanded?: boolean;
 }
 
-export default function Sidebar({ className }: SidebarProps) {
+const SIDEBAR_PREF_KEY = "yufeed.sidebar.preferences.v1";
+
+export default function Sidebar({
+  className,
+  onCollapsedChange,
+  forceExpanded = false,
+}: SidebarProps) {
   const pathname = usePathname();
-  const [collapsed, setCollapsed] = React.useState(false);
+  const [collapsed, setCollapsed] = React.useState(true);
+  const [lockCollapsed, setLockCollapsed] = React.useState(false);
+  const [hoverExpanded, setHoverExpanded] = React.useState(false);
   const [expandedAreas, setExpandedAreas] = React.useState<string[]>(() =>
     NAV_AREAS.map((area) => area.id),
   );
+  const effectiveCollapsed =
+    !forceExpanded && collapsed && !(hoverExpanded && !lockCollapsed);
+
+  React.useEffect(() => {
+    try {
+      const raw = window.localStorage.getItem(SIDEBAR_PREF_KEY);
+      if (!raw) return;
+      const parsed = JSON.parse(raw) as {
+        collapsed?: boolean;
+        lockCollapsed?: boolean;
+      };
+      if (typeof parsed.collapsed === "boolean") {
+        setCollapsed(parsed.collapsed);
+      }
+      if (typeof parsed.lockCollapsed === "boolean") {
+        setLockCollapsed(parsed.lockCollapsed);
+      }
+    } catch {
+      // Ignore parse errors and keep defaults.
+    }
+  }, []);
+
+  React.useEffect(() => {
+    onCollapsedChange?.(collapsed);
+  }, [collapsed, onCollapsedChange]);
+
+  React.useEffect(() => {
+    try {
+      window.localStorage.setItem(
+        SIDEBAR_PREF_KEY,
+        JSON.stringify({ collapsed, lockCollapsed }),
+      );
+    } catch {
+      // Ignore persistence failures.
+    }
+  }, [collapsed, lockCollapsed]);
 
   const toggleExpanded = (areaId: string) => {
     setExpandedAreas((prev) =>
@@ -44,12 +90,22 @@ export default function Sidebar({ className }: SidebarProps) {
   return (
     <motion.aside
       initial={false}
-      animate={{ width: collapsed ? 72 : 256 }}
+      animate={{ width: effectiveCollapsed ? 72 : 256 }}
       transition={{ type: "spring", stiffness: 400, damping: 30 }}
       className={cn(
         "fixed left-0 top-0 z-40 flex h-screen flex-col border-r border-border-subtle bg-bg-elevated",
         className,
       )}
+      onMouseEnter={() => {
+        if (forceExpanded) return;
+        if (collapsed && !lockCollapsed) {
+          setHoverExpanded(true);
+        }
+      }}
+      onMouseLeave={() => {
+        if (forceExpanded) return;
+        setHoverExpanded(false);
+      }}
     >
       {/* Logo Section */}
       <div className="flex h-14 items-center gap-3 border-b border-border-subtle px-4">
@@ -57,7 +113,7 @@ export default function Sidebar({ className }: SidebarProps) {
           <Shield className="h-4 w-4" />
         </div>
         <AnimatePresence mode="popLayout">
-          {!collapsed && (
+          {!effectiveCollapsed && (
             <motion.div
               initial={{ opacity: 0, x: -10 }}
               animate={{ opacity: 1, x: 0 }}
@@ -78,7 +134,7 @@ export default function Sidebar({ className }: SidebarProps) {
 
       {/* Main Navigation */}
       <nav className="flex-1 overflow-y-auto py-4 px-3">
-        {collapsed ? (
+        {effectiveCollapsed ? (
           <ul className="space-y-1">
             {NAV_AREAS.map((area) => {
               const active = isAreaActive(area.routePrefixes);
@@ -169,21 +225,57 @@ export default function Sidebar({ className }: SidebarProps) {
       </nav>
 
       <div className="border-t border-border-subtle p-3">
-        {/* Collapse Toggle */}
-        <IconButton
-          variant="ghost"
-          size="md"
-          icon={
-            collapsed ? (
-              <ChevronRight className="h-4 w-4" />
-            ) : (
-              <ChevronLeft className="h-4 w-4" />
-            )
-          }
-          label={collapsed ? "Expand sidebar" : "Collapse sidebar"}
-          onClick={() => setCollapsed(!collapsed)}
-          className={cn("w-full", collapsed && "justify-center")}
-        />
+        {forceExpanded ? null : (
+          <div
+            className={cn(
+              "flex gap-2",
+              effectiveCollapsed ? "justify-center" : "items-center",
+            )}
+          >
+            <IconButton
+              variant="ghost"
+              size="md"
+              icon={
+                collapsed ? (
+                  <ChevronRight className="h-4 w-4" />
+                ) : (
+                  <ChevronLeft className="h-4 w-4" />
+                )
+              }
+              label={collapsed ? "Expand sidebar" : "Collapse sidebar"}
+              onClick={() => {
+                setCollapsed((current) => !current);
+                setHoverExpanded(false);
+              }}
+              className={cn(
+                effectiveCollapsed ? "w-10 justify-center" : "w-full",
+              )}
+            />
+
+            {collapsed ? (
+              <IconButton
+                variant="ghost"
+                size="md"
+                icon={
+                  lockCollapsed ? (
+                    <Lock className="h-4 w-4" />
+                  ) : (
+                    <Unlock className="h-4 w-4" />
+                  )
+                }
+                label={
+                  lockCollapsed
+                    ? "Unlock hover expand"
+                    : "Lock collapsed sidebar"
+                }
+                onClick={() => setLockCollapsed((current) => !current)}
+                className={cn(
+                  effectiveCollapsed ? "w-10 justify-center" : "w-auto",
+                )}
+              />
+            ) : null}
+          </div>
+        )}
       </div>
     </motion.aside>
   );

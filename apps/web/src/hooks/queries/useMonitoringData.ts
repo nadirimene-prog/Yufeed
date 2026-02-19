@@ -8,11 +8,15 @@ export function useMonitoringAlerts(params?: {
   limit?: number;
   status?: string;
   severity?: string;
+  include_snoozed?: boolean;
 }) {
   const queryParams = {
     limit: params?.limit ?? 50,
     ...(params?.status ? { status: params.status } : {}),
     ...(params?.severity ? { severity: params.severity } : {}),
+    ...(typeof params?.include_snoozed === "boolean"
+      ? { include_snoozed: params.include_snoozed }
+      : {}),
   };
 
   return useQuery({
@@ -24,12 +28,12 @@ export function useMonitoringAlerts(params?: {
 export function useMonitoringCases(params?: {
   limit?: number;
   status?: string;
-  severity?: string;
+  priority?: string;
 }) {
   const queryParams = {
     limit: params?.limit ?? 50,
     ...(params?.status ? { status: params.status } : {}),
-    ...(params?.severity ? { severity: params.severity } : {}),
+    ...(params?.priority ? { priority: params.priority } : {}),
   };
 
   return useQuery({

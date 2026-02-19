@@ -4,7 +4,6 @@ export {
   IconButton,
   ButtonGroup,
   buttonVariants,
-  AnimatedButton,
   type ButtonProps,
   type IconButtonProps,
   type ButtonGroupProps,

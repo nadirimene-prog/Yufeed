@@ -9,7 +9,10 @@ import {
   severityBadgeClass,
   slaBadgeClass,
 } from "@/features/dashboard/utils";
-import { DashboardWorkQueueItem } from "@/features/dashboard/types";
+import {
+  DashboardWorkQueueItem,
+  WorkspaceMessage,
+} from "@/features/dashboard/types";
 
 describe("dashboard utils", () => {
   it("resolves dashboard view with safe defaults", () => {
@@ -53,7 +56,7 @@ describe("dashboard utils", () => {
     expect(formatAgeMinutes(2880)).toBe("2d");
   });
 
-  it("ranks queue items by SLA, severity, risk score, and age", () => {
+  it("preserves server-ranked queue order", () => {
     const base: Omit<
       DashboardWorkQueueItem,
       "item_id" | "severity" | "sla_status"
@@ -100,8 +103,11 @@ describe("dashboard utils", () => {
     ];
 
     const ranked = rankQueueItems(items);
-    expect(ranked[0]?.item_id).toBe("critical-breached");
-    expect(ranked[1]?.item_id).toBe("high-warning");
+    expect(ranked.map((item) => item.item_id)).toEqual([
+      "low-ok",
+      "high-warning",
+      "critical-breached",
+    ]);
   });
 
   it("generates stable dashboard query keys", () => {
@@ -124,5 +130,47 @@ describe("dashboard utils", () => {
       "alert",
       "123",
     ]);
+  });
+
+  it("encodes URL-persisted queue filters in query keys", () => {
+    expect(
+      dashboardKeys.workQueue({
+        page: 3,
+        pageSize: 25,
+        queue: "alerts",
+        severity: "critical",
+        sla: "breached",
+        search: "entity_123",
+        jurisdiction: "US",
+        savedView: "team_queue",
+      }),
+    ).toEqual([
+      "dashboard",
+      "work-queue",
+      {
+        page: 3,
+        pageSize: 25,
+        queue: "alerts",
+        severity: "critical",
+        sla: "breached",
+        search: "entity_123",
+        jurisdiction: "US",
+        savedView: "team_queue",
+      },
+    ]);
+  });
+
+  it("supports typed workspace messages", () => {
+    const successMessage: WorkspaceMessage = {
+      text: "Draft saved",
+      type: "success",
+    };
+    const errorMessage: WorkspaceMessage = {
+      text: "Action failed",
+      type: "error",
+    };
+
+    expect(successMessage.type).toBe("success");
+    expect(errorMessage.type).toBe("error");
   });
 });

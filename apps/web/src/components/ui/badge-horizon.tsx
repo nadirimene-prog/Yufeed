@@ -99,7 +99,8 @@ const statusDotVariants = cva("h-2 w-2 rounded-full", {
    ───────────────────────────────────────────────────────────────────────────── */
 
 export interface BadgeProps
-  extends React.HTMLAttributes<HTMLSpanElement>,
+  extends
+    React.HTMLAttributes<HTMLSpanElement>,
     VariantProps<typeof badgeVariants> {
   dot?: boolean;
   dotStatus?: VariantProps<typeof statusDotVariants>["status"];
@@ -173,8 +174,10 @@ Badge.displayName = "Badge";
    Pre-configured badges for common status states
    ───────────────────────────────────────────────────────────────────────────── */
 
-interface StatusBadgeProps
-  extends Omit<BadgeProps, "variant" | "dot" | "dotStatus"> {
+interface StatusBadgeProps extends Omit<
+  BadgeProps,
+  "variant" | "dot" | "dotStatus"
+> {
   status:
     | "draft"
     | "pending"
@@ -184,22 +187,30 @@ interface StatusBadgeProps
     | "active"
     | "inactive"
     | "critical"
-    | "warning";
+    | "warning"
+    | "expired"
+    | "archived";
 }
 
 const statusConfig: Record<
   StatusBadgeProps["status"],
-  { variant: VariantProps<typeof badgeVariants>["variant"]; label: string }
+  {
+    variant: VariantProps<typeof badgeVariants>["variant"];
+    label: string;
+    dotStatus: VariantProps<typeof statusDotVariants>["status"];
+  }
 > = {
-  draft: { variant: "default", label: "Draft" },
-  pending: { variant: "warning", label: "Pending" },
-  in_review: { variant: "info", label: "In Review" },
-  approved: { variant: "success", label: "Approved" },
-  rejected: { variant: "critical", label: "Rejected" },
-  active: { variant: "success", label: "Active" },
-  inactive: { variant: "default", label: "Inactive" },
-  critical: { variant: "critical", label: "Critical" },
-  warning: { variant: "warning", label: "Warning" },
+  draft: { variant: "default", label: "Draft", dotStatus: "offline" },
+  pending: { variant: "warning", label: "Pending", dotStatus: "away" },
+  in_review: { variant: "info", label: "In Review", dotStatus: "away" },
+  approved: { variant: "success", label: "Approved", dotStatus: "online" },
+  rejected: { variant: "critical", label: "Rejected", dotStatus: "busy" },
+  active: { variant: "success", label: "Active", dotStatus: "online" },
+  inactive: { variant: "default", label: "Inactive", dotStatus: "offline" },
+  critical: { variant: "critical", label: "Critical", dotStatus: "busy" },
+  warning: { variant: "warning", label: "Warning", dotStatus: "away" },
+  expired: { variant: "critical", label: "Expired", dotStatus: "busy" },
+  archived: { variant: "default", label: "Archived", dotStatus: "offline" },
 };
 
 const StatusBadge = React.forwardRef<HTMLSpanElement, StatusBadgeProps>(
@@ -210,7 +221,7 @@ const StatusBadge = React.forwardRef<HTMLSpanElement, StatusBadgeProps>(
         ref={ref}
         variant={config.variant}
         dot
-        dotStatus="online"
+        dotStatus={config.dotStatus}
         {...props}
       >
         {children || config.label}

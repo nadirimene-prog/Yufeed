@@ -295,3 +295,44 @@ export function useSubmitSAR() {
     },
   });
 }
+
+// ============================================================================
+// Workspace users
+// ============================================================================
+
+const workspaceKeys = {
+  all: ["workspace"] as const,
+  users: (params: { tenant_id?: string; is_active?: boolean }) =>
+    [...workspaceKeys.all, "users", params] as const,
+};
+
+export interface WorkspaceUser {
+  user_id: string;
+  role: string;
+  is_active: boolean;
+}
+
+export function useWorkspaceUsers(params?: {
+  tenant_id?: string;
+  is_active?: boolean;
+}) {
+  const queryParams = {
+    ...(params?.tenant_id ? { tenant_id: params.tenant_id } : {}),
+    ...(typeof params?.is_active === "boolean"
+      ? { is_active: params.is_active }
+      : { is_active: true }),
+  };
+
+  return useQuery({
+    queryKey: workspaceKeys.users(queryParams),
+    queryFn: async () => {
+      const response = await apiClient.get<WorkspaceUser[]>(
+        "/api/workspace/users",
+        {
+          params: queryParams,
+        },
+      );
+      return response.data;
+    },
+  });
+}

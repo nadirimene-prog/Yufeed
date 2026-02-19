@@ -187,7 +187,16 @@ export default function SARManagementPage() {
                 <div className="space-y-2 mb-4">
                   <div className="flex items-center space-x-2 text-sm text-gray-600">
                     <User className="w-4 h-4" />
-                    <span>{caseItem.subject_id || "Unknown subject"}</span>
+                    {caseItem.subject_id ? (
+                      <Link
+                        href={`/entities/user/${caseItem.subject_id}`}
+                        className="hover:text-indigo-600 hover:underline"
+                      >
+                        {caseItem.subject_id}
+                      </Link>
+                    ) : (
+                      <span>Unknown subject</span>
+                    )}
                   </div>
                   {caseItem.severity && (
                     <div className="flex items-center space-x-2 text-sm">

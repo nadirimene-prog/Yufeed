@@ -12,6 +12,11 @@ export interface MonitoringAlert {
   assigned_to?: string;
   ai_recommendation?: string;
   ai_confidence?: number;
+  triggered_rule_id?: string;
+  triggered_rule_name?: string;
+  snoozed_until?: string;
+  snooze_reason?: string;
+  snoozed_by?: string;
 }
 
 export interface MonitoringCase {

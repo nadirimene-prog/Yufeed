@@ -124,6 +124,8 @@ class AlertResponse(AlertBase):
     assigned_to: Optional[str] = None
     risk_score: Optional[Decimal] = None
     matched_rules: Optional[Dict[str, Any]] = None
+    triggered_rule_id: Optional[str] = None
+    triggered_rule_name: Optional[str] = None
     evidence: Optional[Dict[str, Any]] = None
     related_regulations: Optional[List[int]] = None
     regulation_context: Optional[str] = None
@@ -133,6 +135,9 @@ class AlertResponse(AlertBase):
     sar_filed: bool
     sar_id: Optional[str] = None
     sar_filed_at: Optional[datetime] = None
+    snoozed_until: Optional[datetime] = None
+    snooze_reason: Optional[str] = None
+    snoozed_by: Optional[str] = None
     # Phase 4B: ML Triage fields
     ml_prediction: Optional[str] = None
     ml_confidence: Optional[Decimal] = None

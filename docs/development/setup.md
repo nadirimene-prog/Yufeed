@@ -350,7 +350,7 @@ Use React Developer Tools browser extension for component inspection.
 
 Connect to development database:
 ```bash
-psql postgresql://postgres:postgres@localhost:5432/yufeed
+psql postgresql://postgres:postgres@localhost:5432/yufeed # pragma: allowlist secret
 ```
 
 ### Docker Debugging

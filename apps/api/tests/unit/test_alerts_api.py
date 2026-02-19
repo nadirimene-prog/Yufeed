@@ -66,6 +66,34 @@ class TestAlertCreation:
         data = response.json()
         assert data["transaction_id"] is None
 
+    def test_create_alert_persists_rule_attribution(
+        self, client: TestClient, db_session: Session, auth_headers: dict
+    ):
+        """Ensure rule_id and triggered rule metadata are returned to clients."""
+        transaction = TransactionFactory(sqlalchemy_session=db_session)
+        db_session.commit()
+
+        response = client.post(
+            "/api/alerts",
+            headers=auth_headers,
+            json={
+                "alert_type": "velocity",
+                "severity": "high",
+                "transaction_id": transaction.id,
+                "user_id": transaction.user_id,
+                "rule_id": "RULE-ATTR-001",
+                "matched_rules": {"RULE-ATTR-001": "Velocity threshold breached"},
+                "description": "Velocity threshold breached",
+                "risk_score": 78.4,
+            },
+        )
+
+        assert response.status_code == 201
+        payload = response.json()
+        assert payload["rule_id"] == "RULE-ATTR-001"
+        assert payload["triggered_rule_id"] == "RULE-ATTR-001"
+        assert payload["triggered_rule_name"] == "Velocity threshold breached"
+
     def test_create_alert_invalid_transaction(self, client: TestClient, auth_headers: dict):
         """Test creating alert with invalid transaction ID fails."""
         response = client.post(
@@ -196,6 +224,37 @@ class TestAlertListing:
         data = response.json()
         assert len(data) == 2
         assert all(alert["user_id"] == "user_001" for alert in data)
+
+    def test_snooze_alert_and_filter_visibility(
+        self, client: TestClient, db_session: Session, auth_headers: dict
+    ):
+        """Snoozed alerts should be hidden when include_snoozed=false."""
+        alert = AlertFactory(sqlalchemy_session=db_session, status="pending")
+        db_session.commit()
+
+        snooze = client.post(
+            f"/api/alerts/{alert.alert_id}/snooze",
+            headers=auth_headers,
+            json={"duration_hours": 24, "reason": "Known false positive noise"},
+        )
+        assert snooze.status_code == 200
+        payload = snooze.json()
+        assert payload["snoozed_until"] is not None
+        assert payload["snooze_reason"] == "Known false positive noise"
+
+        hidden = client.get(
+            "/api/alerts?include_snoozed=false",
+            headers=auth_headers,
+        )
+        assert hidden.status_code == 200
+        assert all(item["alert_id"] != alert.alert_id for item in hidden.json())
+
+        visible = client.get(
+            "/api/alerts?include_snoozed=true",
+            headers=auth_headers,
+        )
+        assert visible.status_code == 200
+        assert any(item["alert_id"] == alert.alert_id for item in visible.json())
 
     def test_list_alerts_multiple_filters(
         self, client: TestClient, db_session: Session, auth_headers: dict

@@ -25,12 +25,31 @@ const OPERATIONS_ITEMS: NavItem[] = [
     description: "Daily overview and KPIs.",
   },
   {
+    label: "Analyst Performance",
+    href: "/dashboard/operations",
+    description: "Team throughput and SLA performance.",
+  },
+  {
     label: "Findings Triage",
     href: "/findings",
     description: "Triage, acknowledge, escalate.",
   },
   { label: "Cases", href: "/cases", description: "Investigation workspace." },
-  { label: "Alerts", href: "/alerts", description: "Transaction alert queue." },
+  {
+    label: "Transaction Alerts",
+    href: "/transaction-alerts",
+    description: "AML transaction alert queue.",
+  },
+  {
+    label: "Entities",
+    href: "/entities",
+    description: "Unified entity intelligence profiles.",
+  },
+  {
+    label: "Regulatory Alerts",
+    href: "/regulatory-alerts",
+    description: "Document and regulatory update alerts.",
+  },
   {
     label: "SAR Filing",
     href: "/sar/prepare",
@@ -166,7 +185,9 @@ export const NAV_AREAS: NavArea[] = [
       "/dashboard",
       "/findings",
       "/cases",
+      "/entities",
       "/alerts",
+      "/regulatory-alerts",
       "/transaction-alerts",
       "/sar",
     ],

@@ -94,6 +94,7 @@ class Alert(Base):
     transaction_id = Column(
         Integer, ForeignKey("transactions.id"), nullable=True, index=True
     )  # Indexed for joins
+    rule_id = Column(String(255), nullable=True, index=True)
     user_id = Column(String(255), index=True)
 
     # Status workflow
@@ -138,6 +139,81 @@ class Alert(Base):
     # Relationships
     transaction = relationship("Transaction", back_populates="alerts")
     rule_hits = relationship("RuleHit", back_populates="alert")
+
+    @property
+    def matched_rules(self):
+        """Backward-compatible alias used by API schemas."""
+        return self.matched_rules_data
+
+    @property
+    def triggered_rule_id(self):
+        """Resolve triggered rule id from persisted rule_id or first matched rule key."""
+        if self.rule_id:
+            return self.rule_id
+        if isinstance(self.matched_rules_data, dict):
+            first_key = next(iter(self.matched_rules_data.keys()), None)
+            return first_key if isinstance(first_key, str) else None
+        return None
+
+    @property
+    def triggered_rule_name(self):
+        """Resolve human-readable rule name from matched_rules_data when available."""
+        matched = self.matched_rules_data if isinstance(self.matched_rules_data, dict) else None
+        if not matched:
+            return None
+
+        triggered_id = self.triggered_rule_id
+        if triggered_id and isinstance(matched.get(triggered_id), str):
+            return matched.get(triggered_id)
+
+        first_value = next(iter(matched.values()), None)
+        return first_value if isinstance(first_value, str) else None
+
+    def _snooze_payload(self):
+        evidence = self.evidence if isinstance(self.evidence, dict) else {}
+        payload = evidence.get("snooze")
+        return payload if isinstance(payload, dict) else None
+
+    @property
+    def snoozed_until(self):
+        payload = self._snooze_payload()
+        if not payload:
+            return None
+        raw = payload.get("until")
+        if not isinstance(raw, str) or not raw:
+            return None
+        try:
+            normalized = raw.replace("Z", "+00:00")
+            return datetime.fromisoformat(normalized)
+        except ValueError:
+            return None
+
+    @property
+    def snooze_reason(self):
+        payload = self._snooze_payload()
+        if not payload:
+            return None
+        reason = payload.get("reason")
+        return reason if isinstance(reason, str) and reason else None
+
+    @property
+    def snoozed_by(self):
+        payload = self._snooze_payload()
+        if not payload:
+            return None
+        actor = payload.get("snoozed_by")
+        return actor if isinstance(actor, str) and actor else None
+
+    @property
+    def is_snoozed(self):
+        snoozed_until = self.snoozed_until
+        if not snoozed_until:
+            return False
+        if snoozed_until.tzinfo is None:
+            snoozed_until = snoozed_until.replace(tzinfo=timezone.utc)
+        else:
+            snoozed_until = snoozed_until.astimezone(timezone.utc)
+        return snoozed_until > utc_now()
 
 
 class Case(Base):

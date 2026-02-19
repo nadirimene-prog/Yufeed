@@ -211,7 +211,7 @@ export function DataTable<TData, TValue>({
                   className={cn(
                     "border-b border-white/[0.04] transition-colors",
                     "hover:bg-white/[0.03]",
-                    "data-[state=selected]:bg-[#6d5acd]/10",
+                    "data-[state=selected]:bg-primary/10",
                     onRowClick && "cursor-pointer",
                   )}
                   onClick={() => onRowClick?.(row.original)}
@@ -261,7 +261,7 @@ export function DataTable<TData, TValue>({
             <select
               value={pageSize}
               onChange={(e) => table.setPageSize(Number(e.target.value))}
-              className="h-8 rounded-lg border border-white/10 bg-white/5 px-2 text-xs text-white focus:outline-none focus:ring-1 focus:ring-[#6d5acd]"
+              className="h-8 rounded-lg border border-white/10 bg-white/5 px-2 text-xs text-white focus:outline-none focus:ring-1 focus:ring-primary/40"
             >
               {pageSizes.map((size) => (
                 <option key={size} value={size} className="bg-[#0a0a12]">
@@ -326,8 +326,10 @@ export function DataTable<TData, TValue>({
 /**
  * Column Header Helper - Sortable header with icon
  */
-interface DataTableColumnHeaderProps<TData, TValue>
-  extends React.HTMLAttributes<HTMLDivElement> {
+interface DataTableColumnHeaderProps<
+  TData,
+  TValue,
+> extends React.HTMLAttributes<HTMLDivElement> {
   column: import("@tanstack/react-table").Column<TData, TValue>;
   title: string;
 }

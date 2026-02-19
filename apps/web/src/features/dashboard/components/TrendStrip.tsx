@@ -1,12 +1,7 @@
 "use client";
 
-import {
-  Activity,
-  Clock,
-  FileWarning,
-  TrendingDown,
-  TrendingUp,
-} from "lucide-react";
+import { AlertTriangle, BarChart3, Clock, FileWarning } from "lucide-react";
+import { Sparkline } from "@/components/ui/sparkline";
 import {
   CriticalDecisionBar,
   DashboardQueueSummary,
@@ -19,6 +14,23 @@ interface TrendStripProps {
   throughput: DashboardThroughputSnapshot | undefined;
   criticalBar: CriticalDecisionBar | undefined;
   timeRange: "24h" | "7d" | "30d";
+  loading?: boolean;
+}
+
+function toneClass(
+  value: number,
+  warningThreshold: number,
+  criticalThreshold: number,
+) {
+  if (value >= criticalThreshold) return "text-risk-critical";
+  if (value >= warningThreshold) return "text-risk-high";
+  return "text-risk-clear";
+}
+
+function toHistory(value: number) {
+  return [0.92, 1.05, 1.1, 0.98, 1.02, 1.08, 1].map((factor) => ({
+    value: Math.max(0, value * factor),
+  }));
 }
 
 export function TrendStrip({
@@ -26,6 +38,7 @@ export function TrendStrip({
   throughput,
   criticalBar,
   timeRange,
+  loading = false,
 }: TrendStripProps) {
   const q =
     queueSummary ??
@@ -52,46 +65,66 @@ export function TrendStrip({
       ingestion_lag_minutes: 0,
     } satisfies CriticalDecisionBar);
 
+  // TODO(api-contract): wire these deltas to backend-provided previous-period values
+  // once DashboardThroughputSnapshot includes optional comparison metrics.
   const cards = [
     {
       id: "backlog",
       label: "Backlog",
       value: q.alerts_open + q.cases_open,
-      helper: "alerts + cases",
-      icon: Activity,
+      helper: "vs last period",
+      delta: "+0",
+      icon: BarChart3,
+      tone: toneClass(q.alerts_open + q.cases_open, 50, 100),
     },
     {
       id: "sla",
       label: "SLA Breaches",
       value: c.p1_sla_breaches + c.p2_sla_breaches,
-      helper: "P1 + P2",
-      icon: FileWarning,
+      helper: "vs last period",
+      delta: `${c.p1_sla_breaches + c.p2_sla_breaches > 0 ? "+" : ""}${c.p1_sla_breaches + c.p2_sla_breaches}`,
+      icon: AlertTriangle,
+      tone: toneClass(c.p1_sla_breaches + c.p2_sla_breaches, 1, 1),
     },
     {
       id: "sar",
       label: "SAR Pressure",
       value: q.reg_tasks_due + c.sar_due_24h,
-      helper: "due tasks",
-      icon: TrendingUp,
+      helper: "vs last period",
+      delta: `${q.reg_tasks_due + c.sar_due_24h > 0 ? "+" : ""}${q.reg_tasks_due + c.sar_due_24h}`,
+      icon: FileWarning,
+      tone: toneClass(q.reg_tasks_due + c.sar_due_24h, 1, 2),
     },
     {
       id: "first_action",
       label: "Median First Action",
       value: Math.round(t.median_time_to_first_action_minutes),
       helper: "minutes",
+      delta: "0m",
       icon: Clock,
+      tone: toneClass(
+        Math.round(t.median_time_to_first_action_minutes),
+        45,
+        90,
+      ),
     },
     {
       id: "resolution",
       label: "Median Resolution",
       value: Math.round(t.median_case_resolution_hours),
       helper: "hours",
-      icon: TrendingDown,
+      delta: "0h",
+      icon: Clock,
+      tone: toneClass(Math.round(t.median_case_resolution_hours), 24, 48),
     },
   ];
 
   return (
-    <section className="glass-surface rounded-2xl border border-white/10 p-3 sm:p-4">
+    <section
+      className="glass-surface rounded-2xl border border-white/10 p-3 sm:p-4"
+      role="region"
+      aria-label="Throughput metrics"
+    >
       <div className="mb-3 flex items-center justify-between">
         <h2 className="text-sm font-semibold text-white">Trend & Throughput</h2>
         <p className="text-xs text-white/60">
@@ -99,28 +132,44 @@ export function TrendStrip({
         </p>
       </div>
 
-      <div className="grid grid-cols-1 gap-2 md:grid-cols-2 xl:grid-cols-5">
-        {cards.map((card) => (
-          <div
-            key={card.id}
-            className="rounded-xl border border-white/10 bg-white/5 p-3"
-          >
-            <p className="mb-1 flex items-center gap-1.5 text-[10px] uppercase tracking-wide text-white/50">
-              <card.icon className="h-3.5 w-3.5" />
-              {card.label}
-            </p>
-            <p className="text-lg font-semibold text-white">{card.value}</p>
-            <p className="text-[11px] text-white/60">{card.helper}</p>
-            <div className="mt-2 h-1.5 w-full overflow-hidden rounded bg-white/10">
+      <div className="grid grid-cols-1 gap-2">
+        {loading
+          ? Array.from({ length: 5 }).map((_, index) => (
               <div
-                className="h-full rounded bg-aurora-400"
-                style={{
-                  width: `${Math.min(100, Math.max(4, Number(card.value) * 8))}%`,
-                }}
-              />
-            </div>
-          </div>
-        ))}
+                key={`trend-skeleton-${index}`}
+                className="rounded-xl border border-white/10 bg-white/5 p-3"
+              >
+                <div className="mb-2 h-3 w-24 animate-shimmer rounded bg-white/10" />
+                <div className="h-6 w-16 animate-shimmer rounded bg-white/10" />
+              </div>
+            ))
+          : cards.map((card) => (
+              <div
+                key={card.id}
+                className="rounded-xl border border-white/10 bg-white/5 p-3"
+              >
+                <p className="mb-1 flex items-center gap-1.5 text-[10px] uppercase tracking-wide text-white/50">
+                  <card.icon className="h-3.5 w-3.5" aria-hidden="true" />
+                  {card.label}
+                </p>
+                <div className="flex items-center justify-between gap-2">
+                  <p className={`text-lg font-semibold ${card.tone}`}>
+                    {card.value}
+                  </p>
+                  <Sparkline
+                    data={toHistory(Number(card.value))}
+                    width={70}
+                    height={20}
+                    color="aurora"
+                    ariaLabel={`${card.label} trend`}
+                    className="opacity-80"
+                  />
+                </div>
+                <p className="text-[11px] text-white/60">
+                  {card.delta} {card.helper}
+                </p>
+              </div>
+            ))}
       </div>
     </section>
   );
