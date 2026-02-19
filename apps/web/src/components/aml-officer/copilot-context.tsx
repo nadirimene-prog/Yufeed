@@ -29,7 +29,12 @@ export function CopilotProvider({ children }: { children: ReactNode }) {
 export function useCopilot() {
   const context = useContext(CopilotContext);
   if (context === undefined) {
-    throw new Error("useCopilot must be used within a CopilotProvider");
+    return {
+      pageContext: "",
+      setPageContext: () => {},
+      isWidgetOpen: false,
+      toggleWidget: () => {},
+    };
   }
   return context;
 }

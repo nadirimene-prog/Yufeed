@@ -63,35 +63,8 @@ export function formatAgeMinutes(minutes: number): string {
   return `${Math.floor(minutes / (60 * 24))}d`;
 }
 
-function severityRank(severity: string): number {
-  const value = severity.toLowerCase();
-  if (value === "critical") return 4;
-  if (value === "high") return 3;
-  if (value === "medium") return 2;
-  if (value === "low") return 1;
-  return 0;
-}
-
-function slaRank(status: WorkItemSlaStatus): number {
-  if (status === "breached") return 4;
-  if (status === "warning") return 3;
-  if (status === "ok") return 2;
-  return 1;
-}
-
 export function rankQueueItems(
   items: DashboardWorkQueueItem[],
 ): DashboardWorkQueueItem[] {
-  return [...items].sort((a, b) => {
-    const slaDelta = slaRank(b.sla_status) - slaRank(a.sla_status);
-    if (slaDelta !== 0) return slaDelta;
-
-    const severityDelta = severityRank(b.severity) - severityRank(a.severity);
-    if (severityDelta !== 0) return severityDelta;
-
-    const riskDelta = b.risk_score - a.risk_score;
-    if (riskDelta !== 0) return riskDelta;
-
-    return b.age_minutes - a.age_minutes;
-  });
+  return [...items];
 }

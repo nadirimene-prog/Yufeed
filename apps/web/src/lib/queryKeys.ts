@@ -100,3 +100,9 @@ export const dashboardKeys = {
   workItemActions: (kind: string, id: string) =>
     [...dashboardKeys.workItem(kind, id), "actions"] as const,
 } as const;
+
+export const entityKeys = {
+  all: ["entities"] as const,
+  profile: (entityType: string, entityId: string) =>
+    [...entityKeys.all, "profile", entityType, entityId] as const,
+} as const;

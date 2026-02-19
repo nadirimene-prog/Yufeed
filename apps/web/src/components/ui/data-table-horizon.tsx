@@ -83,6 +83,7 @@ export interface DataTableProps<T> {
   striped?: boolean;
   bordered?: boolean;
   compact?: boolean;
+  captionText?: string;
 }
 
 /* ─────────────────────────────────────────────────────────────────────────────
@@ -391,7 +392,7 @@ export function DataTable<T>({
   searchPlaceholder = "Search...",
   onSearch,
   selectable = false,
-  selectedKeys = [],
+  selectedKeys,
   onSelectionChange,
   onRowClick,
   rowClassName,
@@ -406,6 +407,7 @@ export function DataTable<T>({
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
   bordered = true,
   compact = false,
+  captionText = "Data table",
 }: DataTableProps<T>) {
   // Sorting state
   const [sortState, setSortState] = React.useState<{
@@ -424,8 +426,15 @@ export function DataTable<T>({
   const [pageSize, setPageSize] = React.useState(initialPageSize);
 
   // Selection state
-  const [localSelectedKeys, setLocalSelectedKeys] =
-    React.useState<string[]>(selectedKeys);
+  const [localSelectedKeys, setLocalSelectedKeys] = React.useState<string[]>(
+    selectedKeys ?? [],
+  );
+
+  React.useEffect(() => {
+    if (selectedKeys) {
+      setLocalSelectedKeys([...selectedKeys]);
+    }
+  }, [selectedKeys]);
 
   // Handle sorting
   const handleSort = (columnKey: string) => {
@@ -529,6 +538,7 @@ export function DataTable<T>({
       {/* Table */}
       <div className="overflow-x-auto">
         <table className="w-full">
+          <caption className="sr-only">{captionText}</caption>
           <thead className="bg-bg-overlay">
             <tr>
               {selectable && (
@@ -543,6 +553,7 @@ export function DataTable<T>({
                     }}
                     onChange={(e) => handleSelectAll(e.target.checked)}
                     className="h-4 w-4 rounded border-border-strong text-primary focus:ring-primary/20"
+                    aria-label="Select all rows"
                   />
                 </th>
               )}
@@ -581,6 +592,18 @@ export function DataTable<T>({
                   <tr
                     key={key}
                     onClick={() => onRowClick?.(row)}
+                    onKeyDown={
+                      onRowClick
+                        ? (event) => {
+                            if (event.key === "Enter" || event.key === " ") {
+                              event.preventDefault();
+                              onRowClick(row);
+                            }
+                          }
+                        : undefined
+                    }
+                    tabIndex={onRowClick ? 0 : undefined}
+                    role={onRowClick ? "button" : undefined}
                     className={cn(
                       "transition-colors",
                       striped && index % 2 === 1 && "bg-bg-overlay/50",
@@ -599,6 +622,7 @@ export function DataTable<T>({
                           }
                           onClick={(e) => e.stopPropagation()}
                           className="h-4 w-4 rounded border-border-strong text-primary focus:ring-primary/20"
+                          aria-label={`Select row ${key}`}
                         />
                       </td>
                     )}

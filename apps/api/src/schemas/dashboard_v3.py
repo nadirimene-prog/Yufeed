@@ -143,3 +143,21 @@ class ReviewActionResponse(BaseModel):
     review_status: Literal["approved", "returned"]
     updated_status: str
     message: str
+
+
+class WorkItemDraftUpdateRequest(BaseModel):
+    narrative: str | None = None
+    notes: str | None = None
+    metadata: dict[str, Any] = Field(default_factory=dict)
+
+
+class WorkItemDraftUpdateResponse(BaseModel):
+    success: bool
+    message: str
+    updated_at: datetime
+
+
+class WorkspaceUser(BaseModel):
+    user_id: str
+    role: str
+    is_active: bool

@@ -28,6 +28,7 @@ export function useWorkItemDetail(
       return response.data;
     },
     staleTime: 10_000,
+    refetchInterval: 30_000,
     enabled: Boolean(kind && itemId && (options?.enabled ?? true)),
   });
 }

@@ -1,51 +1,86 @@
-import { Loader2 } from "lucide-react";
+"use client";
 
-interface LoadingStateProps {
+import * as React from "react";
+import { Loader2 } from "lucide-react";
+import { cn } from "@/lib/utils";
+
+interface LoadingStateProps extends React.HTMLAttributes<HTMLDivElement> {
   message?: string;
   type?: "fullscreen" | "inline" | "spinner";
-  className?: string;
 }
 
-export function LoadingState({
-  message = "Loading...",
-  type = "inline",
-  className = "",
-}: LoadingStateProps) {
-  if (type === "fullscreen") {
-    return (
-      <div className="flex items-center justify-center min-h-screen bg-gray-50 dark:bg-gray-900">
-        <div className="text-center">
-          <Loader2 className="h-12 w-12 animate-spin mx-auto mb-4 text-blue-600" />
-          <p className="text-lg text-gray-700 dark:text-gray-300">{message}</p>
+export const LoadingState = React.forwardRef<HTMLDivElement, LoadingStateProps>(
+  ({ message = "Loading...", type = "inline", className, ...props }, ref) => {
+    if (type === "fullscreen") {
+      return (
+        <div
+          ref={ref}
+          role="status"
+          aria-live="polite"
+          className={cn(
+            "flex min-h-screen items-center justify-center bg-bg-base text-foreground",
+            className,
+          )}
+          {...props}
+        >
+          <div className="text-center">
+            <Loader2
+              className="mx-auto mb-4 h-12 w-12 animate-spin text-primary"
+              aria-hidden="true"
+            />
+            <p className="text-lg text-foreground-secondary">{message}</p>
+          </div>
         </div>
-      </div>
-    );
-  }
+      );
+    }
 
-  if (type === "spinner") {
+    if (type === "spinner") {
+      return (
+        <div
+          ref={ref}
+          role="status"
+          aria-live="polite"
+          className={cn("flex items-center justify-center", className)}
+          {...props}
+        >
+          <Loader2
+            className="h-6 w-6 animate-spin text-primary"
+            aria-hidden="true"
+          />
+          <span className="sr-only">{message}</span>
+        </div>
+      );
+    }
+
     return (
-      <div className={`flex items-center justify-center ${className}`}>
-        <Loader2 className="h-6 w-6 animate-spin text-blue-600" />
+      <div
+        ref={ref}
+        role="status"
+        aria-live="polite"
+        className={cn("flex items-center gap-2", className)}
+        {...props}
+      >
+        <Loader2
+          className="h-5 w-5 animate-spin text-primary"
+          aria-hidden="true"
+        />
+        <span className="text-foreground-secondary">{message}</span>
       </div>
     );
-  }
+  },
+);
 
-  // Inline type
-  return (
-    <div className={`flex items-center space-x-2 ${className}`}>
-      <Loader2 className="h-5 w-5 animate-spin text-blue-600" />
-      <span className="text-gray-600 dark:text-gray-400">{message}</span>
-    </div>
-  );
-}
+LoadingState.displayName = "LoadingState";
 
-// Skeleton loading components
 export function SkeletonTable({ rows = 5 }: { rows?: number }) {
   return (
-    <div className="space-y-3">
-      {Array.from({ length: rows }).map((_, i) => (
-        <div key={i} className="flex space-x-4 animate-pulse">
-          <div className="h-12 bg-gray-200 dark:bg-gray-700 rounded w-full"></div>
+    <div className="space-y-3" role="status" aria-live="polite">
+      {Array.from({ length: rows }).map((_, index) => (
+        <div
+          key={index}
+          className="h-12 w-full overflow-hidden rounded-lg bg-bg-overlay"
+        >
+          <div className="h-full w-full animate-shimmer" />
         </div>
       ))}
     </div>
@@ -54,10 +89,20 @@ export function SkeletonTable({ rows = 5 }: { rows?: number }) {
 
 export function SkeletonCard() {
   return (
-    <div className="border rounded-lg p-6 space-y-4 animate-pulse">
-      <div className="h-6 bg-gray-200 dark:bg-gray-700 rounded w-3/4"></div>
-      <div className="h-4 bg-gray-200 dark:bg-gray-700 rounded w-1/2"></div>
-      <div className="h-4 bg-gray-200 dark:bg-gray-700 rounded w-5/6"></div>
+    <div
+      className="space-y-4 rounded-lg border border-border-subtle bg-bg-elevated p-6"
+      role="status"
+      aria-live="polite"
+    >
+      <div className="h-6 w-3/4 overflow-hidden rounded bg-bg-overlay">
+        <div className="h-full w-full animate-shimmer" />
+      </div>
+      <div className="h-4 w-1/2 overflow-hidden rounded bg-bg-overlay">
+        <div className="h-full w-full animate-shimmer" />
+      </div>
+      <div className="h-4 w-5/6 overflow-hidden rounded bg-bg-overlay">
+        <div className="h-full w-full animate-shimmer" />
+      </div>
     </div>
   );
 }

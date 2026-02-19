@@ -45,11 +45,20 @@ test.describe("Compliance Dashboard", () => {
       page.getByRole("heading", { name: /command center/i }),
     ).toBeVisible({ timeout: 10_000 });
 
+    // Sidebar defaults to collapsed; expand it so text links are visible.
+    const expandSidebar = page.getByRole("button", { name: /expand sidebar/i });
+    if (await expandSidebar.isVisible()) {
+      await expandSidebar.click();
+    }
+
     // Navigate through sidebar to obligations
-    await page
-      .getByRole("link", { name: /obligations/i })
-      .first()
-      .click();
-    await expect(page).toHaveURL(/\/compliance\/obligations/);
+    const obligationsLink = page
+      .locator('aside:visible a[href="/compliance/obligations"]')
+      .first();
+    await expect(obligationsLink).toBeVisible({ timeout: 10_000 });
+    await obligationsLink.click();
+    await expect(page).toHaveURL(/\/compliance\/obligations/, {
+      timeout: 10_000,
+    });
   });
 });

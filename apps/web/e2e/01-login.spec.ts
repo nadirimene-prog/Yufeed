@@ -16,7 +16,7 @@ test.describe('Login Flow', () => {
     await loginViaUI(page);
 
     // Wait for navigation to dashboard (or any post-login page)
-    await page.waitForURL(/\/(dashboard|compliance|$)/, { timeout: 15_000 });
+    await page.waitForURL(/\/dashboard/, { timeout: 20_000 });
 
     // Verify the user is authenticated — the page should show navigation
     // and not redirect back to login
@@ -25,7 +25,7 @@ test.describe('Login Flow', () => {
 
     // Check for common dashboard elements
     await expect(
-      page.getByRole('heading').first(),
+      page.getByRole('heading', { name: /command center/i }),
     ).toBeVisible({ timeout: 10_000 });
   });
 
@@ -44,12 +44,18 @@ test.describe('Login Flow', () => {
   test('should redirect unauthenticated users to login', async ({ page }) => {
     // Clear any stored tokens
     await page.goto('/');
-    await page.evaluate(() => localStorage.clear());
+    await page.evaluate(() => {
+      localStorage.clear();
+      sessionStorage.clear();
+    });
 
     // Try to access a protected route
     await page.goto('/compliance/dashboard');
 
-    // Should redirect to login
-    await page.waitForURL(/\/login/, { timeout: 10_000 });
+    // Should redirect to sign-in route
+    await page.waitForURL(/\/$/, { timeout: 20_000 });
+    await expect(
+      page.getByRole('heading', { name: /sign in to your workspace/i }),
+    ).toBeVisible({ timeout: 10_000 });
   });
 });

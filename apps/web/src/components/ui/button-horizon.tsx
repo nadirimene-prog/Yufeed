@@ -87,7 +87,6 @@ const buttonVariants = cva(
 export interface ButtonProps
   extends React.ButtonHTMLAttributes<HTMLButtonElement>,
     VariantProps<typeof buttonVariants> {
-  asChild?: boolean;
   loading?: boolean;
   leftIcon?: React.ReactNode;
   rightIcon?: React.ReactNode;
@@ -100,9 +99,6 @@ const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(
       variant,
       size,
       width,
-      // asChild is reserved for future polymorphic button implementation
-      // eslint-disable-next-line @typescript-eslint/no-unused-vars
-      asChild = false,
       loading = false,
       leftIcon,
       rightIcon,
@@ -119,6 +115,7 @@ const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(
         ref={ref}
         className={cn(buttonVariants({ variant, size, width, className }))}
         disabled={isDisabled}
+        aria-busy={loading || undefined}
         {...props}
       >
         {loading && (
@@ -215,13 +212,7 @@ const ButtonGroup = React.forwardRef<HTMLDivElement, ButtonGroupProps>(
 ButtonGroup.displayName = "ButtonGroup";
 
 /* ─────────────────────────────────────────────────────────────────────────────
-   Animated Button (alias for backward compatibility)
-   ───────────────────────────────────────────────────────────────────────────── */
-
-const AnimatedButton = Button;
-
-/* ─────────────────────────────────────────────────────────────────────────────
    Exports
    ───────────────────────────────────────────────────────────────────────────── */
 
-export { Button, IconButton, ButtonGroup, buttonVariants, AnimatedButton };
+export { Button, IconButton, ButtonGroup, buttonVariants };

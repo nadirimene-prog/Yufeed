@@ -45,27 +45,27 @@ export interface ProgressProps extends React.HTMLAttributes<HTMLDivElement> {
 
 const colorConfig: Record<ProgressColor, { gradient: string; glow: string }> = {
   aurora: {
-    gradient: "from-[#6d5acd] to-[#00d4ff]",
+    gradient: "from-primary to-cyan-500",
     glow: "shadow-[0_0_20px_rgba(109,90,205,0.4)]",
   },
   cyan: {
-    gradient: "from-[#00d4ff] to-[#6d5acd]",
+    gradient: "from-cyan-500 to-primary",
     glow: "shadow-[0_0_20px_rgba(0,212,255,0.4)]",
   },
   green: {
-    gradient: "from-[#06d6a0] to-[#00d4ff]",
+    gradient: "from-risk-low to-cyan-500",
     glow: "shadow-[0_0_20px_rgba(6,214,160,0.4)]",
   },
   yellow: {
-    gradient: "from-[#ffd166] to-[#ff8c42]",
+    gradient: "from-risk-medium to-risk-high",
     glow: "shadow-[0_0_20px_rgba(255,209,102,0.4)]",
   },
   orange: {
-    gradient: "from-[#ff8c42] to-[#ffd166]",
+    gradient: "from-risk-high to-risk-medium",
     glow: "shadow-[0_0_20px_rgba(255,140,66,0.4)]",
   },
   red: {
-    gradient: "from-[#ff3366] to-[#ff8c42]",
+    gradient: "from-risk-critical to-risk-high",
     glow: "shadow-[0_0_20px_rgba(255,51,102,0.4)]",
   },
   purple: {
@@ -234,12 +234,18 @@ function CircularProgress({
   const gradientId = React.useId();
   // Get gradient colors
   const gradientColors = {
-    aurora: { start: "#6d5acd", end: "#00d4ff" },
-    cyan: { start: "#00d4ff", end: "#6d5acd" },
-    green: { start: "#06d6a0", end: "#00d4ff" },
-    yellow: { start: "#ffd166", end: "#ff8c42" },
-    orange: { start: "#ff8c42", end: "#ffd166" },
-    red: { start: "#ff3366", end: "#ff8c42" },
+    aurora: { start: "var(--color-aurora-500)", end: "var(--color-cyan-500)" },
+    cyan: { start: "var(--color-cyan-500)", end: "var(--color-aurora-500)" },
+    green: { start: "var(--color-risk-low)", end: "var(--color-cyan-500)" },
+    yellow: {
+      start: "var(--color-risk-medium)",
+      end: "var(--color-risk-high)",
+    },
+    orange: {
+      start: "var(--color-risk-high)",
+      end: "var(--color-risk-medium)",
+    },
+    red: { start: "var(--color-risk-critical)", end: "var(--color-risk-high)" },
     purple: { start: "#a855f7", end: "#ec4899" },
     gray: { start: "#94a3b8", end: "#64748b" },
   };
@@ -336,14 +342,24 @@ function StepProgress({
 }: StepProgressProps) {
   const colors = colorConfig[color];
   const gradientColors = {
-    aurora: "#6d5acd",
-    cyan: "#00d4ff",
-    green: "#06d6a0",
-    yellow: "#ffd166",
-    orange: "#ff8c42",
-    red: "#ff3366",
+    aurora: "var(--color-aurora-500)",
+    cyan: "var(--color-cyan-500)",
+    green: "var(--color-risk-low)",
+    yellow: "var(--color-risk-medium)",
+    orange: "var(--color-risk-high)",
+    red: "var(--color-risk-critical)",
     purple: "#a855f7",
     gray: "#94a3b8",
+  };
+  const gradientGlowColors = {
+    aurora: "rgba(109, 90, 205, 0.5)",
+    cyan: "rgba(0, 212, 255, 0.5)",
+    green: "rgba(6, 214, 160, 0.45)",
+    yellow: "rgba(255, 209, 102, 0.45)",
+    orange: "rgba(255, 140, 66, 0.45)",
+    red: "rgba(255, 51, 102, 0.5)",
+    purple: "rgba(168, 85, 247, 0.45)",
+    gray: "rgba(148, 163, 184, 0.35)",
   };
 
   return (
@@ -388,10 +404,10 @@ function StepProgress({
                 style={{
                   background:
                     isCompleted || isCurrent
-                      ? `linear-gradient(135deg, ${gradientColors[color]} 0%, #00d4ff 100%)`
+                      ? `linear-gradient(135deg, ${gradientColors[color]} 0%, var(--color-cyan-500) 100%)`
                       : undefined,
                   boxShadow: isCurrent
-                    ? `0 0 20px ${gradientColors[color]}50`
+                    ? `0 0 20px ${gradientGlowColors[color]}`
                     : undefined,
                 }}
                 initial={false}

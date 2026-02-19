@@ -13,6 +13,7 @@ import { complianceKeys, dashboardKeys } from "@/lib/queryKeys";
 import type { ObligationsListResponse } from "@/lib/compliance-api";
 import type { DashboardOverviewResponse } from "@/features/dashboard/types";
 import apiClient from "@/lib/http";
+import type { ComplianceProfile } from "@/types/compliance";
 
 const DASHBOARD_OBLIGATIONS_PARAMS = {
   limit: 10,
@@ -167,6 +168,31 @@ export function useUpdateObligationStatus() {
         updated,
       );
       queryClient.invalidateQueries({ queryKey: complianceKeys.obligations() });
+    },
+  });
+}
+
+export function useComplianceCases(params?: {
+  status?: string;
+  user_id?: string;
+  limit?: number;
+}) {
+  const queryParams = {
+    ...(params?.status ? { status: params.status } : {}),
+    ...(params?.user_id ? { user_id: params.user_id } : {}),
+    ...(typeof params?.limit === "number" ? { limit: params.limit } : {}),
+  };
+
+  return useQuery({
+    queryKey: [...complianceKeys.all, "cases", queryParams] as const,
+    queryFn: async () => {
+      const response = await apiClient.get<ComplianceProfile[]>(
+        "/api/compliance/cases",
+        {
+          params: queryParams,
+        },
+      );
+      return response.data;
     },
   });
 }

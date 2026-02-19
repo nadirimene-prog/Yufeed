@@ -150,8 +150,8 @@ export function BentoCard({
 }: BentoCardProps) {
   const glowClasses = {
     none: "",
-    primary: "hover:shadow-[0_0_30px_rgba(109,90,205,0.2)]",
-    cyan: "hover:shadow-[0_0_30px_rgba(0,212,255,0.2)]",
+    primary: "hover:shadow-glow-aurora",
+    cyan: "hover:shadow-glow-cyan",
   };
 
   return (
@@ -239,7 +239,7 @@ export function BentoStat({
             <span
               className={cn(
                 "ml-2 text-sm font-medium",
-                trend.positive ? "text-[#06d6a0]" : "text-[#ff3366]",
+                trend.positive ? "text-trend-up" : "text-trend-down",
               )}
             >
               {trend.value}

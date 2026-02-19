@@ -1,332 +1,405 @@
 "use client";
 
-import { useState } from "react";
-import { useRouter } from "next/navigation";
-import {
-  Folder,
-  Search,
-  Clock,
-  CheckCircle,
-  AlertTriangle,
-  FileText,
-} from "lucide-react";
+import { type ReactNode, useEffect, useMemo, useState } from "react";
+import Link from "next/link";
+import { AlertTriangle, Clock3, FileText, Folder } from "lucide-react";
 import { useMonitoringCases } from "@/hooks/queries/useMonitoringData";
+import { useCopilot } from "@/components/aml-officer/copilot-context";
+import { LoadingBoundary } from "@/components/shared/LoadingBoundary";
+import { EmptyState } from "@/components/ui/empty-state";
+import {
+  GlassCard,
+  GlassCardContent,
+  GlassCardHeader,
+  GlassCardTitle,
+} from "@/components/ui/glass-card";
+import { MetricCard } from "@/components/ui/metric-card";
+import { Input } from "@/components/ui/input";
+import { Button } from "@/components/ui/button-horizon";
+import { RiskBadge, StatusBadge } from "@/components/ui/badge-horizon";
+import SARPrepDrawer from "@/components/workbench/SARPrepDrawer";
 import type { MonitoringCase } from "@/types/monitoring";
 
+function toRiskLevel(
+  severity: string,
+): "critical" | "high" | "medium" | "low" | "info" {
+  const normalized = severity.toLowerCase();
+  if (normalized === "critical") return "critical";
+  if (normalized === "high") return "high";
+  if (normalized === "medium") return "medium";
+  if (normalized === "low") return "low";
+  return "info";
+}
+
+function toStatusBadgeStatus(
+  status: string,
+):
+  | "draft"
+  | "pending"
+  | "in_review"
+  | "approved"
+  | "rejected"
+  | "active"
+  | "inactive"
+  | "critical"
+  | "warning"
+  | "expired"
+  | "archived" {
+  const normalized = status.toLowerCase();
+  if (normalized === "under_investigation") return "in_review";
+  if (normalized === "escalated") return "warning";
+  if (normalized === "sar_filed") return "critical";
+  if (normalized === "closed") return "approved";
+  if (normalized === "open") return "pending";
+  if (normalized === "pending") return "pending";
+  return "pending";
+}
+
+function relativeDays(value?: string) {
+  if (!value) return "-";
+  const timestamp = new Date(value).getTime();
+  if (Number.isNaN(timestamp)) return "-";
+  const days = Math.max(
+    0,
+    Math.floor((Date.now() - timestamp) / (1000 * 60 * 60 * 24)),
+  );
+  return `${days}d`;
+}
+
 export default function CasesPage() {
-  const router = useRouter();
+  const [selectedCaseId, setSelectedCaseId] = useState<string | null>(null);
+  const [sarDrawerOpen, setSarDrawerOpen] = useState(false);
   const [filters, setFilters] = useState({
     status: "all",
     severity: "all",
     search: "",
   });
 
+  const { setPageContext } = useCopilot();
+  useEffect(() => {
+    setPageContext("Case Management: Review investigation cases");
+  }, [setPageContext]);
+
   const casesQuery = useMonitoringCases({
-    limit: 50,
+    limit: 100,
     ...(filters.status !== "all" ? { status: filters.status } : {}),
-    ...(filters.severity !== "all" ? { severity: filters.severity } : {}),
+    ...(filters.severity !== "all" ? { priority: filters.severity } : {}),
   });
 
-  const cases = casesQuery.data ?? [];
-  const loading = casesQuery.isLoading;
+  const cases = useMemo(() => casesQuery.data ?? [], [casesQuery.data]);
 
-  const filteredCases = cases.filter((caseItem) => {
-    if (filters.search) {
-      const searchLower = filters.search.toLowerCase();
+  const filteredCases = useMemo(() => {
+    const search = filters.search.trim().toLowerCase();
+    if (!search) return cases;
+
+    return cases.filter((caseItem) => {
       return (
-        caseItem.case_id.toLowerCase().includes(searchLower) ||
-        caseItem.subject_id?.toLowerCase().includes(searchLower) ||
-        caseItem.description?.toLowerCase().includes(searchLower)
+        caseItem.case_id.toLowerCase().includes(search) ||
+        (caseItem.subject_id ?? "").toLowerCase().includes(search) ||
+        (caseItem.description ?? "").toLowerCase().includes(search) ||
+        (caseItem.summary ?? "").toLowerCase().includes(search)
       );
-    }
-    return true;
-  });
+    });
+  }, [cases, filters.search]);
 
-  const statusColors = {
-    open: "bg-blue-100 text-blue-800 dark:bg-blue-900/20 dark:text-blue-400",
-    under_investigation:
-      "bg-yellow-100 text-yellow-800 dark:bg-yellow-900/20 dark:text-yellow-400",
-    escalated:
-      "bg-orange-100 text-orange-800 dark:bg-orange-900/20 dark:text-orange-400",
-    closed: "bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-300",
-    sar_filed: "bg-red-100 text-red-800 dark:bg-red-900/20 dark:text-red-400",
-  } as const;
-
-  const severityColors = {
-    critical: "border-red-500",
-    high: "border-orange-500",
-    medium: "border-yellow-500",
-    low: "border-blue-500",
-  } as const;
-
-  if (loading) {
+  const selectedCase = useMemo(() => {
+    if (filteredCases.length === 0) return null;
+    if (!selectedCaseId) return filteredCases[0];
     return (
-      <div className="flex items-center justify-center min-h-screen">
-        <div className="text-center">
-          <Folder className="h-12 w-12 animate-spin mx-auto mb-4 text-blue-600" />
-          <p className="text-lg text-gray-700 dark:text-gray-300">
-            Loading cases...
-          </p>
-        </div>
-      </div>
+      filteredCases.find((item) => item.case_id === selectedCaseId) ??
+      filteredCases[0]
     );
-  }
+  }, [filteredCases, selectedCaseId]);
 
   return (
-    <div className="min-h-screen bg-gray-50 dark:bg-gray-900 p-6">
-      <div className="max-w-7xl mx-auto">
-        {/* Header */}
-        <div className="mb-8">
-          <h1 className="text-3xl font-bold text-gray-900 dark:text-white mb-2">
-            Case Management
-          </h1>
-          <p className="text-gray-600 dark:text-gray-400">
-            Manage AML/CFT investigation cases
-          </p>
-        </div>
+    <div className="space-y-6 bg-bg-base text-foreground">
+      <header className="space-y-1">
+        <h1 className="text-3xl font-display font-semibold">Case Management</h1>
+        <p className="text-foreground-secondary">
+          Review, escalate, and resolve investigation cases.
+        </p>
+      </header>
 
-        {/* Filters */}
-        <div className="bg-white dark:bg-gray-800 rounded-lg shadow p-4 mb-6">
-          <div className="flex flex-col lg:flex-row gap-4">
-            {/* Search */}
-            <div className="flex-1">
-              <div className="relative">
-                <Search className="absolute left-3 top-3 h-5 w-5 text-gray-400" />
-                <input
-                  type="text"
-                  placeholder="Search cases, subjects, or descriptions..."
-                  className="w-full pl-10 pr-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
-                  value={filters.search}
-                  onChange={(e) =>
-                    setFilters((prev) => ({ ...prev, search: e.target.value }))
+      <section className="grid grid-cols-1 gap-4 md:grid-cols-4">
+        <MetricCard
+          title="Total Cases"
+          value={cases.length}
+          color="blue"
+          icon={<Folder className="h-5 w-5" />}
+        />
+        <MetricCard
+          title="Open"
+          value={
+            cases.filter(
+              (c) => c.status === "open" || c.status === "under_investigation",
+            ).length
+          }
+          color="yellow"
+          icon={<Clock3 className="h-5 w-5" />}
+        />
+        <MetricCard
+          title="Escalated"
+          value={cases.filter((c) => c.status === "escalated").length}
+          color="orange"
+          icon={<AlertTriangle className="h-5 w-5" />}
+        />
+        <MetricCard
+          title="SAR Filed"
+          value={cases.filter((c) => c.status === "sar_filed").length}
+          color="red"
+          icon={<FileText className="h-5 w-5" />}
+          glow
+        />
+      </section>
+
+      <section className="grid gap-4 lg:grid-cols-[420px_1fr]">
+        <GlassCard className="h-[calc(100vh-16rem)] overflow-hidden">
+          <GlassCardHeader className="space-y-3">
+            <GlassCardTitle className="text-base">Case Queue</GlassCardTitle>
+            <div className="grid gap-2">
+              <Input
+                placeholder="Search by case, entity, description..."
+                value={filters.search}
+                onChange={(event) =>
+                  setFilters((current) => ({
+                    ...current,
+                    search: event.target.value,
+                  }))
+                }
+              />
+              <div className="grid grid-cols-2 gap-2">
+                <select
+                  className="h-10 rounded-lg border border-border-default bg-bg-overlay px-3 text-sm"
+                  value={filters.status}
+                  onChange={(event) =>
+                    setFilters((current) => ({
+                      ...current,
+                      status: event.target.value,
+                    }))
                   }
-                />
+                >
+                  <option value="all">All statuses</option>
+                  <option value="open">Open</option>
+                  <option value="under_investigation">
+                    Under Investigation
+                  </option>
+                  <option value="escalated">Escalated</option>
+                  <option value="closed">Closed</option>
+                  <option value="sar_filed">SAR Filed</option>
+                </select>
+
+                <select
+                  className="h-10 rounded-lg border border-border-default bg-bg-overlay px-3 text-sm"
+                  value={filters.severity}
+                  onChange={(event) =>
+                    setFilters((current) => ({
+                      ...current,
+                      severity: event.target.value,
+                    }))
+                  }
+                >
+                  <option value="all">All severities</option>
+                  <option value="critical">Critical</option>
+                  <option value="high">High</option>
+                  <option value="medium">Medium</option>
+                  <option value="low">Low</option>
+                </select>
               </div>
             </div>
+          </GlassCardHeader>
 
-            {/* Status Filter */}
-            <select
-              className="px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
-              value={filters.status}
-              onChange={(e) =>
-                setFilters((prev) => ({ ...prev, status: e.target.value }))
-              }
+          <GlassCardContent className="h-[calc(100%-12rem)] overflow-auto">
+            <LoadingBoundary
+              loading={casesQuery.isLoading}
+              error={casesQuery.error as Error | undefined}
+              isEmpty={filteredCases.length === 0}
+              emptyMessage="No cases found"
+              emptyDescription="Try adjusting filters or search terms."
+              minHeight="220px"
             >
-              <option value="all">All Statuses</option>
-              <option value="open">Open</option>
-              <option value="under_investigation">Under Investigation</option>
-              <option value="escalated">Escalated</option>
-              <option value="closed">Closed</option>
-              <option value="sar_filed">SAR Filed</option>
-            </select>
+              <div className="space-y-2">
+                {filteredCases.map((caseItem) => (
+                  <CaseQueueRow
+                    key={caseItem.case_id}
+                    caseItem={caseItem}
+                    active={selectedCase?.case_id === caseItem.case_id}
+                    onSelect={setSelectedCaseId}
+                  />
+                ))}
+              </div>
+            </LoadingBoundary>
+          </GlassCardContent>
+        </GlassCard>
 
-            {/* Severity Filter */}
-            <select
-              className="px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
-              value={filters.severity}
-              onChange={(e) =>
-                setFilters((prev) => ({ ...prev, severity: e.target.value }))
-              }
-            >
-              <option value="all">All Severities</option>
-              <option value="critical">Critical</option>
-              <option value="high">High</option>
-              <option value="medium">Medium</option>
-              <option value="low">Low</option>
-            </select>
-          </div>
-        </div>
-
-        {/* Stats */}
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
-          <StatCard
-            title="Total Cases"
-            value={cases.length}
-            icon={<Folder className="h-5 w-5" />}
-            color="blue"
-          />
-          <StatCard
-            title="Open"
-            value={
-              cases.filter(
-                (c) =>
-                  c.status === "open" || c.status === "under_investigation",
-              ).length
-            }
-            icon={<Clock className="h-5 w-5" />}
-            color="yellow"
-          />
-          <StatCard
-            title="Escalated"
-            value={cases.filter((c) => c.status === "escalated").length}
-            icon={<AlertTriangle className="h-5 w-5" />}
-            color="orange"
-          />
-          <StatCard
-            title="SAR Filed"
-            value={cases.filter((c) => c.status === "sar_filed").length}
-            icon={<FileText className="h-5 w-5" />}
-            color="red"
-          />
-        </div>
-
-        {/* Cases List */}
-        <div className="space-y-3">
-          {filteredCases.length === 0 ? (
-            <div className="bg-white dark:bg-gray-800 rounded-lg shadow p-12 text-center">
-              <CheckCircle className="h-16 w-16 mx-auto mb-4 text-green-500" />
-              <p className="text-xl font-semibold text-gray-900 dark:text-white mb-2">
-                No cases found
-              </p>
-              <p className="text-gray-600 dark:text-gray-400">
-                Try adjusting your filters or search criteria
-              </p>
-            </div>
-          ) : (
-            filteredCases.map((caseItem) => (
-              <CaseCard
-                key={caseItem.id}
-                caseItem={caseItem}
-                onClick={() => router.push(`/cases/${caseItem.case_id}`)}
-                statusColors={statusColors}
-                severityColors={severityColors}
+        <GlassCard className="h-[calc(100vh-16rem)] overflow-auto">
+          <GlassCardHeader>
+            <GlassCardTitle className="text-base">Case Detail</GlassCardTitle>
+          </GlassCardHeader>
+          <GlassCardContent>
+            {!selectedCase ? (
+              <EmptyState
+                title="No case selected"
+                description="Select a case from the queue to inspect details and actions."
+                variant="no-results"
+                compact
               />
-            ))
-          )}
-        </div>
-      </div>
+            ) : (
+              <div className="space-y-4">
+                <div className="flex flex-wrap items-center gap-2">
+                  <span className="font-mono text-sm font-semibold">
+                    {selectedCase.case_id}
+                  </span>
+                  <RiskBadge level={toRiskLevel(selectedCase.severity)}>
+                    {selectedCase.severity}
+                  </RiskBadge>
+                  <StatusBadge
+                    status={toStatusBadgeStatus(selectedCase.status)}
+                  >
+                    {selectedCase.status.replaceAll("_", " ")}
+                  </StatusBadge>
+                  {selectedCase.outcome ? (
+                    <StatusBadge status="active">
+                      {selectedCase.outcome}
+                    </StatusBadge>
+                  ) : null}
+                </div>
+
+                <div className="grid gap-3 md:grid-cols-2">
+                  <Info
+                    label="Type"
+                    value={selectedCase.case_type.replaceAll("_", " ")}
+                  />
+                  <Info
+                    label="Opened"
+                    value={new Date(selectedCase.opened_at).toLocaleString()}
+                  />
+                  <Info
+                    label="Entity"
+                    value={
+                      selectedCase.subject_id ? (
+                        <Link
+                          href={`/entities/user/${selectedCase.subject_id}`}
+                          className="text-primary hover:underline"
+                        >
+                          {selectedCase.subject_id}
+                        </Link>
+                      ) : (
+                        "-"
+                      )
+                    }
+                  />
+                  <Info
+                    label="Subject Type"
+                    value={selectedCase.subject_type ?? "-"}
+                  />
+                  <Info
+                    label="Assigned To"
+                    value={selectedCase.assigned_to ?? "Unassigned"}
+                  />
+                  <Info
+                    label="Open Duration"
+                    value={relativeDays(selectedCase.opened_at)}
+                  />
+                </div>
+
+                {(selectedCase.summary || selectedCase.description) && (
+                  <div className="rounded-lg border border-border-subtle bg-bg-overlay p-3 text-sm text-foreground-secondary">
+                    {selectedCase.summary ?? selectedCase.description}
+                  </div>
+                )}
+
+                <div className="grid gap-3 md:grid-cols-2">
+                  <Info
+                    label="Linked Alerts"
+                    value={selectedCase.related_alert_ids?.length ?? 0}
+                  />
+                  <Info
+                    label="Linked Transactions"
+                    value={selectedCase.related_transaction_ids?.length ?? 0}
+                  />
+                </div>
+
+                <div className="flex flex-wrap gap-2">
+                  <Link href={`/cases/${selectedCase.case_id}`}>
+                    <Button variant="glass">Open Full Case</Button>
+                  </Link>
+                  <Button
+                    variant="secondary"
+                    onClick={() => setSarDrawerOpen(true)}
+                  >
+                    Prepare SAR
+                  </Button>
+                  {selectedCase.subject_id ? (
+                    <Link href={`/entities/user/${selectedCase.subject_id}`}>
+                      <Button variant="secondary">Open Entity Profile</Button>
+                    </Link>
+                  ) : null}
+                </div>
+              </div>
+            )}
+          </GlassCardContent>
+        </GlassCard>
+      </section>
+
+      <SARPrepDrawer
+        open={sarDrawerOpen}
+        onOpenChange={setSarDrawerOpen}
+        caseId={selectedCase?.case_id}
+        entityId={selectedCase?.subject_id}
+      />
     </div>
   );
 }
 
-function StatCard({
-  title,
-  value,
-  icon,
-  color,
-}: {
-  title: string;
-  value: number;
-  icon: React.ReactNode;
-  color: "blue" | "yellow" | "orange" | "red";
-}) {
-  const colorClasses = {
-    blue: "text-blue-600 bg-blue-50 dark:bg-blue-900/20",
-    yellow: "text-yellow-600 bg-yellow-50 dark:bg-yellow-900/20",
-    orange: "text-orange-600 bg-orange-50 dark:bg-orange-900/20",
-    red: "text-red-600 bg-red-50 dark:bg-red-900/20",
-  };
-
+function Info({ label, value }: { label: string; value: ReactNode }) {
   return (
-    <div className="bg-white dark:bg-gray-800 rounded-lg shadow p-4">
-      <div className="flex items-center justify-between">
-        <div>
-          <p className="text-sm text-gray-600 dark:text-gray-400 mb-1">
-            {title}
-          </p>
-          <p className="text-2xl font-bold text-gray-900 dark:text-white">
-            {value}
-          </p>
-        </div>
-        <div className={`p-3 rounded-lg ${colorClasses[color]}`}>{icon}</div>
-      </div>
+    <div className="rounded-lg border border-border-subtle bg-bg-overlay p-3 text-sm">
+      <p className="mb-1 text-xs uppercase tracking-wide text-foreground-tertiary">
+        {label}
+      </p>
+      <p className="text-foreground">{value}</p>
     </div>
   );
 }
 
-type StatusColors = Record<string, string>;
-type SeverityColors = Record<string, string>;
-
-function CaseCard({
+function CaseQueueRow({
   caseItem,
-  onClick,
-  statusColors,
-  severityColors,
+  active,
+  onSelect,
 }: {
   caseItem: MonitoringCase;
-  onClick: () => void;
-  statusColors: StatusColors;
-  severityColors: SeverityColors;
+  active: boolean;
+  onSelect: (caseId: string) => void;
 }) {
-  const daysSinceOpened = Math.floor(
-    (new Date().getTime() - new Date(caseItem.opened_at).getTime()) /
-      (1000 * 60 * 60 * 24),
-  );
-
   return (
-    <div
-      onClick={onClick}
-      className={`bg-white dark:bg-gray-800 rounded-lg shadow p-4 hover:bg-gray-50 dark:hover:bg-gray-700/50 transition cursor-pointer border-l-4 ${severityColors[caseItem.severity as keyof typeof severityColors]}`}
+    <button
+      type="button"
+      onClick={() => onSelect(caseItem.case_id)}
+      className={`w-full rounded-lg border p-3 text-left transition ${
+        active
+          ? "border-primary/60 bg-primary/10"
+          : "border-border-subtle bg-bg-overlay hover:border-border-default"
+      }`}
     >
-      <div className="flex items-start justify-between mb-3">
-        <div className="flex-1">
-          <div className="flex items-center gap-2 mb-2">
-            <span className="text-base font-mono font-semibold text-gray-900 dark:text-white">
-              {caseItem.case_id}
-            </span>
-            <span
-              className={`text-xs px-2 py-1 rounded-full ${statusColors[caseItem.status as keyof typeof statusColors]}`}
-            >
-              {caseItem.status.replace(/_/g, " ")}
-            </span>
-            {caseItem.outcome && (
-              <span className="text-xs px-2 py-1 rounded-full bg-gray-100 text-gray-700 dark:bg-gray-700 dark:text-gray-300">
-                {caseItem.outcome}
-              </span>
-            )}
-          </div>
-
-          <p className="text-base font-medium text-gray-900 dark:text-white mb-1">
-            {caseItem.case_type.replace(/_/g, " ").toUpperCase()}
+      <div className="space-y-1">
+        <div className="flex items-center justify-between gap-2">
+          <p className="truncate font-mono text-sm font-medium">
+            {caseItem.case_id}
           </p>
-
-          {caseItem.subject_id && (
-            <p className="text-sm text-gray-600 dark:text-gray-400">
-              Subject: {caseItem.subject_type} - {caseItem.subject_id}
-            </p>
-          )}
-
-          {(caseItem.description || caseItem.summary) && (
-            <p className="text-sm text-gray-600 dark:text-gray-400 mt-2 line-clamp-2">
-              {caseItem.summary ?? caseItem.description}
-            </p>
-          )}
+          <RiskBadge level={toRiskLevel(caseItem.severity)}>
+            {caseItem.severity}
+          </RiskBadge>
         </div>
-
-        <div className="text-right ml-4">
-          <div className="text-sm font-semibold text-gray-900 dark:text-white mb-1">
-            {caseItem.severity.toUpperCase()}
-          </div>
-          <div className="text-xs text-gray-500 dark:text-gray-400">
-            {daysSinceOpened}d open
-          </div>
-        </div>
-      </div>
-
-      <div className="flex items-center justify-between pt-3 border-t border-gray-200 dark:border-gray-700">
-        <div className="flex items-center gap-4 text-xs text-gray-500 dark:text-gray-400">
-          <span>
-            Opened: {new Date(caseItem.opened_at).toLocaleDateString()}
+        <p className="truncate text-xs text-foreground-secondary">
+          {caseItem.case_type.replaceAll("_", " ")}
+        </p>
+        <div className="flex items-center justify-between gap-2 text-xs text-foreground-tertiary">
+          <span className="truncate">
+            {caseItem.subject_id ?? "No subject"}
           </span>
-          {caseItem.closed_at && (
-            <span>
-              Closed: {new Date(caseItem.closed_at).toLocaleDateString()}
-            </span>
-          )}
-        </div>
-
-        <div className="flex items-center gap-4 text-xs text-gray-600 dark:text-gray-400">
-          {caseItem.related_alert_ids && (
-            <span>{caseItem.related_alert_ids.length} alerts</span>
-          )}
-          {caseItem.related_transaction_ids && (
-            <span>{caseItem.related_transaction_ids.length} txs</span>
-          )}
-          {caseItem.assigned_to && (
-            <span>Assigned: {caseItem.assigned_to}</span>
-          )}
+          <span>{relativeDays(caseItem.opened_at)}</span>
         </div>
       </div>
-    </div>
+    </button>
   );
 }

@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
 import {
   ArrowLeft,
@@ -12,6 +13,7 @@ import {
 import { fetchWithAuth } from "@/lib/auth";
 import { getApiBaseUrl } from "@/lib/apiBaseUrl";
 import { logger } from "@/lib/logger";
+import { useWorkspaceUsers } from "@/hooks/queries/useSpecializedData";
 
 const API_URL = getApiBaseUrl();
 
@@ -69,6 +71,7 @@ export default function AlertDetailPage() {
   const [regulations, setRegulations] = useState<Regulation[]>([]);
   const [loading, setLoading] = useState(true);
   const [triaging, setTriaging] = useState(false);
+  const workspaceUsersQuery = useWorkspaceUsers();
 
   useEffect(() => {
     fetchAlertDetails();
@@ -328,9 +331,12 @@ export default function AlertDetailPage() {
                     <p className="text-sm text-gray-600 dark:text-gray-400 mb-1">
                       User ID
                     </p>
-                    <p className="text-gray-900 dark:text-white font-mono">
+                    <Link
+                      href={`/entities/user/${alert.user_id}`}
+                      className="text-gray-900 dark:text-white font-mono hover:text-blue-500 hover:underline"
+                    >
                       {alert.user_id}
-                    </p>
+                    </Link>
                   </div>
                   <div>
                     <p className="text-sm text-gray-600 dark:text-gray-400 mb-1">
@@ -559,9 +565,11 @@ export default function AlertDetailPage() {
                   <option value="" disabled>
                     Assign to...
                   </option>
-                  <option value="analyst1">Analyst 1</option>
-                  <option value="analyst2">Analyst 2</option>
-                  <option value="senior_analyst">Senior Analyst</option>
+                  {(workspaceUsersQuery.data ?? []).map((user) => (
+                    <option key={user.user_id} value={user.user_id}>
+                      {user.user_id}
+                    </option>
+                  ))}
                 </select>
 
                 <button

@@ -75,58 +75,58 @@ const colorConfig: Record<
   }
 > = {
   aurora: {
-    icon: "text-[#6d5acd] bg-[#6d5acd]/10",
-    glow: "shadow-[0_0_20px_rgba(109,90,205,0.3)]",
-    progress: "from-[#6d5acd] to-[#00d4ff]",
-    sparkline: "#6d5acd",
+    icon: "text-primary bg-primary/10",
+    glow: "shadow-glow-aurora",
+    progress: "from-primary to-cyan-500",
+    sparkline: "aurora",
   },
   blue: {
-    icon: "text-blue-500 bg-blue-500/10",
-    glow: "shadow-[0_0_20px_rgba(59,130,246,0.25)]",
-    progress: "from-blue-500 to-cyan-400",
-    sparkline: "#3b82f6",
+    icon: "text-info-500 bg-info-500/10",
+    glow: "shadow-glow-cyan",
+    progress: "from-info-500 to-cyan-400",
+    sparkline: "cyan",
   },
   cyan: {
-    icon: "text-[#00d4ff] bg-[#00d4ff]/10",
-    glow: "shadow-[0_0_20px_rgba(0,212,255,0.3)]",
-    progress: "from-[#00d4ff] to-[#6d5acd]",
-    sparkline: "#00d4ff",
+    icon: "text-cyan-500 bg-cyan-500/10",
+    glow: "shadow-glow-cyan",
+    progress: "from-cyan-500 to-primary",
+    sparkline: "cyan",
   },
   green: {
-    icon: "text-[#06d6a0] bg-[#06d6a0]/10",
+    icon: "text-risk-low bg-risk-low/10",
     glow: "shadow-[0_0_20px_rgba(6,214,160,0.3)]",
-    progress: "from-[#06d6a0] to-[#00d4ff]",
-    sparkline: "#06d6a0",
+    progress: "from-risk-low to-cyan-500",
+    sparkline: "green",
   },
   yellow: {
-    icon: "text-[#ffd166] bg-[#ffd166]/10",
+    icon: "text-risk-medium bg-risk-medium/10",
     glow: "shadow-[0_0_20px_rgba(255,209,102,0.3)]",
-    progress: "from-[#ffd166] to-[#ff8c42]",
-    sparkline: "#ffd166",
+    progress: "from-risk-medium to-risk-high",
+    sparkline: "yellow",
   },
   orange: {
-    icon: "text-[#ff8c42] bg-[#ff8c42]/10",
+    icon: "text-risk-high bg-risk-high/10",
     glow: "shadow-[0_0_20px_rgba(255,140,66,0.3)]",
-    progress: "from-[#ff8c42] to-[#ffd166]",
-    sparkline: "#ff8c42",
+    progress: "from-risk-high to-risk-medium",
+    sparkline: "orange",
   },
   red: {
-    icon: "text-[#ff3366] bg-[#ff3366]/10",
-    glow: "shadow-[0_0_20px_rgba(255,51,102,0.3)]",
-    progress: "from-[#ff3366] to-[#ff8c42]",
-    sparkline: "#ff3366",
+    icon: "text-risk-critical bg-risk-critical/10",
+    glow: "shadow-glow-critical",
+    progress: "from-risk-critical to-risk-high",
+    sparkline: "red",
   },
   purple: {
-    icon: "text-purple-500 bg-purple-500/10",
-    glow: "shadow-[0_0_20px_rgba(168,85,247,0.3)]",
-    progress: "from-purple-500 to-pink-500",
-    sparkline: "#a855f7",
+    icon: "text-primary bg-primary/10",
+    glow: "shadow-glow-aurora",
+    progress: "from-primary to-secondary",
+    sparkline: "aurora",
   },
   gray: {
-    icon: "text-gray-400 bg-gray-400/10",
+    icon: "text-foreground-tertiary bg-foreground-tertiary/10",
     glow: "shadow-[0_0_15px_rgba(148,163,184,0.2)]",
-    progress: "from-gray-400 to-gray-500",
-    sparkline: "#94a3b8",
+    progress: "from-foreground-tertiary to-foreground-secondary",
+    sparkline: "gray",
   },
 };
 
@@ -155,9 +155,9 @@ const sizeConfig = {
 };
 
 const statusColors = {
-  live: "bg-[#06d6a0]",
-  stale: "bg-[#ffd166]",
-  error: "bg-[#ff3366]",
+  live: "bg-risk-low",
+  stale: "bg-risk-medium",
+  error: "bg-risk-critical",
 };
 
 export function MetricCard({
@@ -192,10 +192,16 @@ export function MetricCard({
 
   const trendColor =
     trend?.direction === "up"
-      ? "text-[#06d6a0]"
+      ? "text-trend-up"
       : trend?.direction === "down"
-        ? "text-[#ff3366]"
-        : "text-gray-400";
+        ? "text-trend-down"
+        : "text-trend-neutral";
+  const trendAriaLabel =
+    trend?.direction === "up"
+      ? "trending up"
+      : trend?.direction === "down"
+        ? "trending down"
+        : "no change";
 
   // Parse value for animation
   const numericValue =
@@ -255,7 +261,11 @@ export function MetricCard({
 
       {/* Status indicator */}
       {status && (
-        <div className="absolute top-3 right-3 flex items-center gap-1.5">
+        <div
+          className="absolute top-3 right-3 flex items-center gap-1.5"
+          role="status"
+          aria-label={`metric status ${status}`}
+        >
           <span
             className={cn(
               "h-2 w-2 rounded-full",
@@ -292,6 +302,7 @@ export function MetricCard({
                   color={colors.sparkline}
                   width={variant === "hero" ? 120 : 80}
                   height={variant === "hero" ? 40 : 28}
+                  ariaLabel={`${title} trend`}
                 />
               </div>
             )}
@@ -299,7 +310,13 @@ export function MetricCard({
 
           {/* Progress bar */}
           {typeof progress === "number" && (
-            <div className="mt-3 h-1.5 w-full rounded-full bg-white/5 overflow-hidden">
+            <div
+              className="mt-3 h-1.5 w-full overflow-hidden rounded-full bg-white/5"
+              role="progressbar"
+              aria-valuenow={Math.min(100, Math.max(0, progress))}
+              aria-valuemin={0}
+              aria-valuemax={100}
+            >
               <motion.div
                 className={cn(
                   "h-full rounded-full bg-gradient-to-r",
@@ -315,7 +332,7 @@ export function MetricCard({
           {/* Trend */}
           {trend && (
             <div className={cn("flex items-center gap-1.5 mt-2", trendColor)}>
-              <TrendIcon className="h-3.5 w-3.5" />
+              <TrendIcon className="h-3.5 w-3.5" aria-label={trendAriaLabel} />
               <span className="text-sm font-medium font-mono">
                 {trend.value}
               </span>

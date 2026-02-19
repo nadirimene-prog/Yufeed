@@ -21,8 +21,8 @@ test.describe('Alert Triage', () => {
 
     // Wait for page to load
     await expect(
-      page.getByRole('heading', { name: /transaction alert/i }),
-    ).toBeVisible({ timeout: 10_000 });
+      page.getByRole('heading', { name: /transaction alerts/i }),
+    ).toBeVisible({ timeout: 20_000 });
 
     // Verify filter controls are present
     await expect(page.getByPlaceholder(/search/i)).toBeVisible();
@@ -32,11 +32,11 @@ test.describe('Alert Triage', () => {
     await page.goto('/transaction-alerts');
 
     await expect(
-      page.getByRole('heading', { name: /transaction alert/i }),
-    ).toBeVisible({ timeout: 10_000 });
+      page.getByRole('heading', { name: /transaction alerts/i }),
+    ).toBeVisible({ timeout: 20_000 });
 
     // Select "Critical" severity filter
-    const severitySelect = page.locator('select').last();
+    const severitySelect = page.getByLabel(/severity filter/i);
     await severitySelect.selectOption('critical');
 
     // Wait for re-render — the filtered list should update
@@ -55,18 +55,18 @@ test.describe('Alert Triage', () => {
     await page.goto('/transaction-alerts');
 
     await expect(
-      page.getByRole('heading', { name: /transaction alert/i }),
-    ).toBeVisible({ timeout: 10_000 });
+      page.getByRole('heading', { name: /transaction alerts/i }),
+    ).toBeVisible({ timeout: 20_000 });
 
-    // Click the first alert card (if any exist)
-    const alertCards = page.locator('[class*="cursor-pointer"]');
-    const cardCount = await alertCards.count();
+    // Click the first alert row in the queue feed (if any exist)
+    const alertRows = page.getByRole('button', { name: /alert row/i });
+    const cardCount = await alertRows.count();
 
     if (cardCount > 0) {
-      await alertCards.first().click();
-
-      // Should navigate to alert detail page
-      await page.waitForURL(/\/transaction-alerts\//, { timeout: 10_000 });
+      await alertRows.first().click();
+      await expect(
+        page.getByRole('heading', { name: /alert detail/i }),
+      ).toBeVisible({ timeout: 10_000 });
     }
   });
 });

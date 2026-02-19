@@ -1,6 +1,6 @@
 from fastapi import APIRouter, Depends, HTTPException, Query, Request
 from sqlalchemy.orm import Session
-from typing import Optional, Dict, Any
+from typing import Optional, Dict, Any, List
 from datetime import datetime
 import logging
 from src.database import get_db
@@ -10,12 +10,28 @@ from src.schemas import transaction_schemas
 from src.search import search_documents
 from src.ingestion.diff_analyzer import DiffAnalyzer
 from src.auth.dependencies import get_current_user
+from src.models.transaction_models import Alert, Case, MonitoringRule, UserRiskProfile
 from src.tenancy.queries import require_tenant
 from src.middleware import limiter, RateLimits
+from pydantic import BaseModel
 
 router = APIRouter(dependencies=[Depends(get_current_user), Depends(require_tenant)])
 
 logger = logging.getLogger(__name__)
+
+
+class OmniscientSearchItem(BaseModel):
+    id: str
+    type: str
+    title: str
+    subtitle: Optional[str] = None
+    href: str
+
+
+class OmniscientSearchResponse(BaseModel):
+    query: str
+    scope: str
+    results: List[OmniscientSearchItem]
 
 
 @router.get("/search", response_model=schemas.SearchResponse)
@@ -51,6 +67,209 @@ def search_api(
     )
 
     return results
+
+
+@router.get("/search/omniscient", response_model=OmniscientSearchResponse)
+@limiter.limit(RateLimits.SEARCH)
+def omniscient_search(
+    request: Request,
+    q: str = Query(..., min_length=1, max_length=200),
+    scope: str = Query("all", description="Search scope: all|entities|alerts|cases|rules"),
+    limit: int = Query(20, ge=1, le=100),
+    db: Session = Depends(get_db),
+):
+    """
+    Tenant-scoped omniscient search for command palette navigation.
+
+    Returns normalized hits across entities, alerts, cases, and monitoring rules.
+    """
+    normalized_scope = scope.lower()
+    allowed_scopes = {"all", "entities", "alerts", "cases", "rules"}
+    if normalized_scope not in allowed_scopes:
+        raise HTTPException(status_code=400, detail=f"Unsupported scope: {scope}")
+
+    needle = f"%{q.strip()}%"
+    if needle == "%%":
+        return OmniscientSearchResponse(query=q, scope=normalized_scope, results=[])
+
+    tenant_id = require_tenant()
+    results: list[OmniscientSearchItem] = []
+
+    if normalized_scope in {"all", "entities"}:
+        # Entity candidates from user risk profiles first, then alert/case subjects.
+        risk_profiles = (
+            db.query(UserRiskProfile)
+            .filter(
+                UserRiskProfile.tenant_id == tenant_id,
+                UserRiskProfile.user_id.ilike(needle),
+            )
+            .order_by(UserRiskProfile.updated_at.desc())
+            .limit(limit)
+            .all()
+        )
+
+        seen_entity_ids: set[str] = set()
+        for profile in risk_profiles:
+            seen_entity_ids.add(profile.user_id)
+            results.append(
+                OmniscientSearchItem(
+                    id=profile.user_id,
+                    type="entity",
+                    title=profile.user_id,
+                    subtitle=f"Risk {profile.risk_level or 'unknown'}",
+                    href=f"/entities/user/{profile.user_id}",
+                )
+            )
+
+        if len(results) < limit:
+            alert_entities = (
+                db.query(Alert.user_id)
+                .filter(
+                    Alert.tenant_id == tenant_id,
+                    Alert.user_id.isnot(None),
+                    Alert.user_id.ilike(needle),
+                )
+                .distinct()
+                .limit(limit)
+                .all()
+            )
+            for (user_id,) in alert_entities:
+                if not user_id or user_id in seen_entity_ids:
+                    continue
+                seen_entity_ids.add(user_id)
+                results.append(
+                    OmniscientSearchItem(
+                        id=user_id,
+                        type="entity",
+                        title=user_id,
+                        subtitle="Entity from alert activity",
+                        href=f"/entities/user/{user_id}",
+                    )
+                )
+                if len(results) >= limit:
+                    break
+
+            if len(results) < limit:
+                case_entities = (
+                    db.query(Case.subject_id)
+                    .filter(
+                        Case.tenant_id == tenant_id,
+                        Case.subject_id.isnot(None),
+                        Case.subject_id.ilike(needle),
+                    )
+                    .distinct()
+                    .limit(limit)
+                    .all()
+                )
+                for (subject_id,) in case_entities:
+                    if not subject_id or subject_id in seen_entity_ids:
+                        continue
+                    seen_entity_ids.add(subject_id)
+                    results.append(
+                        OmniscientSearchItem(
+                            id=subject_id,
+                            type="entity",
+                            title=subject_id,
+                            subtitle="Entity from case activity",
+                            href=f"/entities/user/{subject_id}",
+                        )
+                    )
+                    if len(results) >= limit:
+                        break
+
+    if normalized_scope in {"all", "alerts"} and len(results) < limit:
+        alert_hits = (
+            db.query(Alert)
+            .filter(
+                Alert.tenant_id == tenant_id,
+                (
+                    Alert.alert_id.ilike(needle)
+                    | Alert.alert_type.ilike(needle)
+                    | Alert.user_id.ilike(needle)
+                ),
+            )
+            .order_by(Alert.created_at.desc())
+            .limit(limit)
+            .all()
+        )
+        for alert in alert_hits:
+            results.append(
+                OmniscientSearchItem(
+                    id=alert.alert_id,
+                    type="alert",
+                    title=alert.alert_id,
+                    subtitle=f"{alert.alert_type} · {alert.user_id}",
+                    href=f"/transaction-alerts?search={alert.alert_id}",
+                )
+            )
+            if len(results) >= limit:
+                break
+
+    if normalized_scope in {"all", "cases"} and len(results) < limit:
+        case_hits = (
+            db.query(Case)
+            .filter(
+                Case.tenant_id == tenant_id,
+                (
+                    Case.case_id.ilike(needle)
+                    | Case.subject_id.ilike(needle)
+                    | Case.title.ilike(needle)
+                ),
+            )
+            .order_by(Case.updated_at.desc(), Case.opened_at.desc())
+            .limit(limit)
+            .all()
+        )
+        for case in case_hits:
+            results.append(
+                OmniscientSearchItem(
+                    id=case.case_id,
+                    type="case",
+                    title=case.case_id,
+                    subtitle=f"{case.status} · {case.subject_id or 'no subject'}",
+                    href=f"/cases?search={case.case_id}",
+                )
+            )
+            if len(results) >= limit:
+                break
+
+    if normalized_scope in {"all", "rules"} and len(results) < limit:
+        rule_hits = (
+            db.query(MonitoringRule)
+            .filter(
+                MonitoringRule.tenant_id == tenant_id,
+                (MonitoringRule.rule_id.ilike(needle) | MonitoringRule.name.ilike(needle)),
+            )
+            .order_by(MonitoringRule.updated_at.desc())
+            .limit(limit)
+            .all()
+        )
+        for rule in rule_hits:
+            results.append(
+                OmniscientSearchItem(
+                    id=rule.rule_id,
+                    type="rule",
+                    title=rule.name,
+                    subtitle=rule.rule_id,
+                    href=f"/transaction-monitoring/rules/{rule.rule_id}",
+                )
+            )
+            if len(results) >= limit:
+                break
+
+    # Preserve insertion order but deduplicate by (type, id).
+    deduped: list[OmniscientSearchItem] = []
+    seen_keys: set[tuple[str, str]] = set()
+    for item in results:
+        key = (item.type, item.id)
+        if key in seen_keys:
+            continue
+        seen_keys.add(key)
+        deduped.append(item)
+        if len(deduped) >= limit:
+            break
+
+    return OmniscientSearchResponse(query=q, scope=normalized_scope, results=deduped)
 
 
 @router.get("/documents/{celex}", response_model=schemas.LegalDocumentRead)

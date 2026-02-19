@@ -47,6 +47,7 @@
   --color-void-600: #475569;
   --color-void-700: #334155;
   --color-void-800: #1e293b;
+  --color-void-850: #141c2e;
   --color-void-900: #0f172a;
   --color-void-925: #0a0a12; /* Deep void */
   --color-void-950: #020617; /* Obsidian */
@@ -181,8 +182,11 @@
   /* Colored Glow Shadows */
   --shadow-glow-primary:
     0 0 20px rgba(109, 90, 205, 0.3), 0 0 40px rgba(109, 90, 205, 0.1);
-  --shadow-glow-cyan:
+  --shadow-glow-cyan: 0 0 20px rgba(0, 212, 255, 0.2);
+  --shadow-glow-cyan-strong:
     0 0 20px rgba(0, 212, 255, 0.3), 0 0 40px rgba(0, 212, 255, 0.1);
+  --shadow-glow-aurora: 0 0 20px rgba(109, 90, 205, 0.3);
+  --shadow-glow-critical: 0 0 20px rgba(255, 51, 102, 0.3);
 
   /* ════════════════════════════════════════════════════════════════
      GLASS SYSTEM
@@ -387,7 +391,7 @@
   --destructive-foreground: #ffffff;
 
   --border: var(--color-void-800);
-  --border-subtle: var(--color-void-850, rgba(30, 41, 59, 0.5));
+  --border-subtle: var(--color-void-850);
   --input: var(--color-void-800);
   --input-focus: var(--color-aurora-500);
   --ring: var(--color-aurora-500);

@@ -628,6 +628,7 @@ def get_compliance_cases(
     limit: int = 100,
     status: Optional[str] = None,
     type: Optional[str] = None,
+    user_id: Optional[str] = None,
     db: Session = Depends(get_db),
 ):
     """
@@ -643,6 +644,9 @@ def get_compliance_cases(
 
     if type:
         query = query.filter(comp_models.ComplianceProfile.type == type)
+
+    if user_id:
+        query = query.filter(comp_models.ComplianceProfile.user_id == user_id)
 
     profiles = (
         query.order_by(comp_models.ComplianceProfile.created_at.desc())

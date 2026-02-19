@@ -23,6 +23,7 @@ from typing import Any, Dict, List, Optional
 from fastapi import APIRouter, Depends, HTTPException, Query, BackgroundTasks
 from pydantic import BaseModel, Field
 from sqlalchemy.orm import Session
+import uuid
 
 from src.database import get_db
 from src.ai.orchestrator import get_aml_officer, AMLOfficer, WorkflowType
@@ -30,6 +31,7 @@ from src.ai.agents.base import AgentContext, ActionRecommendation
 from src.integrations.sanctions import SanctionsService, SanctionsListType
 from src.auth.dependencies import require_any_role
 from src.utils.event_bus import publish_event_safe
+from src.models.transaction_models import Case
 
 import logging
 
@@ -92,7 +94,7 @@ class BatchSanctionsScreenRequest(BaseModel):
 class SARPrepareRequest(BaseModel):
     """Request to prepare a SAR."""
 
-    case_id: int
+    case_id: str
     case_data: Dict[str, Any]
     related_alerts: List[Dict[str, Any]] = []
     related_transactions: List[Dict[str, Any]] = []
@@ -448,6 +450,40 @@ async def prepare_sar(request: SARPrepareRequest, db: Session = Depends(get_db))
             related_transactions=request.related_transactions,
         )
 
+        now = utc_now()
+        sar_id = sar_draft.get("sar_id") or f"SAR-{uuid.uuid4().hex[:10].upper()}"
+        lifecycle = {
+            "sar_id": sar_id,
+            "current_status": "draft",
+            "timeline": [
+                {
+                    "status": "draft",
+                    "at": now.isoformat(),
+                    "note": "SAR draft prepared by AML Officer",
+                }
+            ],
+            "updated_at": now.isoformat(),
+        }
+
+        # Persist lifecycle context against the case when available.
+        case_ref = str(request.case_id)
+        case_query = db.query(Case).filter(Case.case_id == case_ref)
+        if case_ref.isdigit():
+            case_query = db.query(Case).filter(
+                (Case.case_id == case_ref) | (Case.id == int(case_ref))
+            )
+        case = case_query.first()
+        if case:
+            evidence = case.evidence if isinstance(case.evidence, dict) else {}
+            evidence["sar_id"] = sar_id
+            evidence["sar_draft"] = sar_draft
+            evidence["sar_lifecycle"] = lifecycle
+            case.evidence = evidence
+            case.outcome = case.outcome or "sar_required"
+            case.updated_at = now
+            db.add(case)
+            db.commit()
+
         publish_event_safe(
             "events.raw",
             {
@@ -461,7 +497,12 @@ async def prepare_sar(request: SARPrepareRequest, db: Session = Depends(get_db))
             },
         )
 
-        return {"success": True, "sar_draft": sar_draft}
+        return {
+            "success": True,
+            "sar_id": sar_id,
+            "sar_draft": sar_draft,
+            "sar_lifecycle": lifecycle,
+        }
 
     except Exception as e:
         logger.error(f"Failed to prepare SAR: {e}")

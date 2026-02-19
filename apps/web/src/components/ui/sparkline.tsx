@@ -1,21 +1,7 @@
 "use client";
 
 import { useMemo } from "react";
-import {
-  Line,
-  LineChart,
-  ResponsiveContainer,
-  Area,
-  AreaChart,
-} from "recharts";
 import { cn } from "@/lib/utils";
-
-/**
- * ═══════════════════════════════════════════════════════════════════
- * SPARKLINE - Sentinel Design System
- * Miniature inline charts with gradient fills
- * ═══════════════════════════════════════════════════════════════════
- */
 
 type SparklineColor =
   | "aurora"
@@ -33,26 +19,51 @@ interface SparklineProps {
   width?: number;
   height?: number;
   className?: string;
-  /** Fill area under the line */
   filled?: boolean;
-  /** Animate on mount */
   animate?: boolean;
-  /** Show value change indicator */
   showTrend?: boolean;
+  ariaLabel?: string;
 }
 
-const colorMap: Record<SparklineColor, { stroke: string; fill: string }> = {
-  aurora: { stroke: "#6d5acd", fill: "url(#aurora-gradient)" },
-  cyan: { stroke: "#00d4ff", fill: "url(#cyan-gradient)" },
-  green: { stroke: "#06d6a0", fill: "url(#green-gradient)" },
-  yellow: { stroke: "#ffd166", fill: "url(#yellow-gradient)" },
-  orange: { stroke: "#ff8c42", fill: "url(#orange-gradient)" },
-  red: { stroke: "#ff3366", fill: "url(#red-gradient)" },
-  purple: { stroke: "#a855f7", fill: "url(#purple-gradient)" },
-  gray: { stroke: "#94a3b8", fill: "url(#gray-gradient)" },
+interface SparkbarProps {
+  data: { value: number }[];
+  color?: string | SparklineColor;
+  width?: number;
+  height?: number;
+  className?: string;
+  ariaLabel?: string;
+}
+
+interface SparkProgressProps {
+  value: number;
+  max?: number;
+  color?: string | SparklineColor;
+  width?: number;
+  height?: number;
+  className?: string;
+  ariaLabel?: string;
+}
+
+const colorMap: Record<SparklineColor, string> = {
+  aurora: "var(--color-aurora-500)",
+  cyan: "var(--color-cyan-500)",
+  green: "var(--color-trend-up)",
+  yellow: "var(--color-risk-medium)",
+  orange: "var(--color-risk-high)",
+  red: "var(--color-trend-down)",
+  purple: "var(--color-aurora-400)",
+  gray: "var(--color-void-400)",
 };
 
-const EMPTY_DATA: { value: number }[] = [];
+function resolveColor(color: string | SparklineColor): string {
+  return typeof color === "string" && color in colorMap
+    ? colorMap[color as SparklineColor]
+    : color;
+}
+
+function clamp(value: number, min: number, max: number) {
+  return Math.min(max, Math.max(min, value));
+}
 
 export function Sparkline({
   data,
@@ -63,79 +74,84 @@ export function Sparkline({
   filled = true,
   animate = true,
   showTrend = false,
+  ariaLabel = "Trend chart",
 }: SparklineProps) {
-  const safeData = data ?? EMPTY_DATA;
+  const safeData = useMemo(() => data ?? [], [data]);
+  const strokeColor = resolveColor(color);
 
-  // Determine if color is a preset or custom
-  const isPreset = typeof color === "string" && color in colorMap;
-  const strokeColor = isPreset
-    ? colorMap[color as SparklineColor].stroke
-    : color;
-
-  // Calculate trend
   const trend = useMemo(() => {
     if (safeData.length < 2) return 0;
-    const first = safeData[0].value;
-    const last = safeData[safeData.length - 1].value;
-    return ((last - first) / first) * 100;
+    const first = safeData[0]?.value ?? 0;
+    const last = safeData[safeData.length - 1]?.value ?? 0;
+    if (first === 0) {
+      if (last === 0) return 0;
+      return last > 0 ? 100 : -100;
+    }
+    return ((last - first) / Math.abs(first)) * 100;
   }, [safeData]);
 
-  if (!safeData || safeData.length === 0) return null;
+  const points = useMemo(() => {
+    if (safeData.length === 0) return [] as Array<{ x: number; y: number }>;
+    const values = safeData.map((item) => item.value);
+    const min = Math.min(...values);
+    const max = Math.max(...values);
 
-  const gradientId = `sparkline-gradient-${color}`;
+    return safeData.map((item, index) => {
+      const x =
+        safeData.length === 1
+          ? width / 2
+          : (index / (safeData.length - 1)) * (width - 2) + 1;
+      const normalized = max === min ? 0.5 : (item.value - min) / (max - min);
+      const y = height - normalized * (height - 4) - 2;
+      return { x, y };
+    });
+  }, [safeData, width, height]);
+
+  if (safeData.length === 0 || points.length === 0) {
+    return null;
+  }
+
+  const linePoints = points.map((point) => `${point.x},${point.y}`).join(" ");
+  const first = points[0];
+  const last = points[points.length - 1];
+  const areaPath = `M ${first.x} ${height} L ${linePoints.replace(/,/g, " ")} L ${last.x} ${height} Z`;
 
   return (
     <div className={cn("relative", className)} style={{ width, height }}>
-      <ResponsiveContainer width="100%" height="100%">
-        {filled ? (
-          <AreaChart
-            data={safeData}
-            margin={{ top: 0, right: 0, bottom: 0, left: 0 }}
-          >
-            <defs>
-              <linearGradient id={gradientId} x1="0" y1="0" x2="0" y2="1">
-                <stop offset="0%" stopColor={strokeColor} stopOpacity={0.3} />
-                <stop offset="100%" stopColor={strokeColor} stopOpacity={0} />
-              </linearGradient>
-            </defs>
-            <Area
-              type="monotone"
-              dataKey="value"
-              stroke={strokeColor}
-              strokeWidth={2}
-              fill={`url(#${gradientId})`}
-              isAnimationActive={animate}
-              animationDuration={1000}
-              animationEasing="ease-out"
-            />
-          </AreaChart>
-        ) : (
-          <LineChart
-            data={safeData}
-            margin={{ top: 0, right: 0, bottom: 0, left: 0 }}
-          >
-            <Line
-              type="monotone"
-              dataKey="value"
-              stroke={strokeColor}
-              strokeWidth={2}
-              dot={false}
-              isAnimationActive={animate}
-              animationDuration={1000}
-              animationEasing="ease-out"
-            />
-          </LineChart>
+      <svg
+        viewBox={`0 0 ${width} ${height}`}
+        width={width}
+        height={height}
+        role="img"
+        aria-label={ariaLabel}
+      >
+        <title>{ariaLabel}</title>
+        {filled && (
+          <path
+            d={areaPath}
+            fill={strokeColor}
+            opacity={0.18}
+            className={animate ? "transition-all duration-700" : undefined}
+          />
         )}
-      </ResponsiveContainer>
+        <polyline
+          fill="none"
+          stroke={strokeColor}
+          strokeWidth={2}
+          points={linePoints}
+          strokeLinecap="round"
+          strokeLinejoin="round"
+          className={animate ? "transition-all duration-700" : undefined}
+        />
+      </svg>
 
-      {/* Trend indicator */}
       {showTrend && safeData.length >= 2 && (
         <div
           className={cn(
-            "absolute -top-1 -right-1 px-1.5 py-0.5 rounded text-[10px] font-bold",
-            trend > 0 && "bg-[#06d6a0]/20 text-[#06d6a0]",
-            trend < 0 && "bg-[#ff3366]/20 text-[#ff3366]",
-            trend === 0 && "bg-white/10 text-white/50",
+            "absolute -right-1 -top-1 rounded px-1.5 py-0.5 text-[10px] font-bold",
+            trend > 0 && "bg-risk-low-soft text-risk-low",
+            trend < 0 && "bg-risk-critical-soft text-risk-critical",
+            trend === 0 && "bg-white/10 text-white/60",
           )}
         >
           {trend > 0 ? "+" : ""}
@@ -146,66 +162,45 @@ export function Sparkline({
   );
 }
 
-/**
- * Sparkbar - Mini bar chart variant
- */
-interface SparkbarProps {
-  data: { value: number }[];
-  color?: string | SparklineColor;
-  width?: number;
-  height?: number;
-  className?: string;
-}
-
 export function Sparkbar({
   data,
   color = "aurora",
   width = 80,
   height = 24,
   className,
+  ariaLabel = "Bar chart",
 }: SparkbarProps) {
   if (!data || data.length === 0) return null;
 
-  const isPreset = typeof color === "string" && color in colorMap;
-  const barColor = isPreset ? colorMap[color as SparklineColor].stroke : color;
-
-  const max = Math.max(...data.map((d) => d.value));
+  const barColor = resolveColor(color);
+  const max = Math.max(...data.map((item) => item.value), 1);
   const barWidth = width / data.length - 1;
 
   return (
     <div
+      role="img"
+      aria-label={ariaLabel}
       className={cn("flex items-end gap-px", className)}
       style={{ width, height }}
     >
-      {data.map((d, i) => {
-        const barHeight = max > 0 ? (d.value / max) * height : 0;
+      {data.map((item, index) => {
+        const intensity = clamp(item.value / max, 0, 1);
+        const barHeight = max > 0 ? intensity * height : 0;
         return (
           <div
-            key={i}
+            key={index}
             className="rounded-t-sm transition-all duration-300"
             style={{
               width: barWidth,
               height: barHeight,
               backgroundColor: barColor,
-              opacity: 0.3 + (d.value / max) * 0.7,
+              opacity: 0.3 + intensity * 0.7,
             }}
           />
         );
       })}
     </div>
   );
-}
-
-/**
- * SparkProgress - Inline progress indicator
- */
-interface SparkProgressProps {
-  value: number;
-  max?: number;
-  color?: string | SparklineColor;
-  width?: number;
-  height?: number;
-  className?: string;
 }
 
 export function SparkProgress({
@@ -215,14 +210,19 @@ export function SparkProgress({
   width = 60,
   height = 4,
   className,
+  ariaLabel = "Progress",
 }: SparkProgressProps) {
-  const isPreset = typeof color === "string" && color in colorMap;
-  const barColor = isPreset ? colorMap[color as SparklineColor].stroke : color;
-  const percentage = Math.min(100, Math.max(0, (value / max) * 100));
+  const barColor = resolveColor(color);
+  const percentage = clamp((value / Math.max(max, 1)) * 100, 0, 100);
 
   return (
     <div
-      className={cn("rounded-full bg-white/10 overflow-hidden", className)}
+      role="progressbar"
+      aria-label={ariaLabel}
+      aria-valuenow={Math.round(percentage)}
+      aria-valuemin={0}
+      aria-valuemax={100}
+      className={cn("overflow-hidden rounded-full bg-white/10", className)}
       style={{ width, height }}
     >
       <div
@@ -230,7 +230,7 @@ export function SparkProgress({
         style={{
           width: `${percentage}%`,
           backgroundColor: barColor,
-          boxShadow: `0 0 8px ${barColor}50`,
+          boxShadow: `0 0 8px ${barColor}`,
         }}
       />
     </div>

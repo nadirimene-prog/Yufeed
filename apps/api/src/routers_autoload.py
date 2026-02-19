@@ -80,6 +80,9 @@ def register_routers(app: FastAPI) -> None:
     from .api.evidence_packs import router as evidence_packs_router
 
     include_with_api_prefix(evidence_packs_router)
+    from .api.entities import router as entities_router
+
+    include_with_api_prefix(entities_router)
     from .api.impact import router as impact_router
 
     include_with_api_prefix(impact_router)
@@ -137,6 +140,9 @@ def register_routers(app: FastAPI) -> None:
     from .api.websocket import router as websocket_router
 
     include_with_api_prefix(websocket_router)
+    from .api.workspace import router as workspace_router
+
+    include_with_api_prefix(workspace_router)
 
     # Metrics aren't prefixed with /api
     from .monitoring.metrics import router as metrics_router
