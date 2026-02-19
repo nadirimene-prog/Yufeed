@@ -11,8 +11,7 @@ import { cn } from "@/lib/utils";
  * ═══════════════════════════════════════════════════════════════════
  */
 
-export interface InputProps
-  extends React.InputHTMLAttributes<HTMLInputElement> {
+export interface InputProps extends React.InputHTMLAttributes<HTMLInputElement> {
   /** Input variant */
   variant?: "default" | "glass" | "ghost";
   /** Left icon/element */
@@ -202,8 +201,7 @@ SearchInput.displayName = "SearchInput";
 /**
  * Textarea - Glass-styled textarea
  */
-export interface TextareaProps
-  extends React.TextareaHTMLAttributes<HTMLTextAreaElement> {
+export interface TextareaProps extends React.TextareaHTMLAttributes<HTMLTextAreaElement> {
   /** Textarea variant */
   variant?: "default" | "glass" | "ghost";
   /** Error state */

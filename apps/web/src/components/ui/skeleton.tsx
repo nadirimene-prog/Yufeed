@@ -72,8 +72,7 @@ function Skeleton({
    Skeleton Text (for multi-line text)
    ───────────────────────────────────────────────────────────────────────────── */
 
-export interface SkeletonTextProps
-  extends React.HTMLAttributes<HTMLDivElement> {
+export interface SkeletonTextProps extends React.HTMLAttributes<HTMLDivElement> {
   lines?: number;
   lineHeight?: number;
   lastLineWidth?: string;

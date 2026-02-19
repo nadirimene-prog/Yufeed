@@ -326,8 +326,10 @@ export function DataTable<TData, TValue>({
 /**
  * Column Header Helper - Sortable header with icon
  */
-interface DataTableColumnHeaderProps<TData, TValue>
-  extends React.HTMLAttributes<HTMLDivElement> {
+interface DataTableColumnHeaderProps<
+  TData,
+  TValue,
+> extends React.HTMLAttributes<HTMLDivElement> {
   column: import("@tanstack/react-table").Column<TData, TValue>;
   title: string;
 }

@@ -132,8 +132,7 @@ TableCaption.displayName = "TableCaption";
 /**
  * Glass Table Container - Wraps table in glass styling
  */
-interface GlassTableContainerProps
-  extends React.HTMLAttributes<HTMLDivElement> {
+interface GlassTableContainerProps extends React.HTMLAttributes<HTMLDivElement> {
   children: React.ReactNode;
 }
 

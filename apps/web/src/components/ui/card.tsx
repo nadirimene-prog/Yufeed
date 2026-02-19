@@ -45,7 +45,8 @@ const cardVariants = cva("rounded-xl border transition-all duration-fast", {
    ───────────────────────────────────────────────────────────────────────────── */
 
 export interface CardProps
-  extends React.HTMLAttributes<HTMLDivElement>,
+  extends
+    React.HTMLAttributes<HTMLDivElement>,
     VariantProps<typeof cardVariants> {
   asChild?: boolean;
 }
@@ -83,7 +84,8 @@ const cardHeaderVariants = cva("flex flex-col gap-1", {
 });
 
 export interface CardHeaderProps
-  extends React.HTMLAttributes<HTMLDivElement>,
+  extends
+    React.HTMLAttributes<HTMLDivElement>,
     VariantProps<typeof cardHeaderVariants> {}
 
 const CardHeader = React.forwardRef<HTMLDivElement, CardHeaderProps>(
@@ -152,7 +154,8 @@ const cardContentVariants = cva("", {
 });
 
 export interface CardContentProps
-  extends React.HTMLAttributes<HTMLDivElement>,
+  extends
+    React.HTMLAttributes<HTMLDivElement>,
     VariantProps<typeof cardContentVariants> {}
 
 const CardContent = React.forwardRef<HTMLDivElement, CardContentProps>(
@@ -186,7 +189,8 @@ const cardFooterVariants = cva("flex items-center gap-3", {
 });
 
 export interface CardFooterProps
-  extends React.HTMLAttributes<HTMLDivElement>,
+  extends
+    React.HTMLAttributes<HTMLDivElement>,
     VariantProps<typeof cardFooterVariants> {}
 
 const CardFooter = React.forwardRef<HTMLDivElement, CardFooterProps>(
