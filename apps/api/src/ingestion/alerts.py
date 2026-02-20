@@ -28,6 +28,7 @@ class IngestionReport:
     items_updated: int
     items_skipped: int
     errors: List[Dict[str, Any]]
+    obligations_created: int = 0
 
 
 def send_ingestion_report(
@@ -48,6 +49,7 @@ def send_ingestion_report(
     total_new = sum(r.items_new for r in reports)
     total_updated = sum(r.items_updated for r in reports)
     total_errors = sum(len(r.errors) for r in reports)
+    total_obligations = sum(r.obligations_created for r in reports)
 
     # Determine overall status
     failed_sources = [r for r in reports if r.status == "failed"]
@@ -113,6 +115,10 @@ def send_ingestion_report(
                     <div class="stat-value" style="color: {'#dc3545' if total_errors > 0 else '#28a745'};">{total_errors}</div>
                     <div class="stat-label">Errors</div>
                 </div>
+                <div class="stat">
+                    <div class="stat-value" style="color: #6f42c1;">{total_obligations}</div>
+                    <div class="stat-label">Obligations Created</div>
+                </div>
             </div>
 
             <h2>Source Details</h2>
@@ -137,6 +143,7 @@ def send_ingestion_report(
                     <tr><td>Updated</td><td>{report.items_updated}</td></tr>
                     <tr><td>Skipped</td><td>{report.items_skipped}</td></tr>
                     <tr><td>Errors</td><td>{len(report.errors)}</td></tr>
+                    <tr><td>Obligations Created</td><td>{report.obligations_created}</td></tr>
                 </table>
         """
 

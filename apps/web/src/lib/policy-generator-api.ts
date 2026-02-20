@@ -16,9 +16,12 @@ export interface PolicyTemplate {
 
 export interface TemplateVariable {
   name: string;
+  type?: string;
   description: string;
   required: boolean;
-  default_value?: string;
+  default?: string;
+  placeholder?: string;
+  example?: string;
 }
 
 export interface TemplateDetail extends PolicyTemplate {
@@ -28,7 +31,9 @@ export interface TemplateDetail extends PolicyTemplate {
 
 export interface GeneratePolicyRequest {
   template_id: string;
-  obligation_ids: string[];
+  obligation_ids: number[];
+  variable_values?: Record<string, string>;
+  // Backward-compatible alias. Removed after 2026-03-31.
   custom_variables?: Record<string, string>;
   options?: {
     include_procedures?: boolean;
@@ -102,10 +107,18 @@ export const getPolicyTemplates = async (params?: {
  */
 export const getTemplateVariables = async (
   templateId: string,
-): Promise<TemplateVariable[]> => {
-  const response = await apiClient.get<TemplateVariable[]>(
-    `/api/policy-generator/templates/${templateId}/variables`,
-  );
+): Promise<{
+  template_id: string;
+  variables: TemplateVariable[];
+  required_count: number;
+  optional_count: number;
+}> => {
+  const response = await apiClient.get<{
+    template_id: string;
+    variables: TemplateVariable[];
+    required_count: number;
+    optional_count: number;
+  }>(`/api/policy-generator/templates/${templateId}/variables`);
   return response.data;
 };
 

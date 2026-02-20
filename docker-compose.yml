@@ -300,7 +300,8 @@ services:
   # ============================================================================
 
   mailhog:
-    image: mailhog/mailhog
+    # Mailpit is MailHog-compatible and publishes multi-arch images (incl. arm64).
+    image: axllent/mailpit:latest
     container_name: yufeed-mailhog
     ports:
       - "127.0.0.1:1025:1025"

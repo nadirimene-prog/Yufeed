@@ -131,6 +131,7 @@ import type {
   PolicyUpdate,
   PolicySection,
   PolicyTemplate,
+  PolicySuggestion,
   RiskCategory,
   RiskCategoryTree,
   RiskEntry,
@@ -141,6 +142,9 @@ import type {
   ObligationRiskLink,
   Obligation,
   ObligationApprovalData,
+  BulkObligationApprovalRequest,
+  BulkObligationApprovalResponse,
+  ObligationCoverageStats,
 } from "@/types/compliance";
 import type {
   InternalRule,
@@ -153,6 +157,8 @@ export interface PaginatedResponse<T> {
   total: number;
   items: T[];
 }
+
+const policyPathId = (id: string | number) => encodeURIComponent(String(id));
 
 // Policy CRUD
 export const getPolicies = async (params?: {
@@ -174,42 +180,50 @@ export const createPolicy = async (data: PolicyCreate): Promise<Policy> => {
   return response.data;
 };
 
-export const getPolicy = async (id: number): Promise<Policy> => {
-  const response = await apiClient.get<Policy>(`/api/policies/${id}`);
+export const getPolicy = async (id: string | number): Promise<Policy> => {
+  const response = await apiClient.get<Policy>(
+    `/api/policies/${policyPathId(id)}`,
+  );
   return response.data;
 };
 
 export const updatePolicy = async (
-  id: number,
+  id: string | number,
   data: PolicyUpdate,
 ): Promise<Policy> => {
-  const response = await apiClient.patch<Policy>(`/api/policies/${id}`, data);
+  const response = await apiClient.patch<Policy>(
+    `/api/policies/${policyPathId(id)}`,
+    data,
+  );
   return response.data;
 };
 
-export const deletePolicy = async (id: number): Promise<void> => {
-  await apiClient.delete(`/api/policies/${id}`);
+export const deletePolicy = async (id: string | number): Promise<void> => {
+  await apiClient.delete(`/api/policies/${policyPathId(id)}`);
 };
 
 export const approvePolicy = async (
-  id: number,
+  id: string | number,
   note?: string,
 ): Promise<Policy> => {
-  const response = await apiClient.post<Policy>(`/api/policies/${id}/approve`, {
-    note,
-  });
+  const response = await apiClient.post<Policy>(
+    `/api/policies/${policyPathId(id)}/approve`,
+    {
+      note,
+    },
+  );
   return response.data;
 };
 
 export const getPolicyObligations = async (
-  id: number,
+  id: string | number,
   params?: {
     skip?: number;
     limit?: number;
   },
 ): Promise<PaginatedResponse<Obligation>> => {
   const response = await apiClient.get<PaginatedResponse<Obligation>>(
-    `/api/policies/${id}/obligations`,
+    `/api/policies/${policyPathId(id)}/obligations`,
     { params },
   );
   return response.data;
@@ -232,14 +246,7 @@ export const getPolicyTemplateSuggestions = async (
   obligationId: number,
   limit: number = 3,
 ): Promise<{
-  items: Array<{
-    policy_document_id: number;
-    policy_id: string;
-    template_id: string;
-    name: string;
-    category: string;
-    score: number;
-  }>;
+  items: PolicySuggestion[];
 }> => {
   const response = await apiClient.get(
     `/api/obligations/${obligationId}/policy-suggestions`,
@@ -269,31 +276,33 @@ export const createPolicyFromTemplate = async (
 };
 
 export const linkObligationToPolicy = async (
-  policyId: number,
-  obligationId: number,
+  policyId: string | number,
+  obligationId: string | number,
 ): Promise<{ message: string; policy_id: string; obligation_id: string }> => {
   const response = await apiClient.post(
-    `/api/policies/${policyId}/link-obligation/${obligationId}`,
+    `/api/policies/${policyPathId(policyId)}/link-obligation/${encodeURIComponent(
+      String(obligationId),
+    )}`,
   );
   return response.data;
 };
 
 // Policy Sections
 export const getPolicySections = async (
-  policyId: number,
+  policyId: string | number,
 ): Promise<{ items: PolicySection[] }> => {
   const response = await apiClient.get<{ items: PolicySection[] }>(
-    `/api/policies/${policyId}/sections`,
+    `/api/policies/${policyPathId(policyId)}/sections`,
   );
   return response.data;
 };
 
 export const createPolicySection = async (
-  policyId: number,
+  policyId: string | number,
   data: Partial<PolicySection>,
 ): Promise<PolicySection> => {
   const response = await apiClient.post<PolicySection>(
-    `/api/policies/${policyId}/sections`,
+    `/api/policies/${policyPathId(policyId)}/sections`,
     data,
   );
   return response.data;
@@ -500,6 +509,24 @@ export const approveObligation = async (
   );
   return response.data;
 };
+
+export const bulkApproveObligations = async (
+  data: BulkObligationApprovalRequest,
+): Promise<BulkObligationApprovalResponse> => {
+  const response = await apiClient.post<BulkObligationApprovalResponse>(
+    "/api/obligations/bulk-approve",
+    data,
+  );
+  return response.data;
+};
+
+export const getObligationCoverageStats =
+  async (): Promise<ObligationCoverageStats> => {
+    const response = await apiClient.get<ObligationCoverageStats>(
+      "/api/obligations/coverage-stats",
+    );
+    return response.data;
+  };
 
 export const getObligationRisks = async (
   id: number,

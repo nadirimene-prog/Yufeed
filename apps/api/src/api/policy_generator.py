@@ -9,6 +9,7 @@ from sqlalchemy.orm import Session
 from sqlalchemy import text
 from typing import List, Optional, Dict, Any
 from datetime import datetime, timezone, timedelta
+from pydantic import BaseModel, Field, model_validator
 
 from src.database import get_db
 from src.auth.dependencies import require_any_role, CurrentUser
@@ -26,9 +27,42 @@ router = APIRouter(
 )
 
 
+POLICY_GENERATOR_COMPAT_DEADLINE = "2026-03-31"
+
+
+class PolicyGeneratePayload(BaseModel):
+    """Request payload with temporary backward-compatibility aliases."""
+
+    template_id: str
+    obligation_ids: List[int | str]
+    variable_values: Dict[str, Any] = Field(default_factory=dict)
+    custom_variables: Optional[Dict[str, Any]] = None
+    base_policy_id: Optional[int] = None
+
+    @model_validator(mode="after")
+    def _normalize_payload(self):
+        merged_variables = dict(self.variable_values or {})
+        if isinstance(self.custom_variables, dict):
+            # Temporary compatibility path until 2026-03-31.
+            merged_variables.update(self.custom_variables)
+        self.variable_values = merged_variables
+
+        normalized_ids: List[int] = []
+        for item in self.obligation_ids:
+            if isinstance(item, bool):
+                raise ValueError("obligation_ids must contain integer identifiers")
+            try:
+                value = int(item)
+            except (TypeError, ValueError) as exc:
+                raise ValueError("obligation_ids must contain integer identifiers") from exc
+            normalized_ids.append(value)
+        self.obligation_ids = normalized_ids
+        return self
+
+
 @router.post("/generate")
 async def generate_policy(
-    request: PolicyGenerationRequest,
+    request: PolicyGeneratePayload,
     background_tasks: BackgroundTasks,
     current_user: CurrentUser = Depends(require_any_role(["admin", "compliance", "aml_officer"])),
     db: Session = Depends(get_db),
@@ -61,12 +95,17 @@ async def generate_policy(
         missing = set(request.obligation_ids) - found_ids
         raise HTTPException(status_code=404, detail=f"Obligations not found: {missing}")
 
-    # Add creator to request
-    request.created_by = current_user.user_id
+    service_request = PolicyGenerationRequest(
+        template_id=request.template_id,
+        obligation_ids=[int(item) for item in request.obligation_ids],
+        variable_values=request.variable_values or {},
+        base_policy_id=request.base_policy_id,
+        created_by=current_user.user_id,
+    )
 
     # Start generation
     try:
-        result = await generator.generate_policy(request)
+        result = await generator.generate_policy(service_request)
 
         return {
             "status": "completed",

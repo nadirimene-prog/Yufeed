@@ -9,8 +9,10 @@ Handles scheduled tasks for:
 
 import logging
 import traceback
+import uuid
 from celery import Celery
 from celery.schedules import crontab
+import redis
 
 from src.config import settings
 from src.database import SessionLocal
@@ -20,6 +22,96 @@ from src.ingestion.alerts import send_ingestion_failure_alert
 # Configure logging
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
+
+
+INGESTION_MANUAL_LOCK_KEY = "ingestion:run:manual"
+INGESTION_MANUAL_LOCK_TTL_SECONDS = 2 * 60 * 60
+_LOCK_RELEASE_LUA = """
+if redis.call('get', KEYS[1]) == ARGV[1] then
+  return redis.call('del', KEYS[1])
+else
+  return 0
+end
+"""
+
+
+def _redis_client():
+    return redis.from_url(settings.REDIS_URL, decode_responses=True)
+
+
+def acquire_manual_ingestion_lock(owner_token: str) -> bool:
+    """Try to acquire the manual ingestion lock."""
+    try:
+        client = _redis_client()
+        acquired = client.set(
+            INGESTION_MANUAL_LOCK_KEY,
+            owner_token,
+            nx=True,
+            ex=INGESTION_MANUAL_LOCK_TTL_SECONDS,
+        )
+        return bool(acquired)
+    except Exception as exc:
+        logger.error("Failed to acquire manual ingestion lock: %s", exc)
+        raise
+
+
+def release_manual_ingestion_lock(owner_token: str) -> bool:
+    """Release the lock only if the same owner token still owns it."""
+    try:
+        client = _redis_client()
+        deleted = client.eval(_LOCK_RELEASE_LUA, 1, INGESTION_MANUAL_LOCK_KEY, owner_token)
+        return bool(deleted)
+    except Exception as exc:
+        logger.warning("Failed to release manual ingestion lock safely: %s", exc)
+        return False
+
+
+def _run_manual_ingestion_impl(
+    source_keys: list | None = None,
+    days_back: int = 30,
+    send_alerts: bool = True,
+):
+    from datetime import datetime, timedelta, timezone
+
+    logger.info(
+        "Starting manual ingestion: sources=%s, days_back=%s, send_alerts=%s",
+        source_keys,
+        days_back,
+        send_alerts,
+    )
+    db = SessionLocal()
+    try:
+        manager = IngestionManager(db)
+        end_date = datetime.now(timezone.utc)
+        start_date = end_date - timedelta(days=days_back)
+
+        reports = manager.run_manual_ingestion(
+            source_keys=source_keys,
+            start_date=start_date,
+            end_date=end_date,
+            send_alerts=send_alerts,
+        )
+
+        total_new = sum(r.items_new for r in reports)
+        total_updated = sum(r.items_updated for r in reports)
+        total_errors = sum(len(r.errors or []) for r in reports)
+
+        logger.info(
+            "Manual ingestion completed: %s new, %s updated, %s errors",
+            total_new,
+            total_updated,
+            total_errors,
+        )
+
+        return {
+            "status": "completed" if total_errors == 0 else "partial",
+            "sources_processed": len(reports),
+            "total_new": total_new,
+            "total_updated": total_updated,
+            "total_errors": total_errors,
+        }
+    finally:
+        db.close()
 
 
 # Cron parser for 5-field expressions (min hour dom mon dow).
@@ -64,6 +156,10 @@ celery_app.conf.update(
         "weekly-ingestion-task": {
             "task": "src.worker.run_ingestion",
             "schedule": crontab(minute=0, hour=8, day_of_week=1),  # Monday 08:00 UTC
+        },
+        "weekly-supervisory-ingestion-task": {
+            "task": "src.worker.run_supervisory_ingestion",
+            "schedule": crontab(minute=0, hour=8, day_of_week=3),  # Wednesday 08:00 UTC
         },
         "content-backfill-task": {
             "task": "src.worker.run_content_backfill",
@@ -241,40 +337,171 @@ def run_manual_ingestion(source_keys: list = None, days_back: int = 30):
     Example:
         run_manual_ingestion.delay(["eur-lex-oj-en"], 7)
     """
-    from datetime import datetime, timedelta, timezone
+    return _run_manual_ingestion_impl(
+        source_keys=source_keys, days_back=days_back, send_alerts=True
+    )
 
-    logger.info(f"Starting manual ingestion: sources={source_keys}, days_back={days_back}")
+
+@celery_app.task(
+    time_limit=3600,
+    soft_time_limit=3000,
+)
+def run_manual_ingestion_locked(
+    source_keys: list = None,
+    days_back: int = 30,
+    send_alerts: bool = True,
+    owner_token: str | None = None,
+):
+    """
+    Manual ingestion task with Redis owner-token lock lifecycle.
+
+    The caller acquires the lock before queueing the task. This task always
+    attempts safe release in ``finally``.
+    """
+    lock_owner = owner_token or uuid.uuid4().hex
+    try:
+        result = _run_manual_ingestion_impl(
+            source_keys=source_keys,
+            days_back=days_back,
+            send_alerts=send_alerts,
+        )
+        result["lock_owner"] = lock_owner
+        return result
+    finally:
+        release_manual_ingestion_lock(lock_owner)
+
+
+@celery_app.task(
+    time_limit=3600,
+    soft_time_limit=3000,
+)
+def run_supervisory_ingestion(send_alerts: bool = True):
+    """Run ingestion for supervisory sources (AMLA/ESMA/TRACFIN)."""
+    logger.info("Starting supervisory ingestion via Celery")
     db = SessionLocal()
-
     try:
         manager = IngestionManager(db)
-
-        end_date = datetime.now(timezone.utc)
-        start_date = end_date - timedelta(days=days_back)
-
-        reports = manager.run_manual_ingestion(
-            source_keys=source_keys,
-            start_date=start_date,
-            end_date=end_date,
-            send_alerts=True,
-        )
-
-        total_new = sum(r.items_new for r in reports)
-        total_updated = sum(r.items_updated for r in reports)
-
-        logger.info(f"Manual ingestion completed: {total_new} new, {total_updated} updated")
-
-        return {
-            "status": "completed",
-            "sources_processed": len(reports),
-            "total_new": total_new,
-            "total_updated": total_updated,
-        }
-
-    except Exception as e:
-        logger.error(f"Manual ingestion failed: {e}")
+        result = manager.run_supervisory_ingestion(send_alerts=send_alerts)
+        return {"status": "completed", "result": result}
+    except Exception as exc:
+        logger.error("Supervisory ingestion failed: %s", exc)
         raise
+    finally:
+        db.close()
 
+
+@celery_app.task(
+    time_limit=300,
+    soft_time_limit=240,
+)
+def notify_obligations_extracted(doc_id: int, count: int, source: str = "unknown"):
+    """Broadcast a tenant-scoped websocket event when obligations are extracted."""
+    if count <= 0:
+        return {"status": "skipped", "reason": "no_new_obligations"}
+
+    from src.models.tenant_models import Tenant
+    from src.websocket.manager import ws_manager
+    from src.websocket.events import NotificationEvent, EventType
+
+    db = SessionLocal()
+    try:
+        tenants = db.query(Tenant).filter(Tenant.is_active.is_(True)).all()
+        for tenant in tenants:
+            notification = NotificationEvent(
+                event_type=EventType.OBLIGATION_EXTRACTED,
+                title="New Obligations Extracted",
+                message=f"{count} new obligations extracted from {source}",
+                data={"doc_id": doc_id, "count": count, "source": source},
+                priority="normal",
+                link="/compliance/obligations",
+            )
+            try:
+                import asyncio
+
+                asyncio.run(ws_manager.send_notification(notification, tenant_id=tenant.tenant_id))
+            except Exception:
+                logger.debug(
+                    "Failed sending obligation.extracted websocket event for tenant %s",
+                    tenant.tenant_id,
+                    exc_info=True,
+                )
+        return {"status": "completed", "tenants_notified": len(tenants), "count": count}
+    finally:
+        db.close()
+
+
+@celery_app.task(
+    time_limit=900,
+    soft_time_limit=840,
+)
+def auto_map_obligation_policies(doc_id: int, source: str = "unknown"):
+    """Create AI suggestions mappings without mutating linked_policy_id."""
+    from src.models.compliance_workflow import RegulatoryObligation, ObligationPolicyMapping
+    from src.services.policy_matcher import PolicyMatcher
+    from src.config import settings
+    from src.utils.time import utc_now
+    from src.monitoring.metrics import policy_mapping_suggestions_total
+
+    db = SessionLocal()
+    try:
+        obligations = (
+            db.query(RegulatoryObligation)
+            .filter(
+                RegulatoryObligation.doc_id == doc_id,
+                RegulatoryObligation.status.in_(["draft", "in_review"]),
+            )
+            .all()
+        )
+        if not obligations:
+            return {"status": "completed", "processed": 0, "mapped": 0}
+
+        matcher = PolicyMatcher(db)
+        threshold = getattr(settings, "POLICY_MATCH_HIGH_CONFIDENCE", 0.70)
+        mapped = 0
+
+        for obligation in obligations:
+            suggestions = matcher.suggest_policies(obligation, limit=3)
+            for suggestion in suggestions:
+                match_method = suggestion.get("match_method", "keyword")
+                try:
+                    policy_mapping_suggestions_total.labels(match_method=match_method).inc()
+                except Exception:
+                    pass
+
+            if not suggestions:
+                continue
+
+            best = suggestions[0]
+            confidence = float(best.get("confidence", 0.0) or 0.0)
+            if confidence < float(threshold):
+                continue
+
+            policy_pk = best.get("policy_document_id")
+            if not isinstance(policy_pk, int):
+                continue
+
+            mapping = (
+                db.query(ObligationPolicyMapping)
+                .filter(
+                    ObligationPolicyMapping.obligation_id == obligation.id,
+                    ObligationPolicyMapping.policy_id == policy_pk,
+                )
+                .first()
+            )
+            if mapping is None:
+                mapping = ObligationPolicyMapping(
+                    obligation_id=obligation.id,
+                    policy_id=policy_pk,
+                )
+                db.add(mapping)
+            mapping.mapped_by = "ai:semantic"
+            mapping.mapping_confidence = confidence
+            mapping.notes = best.get("reasoning")
+            mapping.mapped_at = utc_now()
+            mapped += 1
+
+        db.commit()
+        return {"status": "completed", "processed": len(obligations), "mapped": mapped}
     finally:
         db.close()
 

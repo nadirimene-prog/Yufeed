@@ -30,6 +30,7 @@ from .compliance_workflow import (
     InternalRuleMapping,
     TenantObligationApplicability,
     ObligationPolicyMapping,
+    SupervisoryAlert,
     RiskCategory,
     RiskEntry,
     ObligationRiskLink,

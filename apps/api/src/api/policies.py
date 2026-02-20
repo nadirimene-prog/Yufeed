@@ -31,6 +31,15 @@ from src.schemas.policy_schemas import (
 from src.websocket.manager import ws_manager
 from src.websocket.events import EventType, NotificationEvent
 from src.services.policy_library import ensure_master_policy_for_template
+from src.services.policy_access import (
+    effective_tenant_id as shared_effective_tenant_id,
+    is_policy_visible_to_tenant as shared_is_policy_visible_to_tenant,
+    resolve_policy as shared_resolve_policy,
+    enforce_policy_visibility as shared_enforce_policy_visibility,
+    enforce_policy_editable as shared_enforce_policy_editable,
+    enforce_policy_linkable as shared_enforce_policy_linkable,
+)
+from src.audit.recorders import record_event
 
 
 def utc_now() -> datetime:
@@ -120,36 +129,37 @@ def _effective_tenant_id(
     current_user: Optional[CurrentUser],
     requested_tenant_id: Optional[str] = None,
 ) -> Optional[str]:
-    if isinstance(requested_tenant_id, str) and requested_tenant_id.strip():
-        return requested_tenant_id.strip()
-    if current_user is None:
-        return None
-    return current_user.tenant_id
+    return shared_effective_tenant_id(current_user, requested_tenant_id)
 
 
 def _is_policy_visible_to_tenant(policy: PolicyDocument, tenant_id: Optional[str]) -> bool:
-    if tenant_id is None:
-        return True
-    return policy.tenant_id in (None, tenant_id)
+    return shared_is_policy_visible_to_tenant(policy, tenant_id)
 
 
 def _enforce_policy_visibility(policy: PolicyDocument, current_user: CurrentUser) -> None:
-    tenant_id = _effective_tenant_id(current_user)
-    if not _is_policy_visible_to_tenant(policy, tenant_id):
-        raise HTTPException(status_code=404, detail="Policy not found")
+    shared_enforce_policy_visibility(policy, current_user)
 
 
-def _enforce_policy_writable(policy: PolicyDocument, current_user: CurrentUser) -> None:
-    _enforce_policy_visibility(policy, current_user)
-    if (
-        policy.is_master
-        and _effective_tenant_id(current_user) is not None
-        and not current_user.is_superuser
-    ):
-        raise HTTPException(
-            status_code=403,
-            detail="Master policies are read-only for tenant-scoped users",
-        )
+def _enforce_policy_editable(policy: PolicyDocument, current_user: CurrentUser) -> None:
+    shared_enforce_policy_editable(policy, current_user)
+
+
+def _enforce_policy_linkable(policy: PolicyDocument, current_user: CurrentUser) -> None:
+    shared_enforce_policy_linkable(policy, current_user)
+
+
+def _resolve_policy(db: Session, policy_identifier: str | int) -> Optional[PolicyDocument]:
+    return shared_resolve_policy(db, policy_identifier)
+
+
+def _invalidate_policy_match_cache(db: Session, policy_id: int) -> None:
+    try:
+        from src.services.policy_matcher import PolicyMatcher
+
+        PolicyMatcher(db).invalidate_policy_cache(policy_id)
+    except Exception:
+        # Cache invalidation must never break API writes.
+        pass
 
 
 def policy_to_dict(policy: PolicyDocument, db: Session) -> dict:
@@ -551,14 +561,14 @@ async def create_policy(
 
 @router.get("/{policy_id}")
 def get_policy(
-    policy_id: int,
+    policy_id: str,
     db: Session = Depends(get_db),
     _: CurrentUser = Depends(
         require_any_role(["admin", "compliance", "aml_officer", "auditor", "user"])
     ),
 ):
-    """Get a policy by ID."""
-    policy = db.query(PolicyDocument).filter(PolicyDocument.id == policy_id).first()
+    """Get a policy by business ID or numeric ID."""
+    policy = _resolve_policy(db, policy_id)
     if not policy:
         raise HTTPException(status_code=404, detail="Policy not found")
     _enforce_policy_visibility(policy, current_user=_)
@@ -568,16 +578,16 @@ def get_policy(
 
 @router.patch("/{policy_id}")
 def update_policy(
-    policy_id: int,
+    policy_id: str,
     payload: PolicyUpdate,
     db: Session = Depends(get_db),
     current_user: CurrentUser = Depends(require_any_role(["admin", "compliance", "aml_officer"])),
 ):
     """Update a policy document."""
-    policy = db.query(PolicyDocument).filter(PolicyDocument.id == policy_id).first()
+    policy = _resolve_policy(db, policy_id)
     if not policy:
         raise HTTPException(status_code=404, detail="Policy not found")
-    _enforce_policy_writable(policy, current_user)
+    _enforce_policy_editable(policy, current_user)
 
     previous_status = (policy.status or "draft").lower()
     update_data = payload.model_dump(exclude_unset=True)
@@ -613,15 +623,15 @@ def update_policy(
 
 @router.delete("/{policy_id}")
 def delete_policy(
-    policy_id: int,
+    policy_id: str,
     db: Session = Depends(get_db),
     current_user: CurrentUser = Depends(require_any_role(["admin", "compliance"])),
 ):
     """Delete a policy document."""
-    policy = db.query(PolicyDocument).filter(PolicyDocument.id == policy_id).first()
+    policy = _resolve_policy(db, policy_id)
     if not policy:
         raise HTTPException(status_code=404, detail="Policy not found")
-    _enforce_policy_writable(policy, current_user)
+    _enforce_policy_editable(policy, current_user)
 
     # Check for linked obligations
     linked_count = (
@@ -653,16 +663,16 @@ def delete_policy(
 
 @router.post("/{policy_id}/approve")
 async def approve_policy(
-    policy_id: int,
+    policy_id: str,
     payload: PolicyApprove,
     db: Session = Depends(get_db),
     current_user: CurrentUser = Depends(require_any_role(["admin", "compliance"])),
 ):
     """Approve a policy document."""
-    policy = db.query(PolicyDocument).filter(PolicyDocument.id == policy_id).first()
+    policy = _resolve_policy(db, policy_id)
     if not policy:
         raise HTTPException(status_code=404, detail="Policy not found")
-    _enforce_policy_writable(policy, current_user)
+    _enforce_policy_editable(policy, current_user)
 
     if policy.status not in ("draft", "in_review"):
         raise HTTPException(status_code=400, detail="Policy cannot be approved from current status")
@@ -697,7 +707,7 @@ async def approve_policy(
 
 @router.get("/{policy_id}/obligations")
 def list_policy_obligations(
-    policy_id: int,
+    policy_id: str,
     skip: int = Query(0, ge=0),
     limit: int = Query(50, ge=1, le=200),
     db: Session = Depends(get_db),
@@ -706,7 +716,7 @@ def list_policy_obligations(
     ),
 ):
     """List obligations linked to a policy."""
-    policy = db.query(PolicyDocument).filter(PolicyDocument.id == policy_id).first()
+    policy = _resolve_policy(db, policy_id)
     if not policy:
         raise HTTPException(status_code=404, detail="Policy not found")
     _enforce_policy_visibility(policy, current_user=_)
@@ -719,8 +729,8 @@ def list_policy_obligations(
         )
         .filter(
             or_(
-                RegulatoryObligation.linked_policy_id == policy_id,
-                ObligationPolicyMapping.policy_id == policy_id,
+                RegulatoryObligation.linked_policy_id == policy.id,
+                ObligationPolicyMapping.policy_id == policy.id,
             )
         )
         .distinct()
@@ -753,20 +763,29 @@ def list_policy_obligations(
 
 @router.post("/{policy_id}/link-obligation/{obligation_id}")
 async def link_obligation_to_policy(
-    policy_id: int,
-    obligation_id: int,
+    policy_id: str,
+    obligation_id: str,
     db: Session = Depends(get_db),
     current_user: CurrentUser = Depends(require_any_role(["admin", "compliance", "aml_officer"])),
 ):
     """Link an obligation to a policy."""
-    policy = db.query(PolicyDocument).filter(PolicyDocument.id == policy_id).first()
+    policy = _resolve_policy(db, policy_id)
     if not policy:
         raise HTTPException(status_code=404, detail="Policy not found")
-    _enforce_policy_writable(policy, current_user)
+    _enforce_policy_linkable(policy, current_user)
 
+    obligation_key = str(obligation_id).strip()
     obligation = (
-        db.query(RegulatoryObligation).filter(RegulatoryObligation.id == obligation_id).first()
+        db.query(RegulatoryObligation)
+        .filter(RegulatoryObligation.obligation_id == obligation_key)
+        .first()
     )
+    if obligation is None and obligation_key.isdigit():
+        obligation = (
+            db.query(RegulatoryObligation)
+            .filter(RegulatoryObligation.id == int(obligation_key))
+            .first()
+        )
     if not obligation:
         raise HTTPException(status_code=404, detail="Obligation not found")
 
@@ -791,6 +810,32 @@ async def link_obligation_to_policy(
     mapping.mapping_confidence = 1.0
     mapping.notes = "Manual mapping from policy endpoint"
     mapping.mapped_at = utc_now()
+
+    try:
+        record_event(
+            db=db,
+            tenant_id=_effective_tenant_id(current_user) or "default",
+            event_type="compliance.obligation_policy.linked",
+            entity_type="regulatory_obligation",
+            entity_id=obligation.obligation_id,
+            source="api.policies.link_obligation_to_policy",
+            payload={
+                "obligation_id": obligation.obligation_id,
+                "obligation_pk": obligation.id,
+                "policy_id": policy.policy_id,
+                "policy_pk": policy.id,
+                "mapped_by": mapping.mapped_by,
+                "mapping_confidence": mapping.mapping_confidence,
+            },
+            metadata={
+                "actor_id": current_user.user_id,
+                "actor_email": current_user.email,
+                "mode": "manual",
+            },
+        )
+    except Exception:
+        # Audit should never block the core transaction path.
+        pass
 
     db.commit()
     db.refresh(obligation)
@@ -824,21 +869,21 @@ async def link_obligation_to_policy(
 
 @router.get("/{policy_id}/sections")
 def list_policy_sections(
-    policy_id: int,
+    policy_id: str,
     db: Session = Depends(get_db),
     _: CurrentUser = Depends(
         require_any_role(["admin", "compliance", "aml_officer", "auditor", "user"])
     ),
 ):
     """List all sections for a policy."""
-    policy = db.query(PolicyDocument).filter(PolicyDocument.id == policy_id).first()
+    policy = _resolve_policy(db, policy_id)
     if not policy:
         raise HTTPException(status_code=404, detail="Policy not found")
     _enforce_policy_visibility(policy, current_user=_)
 
     sections = (
         db.query(PolicySection)
-        .filter(PolicySection.policy_id == policy_id)
+        .filter(PolicySection.policy_id == policy.id)
         .order_by(PolicySection.section_ref)
         .all()
     )
@@ -848,19 +893,19 @@ def list_policy_sections(
 
 @router.post("/{policy_id}/sections")
 def create_policy_section(
-    policy_id: int,
+    policy_id: str,
     payload: PolicySectionCreate,
     db: Session = Depends(get_db),
     current_user: CurrentUser = Depends(require_any_role(["admin", "compliance", "aml_officer"])),
 ):
     """Create a new section within a policy."""
-    policy = db.query(PolicyDocument).filter(PolicyDocument.id == policy_id).first()
+    policy = _resolve_policy(db, policy_id)
     if not policy:
         raise HTTPException(status_code=404, detail="Policy not found")
-    _enforce_policy_writable(policy, current_user)
+    _enforce_policy_editable(policy, current_user)
 
     section = PolicySection(
-        policy_id=policy_id,
+        policy_id=policy.id,
         section_ref=payload.section_ref,
         title=payload.title,
         content=payload.content,
@@ -890,7 +935,7 @@ def update_policy_section(
         raise HTTPException(status_code=404, detail="Section not found")
     policy = db.query(PolicyDocument).filter(PolicyDocument.id == section.policy_id).first()
     if policy:
-        _enforce_policy_writable(policy, current_user)
+        _enforce_policy_editable(policy, current_user)
 
     update_data = payload.model_dump(exclude_unset=True)
     for key, value in update_data.items():
@@ -915,7 +960,7 @@ def delete_policy_section(
         raise HTTPException(status_code=404, detail="Section not found")
     policy = db.query(PolicyDocument).filter(PolicyDocument.id == section.policy_id).first()
     if policy:
-        _enforce_policy_writable(policy, current_user)
+        _enforce_policy_editable(policy, current_user)
 
     db.delete(section)
     db.commit()

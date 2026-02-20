@@ -28,6 +28,10 @@ from src.schemas.compliance_workflow_schemas import (
 )
 from src.tenancy.context import get_current_tenant
 from src.utils.time import utc_now
+from src.services.policy_access import (
+    resolve_policy as shared_resolve_policy,
+    enforce_policy_editable as shared_enforce_policy_editable,
+)
 
 router = APIRouter(prefix="/api/compliance", tags=["compliance-workflow"])
 
@@ -196,15 +200,11 @@ def _policy_visible_to_tenant(policy: PolicyDocument, tenant_id: str) -> bool:
 
 
 def _resolve_policy(db: Session, policy_identifier: str | int) -> Optional[PolicyDocument]:
-    policy_key = str(policy_identifier)
-    policy = db.query(PolicyDocument).filter(PolicyDocument.policy_id == policy_key).first()
-    if policy:
-        return policy
+    return shared_resolve_policy(db, policy_identifier)
 
-    if policy_key.isdigit():
-        return db.query(PolicyDocument).filter(PolicyDocument.id == int(policy_key)).first()
 
-    return None
+def _enforce_policy_editable(policy: PolicyDocument, current_user: CurrentUser) -> None:
+    shared_enforce_policy_editable(policy, current_user)
 
 
 def _resolve_obligation(
@@ -376,6 +376,7 @@ def extract_policy_obligations(
     policy = _resolve_policy(db, policy_id)
     if not policy or not _policy_visible_to_tenant(policy, tenant_id):
         raise HTTPException(status_code=404, detail="Policy not found")
+    _enforce_policy_editable(policy, current_user)
 
     synthetic_celex = f"POLICY-{policy.policy_id}"
     document = db.query(LegalDocument).filter(LegalDocument.celex == synthetic_celex).first()
@@ -441,6 +442,7 @@ def list_policy_obligations(
     policy = _resolve_policy(db, policy_id)
     if not policy or not _policy_visible_to_tenant(policy, tenant_id):
         raise HTTPException(status_code=404, detail="Policy not found")
+    _enforce_policy_editable(policy, current_user)
 
     obligations = (
         db.query(RegulatoryObligation)

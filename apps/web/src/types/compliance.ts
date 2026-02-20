@@ -143,6 +143,20 @@ export interface PolicyTemplate {
   updated_at?: string;
 }
 
+export interface PolicySuggestion {
+  policy_document_id: number;
+  policy_id: string;
+  template_id?: string;
+  name: string;
+  category?: string;
+  score?: number;
+  confidence?: number;
+  reasoning?: string;
+  match_method?: "semantic" | "keyword";
+  mapped_by?: string | null;
+  mapping_confidence?: number | null;
+}
+
 // ========== Risk Types ==========
 
 export type RiskLevelType = "low" | "medium" | "high" | "critical";
@@ -335,10 +349,44 @@ export interface ObligationApprovalData {
   status: ObligationStatus;
   note?: string;
   linked_policy_id?: number;
+  auto_link_best_suggestion?: boolean;
   create_internal_rule?: boolean;
   internal_rule_name?: string;
   internal_rule_description?: string;
   link_risk_entry_ids?: number[];
+}
+
+export interface BulkObligationApprovalRequest {
+  obligation_ids: number[];
+  status: ObligationStatus;
+  note?: string;
+  auto_link_best_suggestion?: boolean;
+  create_internal_rule?: boolean;
+}
+
+export interface BulkObligationApprovalItem {
+  obligation_id: number;
+  status: "approved" | "failed";
+  error?: string;
+}
+
+export interface BulkObligationApprovalResponse {
+  total: number;
+  succeeded: number;
+  failed: number;
+  items: BulkObligationApprovalItem[];
+}
+
+export interface ObligationCoverageStats {
+  total: number;
+  linked_count: number;
+  unlinked_count: number;
+  ai_suggested_count: number;
+  confidence_tiers: {
+    high: number;
+    medium: number;
+    low: number;
+  };
 }
 
 export interface InternalRule {

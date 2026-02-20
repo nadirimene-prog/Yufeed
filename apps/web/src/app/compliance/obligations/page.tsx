@@ -4,8 +4,11 @@ export const dynamic = "force-dynamic";
 
 import { useMemo, useState } from "react";
 import Link from "next/link";
+import { useQueryClient } from "@tanstack/react-query";
 import { handleApiError } from "@/lib/api-error-handler";
 import { getAuthUserProfile } from "@/lib/auth";
+import { bulkApproveObligations } from "@/lib/compliance-api";
+import { complianceKeys } from "@/lib/queryKeys";
 import {
   useObligationsList,
   useUpdateObligationStatus,
@@ -38,7 +41,12 @@ export default function ObligationsPage() {
   const [query, setQuery] = useState("");
   const [page, setPage] = useState(0);
   const [actionLoading, setActionLoading] = useState<string | null>(null);
+  const [bulkLoading, setBulkLoading] = useState(false);
+  const [selectedObligationIds, setSelectedObligationIds] = useState<number[]>(
+    [],
+  );
   const currentUser = useMemo(() => getAuthUserProfile(), []);
+  const queryClient = useQueryClient();
 
   const pageSize = 20;
 
@@ -68,9 +76,16 @@ export default function ObligationsPage() {
   const obligationsQuery = useObligationsList(listParams);
   const updateStatusMutation = useUpdateObligationStatus();
 
-  const items: Obligation[] = obligationsQuery.data?.items ?? [];
+  const items: Obligation[] = useMemo(
+    () => obligationsQuery.data?.items ?? [],
+    [obligationsQuery.data?.items],
+  );
   const total = obligationsQuery.data?.total ?? 0;
   const loading = obligationsQuery.isLoading;
+  const pageItemIds = useMemo(() => items.map((item) => item.id), [items]);
+  const allPageSelected =
+    pageItemIds.length > 0 &&
+    pageItemIds.every((id) => selectedObligationIds.includes(id));
 
   const updateStatus = async (id: number, status: string) => {
     setActionLoading(`${id}:${status}`);
@@ -80,6 +95,44 @@ export default function ObligationsPage() {
       handleApiError(err, { context: "Update obligation status" });
     } finally {
       setActionLoading(null);
+    }
+  };
+
+  const toggleItemSelection = (id: number) => {
+    setSelectedObligationIds((prev) =>
+      prev.includes(id) ? prev.filter((item) => item !== id) : [...prev, id],
+    );
+  };
+
+  const togglePageSelection = () => {
+    setSelectedObligationIds((prev) => {
+      if (allPageSelected) {
+        return prev.filter((id) => !pageItemIds.includes(id));
+      }
+      const merged = new Set([...prev, ...pageItemIds]);
+      return Array.from(merged);
+    });
+  };
+
+  const handleBulkApprove = async () => {
+    if (!selectedObligationIds.length) return;
+    setBulkLoading(true);
+    try {
+      await bulkApproveObligations({
+        obligation_ids: selectedObligationIds,
+        status: "approved",
+        note: "bulk review",
+        auto_link_best_suggestion: true,
+        create_internal_rule: true,
+      });
+      setSelectedObligationIds([]);
+      await queryClient.invalidateQueries({
+        queryKey: complianceKeys.obligations(),
+      });
+    } catch (err) {
+      handleApiError(err, { context: "Bulk approve obligations" });
+    } finally {
+      setBulkLoading(false);
     }
   };
 
@@ -210,8 +263,26 @@ export default function ObligationsPage() {
       <div className="rounded-lg border border-gray-200 bg-white p-6 shadow-sm dark:border-slate-800 dark:bg-slate-900">
         <div className="flex items-center justify-between text-sm text-gray-500 dark:text-gray-400">
           <div>{loading ? "Loading obligations…" : `${total} obligations`}</div>
-          <div>
-            Page {page + 1} / {totalPages}
+          <div className="flex items-center gap-2">
+            <button
+              onClick={togglePageSelection}
+              disabled={loading || !pageItemIds.length}
+              className="rounded-full border border-gray-200 bg-white px-3 py-1 text-[11px] font-semibold text-gray-600 disabled:cursor-not-allowed disabled:opacity-50 dark:border-slate-700 dark:bg-slate-900 dark:text-gray-300"
+            >
+              {allPageSelected ? "Unselect page" : "Select page"}
+            </button>
+            <button
+              onClick={handleBulkApprove}
+              disabled={bulkLoading || selectedObligationIds.length === 0}
+              className="rounded-full border border-emerald-200 bg-emerald-50 px-3 py-1 text-[11px] font-semibold text-emerald-700 disabled:cursor-not-allowed disabled:opacity-50 dark:border-emerald-800/50 dark:bg-emerald-900/20 dark:text-emerald-300"
+            >
+              {bulkLoading
+                ? "Approving..."
+                : `Bulk approve (${selectedObligationIds.length})`}
+            </button>
+            <div>
+              Page {page + 1} / {totalPages}
+            </div>
           </div>
         </div>
 
@@ -225,21 +296,29 @@ export default function ObligationsPage() {
                 className="rounded-lg border border-gray-100 bg-gray-50/60 p-4 dark:border-slate-800 dark:bg-slate-800/40"
               >
                 <div className="flex items-start justify-between gap-3">
-                  <div className="min-w-0">
-                    <Link
-                      href={`/compliance/obligations/${item.id}`}
-                      className="text-sm font-semibold text-gray-900 hover:underline dark:text-white"
-                    >
-                      {item.document.title}
-                    </Link>
-                    <div className="mt-1 text-xs text-gray-500">
-                      {item.document.celex} •{" "}
-                      {item.document.jurisdiction ?? "EU"} •{" "}
-                      {item.document.source_system ?? "source"}
+                  <div className="flex min-w-0 gap-3">
+                    <input
+                      type="checkbox"
+                      checked={selectedObligationIds.includes(item.id)}
+                      onChange={() => toggleItemSelection(item.id)}
+                      className="mt-1 h-4 w-4 rounded border-gray-300 bg-white text-emerald-600 focus:ring-emerald-500 dark:border-slate-600 dark:bg-slate-900"
+                    />
+                    <div className="min-w-0">
+                      <Link
+                        href={`/compliance/obligations/${item.id}`}
+                        className="text-sm font-semibold text-gray-900 hover:underline dark:text-white"
+                      >
+                        {item.document.title}
+                      </Link>
+                      <div className="mt-1 text-xs text-gray-500">
+                        {item.document.celex} •{" "}
+                        {item.document.jurisdiction ?? "EU"} •{" "}
+                        {item.document.source_system ?? "source"}
+                      </div>
+                      <p className="mt-2 text-xs text-gray-500 line-clamp-2 dark:text-gray-400">
+                        {item.obligation_text}
+                      </p>
                     </div>
-                    <p className="mt-2 text-xs text-gray-500 line-clamp-2 dark:text-gray-400">
-                      {item.obligation_text}
-                    </p>
                   </div>
                   <span
                     className={

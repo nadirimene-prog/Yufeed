@@ -113,6 +113,11 @@ class Settings(BaseSettings):
     RAG_CHUNK_OVERLAP: int = 200  # characters
     RAG_HYBRID_ALPHA: float = 0.5  # 0=vector only, 1=BM25 only
 
+    # Policy matcher configuration
+    POLICY_MATCH_HIGH_CONFIDENCE: float = 0.70
+    POLICY_MATCH_MEDIUM_CONFIDENCE: float = 0.45
+    POLICY_MATCH_ENABLE_LLM_REFINEMENT: bool = True
+
     # Deadline Monitoring
     DEADLINE_ALERT_THRESHOLDS: str = "90,60,30,7,1"
     DEADLINE_CHECK_SCHEDULE: str = "0 8 * * *"
@@ -131,6 +136,9 @@ class Settings(BaseSettings):
     FEATURE_MONITORING_SUGGESTIONS: bool = False
     FEATURE_DEADLINE_ALERTS: bool = True
     FEATURE_AUDIT_TRAIL: bool = True
+    FEATURE_SUPERVISORY_INGESTION: bool = True
+    FEATURE_SEMANTIC_POLICY_MATCHING: bool = True
+    FEATURE_BULK_OBLIGATION_APPROVAL: bool = True
     DASHBOARD_V2_ENABLED: bool = True
     DASHBOARD_AMLCO_V3_ENABLED: bool = True
 

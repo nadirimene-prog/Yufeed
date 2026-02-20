@@ -16,6 +16,7 @@ class ObligationApproval(BaseModel):
     status: str = Field(..., min_length=2, max_length=50)
     note: Optional[str] = None
     linked_policy_id: Optional[int] = None
+    auto_link_best_suggestion: bool = True
     create_internal_rule: bool = False
     internal_rule_name: Optional[str] = None
     internal_rule_description: Optional[str] = None

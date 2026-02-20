@@ -49,6 +49,7 @@ class EventType(str, Enum):
     OBLIGATION_APPROVED = "obligation.approved"
     OBLIGATION_REJECTED = "obligation.rejected"
     OBLIGATION_UPDATED = "obligation.updated"
+    OBLIGATION_EXTRACTED = "obligation.extracted"
     POLICY_CREATED = "policy.created"
     POLICY_APPROVED = "policy.approved"
     POLICY_UPDATED = "policy.updated"

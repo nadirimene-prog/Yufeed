@@ -11,10 +11,12 @@ Features:
 
 import logging
 import time
+import hashlib
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from datetime import datetime, timedelta
 from typing import List, Dict, Any, Optional, Callable, Tuple
 from sqlalchemy.orm import Session
+from sqlalchemy.exc import IntegrityError
 
 from .rss import RSSFetcher
 from .processor import IngestionProcessor
@@ -24,6 +26,8 @@ from .alerts import send_ingestion_report, send_ingestion_failure_alert, Ingesti
 from src.config import settings
 from src.ingestion.config import IngestionConfig
 from src.models import RegulatorySource, IngestionRun
+from src.models.compliance_workflow import SupervisoryAlert, FailedIngestionItem
+from src.services.obligation_service import extract_obligations_from_alert
 from src.utils.time import utc_now
 
 logger = logging.getLogger(__name__)
@@ -95,6 +99,79 @@ class IngestionManager:
         self.rss = RSSFetcher()
         self.legifrance = LegifranceFetcher()
         self.processor = IngestionProcessor(db)
+
+    @staticmethod
+    def _normalize_link(link: Optional[str]) -> str:
+        return (link or "").strip().lower()
+
+    def _build_supervisory_dedup_key(self, source_system: str, entry: dict) -> str:
+        link = self._normalize_link(entry.get("link"))
+        if link:
+            base = f"{source_system}|{link}"
+        else:
+            title = (entry.get("title") or "").strip().lower()
+            published = (entry.get("published") or "").strip()
+            base = f"{source_system}|{title}|{published}"
+        return hashlib.sha256(base.encode("utf-8")).hexdigest()
+
+    def _record_supervisory_failure(self, source_key: str, entry: dict, exc: Exception) -> None:
+        try:
+            failed = FailedIngestionItem(
+                celex=entry.get("celex"),
+                source_key=source_key,
+                error_message=str(exc),
+                error_traceback=None,
+                entry_json=entry,
+                status="pending",
+                max_retries=3,
+            )
+            self.db.add(failed)
+            self.db.commit()
+        except Exception:
+            self.db.rollback()
+            logger.debug("Failed to persist supervisory DLQ item", exc_info=True)
+
+    def _persist_supervisory_entry(self, source_system: str, entry: dict) -> tuple:
+        """
+        Persist supervisory entry and extract obligations.
+
+        Returns:
+            Tuple of (is_new: bool, obligations_created: int).
+            ``(False, 0)`` when the entry is deduplicated.
+        """
+        dedup_key = self._build_supervisory_dedup_key(source_system, entry)
+        alert = SupervisoryAlert(
+            dedup_key=dedup_key,
+            source_system=source_system,
+            title=(entry.get("title") or f"{source_system.upper()} update").strip(),
+            description=entry.get("description"),
+            link=entry.get("link"),
+            published_at=self.processor._parse_date(entry.get("published")),
+            jurisdiction=entry.get("jurisdiction"),
+            language=entry.get("language"),
+            topics=entry.get("topics"),
+            status="new",
+            raw_entry=entry,
+            created_at=utc_now(),
+            updated_at=utc_now(),
+        )
+        self.db.add(alert)
+        try:
+            self.db.commit()
+            self.db.refresh(alert)
+        except IntegrityError:
+            self.db.rollback()
+            return False, 0
+
+        obligations_created = 0
+        try:
+            obligations_created = extract_obligations_from_alert(self.db, alert)
+        except Exception as exc:
+            logger.warning(
+                "Failed extracting obligations for supervisory alert %s: %s", alert.id, exc
+            )
+
+        return True, obligations_created
 
     def run_weekly_ingestion(self, send_alerts: bool = True) -> List[IngestionReport]:
         """
@@ -541,9 +618,9 @@ class IngestionManager:
 
         aggregator = SupervisoryAggregator()
         results = {
-            "amla": {"seen": 0, "new": 0, "errors": []},
-            "esma": {"seen": 0, "new": 0, "errors": []},
-            "fiu": {"seen": 0, "new": 0, "errors": []},
+            "amla": {"seen": 0, "new": 0, "obligations": 0, "errors": []},
+            "esma": {"seen": 0, "new": 0, "obligations": 0, "errors": []},
+            "tracfin": {"seen": 0, "new": 0, "obligations": 0, "errors": []},
         }
 
         # Fetch AMLA updates
@@ -551,10 +628,15 @@ class IngestionManager:
             amla_entries = aggregator.amla.fetch()
             results["amla"]["seen"] = len(amla_entries)
             logger.info(f"AMLA: {len(amla_entries)} entries found")
-            # Process entries (store as alerts/notifications rather than full documents)
             for entry in amla_entries:
-                # TODO: Create SupervisoryAlert or similar model
-                pass
+                try:
+                    is_new, obl_count = self._persist_supervisory_entry("amla", entry)
+                    if is_new:
+                        results["amla"]["new"] += 1
+                    results["amla"]["obligations"] += obl_count
+                except Exception as exc:
+                    results["amla"]["errors"].append(str(exc))
+                    self._record_supervisory_failure("supervisory_amla", entry, exc)
         except Exception as e:
             logger.error(f"AMLA ingestion error: {e}")
             results["amla"]["errors"].append(str(e))
@@ -565,8 +647,14 @@ class IngestionManager:
             results["esma"]["seen"] = len(esma_entries)
             logger.info(f"ESMA: {len(esma_entries)} entries found")
             for entry in esma_entries:
-                # TODO: Process ESMA updates
-                pass
+                try:
+                    is_new, obl_count = self._persist_supervisory_entry("esma", entry)
+                    if is_new:
+                        results["esma"]["new"] += 1
+                    results["esma"]["obligations"] += obl_count
+                except Exception as exc:
+                    results["esma"]["errors"].append(str(exc))
+                    self._record_supervisory_failure("supervisory_esma", entry, exc)
         except Exception as e:
             logger.error(f"ESMA ingestion error: {e}")
             results["esma"]["errors"].append(str(e))
@@ -574,14 +662,41 @@ class IngestionManager:
         # Fetch FIU updates
         try:
             tracfin_entries = aggregator.fiu.fetch("tracfin")
-            results["fiu"]["seen"] = len(tracfin_entries)
+            results["tracfin"]["seen"] = len(tracfin_entries)
             logger.info(f"TRACFIN: {len(tracfin_entries)} entries found")
             for entry in tracfin_entries:
-                # TODO: Process FIU updates
-                pass
+                try:
+                    is_new, obl_count = self._persist_supervisory_entry("tracfin", entry)
+                    if is_new:
+                        results["tracfin"]["new"] += 1
+                    results["tracfin"]["obligations"] += obl_count
+                except Exception as exc:
+                    results["tracfin"]["errors"].append(str(exc))
+                    self._record_supervisory_failure("supervisory_tracfin", entry, exc)
         except Exception as e:
             logger.error(f"TRACFIN ingestion error: {e}")
-            results["fiu"]["errors"].append(str(e))
+            results["tracfin"]["errors"].append(str(e))
+
+        if send_alerts:
+            now = utc_now()
+            reports = []
+            for source_name in ("amla", "esma", "tracfin"):
+                source_result = results[source_name]
+                reports.append(
+                    IngestionReport(
+                        source_name=f"Supervisory {source_name.upper()}",
+                        status="partial" if source_result["errors"] else "completed",
+                        started_at=now,
+                        completed_at=now,
+                        items_seen=source_result["seen"],
+                        items_new=source_result["new"],
+                        items_updated=0,
+                        items_skipped=max(source_result["seen"] - source_result["new"], 0),
+                        errors=[{"error": err, "entry": "N/A"} for err in source_result["errors"]],
+                        obligations_created=source_result["obligations"],
+                    )
+                )
+            send_ingestion_report(reports)
 
         logger.info("Supervisory ingestion complete")
         return results

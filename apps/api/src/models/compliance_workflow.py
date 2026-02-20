@@ -91,7 +91,11 @@ class RegulatoryObligation(Base):
     id = Column(Integer, primary_key=True)
     obligation_id = Column(String(64), unique=True, nullable=False, index=True)
     doc_id = Column(Integer, ForeignKey("legal_documents.id"), nullable=False, index=True)
+    supervisory_alert_id = Column(
+        Integer, ForeignKey("supervisory_alerts.id"), nullable=True, index=True
+    )
     linked_policy_id = Column(Integer, ForeignKey("policy_documents.id"), nullable=True, index=True)
+    dedup_hash = Column(String(64), nullable=True, index=True)
     celex = Column(String(64), nullable=True)
     article_ref = Column(String(255), nullable=True)
     obligation_text = Column(Text, nullable=False)
@@ -112,6 +116,7 @@ class RegulatoryObligation(Base):
     updated_at = Column(DateTime, default=utc_now, onupdate=utc_now)
 
     document = relationship("LegalDocument", backref="obligations")
+    supervisory_alert = relationship("SupervisoryAlert", backref="obligations")
     linked_policy = relationship("PolicyDocument", backref="linked_obligations")
 
 
@@ -362,3 +367,27 @@ class FailedIngestionItem(Base):
     last_retry_at = Column(DateTime, nullable=True)
     resolved_at = Column(DateTime, nullable=True)
     resolved_doc_id = Column(Integer, ForeignKey("legal_documents.id"), nullable=True)
+
+
+class SupervisoryAlert(Base):
+    """Persisted supervisory authority publications (AMLA/ESMA/TRACFIN, etc.)."""
+
+    __tablename__ = "supervisory_alerts"
+
+    id = Column(Integer, primary_key=True)
+    dedup_key = Column(String(64), nullable=False, unique=True, index=True)
+    source_system = Column(String(64), nullable=False, index=True)
+    title = Column(Text, nullable=False)
+    description = Column(Text, nullable=True)
+    link = Column(String(1000), nullable=True)
+    published_at = Column(DateTime, nullable=True, index=True)
+    jurisdiction = Column(String(32), nullable=True, index=True)
+    language = Column(String(10), nullable=True)
+    topics = Column(JSON().with_variant(JSONB(), "postgresql"), nullable=True)
+    status = Column(String(32), nullable=False, default="new", index=True)
+    raw_entry = Column(JSON().with_variant(JSONB(), "postgresql"), nullable=True)
+    legal_doc_id = Column(Integer, ForeignKey("legal_documents.id"), nullable=True, index=True)
+    created_at = Column(DateTime, default=utc_now, index=True)
+    updated_at = Column(DateTime, default=utc_now, onupdate=utc_now)
+
+    legal_document = relationship("LegalDocument", backref="supervisory_alerts")

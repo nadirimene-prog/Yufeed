@@ -286,7 +286,7 @@ class IngestionProcessor:
         # Analyze and seed obligations
         try:
             analyzed = self._maybe_analyze_doc(new_doc, force=True)
-            if analyzed:
+            if analyzed or new_doc.obligations_json:
                 seed_obligations_for_doc(self.db, new_doc)
         except Exception as exc:
             logger.warning(f"Failed to analyze or seed obligations for {celex}: {exc}")
@@ -447,7 +447,7 @@ class IngestionProcessor:
         if analysis_needed:
             try:
                 analyzed = self._maybe_analyze_doc(doc, force=True)
-                if analyzed:
+                if analyzed or doc.obligations_json:
                     seed_obligations_for_doc(self.db, doc, allow_existing=True)
             except Exception as exc:
                 logger.warning(f"Failed to analyze or seed obligations for {doc.celex}: {exc}")

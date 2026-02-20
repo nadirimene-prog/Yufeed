@@ -5,11 +5,14 @@ Provides visibility into the ingestion pipeline status, history, and failed item
 """
 
 from datetime import datetime, timedelta
+import uuid
 from typing import Optional, List
 
 from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.orm import Session
 from sqlalchemy import func, desc
+from pydantic import BaseModel, Field
+from celery.result import AsyncResult
 
 from src.database import get_db
 from src.auth.dependencies import require_any_role, CurrentUser
@@ -20,8 +23,94 @@ from src.models.compliance_workflow import (
 )
 from src.models.models import LegalDocument
 from src.utils.time import utc_now
+from src.worker import (
+    run_manual_ingestion_locked,
+    celery_app,
+    acquire_manual_ingestion_lock,
+    release_manual_ingestion_lock,
+)
 
 router = APIRouter(prefix="/api/ingestion", tags=["ingestion"])
+
+
+class IngestionRunRequest(BaseModel):
+    mode: str = Field(default="manual")
+    source_keys: Optional[List[str]] = None
+    days_back: int = Field(default=30, ge=1, le=365)
+    send_alerts: bool = True
+
+
+@router.post("/run", status_code=202)
+def trigger_ingestion_run(
+    payload: IngestionRunRequest,
+    _: CurrentUser = Depends(require_any_role(["admin", "compliance"])),
+):
+    """Queue a manual ingestion run and return a Celery run identifier."""
+    if (payload.mode or "").lower().strip() != "manual":
+        raise HTTPException(status_code=400, detail="Unsupported ingestion mode")
+
+    owner_token = uuid.uuid4().hex
+    if not acquire_manual_ingestion_lock(owner_token):
+        raise HTTPException(status_code=409, detail="A manual ingestion run is already in progress")
+
+    try:
+        task = run_manual_ingestion_locked.delay(
+            source_keys=payload.source_keys,
+            days_back=payload.days_back,
+            send_alerts=payload.send_alerts,
+            owner_token=owner_token,
+        )
+    except Exception as exc:
+        release_manual_ingestion_lock(owner_token)
+        raise HTTPException(
+            status_code=500, detail=f"Failed to queue ingestion run: {exc}"
+        ) from exc
+
+    return {
+        "run_id": task.id,
+        "mode": "manual",
+        "status": "queued",
+        "queued_at": utc_now().isoformat(),
+    }
+
+
+@router.get("/run/{run_id}")
+def get_ingestion_run_status(
+    run_id: str,
+    _: CurrentUser = Depends(require_any_role(["admin", "compliance", "aml_officer"])),
+):
+    """Poll status for a queued ingestion run."""
+    result = AsyncResult(run_id, app=celery_app)
+    state = (result.state or "PENDING").upper()
+
+    if state in {"PENDING", "RECEIVED"}:
+        return {"run_id": run_id, "status": "queued", "state": state}
+
+    if state in {"STARTED", "RETRY"}:
+        return {"run_id": run_id, "status": "running", "state": state}
+
+    if state == "SUCCESS":
+        payload = result.result if isinstance(result.result, dict) else {}
+        return {
+            "run_id": run_id,
+            "status": payload.get("status", "completed"),
+            "state": state,
+            "result": payload,
+        }
+
+    if state == "FAILURE":
+        return {
+            "run_id": run_id,
+            "status": "failed",
+            "state": state,
+            "error": str(result.result),
+        }
+
+    return {
+        "run_id": run_id,
+        "status": "unknown/expired",
+        "state": state,
+    }
 
 
 @router.get("/status")

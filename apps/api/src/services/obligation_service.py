@@ -2,13 +2,17 @@ import logging
 from datetime import datetime
 from typing import Any, List, Optional
 from uuid import uuid4
+import hashlib
 
 from sqlalchemy.orm import Session
+from sqlalchemy.exc import IntegrityError
 
-from src.models.compliance_workflow import RegulatoryObligation
+from src.models.compliance_workflow import RegulatoryObligation, SupervisoryAlert
 from src.models.models import LegalDocument, LegalRelation
 from src.compliance.scope import infer_scope_tags
 from src.utils.time import utc_now
+from src.monitoring.metrics import obligations_created_total
+from src.ai.analyzer import extract_obligations
 
 logger = logging.getLogger(__name__)
 
@@ -79,20 +83,53 @@ def normalize_obligations(raw: Any, fallback_title: str) -> List[dict]:
     return normalized
 
 
-def seed_obligations_for_doc(db: Session, doc: LegalDocument, allow_existing: bool = False) -> int:
+def _normalize_text(value: Optional[str]) -> str:
+    return (value or "").strip().lower()
+
+
+def _obligation_dedup_hash(obligation_text: Optional[str], article_ref: Optional[str]) -> str:
+    canonical = f"{_normalize_text(obligation_text)}|{_normalize_text(article_ref)}"
+    return hashlib.sha256(canonical.encode("utf-8")).hexdigest()
+
+
+def _confidence_tier_for_doc(doc: LegalDocument) -> str:
+    if doc.analyzed_at:
+        return "high"
+    if doc.full_text:
+        return "medium"
+    return "low"
+
+
+def _record_obligations_created_metric(source: str, confidence_tier: str, created: int) -> None:
+    if created <= 0:
+        return
+    try:
+        obligations_created_total.labels(
+            source=(source or "unknown"),
+            confidence_tier=(confidence_tier or "unknown"),
+        ).inc(created)
+    except Exception:
+        pass
+
+
+def seed_obligations_for_doc(
+    db: Session,
+    doc: LegalDocument,
+    allow_existing: bool = False,
+    source: Optional[str] = None,
+) -> int:
     existing_rows = (
         db.query(RegulatoryObligation).filter(RegulatoryObligation.doc_id == doc.id).all()
     )
     if existing_rows and not allow_existing:
         return 0
 
-    existing_keys = {
-        (
-            (row.obligation_text or "").strip().lower(),
-            (row.article_ref or "").strip().lower(),
-        )
-        for row in existing_rows
-    }
+    existing_keys = set()
+    existing_hashes = set()
+    for row in existing_rows:
+        existing_keys.add((_normalize_text(row.obligation_text), _normalize_text(row.article_ref)))
+        if row.dedup_hash:
+            existing_hashes.add(row.dedup_hash)
 
     doc_scope_tags = doc.scope_tags or infer_scope_tags(
         doc.title,
@@ -109,10 +146,11 @@ def seed_obligations_for_doc(db: Session, doc: LegalDocument, allow_existing: bo
 
     for item in items:
         key = (
-            (item.get("obligation_text") or "").strip().lower(),
-            (item.get("article_ref") or "").strip().lower(),
+            _normalize_text(item.get("obligation_text")),
+            _normalize_text(item.get("article_ref")),
         )
-        if existing_keys and key in existing_keys:
+        dedup_hash = _obligation_dedup_hash(item.get("obligation_text"), item.get("article_ref"))
+        if key in existing_keys or dedup_hash in existing_hashes:
             continue
         evidence = {}
         if item.get("deadline"):
@@ -145,11 +183,125 @@ def seed_obligations_for_doc(db: Session, doc: LegalDocument, allow_existing: bo
             status="draft",
             evidence_json=evidence,
             scope_tags=obligation_scope_tags,
+            dedup_hash=dedup_hash,
         )
-        db.add(obligation)
-        created += 1
+        try:
+            with db.begin_nested():
+                db.add(obligation)
+                db.flush()
+            created += 1
+            existing_keys.add(key)
+            existing_hashes.add(dedup_hash)
+        except IntegrityError:
+            continue
 
     db.commit()
+    source_key = source or getattr(doc, "source_system", None) or "unknown"
+    confidence_tier = _confidence_tier_for_doc(doc)
+    _record_obligations_created_metric(source_key, confidence_tier, created)
+
+    if created > 0:
+        try:
+            from src.worker import notify_obligations_extracted, auto_map_obligation_policies
+
+            notify_obligations_extracted.delay(doc.id, created, source_key)
+            auto_map_obligation_policies.delay(doc.id, source_key)
+        except Exception:
+            logger.debug("Failed to dispatch async obligation follow-up tasks", exc_info=True)
+    return created
+
+
+def _synthetic_supervisory_celex(alert: SupervisoryAlert) -> str:
+    source = (alert.source_system or "SUP").upper()
+    published = alert.published_at or utc_now()
+    date_part = published.strftime("%Y%m%d")
+    digest = hashlib.sha256((alert.dedup_key or str(alert.id)).encode("utf-8")).hexdigest()[:16]
+    return f"SUP-{source}-{date_part}-{digest.upper()}"
+
+
+def _get_or_create_proxy_document_for_alert(db: Session, alert: SupervisoryAlert) -> LegalDocument:
+    if alert.legal_doc_id:
+        existing = db.query(LegalDocument).filter(LegalDocument.id == alert.legal_doc_id).first()
+        if existing:
+            return existing
+
+    synthetic_celex = _synthetic_supervisory_celex(alert)
+    doc = db.query(LegalDocument).filter(LegalDocument.celex == synthetic_celex).first()
+    if doc:
+        if alert.legal_doc_id != doc.id:
+            alert.legal_doc_id = doc.id
+            alert.updated_at = utc_now()
+            db.add(alert)
+            db.commit()
+        return doc
+
+    full_text = f"{alert.title or ''}\n\n{alert.description or ''}".strip() or (
+        alert.title or "Supervisory alert"
+    )
+    doc = LegalDocument(
+        celex=synthetic_celex,
+        source_system=alert.source_system,
+        source_reference=alert.link or f"supervisory:{alert.id}",
+        jurisdiction=alert.jurisdiction,
+        primary_language=(alert.language or "en").lower(),
+        title=alert.title or f"{(alert.source_system or 'supervisory').upper()} alert",
+        type="other",
+        publication_date=alert.published_at or utc_now(),
+        status="active",
+        last_modified=utc_now(),
+        full_text=full_text,
+    )
+    db.add(doc)
+    db.flush()
+
+    alert.legal_doc_id = doc.id
+    alert.updated_at = utc_now()
+    db.add(alert)
+    db.commit()
+    db.refresh(doc)
+    return doc
+
+
+def extract_obligations_from_alert(db: Session, alert: SupervisoryAlert) -> int:
+    """
+    Extract and seed obligations from a persisted supervisory alert.
+
+    Keeps compatibility with existing obligation APIs by writing into a
+    deterministic proxy LegalDocument.
+    """
+    doc = _get_or_create_proxy_document_for_alert(db, alert)
+    raw_obligations = extract_obligations(
+        title=alert.title or doc.title,
+        celex=doc.celex,
+        full_text=f"{alert.title or ''}\n\n{alert.description or ''}".strip(),
+        article_breakdown=None,
+    )
+    doc.obligations_json = raw_obligations
+    doc.last_modified = utc_now()
+    db.add(doc)
+    db.commit()
+    db.refresh(doc)
+
+    created = seed_obligations_for_doc(
+        db,
+        doc,
+        allow_existing=True,
+        source=alert.source_system or "supervisory",
+    )
+    if created > 0:
+        rows = (
+            db.query(RegulatoryObligation)
+            .filter(
+                RegulatoryObligation.doc_id == doc.id,
+                RegulatoryObligation.supervisory_alert_id.is_(None),
+            )
+            .all()
+        )
+        for row in rows:
+            row.supervisory_alert_id = alert.id
+            row.updated_at = utc_now()
+        db.commit()
+
     return created
 
 

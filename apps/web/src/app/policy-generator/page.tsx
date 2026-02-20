@@ -90,12 +90,13 @@ export default function PolicyGeneratorPage() {
 
   const loadTemplateVariables = async (templateId: string) => {
     try {
-      const vars = await getTemplateVariables(templateId);
+      const varsResponse = await getTemplateVariables(templateId);
+      const vars = varsResponse.variables || [];
       setTemplateVars(vars);
       // Initialize with defaults
       const defaults: Record<string, string> = {};
       vars.forEach((v) => {
-        if (v.default_value) defaults[v.name] = v.default_value;
+        if (v.default) defaults[v.name] = v.default;
       });
       setVariableValues(defaults);
     } catch (_error) {
@@ -123,11 +124,23 @@ export default function PolicyGeneratorPage() {
         .split(",")
         .map((id) => id.trim())
         .filter((id) => id);
+      const obligationIdsNumeric = obligationIdsList
+        .map((id) => Number(id))
+        .filter((id) => Number.isInteger(id) && id > 0);
+
+      if (obligationIdsNumeric.length !== obligationIdsList.length) {
+        toast({
+          title: "Error",
+          description: "Obligation IDs must be numeric values",
+          variant: "error",
+        });
+        return;
+      }
 
       const result = await generatePolicy({
         template_id: selectedTemplate,
-        obligation_ids: obligationIdsList,
-        custom_variables: variableValues,
+        obligation_ids: obligationIdsNumeric,
+        variable_values: variableValues,
         options: {
           include_procedures: true,
           include_controls: true,
@@ -341,7 +354,7 @@ export default function PolicyGeneratorPage() {
                             [variable.name]: e.target.value,
                           })
                         }
-                        placeholder={variable.default_value}
+                        placeholder={variable.placeholder || variable.default}
                       />
                       <p className="text-xs text-muted-foreground">
                         {variable.description}

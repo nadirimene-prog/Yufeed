@@ -120,6 +120,28 @@ ai_api_cost_usd = Counter(
 
 dlq_size_gauge = Gauge("dlq_size", "Number of items in Dead Letter Queue", ["tenant_id"])
 
+# ============================================================================
+# Compliance Pipeline Metrics
+# ============================================================================
+
+obligations_created_total = Counter(
+    "obligations_created_total",
+    "Total obligations created by ingestion pipeline",
+    ["source", "confidence_tier"],
+)
+
+policy_mapping_suggestions_total = Counter(
+    "policy_mapping_suggestions_total",
+    "Total policy mapping suggestions created",
+    ["match_method"],
+)
+
+obligation_approval_total = Counter(
+    "obligation_approval_total",
+    "Total obligation approval operations",
+    ["status"],
+)
+
 instrumentor = Instrumentator(
     should_group_status_codes=True,
     should_ignore_untemplated=True,

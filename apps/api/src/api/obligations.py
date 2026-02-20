@@ -8,6 +8,7 @@ def utc_now() -> datetime:
 
 
 from typing import Optional, List
+from pydantic import BaseModel, Field
 
 from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.orm import Session
@@ -39,8 +40,26 @@ from src.compliance.scope import normalize_scopes, scope_keywords
 from src.websocket.manager import ws_manager
 from src.websocket.events import EventType, NotificationEvent
 from src.services.policy_library import ensure_master_policy_for_template
+from src.services.policy_matcher import PolicyMatcher
+from src.monitoring.metrics import obligation_approval_total, policy_mapping_suggestions_total
+from src.audit.recorders import record_event, record_decision
+from src.config import settings
 
 router = APIRouter(prefix="/api/obligations", tags=["obligations"])
+
+
+class BulkApproveRequest(BaseModel):
+    obligation_ids: List[int] = Field(default_factory=list, min_length=1)
+    status: str = Field(default="approved")
+    note: Optional[str] = None
+    auto_link_best_suggestion: bool = True
+    create_internal_rule: bool = True
+
+
+class BulkApproveItemResult(BaseModel):
+    obligation_id: int
+    status: str
+    error: Optional[str] = None
 
 
 def _normalize_statuses(status: Optional[str]) -> Optional[List[str]]:
@@ -597,77 +616,150 @@ def get_policy_template_suggestions(
         raise HTTPException(status_code=404, detail="Obligation not found")
 
     obligation, doc = row
-    text = " ".join(
-        [
-            obligation.obligation_text or "",
-            obligation.article_ref or "",
-            doc.title or "",
-            doc.jurisdiction or "",
-        ]
-    )
-
-    templates = db.query(PolicyTemplate).filter(PolicyTemplate.is_active == True).all()
+    matcher = PolicyMatcher(db)
+    suggestions = matcher.suggest_policies(obligation, limit=limit)
     effective_tenant_id = _effective_tenant_id(current_user)
-    if effective_tenant_id:
-        tenant = db.query(Tenant).filter(Tenant.tenant_id == effective_tenant_id).first()
-        institution_type = (tenant.institution_type or "").lower() if tenant else ""
-        if institution_type:
-            templates = [
-                template
-                for template in templates
-                if not template.institution_types
-                or institution_type in (template.institution_types or [])
+
+    # Fallback to legacy template scoring if semantic matcher returns nothing.
+    if not suggestions:
+        text = " ".join(
+            [
+                obligation.obligation_text or "",
+                obligation.article_ref or "",
+                doc.title or "",
+                doc.jurisdiction or "",
             ]
+        )
+        templates = db.query(PolicyTemplate).filter(PolicyTemplate.is_active == True).all()
+        if effective_tenant_id:
+            tenant = db.query(Tenant).filter(Tenant.tenant_id == effective_tenant_id).first()
+            institution_type = (tenant.institution_type or "").lower() if tenant else ""
+            if institution_type:
+                templates = [
+                    template
+                    for template in templates
+                    if not template.institution_types
+                    or institution_type in (template.institution_types or [])
+                ]
 
-    template_ids = [t.template_id for t in templates]
-    master_policies = {}
-    if template_ids:
-        for policy in (
-            db.query(PolicyDocument).filter(PolicyDocument.policy_id.in_(template_ids)).all()
-        ):
-            master_policies[policy.policy_id] = policy
+        template_ids = [t.template_id for t in templates]
+        master_policies = {}
+        if template_ids:
+            for policy in (
+                db.query(PolicyDocument).filter(PolicyDocument.policy_id.in_(template_ids)).all()
+            ):
+                master_policies[policy.policy_id] = policy
 
-    scored = []
-    for template in templates:
-        score = _template_score(template, text)
-        scored.append((score, template))
+        scored = []
+        for template in templates:
+            score = _template_score(template, text)
+            scored.append((score, template))
+        scored.sort(key=lambda item: item[0], reverse=True)
+        if scored and scored[0][0] <= 0:
+            best_template, best_score = _pick_best_template(templates, text)
+            scored = [(best_score, best_template)] if best_template else []
+        else:
+            scored = [(score, template) for score, template in scored if score > 0]
 
-    scored.sort(key=lambda item: item[0], reverse=True)
-
-    # If we have no positive matches, still return a reasonable fallback (mirrors approval auto-linking).
-    if scored and scored[0][0] <= 0:
-        best_template, best_score = _pick_best_template(templates, text)
-        scored = [(best_score, best_template)] if best_template else []
-    else:
-        scored = [(score, template) for score, template in scored if score > 0]
-
-    results = []
-    for score, template in scored[:limit]:
-        policy = master_policies.get(template.template_id)
-        if not policy:
-            # Fallback to legacy/partial states where policy_id wasn't template_id yet.
-            policy = next(
-                (
-                    p
-                    for p in db.query(PolicyDocument).all()
-                    if (p.metadata_json or {}).get("template_id") == template.template_id
-                ),
-                None,
+        for score, template in scored[:limit]:
+            policy = master_policies.get(template.template_id)
+            if not policy:
+                policy = next(
+                    (
+                        p
+                        for p in db.query(PolicyDocument).all()
+                        if (p.metadata_json or {}).get("template_id") == template.template_id
+                    ),
+                    None,
+                )
+            if not policy:
+                continue
+            suggestions.append(
+                {
+                    "policy_document_id": policy.id,
+                    "policy_id": policy.policy_id,
+                    "template_id": template.template_id,
+                    "name": policy.name or template.name,
+                    "category": template.category,
+                    "score": score,
+                    "confidence": min(1.0, float(score) / 10.0),
+                    "reasoning": "Keyword overlap fallback",
+                    "match_method": "keyword",
+                }
             )
-        if not policy:
+
+    mapping_rows = (
+        db.query(ObligationPolicyMapping, PolicyDocument)
+        .join(PolicyDocument, PolicyDocument.id == ObligationPolicyMapping.policy_id)
+        .filter(ObligationPolicyMapping.obligation_id == obligation.id)
+        .all()
+    )
+    existing_map = {policy.id: mapping for mapping, policy in mapping_rows}
+
+    items: List[dict] = []
+    seen_policy_ids: set[int] = set()
+    for suggestion in suggestions[:limit]:
+        policy_pk = suggestion.get("policy_document_id")
+        if not isinstance(policy_pk, int):
             continue
-        results.append(
+        if policy_pk in seen_policy_ids:
+            continue
+        seen_policy_ids.add(policy_pk)
+
+        mapping = existing_map.get(policy_pk)
+        match_method = suggestion.get("match_method", "keyword")
+        try:
+            policy_mapping_suggestions_total.labels(match_method=match_method).inc()
+        except Exception:
+            pass
+
+        items.append(
             {
-                "policy_document_id": policy.id,
-                "policy_id": policy.policy_id,
-                "template_id": template.template_id,
-                "name": policy.name or template.name,
-                "category": template.category,
-                "score": score,
+                "policy_document_id": policy_pk,
+                "policy_id": suggestion.get("policy_id"),
+                "template_id": suggestion.get("template_id"),
+                "name": suggestion.get("name"),
+                "category": suggestion.get("category"),
+                "score": suggestion.get("score"),
+                "confidence": suggestion.get("confidence"),
+                "reasoning": suggestion.get("reasoning"),
+                "match_method": match_method,
+                "mapped_by": mapping.mapped_by if mapping else None,
+                "mapping_confidence": mapping.mapping_confidence if mapping else None,
             }
         )
 
-    return {"items": results}
+    # Include existing AI mappings not present in freshly computed suggestions.
+    for mapping, policy in mapping_rows:
+        if policy.id in seen_policy_ids:
+            continue
+        items.append(
+            {
+                "policy_document_id": policy.id,
+                "policy_id": policy.policy_id,
+                "template_id": (
+                    (policy.metadata_json or {}).get("template_id")
+                    if isinstance(policy.metadata_json, dict)
+                    else None
+                ),
+                "name": policy.name,
+                "category": (
+                    (policy.metadata_json or {}).get("category")
+                    if isinstance(policy.metadata_json, dict)
+                    else None
+                ),
+                "score": mapping.mapping_confidence,
+                "confidence": mapping.mapping_confidence,
+                "reasoning": mapping.notes,
+                "match_method": (
+                    "semantic" if (mapping.mapped_by or "").startswith("ai:") else "keyword"
+                ),
+                "mapped_by": mapping.mapped_by,
+                "mapping_confidence": mapping.mapping_confidence,
+            }
+        )
+
+    return {"items": items[:limit]}
 
 
 @router.post("/{obligation_id}/applicability")
@@ -972,6 +1064,12 @@ async def approve_obligation(
     if new_status == "approved":
         # Ensure approved obligations are always linked to a policy (auto-assign from master policies if missing).
         if not obligation.linked_policy_id:
+            if not payload.auto_link_best_suggestion:
+                raise HTTPException(
+                    status_code=409,
+                    detail="Approved obligation must be linked to a policy when auto-link is disabled",
+                )
+
             templates = db.query(PolicyTemplate).filter(PolicyTemplate.is_active == True).all()
             if effective_tenant_id:
                 tenant = db.query(Tenant).filter(Tenant.tenant_id == effective_tenant_id).first()
@@ -1016,7 +1114,7 @@ async def approve_obligation(
     if new_status == "rejected":
         obligation.reviewed_by = current_user.email
 
-    # Always create (or reuse) an internal rule on approval and attach it to the linked policy.
+    # Optionally create (or reuse) an internal rule on approval.
     internal_rule = None
     internal_rule_created = False
     if new_status == "approved":
@@ -1041,24 +1139,25 @@ async def approve_obligation(
             notes="Mapped during obligation approval",
         )
 
-        policy_section = _get_or_create_obligation_section(db, obligation.linked_policy_id)
-        rule_name = payload.internal_rule_name or f"Implement {obligation.obligation_id}"
-        description = (
-            payload.internal_rule_description
-            or (
-                f"{(obligation.article_ref or '').strip()}\n\n{(obligation.obligation_text or '').strip()}"
-            ).strip()
-        )
-        description = description[:2000] if description else None
-        internal_rule, internal_rule_created = _ensure_internal_rule_for_obligation(
-            db,
-            obligation,
-            tenant_id=linked_policy.tenant_id if linked_policy else None,
-            policy_section_id=policy_section.id if policy_section else None,
-            current_user_email=current_user.email,
-            name=rule_name,
-            description=description,
-        )
+        if payload.create_internal_rule:
+            policy_section = _get_or_create_obligation_section(db, obligation.linked_policy_id)
+            rule_name = payload.internal_rule_name or f"Implement {obligation.obligation_id}"
+            description = (
+                payload.internal_rule_description
+                or (
+                    f"{(obligation.article_ref or '').strip()}\n\n{(obligation.obligation_text or '').strip()}"
+                ).strip()
+            )
+            description = description[:2000] if description else None
+            internal_rule, internal_rule_created = _ensure_internal_rule_for_obligation(
+                db,
+                obligation,
+                tenant_id=linked_policy.tenant_id if linked_policy else None,
+                policy_section_id=policy_section.id if policy_section else None,
+                current_user_email=current_user.email,
+                name=rule_name,
+                description=description,
+            )
 
     # Link to risk entries if provided
     if payload.link_risk_entry_ids:
@@ -1093,6 +1192,42 @@ async def approve_obligation(
 
     if internal_rule:
         db.refresh(internal_rule)
+
+    try:
+        obligation_approval_total.labels(status=new_status).inc()
+    except Exception:
+        pass
+
+    try:
+        tenant_id = effective_tenant_id or "default"
+        record_event(
+            db=db,
+            tenant_id=tenant_id,
+            event_type="compliance.obligation.updated",
+            entity_type="regulatory_obligation",
+            entity_id=str(obligation.id),
+            source="api.obligations.approve_obligation",
+            payload={
+                "status": new_status,
+                "linked_policy_id": obligation.linked_policy_id,
+                "auto_link_best_suggestion": payload.auto_link_best_suggestion,
+                "create_internal_rule": payload.create_internal_rule,
+            },
+            metadata={"actor_id": current_user.user_id, "actor_email": current_user.email},
+        )
+        if new_status in {"approved", "rejected"}:
+            record_decision(
+                db=db,
+                tenant_id=tenant_id,
+                decision="allow" if new_status == "approved" else "deny",
+                reason_codes=[f"obligation_{new_status}"],
+                metadata={
+                    "obligation_id": obligation.id,
+                    "linked_policy_id": obligation.linked_policy_id,
+                },
+            )
+    except Exception:
+        pass
 
     # Send WebSocket notifications
     try:
@@ -1147,6 +1282,185 @@ async def approve_obligation(
         }
 
     return result
+
+
+@router.post("/bulk-approve")
+async def bulk_approve_obligations(
+    payload: BulkApproveRequest,
+    db: Session = Depends(get_db),
+    current_user: CurrentUser = Depends(require_any_role(["admin", "compliance", "aml_officer"])),
+):
+    """Bulk approval endpoint with per-item partial success."""
+    results: List[BulkApproveItemResult] = []
+    succeeded = 0
+    failed = 0
+
+    for obligation_id in payload.obligation_ids:
+        try:
+            approval_payload = ObligationApproval(
+                status=payload.status,
+                note=payload.note,
+                create_internal_rule=payload.create_internal_rule,
+                auto_link_best_suggestion=payload.auto_link_best_suggestion,
+            )
+            await approve_obligation(
+                obligation_id=obligation_id,
+                payload=approval_payload,
+                db=db,
+                current_user=current_user,
+            )
+            succeeded += 1
+            results.append(BulkApproveItemResult(obligation_id=obligation_id, status="approved"))
+            try:
+                obligation_approval_total.labels(status="approved").inc()
+            except Exception:
+                pass
+
+            try:
+                tenant_id = _effective_tenant_id(current_user) or "default"
+                record_event(
+                    db=db,
+                    tenant_id=tenant_id,
+                    event_type="compliance.obligation.bulk_approved",
+                    entity_type="regulatory_obligation",
+                    entity_id=str(obligation_id),
+                    source="api.obligations.bulk_approve",
+                    payload={"status": "approved"},
+                    metadata={"actor_id": current_user.user_id, "actor_email": current_user.email},
+                )
+                record_decision(
+                    db=db,
+                    tenant_id=tenant_id,
+                    decision="allow",
+                    reason_codes=["bulk_approval"],
+                    metadata={"obligation_id": obligation_id, "status": "approved"},
+                )
+            except Exception:
+                pass
+        except HTTPException as exc:
+            failed += 1
+            error_msg = (
+                str(exc.detail) if getattr(exc, "detail", None) else f"HTTP {exc.status_code}"
+            )
+            results.append(
+                BulkApproveItemResult(
+                    obligation_id=obligation_id,
+                    status="failed",
+                    error=error_msg,
+                )
+            )
+            try:
+                obligation_approval_total.labels(status="failed").inc()
+            except Exception:
+                pass
+            db.rollback()
+        except Exception as exc:
+            failed += 1
+            results.append(
+                BulkApproveItemResult(obligation_id=obligation_id, status="failed", error=str(exc))
+            )
+            try:
+                obligation_approval_total.labels(status="failed").inc()
+            except Exception:
+                pass
+            try:
+                tenant_id = _effective_tenant_id(current_user) or "default"
+                record_event(
+                    db=db,
+                    tenant_id=tenant_id,
+                    event_type="compliance.obligation.bulk_approval_failed",
+                    entity_type="regulatory_obligation",
+                    entity_id=str(obligation_id),
+                    source="api.obligations.bulk_approve",
+                    payload={"status": "failed", "error": str(exc)},
+                    metadata={"actor_id": current_user.user_id, "actor_email": current_user.email},
+                )
+            except Exception:
+                pass
+            db.rollback()
+
+    return {
+        "total": len(payload.obligation_ids),
+        "succeeded": succeeded,
+        "failed": failed,
+        "items": [item.model_dump() for item in results],
+    }
+
+
+@router.get("/coverage-stats")
+def get_obligation_coverage_stats(
+    db: Session = Depends(get_db),
+    current_user: CurrentUser = Depends(
+        require_any_role(["admin", "compliance", "aml_officer", "auditor", "user"])
+    ),
+):
+    """Coverage metrics for obligation -> policy linkage."""
+    effective_tenant_id = _effective_tenant_id(current_user)
+    base_query = db.query(RegulatoryObligation)
+    if effective_tenant_id:
+        base_query = base_query.outerjoin(
+            PolicyDocument,
+            PolicyDocument.id == RegulatoryObligation.linked_policy_id,
+        ).filter(
+            or_(PolicyDocument.tenant_id.is_(None), PolicyDocument.tenant_id == effective_tenant_id)
+        )
+
+    total = base_query.count()
+    linked_count = base_query.filter(RegulatoryObligation.linked_policy_id.isnot(None)).count()
+    unlinked_count = max(total - linked_count, 0)
+
+    ai_suggested_count = (
+        db.query(sa.func.count(sa.func.distinct(ObligationPolicyMapping.obligation_id)))
+        .filter(ObligationPolicyMapping.mapped_by.ilike("ai:%"))
+        .scalar()
+        or 0
+    )
+
+    high_t = float(getattr(settings, "POLICY_MATCH_HIGH_CONFIDENCE", 0.70))
+    med_t = float(getattr(settings, "POLICY_MATCH_MEDIUM_CONFIDENCE", 0.45))
+    high_count = (
+        db.query(sa.func.count(ObligationPolicyMapping.id))
+        .filter(
+            ObligationPolicyMapping.mapped_by.ilike("ai:%"),
+            ObligationPolicyMapping.mapping_confidence >= high_t,
+        )
+        .scalar()
+        or 0
+    )
+    medium_count = (
+        db.query(sa.func.count(ObligationPolicyMapping.id))
+        .filter(
+            ObligationPolicyMapping.mapped_by.ilike("ai:%"),
+            ObligationPolicyMapping.mapping_confidence < high_t,
+            ObligationPolicyMapping.mapping_confidence >= med_t,
+        )
+        .scalar()
+        or 0
+    )
+    low_count = (
+        db.query(sa.func.count(ObligationPolicyMapping.id))
+        .filter(
+            ObligationPolicyMapping.mapped_by.ilike("ai:%"),
+            or_(
+                ObligationPolicyMapping.mapping_confidence < med_t,
+                ObligationPolicyMapping.mapping_confidence.is_(None),
+            ),
+        )
+        .scalar()
+        or 0
+    )
+
+    return {
+        "total": total,
+        "linked_count": linked_count,
+        "unlinked_count": unlinked_count,
+        "ai_suggested_count": ai_suggested_count,
+        "confidence_tiers": {
+            "high": high_count,
+            "medium": medium_count,
+            "low": low_count,
+        },
+    }
 
 
 @router.get("/{obligation_id}/risks")
