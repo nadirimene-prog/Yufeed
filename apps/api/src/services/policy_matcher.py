@@ -78,7 +78,7 @@ class PolicyMatcher:
         if not self.embedding_provider.available:
             return []
 
-        query_vec = self.embedding_provider.embed_query(obligation_text)
+        query_vec = self._embed_text(obligation_text)
         if not query_vec:
             return []
 
@@ -123,11 +123,15 @@ class PolicyMatcher:
             return cached.get("embedding")
 
         text = self._policy_context(policy)
-        embedding = self.embedding_provider.embed_query(text)
+        embedding = self._embed_text(text)
         if not embedding:
             return None
         _POLICY_EMBED_CACHE[policy.id] = {"updated_at": updated_at, "embedding": embedding}
         return embedding
+
+    def _embed_text(self, text: str) -> Optional[List[float]]:
+        """Compatibility seam used by tests to force keyword fallback."""
+        return self.embedding_provider.embed_query(text)
 
     def invalidate_policy_cache(self, policy_id: int) -> None:
         _POLICY_EMBED_CACHE.pop(policy_id, None)

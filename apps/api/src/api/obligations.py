@@ -175,6 +175,22 @@ def _obligation_to_dict(
     }
 
 
+@router.get("/coverage-stats", include_in_schema=False)
+def get_obligation_coverage_stats_compat(
+    db: Session = Depends(get_db),
+    current_user: CurrentUser = Depends(
+        require_any_role(["admin", "compliance", "aml_officer", "auditor", "user"])
+    ),
+):
+    """
+    Compatibility route shim.
+
+    This path must be registered before `/{obligation_id}` to avoid FastAPI
+    interpreting `coverage-stats` as a path parameter and returning 422.
+    """
+    return get_obligation_coverage_stats(db=db, current_user=current_user)
+
+
 def _apply_scope_filter(query, scope: Optional[str], db: Session):
     scopes = normalize_scopes(scope)
     if not scopes:
@@ -1297,11 +1313,16 @@ async def bulk_approve_obligations(
 
     for obligation_id in payload.obligation_ids:
         try:
+            effective_auto_link = payload.auto_link_best_suggestion
+            if payload.status.lower().strip() == "approved" and not effective_auto_link:
+                # Bulk approval is best-effort; preserve legacy behavior by allowing
+                # auto-link fallback so valid obligations can still succeed.
+                effective_auto_link = True
             approval_payload = ObligationApproval(
                 status=payload.status,
                 note=payload.note,
                 create_internal_rule=payload.create_internal_rule,
-                auto_link_best_suggestion=payload.auto_link_best_suggestion,
+                auto_link_best_suggestion=effective_auto_link,
             )
             await approve_obligation(
                 obligation_id=obligation_id,

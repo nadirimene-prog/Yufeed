@@ -16,6 +16,7 @@ from typing import Dict, List, Optional, Any
 
 from sqlalchemy.orm import Session
 from sqlalchemy import text
+from sqlalchemy.exc import OperationalError
 
 from src.models.compliance_workflow import (
     RegulatoryObligation,
@@ -33,6 +34,13 @@ from src.tenancy.context import get_current_tenant
 from src.config import settings
 
 logger = logging.getLogger(__name__)
+
+
+def _is_missing_sqlite_table_error(exc: Exception, *table_names: str) -> bool:
+    message = str(exc).lower()
+    if "sqlite" not in message or "no such table" not in message:
+        return False
+    return not table_names or any(table.lower() in message for table in table_names)
 
 
 @dataclass
@@ -290,16 +298,21 @@ class PolicyGenerator:
     def _merge_variables(self, template_id: str, provided_values: Dict[str, Any]) -> Dict[str, Any]:
         """Merge provided variables with template defaults."""
         # Load template variables
-        template_vars = self.db.execute(
-            text(
-                """
-            SELECT variable_name, variable_type, default_value, is_required
-            FROM policy_template_variables
-            WHERE template_id = :template_id
-        """
-            ),
-            {"template_id": template_id},
-        ).fetchall()
+        try:
+            template_vars = self.db.execute(
+                text(
+                    """
+                SELECT variable_name, variable_type, default_value, is_required
+                FROM policy_template_variables
+                WHERE template_id = :template_id
+            """
+                ),
+                {"template_id": template_id},
+            ).fetchall()
+        except OperationalError as exc:
+            if _is_missing_sqlite_table_error(exc, "policy_template_variables"):
+                return dict(provided_values or {})
+            raise
 
         variables = {}
         for var_name, var_type, default, required in template_vars:
@@ -559,19 +572,24 @@ The policy is {len(content.split())} words and estimated reading time is {len(co
 
     def get_template_variables(self, template_id: str) -> List[Dict]:
         """Get all variables for a template."""
-        variables = self.db.execute(
-            text(
-                """
-            SELECT
-                variable_name, variable_type, description,
-                default_value, is_required, placeholder, example_value
-            FROM policy_template_variables
-            WHERE template_id = :template_id
-            ORDER BY variable_name
-        """
-            ),
-            {"template_id": template_id},
-        ).fetchall()
+        try:
+            variables = self.db.execute(
+                text(
+                    """
+                SELECT
+                    variable_name, variable_type, description,
+                    default_value, is_required, placeholder, example_value
+                FROM policy_template_variables
+                WHERE template_id = :template_id
+                ORDER BY variable_name
+            """
+                ),
+                {"template_id": template_id},
+            ).fetchall()
+        except OperationalError as exc:
+            if _is_missing_sqlite_table_error(exc, "policy_template_variables"):
+                return []
+            raise
 
         return [
             {

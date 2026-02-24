@@ -104,6 +104,43 @@ class LegalDocument(Base):
         "LegalRelation", foreign_keys="[LegalRelation.to_doc_id]", back_populates="to_document"
     )
 
+    _LEGACY_FIELD_ALIASES = {
+        "source": "source_system",
+        "doc_type": "type",
+        "language": "primary_language",
+    }
+
+    def __init__(self, **kwargs):
+        # Backward-compatible aliases used by older tests/services.
+        for legacy_name, current_name in self._LEGACY_FIELD_ALIASES.items():
+            if legacy_name in kwargs:
+                kwargs.setdefault(current_name, kwargs.pop(legacy_name))
+        super().__init__(**kwargs)
+
+    @property
+    def source(self):
+        return self.source_system
+
+    @source.setter
+    def source(self, value):
+        self.source_system = value
+
+    @property
+    def doc_type(self):
+        return self.type
+
+    @doc_type.setter
+    def doc_type(self, value):
+        self.type = value
+
+    @property
+    def language(self):
+        return self.primary_language
+
+    @language.setter
+    def language(self, value):
+        self.primary_language = value
+
 
 class LegalVersion(Base):
     __tablename__ = "legal_versions"
