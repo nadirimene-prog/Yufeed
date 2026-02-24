@@ -16,6 +16,7 @@ from sqlalchemy.orm import relationship
 from sqlalchemy.dialects.postgresql import JSONB
 
 from src.database import Base
+from src.models.models import LegalDocument  # Backward-compatible re-export for legacy imports
 from src.utils.time import utc_now
 
 
