@@ -7,7 +7,7 @@ import { staggerContainer, staggerItem } from "@/lib/motion";
 
 /**
  * ═══════════════════════════════════════════════════════════════════
- * BENTO GRID - Sentinel Design System
+ * BENTO GRID - Horizon Design System
  * Flexible asymmetric grid layout for dashboards
  * ═══════════════════════════════════════════════════════════════════
  */
@@ -121,7 +121,7 @@ export function BentoItem({
 }
 
 /**
- * Pre-styled Bento Card (combines BentoItem + GlassCard styling)
+ * Pre-styled Bento Card (combines BentoItem + Card styling)
  */
 interface BentoCardProps extends BentoItemProps {
   /** Card title */
@@ -132,7 +132,7 @@ interface BentoCardProps extends BentoItemProps {
   icon?: ReactNode;
   /** Header action element */
   action?: ReactNode;
-  /** Card glow color */
+  /** Card accent shadow */
   glow?: "none" | "primary" | "cyan";
 }
 
@@ -150,8 +150,8 @@ export function BentoCard({
 }: BentoCardProps) {
   const glowClasses = {
     none: "",
-    primary: "hover:shadow-glow-aurora",
-    cyan: "hover:shadow-glow-cyan",
+    primary: "hover:shadow-accent",
+    cyan: "hover:shadow-md",
   };
 
   return (
@@ -159,7 +159,7 @@ export function BentoCard({
       <motion.div
         whileHover={hover ? { y: -4 } : undefined}
         className={cn(
-          "h-full rounded-xl glass-interactive p-5",
+          "h-full rounded-xl border border-border-subtle bg-card p-5 hover:border-border-default hover:shadow-sm",
           glowClasses[glow],
           "transition-shadow duration-300",
         )}
@@ -228,7 +228,7 @@ export function BentoStat({
 }: BentoStatProps) {
   return (
     <BentoItem colSpan={colSpan} className={className}>
-      <div className="h-full rounded-xl glass-surface p-5 flex flex-col justify-between">
+      <div className="flex h-full flex-col justify-between rounded-xl border border-border-subtle bg-card p-5">
         <div className="flex items-center justify-between">
           <span className="text-label">{label}</span>
           {icon && <span className="text-muted-foreground">{icon}</span>}

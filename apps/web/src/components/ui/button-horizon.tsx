@@ -15,47 +15,47 @@ import { Loader2 } from "lucide-react";
    ───────────────────────────────────────────────────────────────────────────── */
 
 const buttonVariants = cva(
-  "inline-flex items-center justify-center gap-2 rounded-lg font-medium transition-all duration-fast focus-ring disabled:pointer-events-none disabled:opacity-50",
+  "group inline-flex items-center justify-center gap-2 rounded-xl font-medium transition-all duration-fast focus-ring disabled:pointer-events-none disabled:opacity-50",
   {
     variants: {
       variant: {
-        /* Primary — Main action */
+        /* Primary — Gradient Electric Blue */
         primary:
-          "bg-primary text-white shadow-sm hover:bg-primary-hover active:bg-primary-active active:scale-[0.98]",
+          "bg-gradient-to-r from-primary to-accent-secondary text-primary-foreground shadow-sm hover:shadow-accent hover:-translate-y-0.5 hover:brightness-110 active:scale-[0.98]",
 
-        /* Secondary — Alternative action */
+        /* Secondary — Subtle fill */
         secondary:
-          "bg-bg-overlay text-foreground border border-border-default hover:bg-bg-floating hover:border-border-strong active:scale-[0.98]",
+          "bg-muted text-foreground border border-border-subtle hover:bg-secondary hover:border-border-default active:scale-[0.98]",
 
-        /* Tertiary — Subtle action */
+        /* Tertiary — Minimal */
         tertiary:
-          "bg-transparent text-foreground-secondary hover:text-foreground hover:bg-bg-elevated active:bg-bg-overlay",
+          "bg-transparent text-foreground-secondary hover:text-foreground hover:bg-muted active:bg-secondary",
 
-        /* Ghost — Minimal action */
-        ghost: "bg-transparent text-foreground-secondary hover:text-foreground",
+        /* Ghost — No fill */
+        ghost: "bg-transparent text-muted-foreground hover:text-foreground",
 
-        /* Destructive — Dangerous action */
+        /* Destructive — Red */
         destructive:
-          "bg-critical-600 text-white hover:bg-critical-500 active:bg-critical-700 active:scale-[0.98]",
+          "bg-destructive text-destructive-foreground hover:bg-critical-600 active:bg-critical-700 active:scale-[0.98]",
 
-        /* Accent — Highlighted action */
+        /* Accent — Solid accent */
         accent:
-          "bg-secondary text-white hover:bg-secondary-hover active:bg-secondary-active active:scale-[0.98]",
+          "bg-primary text-primary-foreground hover:bg-primary-hover active:bg-primary-active active:scale-[0.98]",
 
-        /* Link — Text button */
+        /* Link — Text link */
         link: "bg-transparent text-primary hover:text-primary-hover underline-offset-4 hover:underline p-0 h-auto",
 
-        /* Glass — Translucent button (for backward compatibility) */
+        /* Glass — Backward compatibility alias */
         glass:
-          "bg-white/5 backdrop-blur-sm border border-white/10 text-foreground hover:bg-white/10",
+          "border border-border-subtle bg-card/80 text-foreground backdrop-blur-sm hover:bg-card",
 
-        /* Outline — Bordered button (for backward compatibility) */
+        /* Outline — Bordered */
         outline:
-          "bg-transparent border border-border-default text-foreground hover:bg-bg-elevated hover:border-border-strong",
+          "bg-transparent border border-border-default text-foreground hover:bg-muted hover:border-primary/30",
 
-        /* Gradient — Gradient background (for backward compatibility) */
+        /* Gradient — Same as primary for compat */
         gradient:
-          "bg-gradient-to-r from-primary to-secondary text-white hover:opacity-90",
+          "bg-gradient-to-r from-primary to-accent-secondary text-primary-foreground hover:shadow-accent hover:-translate-y-0.5",
       },
       size: {
         xs: "h-7 px-2.5 text-xs gap-1.5",

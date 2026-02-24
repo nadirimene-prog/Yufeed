@@ -1,6 +1,6 @@
 /**
  * ═══════════════════════════════════════════════════════════════════
- * YUFEED SENTINEL - Motion Configuration
+ * YUFEED - Motion Configuration
  * Framer Motion variants and utilities for consistent animations
  * ═══════════════════════════════════════════════════════════════════
  */
@@ -334,7 +334,7 @@ export const cardHover: Variants = {
   hover: {
     y: -4,
     boxShadow:
-      "0 16px 48px rgba(0, 0, 0, 0.2), 0 0 0 1px rgba(109, 90, 205, 0.1)",
+      "0 16px 48px rgba(0, 0, 0, 0.2), 0 0 0 1px rgba(0, 82, 255, 0.1)",
     transition: springs.snappy,
   },
   tap: {
@@ -372,7 +372,7 @@ export const sidebarItem: Variants = {
   },
   hover: {
     x: 4,
-    backgroundColor: "rgba(109, 90, 205, 0.1)",
+    backgroundColor: "rgba(0, 82, 255, 0.1)",
     transition: springs.snappy,
   },
 };
@@ -465,9 +465,9 @@ export const dropdownAnimation: Variants = {
 export const criticalPulse: TargetAndTransition = {
   scale: [1, 1.02, 1],
   boxShadow: [
-    "0 0 20px rgba(255, 51, 102, 0.4), 0 0 40px rgba(255, 51, 102, 0.2)",
-    "0 0 30px rgba(255, 51, 102, 0.6), 0 0 60px rgba(255, 51, 102, 0.3)",
-    "0 0 20px rgba(255, 51, 102, 0.4), 0 0 40px rgba(255, 51, 102, 0.2)",
+    "0 0 20px rgba(220, 38, 38, 0.4), 0 0 40px rgba(220, 38, 38, 0.2)",
+    "0 0 30px rgba(220, 38, 38, 0.6), 0 0 60px rgba(220, 38, 38, 0.3)",
+    "0 0 20px rgba(220, 38, 38, 0.4), 0 0 40px rgba(220, 38, 38, 0.2)",
   ],
   transition: {
     duration: 2,
@@ -479,9 +479,9 @@ export const criticalPulse: TargetAndTransition = {
 /** Primary glow pulse */
 export const primaryPulse: TargetAndTransition = {
   boxShadow: [
-    "0 0 15px rgba(109, 90, 205, 0.3), 0 0 30px rgba(109, 90, 205, 0.1)",
-    "0 0 25px rgba(109, 90, 205, 0.5), 0 0 50px rgba(109, 90, 205, 0.2)",
-    "0 0 15px rgba(109, 90, 205, 0.3), 0 0 30px rgba(109, 90, 205, 0.1)",
+    "0 0 15px rgba(0, 82, 255, 0.3), 0 0 30px rgba(0, 82, 255, 0.1)",
+    "0 0 25px rgba(0, 82, 255, 0.5), 0 0 50px rgba(0, 82, 255, 0.2)",
+    "0 0 15px rgba(0, 82, 255, 0.3), 0 0 30px rgba(0, 82, 255, 0.1)",
   ],
   transition: {
     duration: 2,
@@ -628,7 +628,7 @@ export const reducedStaggerItem: Variants = {
 export const reducedCardHover: Variants = {
   initial: {},
   hover: {
-    boxShadow: "0 0 0 1px rgba(109, 90, 205, 0.2)",
+    boxShadow: "0 0 0 1px rgba(0, 82, 255, 0.2)",
   },
   tap: {},
 };

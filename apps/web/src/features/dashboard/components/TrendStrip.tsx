@@ -121,13 +121,15 @@ export function TrendStrip({
 
   return (
     <section
-      className="glass-surface rounded-2xl border border-white/10 p-3 sm:p-4"
+      className="rounded-2xl border border-border bg-white p-3 shadow-sm sm:p-4"
       role="region"
       aria-label="Throughput metrics"
     >
       <div className="mb-3 flex items-center justify-between">
-        <h2 className="text-sm font-semibold text-white">Trend & Throughput</h2>
-        <p className="text-xs text-white/60">
+        <h2 className="text-sm font-semibold text-foreground">
+          Trend & Throughput
+        </h2>
+        <p className="text-xs text-muted-foreground">
           Window: {formatRangeLabel(timeRange)}
         </p>
       </div>
@@ -137,16 +139,16 @@ export function TrendStrip({
           ? Array.from({ length: 5 }).map((_, index) => (
               <div
                 key={`trend-skeleton-${index}`}
-                className="rounded-xl border border-white/10 bg-white/5 p-3"
+                className="rounded-xl border border-border bg-slate-50 p-3"
               >
-                <div className="mb-2 h-3 w-24 animate-shimmer rounded bg-white/10" />
-                <div className="h-6 w-16 animate-shimmer rounded bg-white/10" />
+                <div className="mb-2 h-3 w-24 animate-pulse rounded bg-slate-200" />
+                <div className="h-6 w-16 animate-pulse rounded bg-slate-200" />
               </div>
             ))
           : cards.map((card) => (
               <div
                 key={card.id}
-                className="rounded-xl border border-white/10 bg-white/5 p-3"
+                className="rounded-xl border border-border bg-slate-50 p-3"
               >
                 <p className="mb-1 flex items-center gap-1.5 text-[10px] uppercase tracking-wide text-white/50">
                   <card.icon className="h-3.5 w-3.5" aria-hidden="true" />

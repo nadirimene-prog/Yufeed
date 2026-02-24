@@ -26,13 +26,13 @@ export default function NavRail({
   const router = useRouter();
 
   return (
-    <div className="relative flex h-full w-[72px] flex-col items-center border-r border-sidebar-border bg-sidebar/50">
+    <div className="relative flex h-full w-[72px] flex-col items-center border-r border-sidebar-border bg-white">
       <div className="flex h-16 items-center justify-center border-b border-sidebar-border w-full">
         <Tooltip content="YuFeed" side="right">
           <button
             type="button"
             onClick={() => router.push("/dashboard")}
-            className="group flex h-10 w-10 items-center justify-center rounded-xl bg-gradient-to-br from-primary to-accent shadow-lg transition-transform active:scale-95"
+            className="group flex h-10 w-10 items-center justify-center rounded-xl bg-gradient-to-br from-[#0052FF] to-[#4D7CFF] shadow-lg transition-transform active:scale-95"
             aria-label="YuFeed Home"
           >
             <Scale className="h-5 w-5 text-white" />
@@ -61,7 +61,7 @@ export default function NavRail({
               className={cn(
                 "flex h-11 w-11 items-center justify-center rounded-xl transition-all duration-200",
                 isActive
-                  ? "bg-sidebar-primary/10 text-sidebar-primary shadow-[0_0_12px_rgba(109,90,205,0.2)] ring-1 ring-sidebar-primary/20"
+                  ? "bg-sidebar-primary/10 text-sidebar-primary shadow-[0_0_12px_rgba(0,82,255,0.15)] ring-1 ring-sidebar-primary/20"
                   : "text-sidebar-foreground hover:text-sidebar-primary hover:bg-sidebar-accent/50",
               )}
             >
@@ -97,7 +97,7 @@ export default function NavRail({
             aria-label={collapsed ? "Expand sidebar" : "Collapse sidebar"}
             className={cn(
               "flex h-10 w-10 items-center justify-center rounded-xl transition-colors",
-              "text-sidebar-foreground hover:text-white hover:bg-sidebar-accent",
+              "text-sidebar-foreground hover:text-sidebar-primary hover:bg-sidebar-accent",
             )}
           >
             {collapsed ? (

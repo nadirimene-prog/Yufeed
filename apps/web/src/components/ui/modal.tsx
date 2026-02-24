@@ -159,7 +159,7 @@ export function Modal({
             exit={{ opacity: 0 }}
             transition={{ duration: 0.2 }}
             className={cn(
-              "absolute inset-0 bg-black/60 backdrop-blur-sm",
+              "absolute inset-0 bg-overlay-scrim/60 backdrop-blur-sm",
               overlayClassName,
             )}
             onClick={handleOverlayClick}
@@ -174,7 +174,7 @@ export function Modal({
             exit={{ opacity: 0, scale: 0.95, y: 20 }}
             transition={{ type: "spring", stiffness: 400, damping: 30 }}
             className={cn(
-              "relative w-full mx-4 rounded-xl border border-border-default bg-bg-overlay shadow-2xl",
+              "relative w-full mx-4 rounded-xl border border-border-default bg-background-overlay shadow-2xl",
               sizeClasses[size],
               className,
             )}
@@ -185,7 +185,7 @@ export function Modal({
             {showCloseButton && (
               <button
                 onClick={onClose}
-                className="absolute right-4 top-4 rounded-lg p-1.5 text-foreground-tertiary hover:bg-bg-floating hover:text-foreground transition-colors"
+                className="absolute right-4 top-4 rounded-lg p-1.5 text-foreground-tertiary transition-colors hover:bg-background-floating hover:text-foreground"
                 aria-label="Close dialog"
               >
                 <X className="h-5 w-5" />
@@ -216,7 +216,7 @@ export function ModalHeader({
         {showCloseButton && onClose && (
           <button
             onClick={onClose}
-            className="rounded-lg p-1.5 text-foreground-tertiary hover:bg-bg-floating hover:text-foreground transition-colors"
+            className="rounded-lg p-1.5 text-foreground-tertiary transition-colors hover:bg-background-floating hover:text-foreground"
             aria-label="Close dialog"
           >
             <X className="h-5 w-5" />
@@ -411,7 +411,7 @@ export function Drawer({
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
             transition={{ duration: 0.2 }}
-            className="absolute inset-0 bg-black/60 backdrop-blur-sm"
+            className="absolute inset-0 bg-overlay-scrim/60 backdrop-blur-sm"
             onClick={() =>
               modalProps.closeOnOverlayClick && modalProps.onClose()
             }
@@ -424,7 +424,7 @@ export function Drawer({
             exit={animationVariants}
             transition={{ type: "spring", stiffness: 400, damping: 30 }}
             className={cn(
-              "absolute bg-bg-overlay border-border-default shadow-2xl",
+              "absolute bg-background-overlay border-border-default shadow-2xl",
               isHorizontal
                 ? `w-full max-w-md ${placementClasses}`
                 : `h-full max-h-[50vh] ${placementClasses}`,

@@ -43,29 +43,29 @@ export function ReviewGateBanner({
   const hasValidationError = missingSubmittedBy || isSameUser;
 
   return (
-    <section className="rounded-xl border border-risk-high/40 bg-risk-high-soft p-3 text-risk-high">
-      <div className="mb-2 flex items-center gap-2">
+    <section className="rounded-xl border border-orange-200 bg-orange-50 p-3 text-orange-900">
+      <div className="mb-2 flex items-center gap-2 text-orange-700">
         <ShieldCheck className="h-4 w-4" />
         <h3 className="text-xs font-semibold uppercase tracking-wide">
           Risk-based 4-eyes review required
         </h3>
       </div>
 
-      <p className="mb-2 text-xs text-white/80">
+      <p className="mb-2 text-xs font-medium">
         Action `{proposedAction}` is gated. Reviewer decision is required before
         final disposition.
       </p>
-      <p className="mb-2 text-[11px] text-white/70">
+      <p className="mb-2 text-[11px] opacity-90">
         Reasons: {requirement.reasons.join(", ").replaceAll("_", " ")}
       </p>
 
       {missingSubmittedBy ? (
-        <p className="mb-2 text-[11px] text-risk-critical">
+        <p className="mb-2 text-[11px] font-medium text-red-600">
           Reviewer is required before submitting the gate decision.
         </p>
       ) : null}
       {isSameUser ? (
-        <p className="mb-2 text-[11px] text-risk-critical">
+        <p className="mb-2 text-[11px] font-medium text-red-600">
           4-eyes control failed: reviewer must differ from the current user.
         </p>
       ) : null}
@@ -75,30 +75,32 @@ export function ReviewGateBanner({
           value={submittedBy}
           onChange={(event) => onSubmittedByChange(event.target.value)}
           placeholder="Maker user id"
-          className="h-9 rounded-lg border border-white/20 bg-black/20 px-2 text-xs text-white placeholder:text-white/50"
+          className="h-9 rounded-lg border border-orange-200 bg-white px-2 text-xs text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-orange-500/20"
           aria-label="Submitted by"
         />
         <input
           value={reviewNotes}
           onChange={(event) => onReviewNotesChange(event.target.value)}
           placeholder="Reviewer notes"
-          className="h-9 rounded-lg border border-white/20 bg-black/20 px-2 text-xs text-white placeholder:text-white/50"
+          className="h-9 rounded-lg border border-orange-200 bg-white px-2 text-xs text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-orange-500/20"
           aria-label="Review notes"
         />
       </div>
 
-      <div className="mt-2 flex items-center gap-2">
+      <div className="mt-3 flex items-center gap-2">
         <Button
-          variant="glass"
+          variant="outline"
           size="sm"
+          className="border-orange-200 hover:bg-orange-100 hover:text-orange-900"
           onClick={onApprove}
           disabled={pending || hasValidationError}
         >
           Approve review
         </Button>
         <Button
-          variant="glass"
+          variant="outline"
           size="sm"
+          className="border-orange-200 hover:bg-orange-100 hover:text-orange-900"
           onClick={onReturn}
           disabled={pending || hasValidationError}
         >

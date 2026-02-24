@@ -17,11 +17,13 @@ export function AiRecommendationCard({
     return (
       <div
         className={cn(
-          "rounded-xl border border-white/10 bg-white/5 p-3",
+          "rounded-xl border border-primary/20 bg-primary/5 p-3",
           className,
         )}
       >
-        <p className="text-xs text-white/60">No AI recommendation available.</p>
+        <p className="text-xs text-muted-foreground">
+          No AI recommendation available.
+        </p>
       </div>
     );
   }
@@ -33,31 +35,31 @@ export function AiRecommendationCard({
   return (
     <section
       className={cn(
-        "rounded-xl border border-white/10 bg-white/5 p-3",
+        "rounded-xl border border-primary/20 bg-primary/5 p-3",
         className,
       )}
     >
       <div className="mb-2 flex items-center justify-between">
-        <h3 className="flex items-center gap-2 text-xs font-semibold uppercase tracking-wide text-aurora-300">
+        <h3 className="flex items-center gap-2 text-xs font-semibold uppercase tracking-wide text-primary">
           <Bot className="h-4 w-4" />
           AI Recommendation
         </h3>
-        <span className="inline-flex items-center gap-1 rounded-full border border-aurora-500/30 bg-aurora-500/10 px-2 py-1 text-[10px] text-aurora-200">
+        <span className="inline-flex items-center gap-1 rounded-full border border-primary/30 bg-primary/10 px-2 py-1 text-[10px] text-primary">
           <Gauge className="h-3 w-3" />
           {confidence}% confidence
         </span>
       </div>
 
-      <p className="mb-3 text-sm text-white/90">{recommendation.summary}</p>
+      <p className="mb-3 text-sm text-foreground">{recommendation.summary}</p>
 
       <div className="space-y-1">
-        <p className="text-[10px] uppercase tracking-wide text-white/50">
+        <p className="text-[10px] uppercase tracking-wide text-muted-foreground">
           Rationale
         </p>
-        <ul className="space-y-1 text-xs text-white/75">
+        <ul className="space-y-1 text-xs text-foreground/80">
           {recommendation.rationale.map((reason) => (
             <li key={reason} className="flex items-start gap-1.5">
-              <FileText className="mt-0.5 h-3.5 w-3.5 shrink-0 text-white/40" />
+              <FileText className="mt-0.5 h-3.5 w-3.5 shrink-0 text-primary/60" />
               <span>{reason.replaceAll("_", " ")}</span>
             </li>
           ))}

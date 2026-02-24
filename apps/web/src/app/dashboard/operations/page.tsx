@@ -11,12 +11,7 @@ import {
 } from "lucide-react";
 import { useCopilot } from "@/components/aml-officer/copilot-context";
 import { LoadingBoundary } from "@/components/shared/LoadingBoundary";
-import {
-  GlassCard,
-  GlassCardContent,
-  GlassCardHeader,
-  GlassCardTitle,
-} from "@/components/ui/glass-card";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { MetricCard } from "@/components/ui/metric-card";
 import DataTable, { type Column } from "@/components/ui/data-table-horizon";
 import { Sparkline } from "@/components/ui/sparkline";
@@ -281,7 +276,7 @@ export default function AnalystPerformanceDashboardPage() {
   );
 
   return (
-    <div className="space-y-6 bg-bg-base text-foreground">
+    <div className="space-y-6 text-foreground">
       <header className="space-y-1">
         <h1 className="text-3xl font-display font-semibold">
           Analyst Performance
@@ -301,7 +296,7 @@ export default function AnalystPerformanceDashboardPage() {
         <MetricCard
           title="Avg Caseload"
           value={averageCaseload}
-          color="aurora"
+          color="blue"
           icon={<FolderOpen className="h-5 w-5" />}
         />
         <MetricCard
@@ -320,11 +315,11 @@ export default function AnalystPerformanceDashboardPage() {
         />
       </section>
 
-      <GlassCard>
-        <GlassCardHeader className="flex flex-row items-center justify-between gap-2">
-          <GlassCardTitle className="text-base">
+      <Card className="border-border shadow-sm bg-white">
+        <CardHeader className="flex flex-row items-center justify-between gap-2">
+          <CardTitle className="text-base text-foreground font-semibold">
             Analyst Queue Table
-          </GlassCardTitle>
+          </CardTitle>
           <StatusBadge
             status={slaBreaches > 0 ? "warning" : "approved"}
             className="capitalize"
@@ -333,8 +328,8 @@ export default function AnalystPerformanceDashboardPage() {
               ? `${slaBreaches} SLA breaches in queue`
               : "No SLA breaches"}
           </StatusBadge>
-        </GlassCardHeader>
-        <GlassCardContent>
+        </CardHeader>
+        <CardContent>
           <LoadingBoundary
             loading={
               workQueueQuery.isLoading ||
@@ -364,13 +359,13 @@ export default function AnalystPerformanceDashboardPage() {
               emptyDescription="No active analyst metrics are available for the selected window."
             />
           </LoadingBoundary>
-        </GlassCardContent>
-      </GlassCard>
+        </CardContent>
+      </Card>
 
-      <GlassCard>
-        <GlassCardContent className="flex items-start gap-3 text-sm text-foreground-secondary">
+      <Card className="border-border shadow-sm bg-white">
+        <CardContent className="flex items-start gap-3 p-4 text-sm text-foreground-secondary">
           <AlertTriangle
-            className="mt-0.5 h-4 w-4 text-risk-high"
+            className="mt-0.5 h-4 w-4 text-risk-high shrink-0"
             aria-hidden="true"
           />
           <p>
@@ -378,8 +373,8 @@ export default function AnalystPerformanceDashboardPage() {
             snapshots. Historical trend contracts can be expanded without
             breaking this page.
           </p>
-        </GlassCardContent>
-      </GlassCard>
+        </CardContent>
+      </Card>
     </div>
   );
 }

@@ -42,32 +42,32 @@ interface RiskConfig {
 
 const riskConfig: Record<string, RiskConfig> = {
   low: {
-    color: "bg-green-500 dark:bg-green-600",
-    bgColor: "bg-green-100 dark:bg-green-950",
+    color: "bg-[#10B981]",
+    bgColor: "bg-emerald-50",
     width: "25%",
     label: "Low Risk",
     minScore: 0,
     maxScore: 25,
   },
   medium: {
-    color: "bg-yellow-500 dark:bg-yellow-600",
-    bgColor: "bg-yellow-100 dark:bg-yellow-950",
+    color: "bg-[#F59E0B]",
+    bgColor: "bg-amber-50",
     width: "50%",
     label: "Medium Risk",
     minScore: 25,
     maxScore: 60,
   },
   high: {
-    color: "bg-orange-500 dark:bg-orange-600",
-    bgColor: "bg-orange-100 dark:bg-orange-950",
+    color: "bg-[#F97316]",
+    bgColor: "bg-orange-50",
     width: "75%",
     label: "High Risk",
     minScore: 60,
     maxScore: 85,
   },
   critical: {
-    color: "bg-red-500 dark:bg-red-600",
-    bgColor: "bg-red-100 dark:bg-red-950",
+    color: "bg-[#DC2626]",
+    bgColor: "bg-red-50",
     width: "100%",
     label: "Critical Risk",
     minScore: 85,
@@ -172,11 +172,10 @@ export function RiskLevelBadge({
   const config = riskConfig[level];
 
   const badgeColorClass = {
-    low: "bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200",
-    medium:
-      "bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200",
-    high: "bg-orange-100 text-orange-800 dark:bg-orange-900 dark:text-orange-200",
-    critical: "bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200",
+    low: "bg-emerald-50 text-emerald-800",
+    medium: "bg-amber-50 text-amber-800",
+    high: "bg-orange-50 text-orange-800",
+    critical: "bg-red-50 text-red-800",
   }[level];
 
   return (

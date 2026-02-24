@@ -1,115 +1,135 @@
 /**
- * ═══════════════════════════════════════════════════════════════════════════════
- * YUFEED HORIZON — Design System v3.0
- * A refined, accessible, and modern interface for compliance workflows
- * ═══════════════════════════════════════════════════════════════════════════════
- *
- * Principles:
- * - Clarity first: Every element has a clear purpose
- * - Accessible by default: WCAG 2.1 AA compliance
- * - Motion with meaning: Animations guide attention
- * - Density balanced: Information-rich without clutter
- * - Consistent rhythm: 8px base grid, predictable spacing
+ * YUFEED — Minimalist Modern Design System
+ * Light-only, Electric Blue accent, clarity through structure
  */
 
-/* ═════════════════════════════════════════════════════════════════════════════
-   FOUNDATION — Color System
-   ═════════════════════════════════════════════════════════════════════════════ */
-
 :root {
-  /* ───────────────────────────────────────────────────────────────────────────
-     Core Brand Colors — Refined Aurora Palette
-     Softer, more accessible purple-cyan spectrum
-     ─────────────────────────────────────────────────────────────────────────── */
-
-  /* Cyan Accent — Brighter, more vibrant */
-  --cyan-50: #ecfeff;
-  --cyan-100: #cffafe;
-  --cyan-200: #a5f3fc;
-  --cyan-300: #67e8f9;
-  --cyan-400: #22d3ee;
-  --cyan-500: #06b6d4;
-  --cyan-600: #0891b2;
-  --cyan-700: #0e7490;
-  --cyan-800: #155e75;
-  --cyan-900: #164e63;
-  --cyan-950: #083344;
-
-  /* ───────────────────────────────────────────────────────────────────────────
-     Dark Theme Semantic Mapping
-     Optimized for reduced eye strain
-     ─────────────────────────────────────────────────────────────────────────── */
+  /* ─────────────────────────────────────────────
+     COLOR SYSTEM
+     ───────────────────────────────────────────── */
 
   /* Background Layers */
-  --bg-base: #0a0a0f;
-  --bg-elevated: #12121a;
-  --bg-overlay: #1a1a25;
-  --bg-floating: #222230;
+  --bg-base: #fafafa;
+  --bg-elevated: #ffffff;
+  --bg-overlay: #f1f5f9;
+  --bg-floating: #e2e8f0;
 
-  /* Text Colors — WCAG AA compliant */
-  --text-primary: #f8fafc;
-  --text-secondary: #94a3b8;
+  /* Text Colors — WCAG AA on #FAFAFA */
+  --text-primary: #0f172a;
+  --text-secondary: #475569;
   --text-tertiary: #64748b;
-  --text-disabled: #475569;
-  --text-inverse: #0f172a;
+  --text-disabled: #94a3b8;
+  --text-inverse: #ffffff;
 
-  /* Brand Application */
-  --brand-primary: #8b5cf6;
-  --brand-primary-hover: #a78bfa;
-  --brand-primary-active: #7c3aed;
-  --brand-secondary: #06b6d4;
-  --brand-secondary-hover: #22d3ee;
-  --brand-secondary-active: #0891b2;
+  /* Brand: Electric Blue */
+  --brand-primary: #0052ff;
+  --brand-primary-hover: #0047e0;
+  --brand-primary-active: #003dc4;
+  --brand-secondary: #4d7cff;
+  --brand-secondary-hover: #3d6bf0;
+  --brand-secondary-active: #2d5ae0;
 
-  /* Risk Colors in Context */
-  --risk-critical: #f87171;
-  --risk-high: #fbbf24;
-  --risk-medium: #fcd34d;
-  --risk-low: #34d399;
-  --risk-info: #60a5fa;
-  --risk-clear: #00d4ff;
+  /* Signature Gradient */
+  --gradient-accent: linear-gradient(to right, #0052ff, #4d7cff);
+  --gradient-accent-diagonal: linear-gradient(135deg, #0052ff, #4d7cff);
+  --gradient-accent-subtle: linear-gradient(
+    135deg,
+    rgba(0, 82, 255, 0.06) 0%,
+    rgba(77, 124, 255, 0.03) 100%
+  );
 
-  /* Surface Colors for Risk States */
-  --surface-critical: rgba(248, 113, 113, 0.1);
-  --surface-critical-border: rgba(248, 113, 113, 0.25);
-  --surface-high: rgba(251, 191, 36, 0.1);
-  --surface-high-border: rgba(251, 191, 36, 0.25);
-  --surface-medium: rgba(252, 211, 77, 0.1);
-  --surface-medium-border: rgba(252, 211, 77, 0.25);
-  --surface-low: rgba(52, 211, 153, 0.1);
-  --surface-low-border: rgba(52, 211, 153, 0.25);
-  --surface-clear: rgba(0, 212, 255, 0.1);
-  --surface-clear-border: rgba(0, 212, 255, 0.25);
+  /* Risk Colors — harmonized with Electric Blue */
+  --risk-critical: #dc2626;
+  --risk-high: #f97316;
+  --risk-medium: #f59e0b;
+  --risk-low: #10b981;
+  --risk-info: #0052ff;
+  --risk-clear: #0052ff;
 
-  /* Glass defaults (overridden by design-tokens-v2 when loaded) */
-  --glass-bg-subtle: rgba(255, 255, 255, 0.03);
-  --glass-bg-medium: rgba(255, 255, 255, 0.05);
-  --glass-bg-strong: rgba(255, 255, 255, 0.08);
-  --glass-border-subtle: rgba(255, 255, 255, 0.06);
-  --glass-border-medium: rgba(255, 255, 255, 0.1);
-  --glass-border-strong: rgba(255, 255, 255, 0.15);
-
-  --shadow-glass: 0 8px 32px rgba(0, 0, 0, 0.12);
-  --shadow-glass-lg: 0 16px 48px rgba(0, 0, 0, 0.2);
-  --shadow-glow-primary:
-    0 0 20px rgba(109, 90, 205, 0.3), 0 0 40px rgba(109, 90, 205, 0.1);
+  /* Risk Surfaces */
+  --surface-critical: rgba(220, 38, 38, 0.08);
+  --surface-critical-border: rgba(220, 38, 38, 0.2);
+  --surface-high: rgba(249, 115, 22, 0.08);
+  --surface-high-border: rgba(249, 115, 22, 0.2);
+  --surface-medium: rgba(245, 158, 11, 0.08);
+  --surface-medium-border: rgba(245, 158, 11, 0.2);
+  --surface-low: rgba(16, 185, 129, 0.08);
+  --surface-low-border: rgba(16, 185, 129, 0.2);
+  --surface-clear: rgba(0, 82, 255, 0.08);
+  --surface-clear-border: rgba(0, 82, 255, 0.2);
 
   /* Borders */
-  --border-subtle: rgba(148, 163, 184, 0.1);
-  --border-default: rgba(148, 163, 184, 0.15);
-  --border-strong: rgba(148, 163, 184, 0.25);
-  --border-focus: #8b5cf6;
+  --border-subtle: #e2e8f0;
+  --border-default: #cbd5e1;
+  --border-strong: #94a3b8;
+  --border-focus: #0052ff;
 
-  /* ───────────────────────────────────────────────────────────────────────────
-     Typography Scale
-     Using modern fluid typography principles
-     ─────────────────────────────────────────────────────────────────────────── */
+  /* Overlay scrims */
+  --overlay-scrim: #0f172a;
+
+  /* Semantic Mapping (used by components) */
+  --background: var(--bg-base);
+  --background-elevated: var(--bg-elevated);
+  --foreground: var(--text-primary);
+  --foreground-muted: var(--text-secondary);
+  --foreground-subtle: var(--text-tertiary);
+
+  --card: #ffffff;
+  --card-foreground: var(--text-primary);
+  --card-border: #e2e8f0;
+
+  --popover: #ffffff;
+  --popover-foreground: var(--text-primary);
+  --popover-border: #e2e8f0;
+
+  --primary: #0052ff;
+  --primary-hover: #0047e0;
+  --primary-foreground: #ffffff;
+
+  --secondary: #f1f5f9;
+  --secondary-hover: #e2e8f0;
+  --secondary-foreground: #0f172a;
+
+  --accent: #0052ff;
+  --accent-hover: #0047e0;
+  --accent-foreground: #ffffff;
+
+  --muted: #f1f5f9;
+  --muted-foreground: #64748b;
+
+  --destructive: #dc2626;
+  --destructive-foreground: #ffffff;
+
+  --border: #e2e8f0;
+  --input: #e2e8f0;
+  --input-focus: #0052ff;
+  --ring: #0052ff;
+
+  /* Sidebar — light with subtle contrast */
+  --sidebar: #ffffff;
+  --sidebar-foreground: #334155;
+  --sidebar-foreground-muted: #64748b;
+  --sidebar-primary: #0052ff;
+  --sidebar-primary-foreground: #ffffff;
+  --sidebar-accent: #f1f5f9;
+  --sidebar-accent-foreground: #0f172a;
+  --sidebar-border: #e2e8f0;
+
+  /* Charts */
+  --chart-1: #0052ff;
+  --chart-2: #4d7cff;
+  --chart-3: #f59e0b;
+  --chart-4: #f97316;
+  --chart-5: #dc2626;
+
+  /* ─────────────────────────────────────────────
+     TYPOGRAPHY
+     ───────────────────────────────────────────── */
 
   /* Font Families */
-  --font-sans: var(--font-geist), ui-sans-serif, system-ui, sans-serif;
+  --font-sans: var(--font-inter), ui-sans-serif, system-ui, sans-serif;
   --font-mono: var(--font-jetbrains), ui-monospace, monospace;
-  --font-display:
-    var(--font-space-grotesk), ui-sans-serif, system-ui, sans-serif;
+  --font-display: var(--font-calistoga), Georgia, serif;
 
   /* Fluid Type Scale */
   --text-2xs: clamp(0.625rem, 0.6rem + 0.125vw, 0.6875rem);
@@ -122,6 +142,7 @@
   --text-3xl: clamp(1.5rem, 1.3rem + 1vw, 1.875rem);
   --text-4xl: clamp(1.875rem, 1.55rem + 1.625vw, 2.25rem);
   --text-5xl: clamp(2.25rem, 1.75rem + 2.5vw, 3rem);
+  --text-6xl: clamp(3rem, 2.5rem + 2.5vw, 3.75rem);
 
   /* Font Weights */
   --weight-normal: 400;
@@ -137,15 +158,16 @@
   --leading-relaxed: 1.625;
 
   /* Letter Spacing */
-  --tracking-tight: -0.025em;
+  --tracking-tighter: -0.04em;
+  --tracking-tight: -0.02em;
   --tracking-normal: 0;
   --tracking-wide: 0.025em;
   --tracking-wider: 0.05em;
   --tracking-widest: 0.1em;
 
-  /* ───────────────────────────────────────────────────────────────────────────
-     Spacing Scale — 8px Base Grid
-     ─────────────────────────────────────────────────────────────────────────── */
+  /* ─────────────────────────────────────────────
+     SPACING — 8px Base Grid
+     ───────────────────────────────────────────── */
 
   --spacing-0: 0;
   --spacing-px: 1px;
@@ -170,9 +192,9 @@
   --spacing-24: 6rem;
   --spacing-32: 8rem;
 
-  /* ───────────────────────────────────────────────────────────────────────────
-     Border Radius — Refined Scale
-     ─────────────────────────────────────────────────────────────────────────── */
+  /* ─────────────────────────────────────────────
+     BORDER RADIUS
+     ───────────────────────────────────────────── */
 
   --radius-none: 0;
   --radius-sm: 0.25rem;
@@ -183,128 +205,118 @@
   --radius-3xl: 1.5rem;
   --radius-full: 9999px;
 
-  /* ───────────────────────────────────────────────────────────────────────────
-     Shadow System — Layered Depth
-     Subtle, purposeful elevation
-     ─────────────────────────────────────────────────────────────────────────── */
+  /* ─────────────────────────────────────────────
+     SHADOW SYSTEM — Layered Depth
+     ───────────────────────────────────────────── */
 
-  /* Elevation Shadows */
-  --shadow-xs: 0 1px 2px 0 rgb(0 0 0 / 0.05);
-  --shadow-sm: 0 1px 3px 0 rgb(0 0 0 / 0.1), 0 1px 2px -1px rgb(0 0 0 / 0.1);
-  --shadow-md: 0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1);
-  --shadow-lg:
-    0 10px 15px -3px rgb(0 0 0 / 0.1), 0 4px 6px -4px rgb(0 0 0 / 0.1);
-  --shadow-xl:
-    0 20px 25px -5px rgb(0 0 0 / 0.1), 0 8px 10px -6px rgb(0 0 0 / 0.1);
+  --shadow-xs: 0 1px 2px rgba(0, 0, 0, 0.04);
+  --shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.06);
+  --shadow-md: 0 4px 6px rgba(0, 0, 0, 0.07);
+  --shadow-lg: 0 10px 15px rgba(0, 0, 0, 0.08);
+  --shadow-xl: 0 20px 25px rgba(0, 0, 0, 0.1);
+  --shadow-2xl: 0 25px 50px rgba(0, 0, 0, 0.15);
 
-  /* Colored Shadows — Brand */
-  --shadow-brand-sm: 0 1px 3px 0 rgb(139 92 246 / 0.15);
-  --shadow-brand-md: 0 4px 6px -1px rgb(139 92 246 / 0.2);
-  --shadow-brand-lg: 0 10px 15px -3px rgb(139 92 246 / 0.25);
+  /* Accent-tinted shadows */
+  --shadow-accent: 0 4px 14px rgba(0, 82, 255, 0.25);
+  --shadow-accent-lg: 0 8px 24px rgba(0, 82, 255, 0.35);
 
-  /* Inner Shadows */
-  --shadow-inner: inset 0 2px 4px 0 rgb(0 0 0 / 0.05);
-  --shadow-inset-highlight: inset 0 1px 0 0 rgb(255 255 255 / 0.05);
+  /* Inner shadow */
+  --shadow-inner: inset 0 2px 4px rgba(0, 0, 0, 0.04);
 
-  /* ───────────────────────────────────────────────────────────────────────────
-     Animation Tokens — Purposeful Motion
-     ─────────────────────────────────────────────────────────────────────────── */
+  /* ─────────────────────────────────────────────
+     ANIMATION TOKENS
+     ───────────────────────────────────────────── */
 
-  /* Durations */
   --duration-instant: 50ms;
-  --duration-fast: 100ms;
-  --duration-normal: 150ms;
-  --duration-slow: 250ms;
-  --duration-slower: 350ms;
-  --duration-dramatic: 500ms;
+  --duration-faster: 100ms;
+  --duration-fast: 150ms;
+  --duration-normal: 250ms;
+  --duration-slow: 350ms;
+  --duration-slower: 500ms;
+  --duration-dramatic: 700ms;
 
-  /* Easings */
   --ease-linear: linear;
   --ease-in: cubic-bezier(0.4, 0, 1, 1);
   --ease-out: cubic-bezier(0, 0, 0.2, 1);
   --ease-in-out: cubic-bezier(0.4, 0, 0.2, 1);
+  --ease-out-expo: cubic-bezier(0.16, 1, 0.3, 1);
   --ease-spring: cubic-bezier(0.34, 1.56, 0.64, 1);
-  --ease-bounce: cubic-bezier(0.68, -0.55, 0.265, 1.55);
+  --ease-bounce: cubic-bezier(0.68, -0.6, 0.32, 1.6);
 
-  /* Reduced Motion */
-  --duration-reduced: 0.01ms;
+  /* ─────────────────────────────────────────────
+     Z-INDEX SCALE
+     ───────────────────────────────────────────── */
 
-  /* ───────────────────────────────────────────────────────────────────────────
-     Z-Index Scale
-     ─────────────────────────────────────────────────────────────────────────── */
-
+  --z-behind: -1;
   --z-base: 0;
-  --z-dropdown: 10;
-  --z-sticky: 20;
-  --z-fixed: 30;
-  --z-backdrop: 40;
+  --z-raised: 10;
+  --z-dropdown: 20;
+  --z-sticky: 30;
+  --z-overlay: 40;
   --z-modal: 50;
   --z-popover: 60;
   --z-tooltip: 70;
   --z-toast: 80;
   --z-max: 9999;
 
-  /* ───────────────────────────────────────────────────────────────────────────
-     Layout Tokens
-     ─────────────────────────────────────────────────────────────────────────── */
+  /* ─────────────────────────────────────────────
+     LAYOUT TOKENS
+     ───────────────────────────────────────────── */
 
   --header-height: 3.5rem;
   --sidebar-width: 16rem;
   --sidebar-collapsed: 4rem;
-}
 
-/* ═════════════════════════════════════════════════════════════════════════════
-   LIGHT THEME OVERRIDES
-   ═════════════════════════════════════════════════════════════════════════════ */
+  /* ─────────────────────────────────────────────
+     LEGACY ALIASES
+     Map old tokens to new ones for migration
+     ───────────────────────────────────────────── */
 
-[data-theme="light"],
-.light {
-  /* Background Layers */
-  --bg-base: #ffffff;
-  --bg-elevated: #f8fafc;
-  --bg-overlay: #f1f5f9;
-  --bg-floating: #e2e8f0;
+  --bg-base: var(--background);
+  --bg-elevated: var(--background-elevated);
+  --bg-overlay: var(--bg-overlay, #f1f5f9);
+  --bg-floating: var(--bg-floating, #e2e8f0);
 
-  /* Text Colors */
-  --text-primary: #0f172a;
-  --text-secondary: #475569;
-  --text-tertiary: #64748b;
+  --text-primary: var(--foreground);
+  --text-secondary: var(--foreground-muted);
+  --text-tertiary: var(--foreground-subtle);
   --text-disabled: #94a3b8;
-  --text-inverse: #f8fafc;
+  --text-inverse: #ffffff;
 
-  /* Borders */
-  --border-subtle: rgb(148 163 184 / 0.15);
-  --border-default: rgb(148 163 184 / 0.25);
-  --border-strong: rgb(148 163 184 / 0.4);
+  --brand-primary: var(--primary);
+  --brand-primary-hover: var(--primary-hover);
+  --brand-primary-active: #003dc4;
+  --brand-secondary: var(--accent);
+  --brand-secondary-hover: var(--accent-hover);
+  --brand-secondary-active: #003dc4;
 
-  /* Surface Colors */
-  --surface-critical: rgba(239, 68, 68, 0.08);
-  --surface-critical-border: rgba(239, 68, 68, 0.2);
-  --surface-high: rgba(245, 158, 11, 0.08);
-  --surface-high-border: rgba(245, 158, 11, 0.2);
-  --surface-medium: rgba(251, 191, 36, 0.08);
-  --surface-medium-border: rgba(251, 191, 36, 0.2);
-  --surface-low: rgba(16, 185, 129, 0.08);
-  --surface-low-border: rgba(16, 185, 129, 0.2);
-
-  /* Shadows — softer for light theme */
-  --shadow-xs: 0 1px 2px 0 rgb(0 0 0 / 0.03);
-  --shadow-sm: 0 1px 3px 0 rgb(0 0 0 / 0.05), 0 1px 2px -1px rgb(0 0 0 / 0.05);
-  --shadow-md:
-    0 4px 6px -1px rgb(0 0 0 / 0.05), 0 2px 4px -2px rgb(0 0 0 / 0.05);
-  --shadow-lg:
-    0 10px 15px -3px rgb(0 0 0 / 0.05), 0 4px 6px -4px rgb(0 0 0 / 0.05);
-  --shadow-xl:
-    0 20px 25px -5px rgb(0 0 0 / 0.05), 0 8px 10px -6px rgb(0 0 0 / 0.05);
+  --color-risk-critical: var(--risk-critical);
+  --color-risk-critical-soft: var(--surface-critical);
+  --color-risk-critical-border: var(--surface-critical-border);
+  --color-risk-high: var(--risk-high);
+  --color-risk-high-soft: var(--surface-high);
+  --color-risk-high-border: var(--surface-high-border);
+  --color-risk-medium: var(--risk-medium);
+  --color-risk-medium-soft: var(--surface-medium);
+  --color-risk-medium-border: var(--surface-medium-border);
+  --color-risk-low: var(--risk-low);
+  --color-risk-low-soft: var(--surface-low);
+  --color-risk-low-border: var(--surface-low-border);
+  --color-risk-clear: var(--risk-clear);
+  --color-risk-clear-soft: var(--surface-clear);
+  --color-risk-clear-border: var(--surface-clear-border);
+  --color-info: var(--risk-info);
+  --color-info-soft: rgba(0, 82, 255, 0.08);
 }
 
-/* ═════════════════════════════════════════════════════════════════════════════
-   ACCESSIBILITY — Motion Preferences
-   ═════════════════════════════════════════════════════════════════════════════ */
+/* ─────────────────────────────────────────────
+   ACCESSIBILITY — Reduced Motion
+   ───────────────────────────────────────────── */
 
 @media (prefers-reduced-motion: reduce) {
   :root {
     --duration-instant: 0.01ms;
+    --duration-faster: 0.01ms;
     --duration-fast: 0.01ms;
     --duration-normal: 0.01ms;
     --duration-slow: 0.01ms;
@@ -322,11 +334,11 @@
   }
 }
 
-/* High Contrast Mode Support */
+/* High Contrast Mode */
 @media (prefers-contrast: high) {
   :root {
-    --border-subtle: rgba(148, 163, 184, 0.3);
-    --border-default: rgba(148, 163, 184, 0.5);
-    --border-strong: rgba(148, 163, 184, 0.7);
+    --border-subtle: #94a3b8;
+    --border-default: #64748b;
+    --border-strong: #475569;
   }
 }

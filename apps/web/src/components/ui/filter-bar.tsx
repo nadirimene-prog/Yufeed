@@ -13,7 +13,7 @@ import { cn } from "@/lib/utils";
 /**
  * ===================================================================
  * FILTER BAR - Sentinel Design System
- * Reusable filter bar with glass/dark theme for list pages
+ * Reusable filter bar with light theme for list pages
  * ===================================================================
  */
 
@@ -89,7 +89,7 @@ export function FilterBar({
     <div
       className={cn(
         "relative overflow-hidden rounded-xl",
-        "border border-white/[0.08] bg-white/[0.03] backdrop-blur-sm",
+        "border border-border-subtle bg-card shadow-sm",
         "p-4",
         className,
       )}
@@ -98,15 +98,17 @@ export function FilterBar({
         {/* Top row: filter icon + label + active count badge + reset button */}
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2">
-            <SlidersHorizontal className="h-4 w-4 text-white/40" />
-            <span className="text-sm font-medium text-white/70">Filters</span>
+            <SlidersHorizontal className="h-4 w-4 text-foreground-tertiary" />
+            <span className="text-sm font-medium text-foreground-secondary">
+              Filters
+            </span>
             {activeCount > 0 && (
               <span
                 className={cn(
                   "inline-flex items-center justify-center",
                   "h-5 min-w-[20px] rounded-full px-1.5",
-                  "bg-primary text-[10px] font-semibold text-white",
-                  "shadow-[0_0_8px_rgba(109,90,205,0.4)]",
+                  "bg-primary text-[10px] font-semibold text-primary-foreground",
+                  "shadow-sm",
                 )}
               >
                 {activeCount}
@@ -119,9 +121,9 @@ export function FilterBar({
               onClick={onReset}
               className={cn(
                 "flex items-center gap-1.5 rounded-lg px-2.5 py-1",
-                "text-xs font-medium text-white/50",
+                "text-xs font-medium text-foreground-tertiary",
                 "transition-all duration-200",
-                "hover:bg-white/[0.06] hover:text-white/80",
+                "hover:bg-muted hover:text-foreground-secondary",
                 "active:scale-[0.97]",
               )}
             >
@@ -211,7 +213,7 @@ function SearchFilter({
         <Search
           className={cn(
             "absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 transition-colors duration-200",
-            isFocused ? "text-primary" : "text-white/30",
+            isFocused ? "text-primary" : "text-foreground-tertiary",
           )}
         />
         <input
@@ -223,13 +225,12 @@ function SearchFilter({
           placeholder={definition.placeholder ?? `Search...`}
           className={cn(
             "h-9 w-full rounded-lg border pl-9 pr-8 text-sm",
-            "text-white placeholder:text-white/25",
+            "text-foreground placeholder:text-foreground-tertiary",
             "transition-all duration-200 ease-out",
             "focus:outline-none focus:ring-2 focus:ring-offset-0",
-            "border-white/[0.08] bg-white/[0.03] backdrop-blur-sm",
-            "focus:border-primary/40 focus:bg-white/[0.05]",
+            "border-border-subtle bg-card",
+            "focus:border-primary focus:bg-card",
             "focus:ring-primary/20",
-            "focus:shadow-[0_0_20px_rgba(109,90,205,0.15)]",
           )}
         />
         {value && (
@@ -238,9 +239,9 @@ function SearchFilter({
             onClick={() => onChange("")}
             className={cn(
               "absolute right-2 top-1/2 -translate-y-1/2",
-              "rounded p-0.5 text-white/30",
+              "rounded p-0.5 text-foreground-tertiary",
               "transition-colors duration-150",
-              "hover:bg-white/[0.08] hover:text-white/60",
+              "hover:bg-muted hover:text-foreground-secondary",
             )}
           >
             <X className="h-3.5 w-3.5" />
@@ -275,16 +276,14 @@ function SelectFilter({
           onChange={(e) => onChange(e.target.value)}
           className={cn(
             "h-9 w-full appearance-none rounded-lg border pl-3 pr-8 text-sm",
-            "text-white",
+            "text-foreground",
             "transition-all duration-200 ease-out",
             "focus:outline-none focus:ring-2 focus:ring-offset-0",
-            "border-white/[0.08] bg-white/[0.03] backdrop-blur-sm",
-            "focus:border-primary/40 focus:bg-white/[0.05]",
+            "border-border-subtle bg-card",
+            "focus:border-primary focus:bg-card",
             "focus:ring-primary/20",
-            "focus:shadow-[0_0_20px_rgba(109,90,205,0.15)]",
             "cursor-pointer",
-            // Style options for the dropdown overlay (dark background)
-            "[&>option]:bg-[#1a1a2e] [&>option]:text-white",
+            "[&>option]:bg-card [&>option]:text-foreground",
           )}
         >
           {options.map((opt) => (
@@ -297,7 +296,7 @@ function SelectFilter({
           {hasNonDefaultValue && (
             <span className="h-1.5 w-1.5 rounded-full bg-primary" />
           )}
-          <ChevronDown className="h-3.5 w-3.5 text-white/30" />
+          <ChevronDown className="h-3.5 w-3.5 text-foreground-tertiary" />
         </div>
       </div>
     </div>
@@ -331,7 +330,7 @@ function DateRangeFilter({
     <div className="col-span-1 sm:col-span-2">
       <label className="sr-only">{definition.label}</label>
       <div className="flex items-center gap-2">
-        <Calendar className="h-4 w-4 shrink-0 text-white/30" />
+        <Calendar className="h-4 w-4 shrink-0 text-foreground-tertiary" />
         <div className="flex flex-1 items-center gap-2">
           <input
             type="date"
@@ -340,16 +339,15 @@ function DateRangeFilter({
             placeholder="Start date"
             className={cn(
               "h-9 flex-1 rounded-lg border px-3 text-sm",
-              "text-white",
+              "text-foreground",
               "transition-all duration-200 ease-out",
               "focus:outline-none focus:ring-2 focus:ring-offset-0",
-              "border-white/[0.08] bg-white/[0.03] backdrop-blur-sm",
-              "focus:border-primary/40 focus:bg-white/[0.05]",
+              "border-border-subtle bg-card",
+              "focus:border-primary focus:bg-card",
               "focus:ring-primary/20",
-              "[color-scheme:dark]",
             )}
           />
-          <span className="text-xs text-white/30">to</span>
+          <span className="text-xs text-foreground-tertiary">to</span>
           <input
             type="date"
             value={end}
@@ -357,13 +355,12 @@ function DateRangeFilter({
             placeholder="End date"
             className={cn(
               "h-9 flex-1 rounded-lg border px-3 text-sm",
-              "text-white",
+              "text-foreground",
               "transition-all duration-200 ease-out",
               "focus:outline-none focus:ring-2 focus:ring-offset-0",
-              "border-white/[0.08] bg-white/[0.03] backdrop-blur-sm",
-              "focus:border-primary/40 focus:bg-white/[0.05]",
+              "border-border-subtle bg-card",
+              "focus:border-primary focus:bg-card",
               "focus:ring-primary/20",
-              "[color-scheme:dark]",
             )}
           />
         </div>
@@ -372,9 +369,9 @@ function DateRangeFilter({
             type="button"
             onClick={() => onChange({ start: undefined, end: undefined })}
             className={cn(
-              "rounded p-1 text-white/30",
+              "rounded p-1 text-foreground-tertiary",
               "transition-colors duration-150",
-              "hover:bg-white/[0.08] hover:text-white/60",
+              "hover:bg-muted hover:text-foreground-secondary",
             )}
           >
             <X className="h-3.5 w-3.5" />

@@ -93,7 +93,7 @@ export default function Sidebar({
       animate={{ width: effectiveCollapsed ? 72 : 256 }}
       transition={{ type: "spring", stiffness: 400, damping: 30 }}
       className={cn(
-        "fixed left-0 top-0 z-40 flex h-screen flex-col border-r border-border-subtle bg-bg-elevated",
+        "fixed left-0 top-0 z-40 flex h-screen flex-col border-r border-[#E2E8F0] bg-white",
         className,
       )}
       onMouseEnter={() => {
@@ -147,7 +147,7 @@ export default function Sidebar({
                         "flex items-center justify-center rounded-lg p-2 transition-colors",
                         active
                           ? "bg-primary/10 text-primary"
-                          : "text-foreground-secondary hover:bg-bg-overlay hover:text-foreground",
+                          : "text-foreground-secondary hover:bg-slate-100 hover:text-foreground",
                       )}
                     >
                       <area.icon className="h-5 w-5" />
@@ -206,7 +206,7 @@ export default function Sidebar({
                                   "mx-2 block rounded-md px-3 py-2 text-sm transition-colors",
                                   itemActive
                                     ? "bg-primary/10 text-primary font-medium"
-                                    : "text-foreground-secondary hover:bg-bg-overlay hover:text-foreground",
+                                    : "text-foreground-secondary hover:bg-slate-100 hover:text-foreground",
                                 )}
                               >
                                 {item.label}
@@ -318,14 +318,14 @@ function Tooltip({ children, content, side = "top" }: TooltipProps) {
             exit={{ opacity: 0, scale: 0.95 }}
             transition={{ duration: 0.1 }}
             className={cn(
-              "absolute z-50 px-2 py-1 rounded-md bg-bg-floating text-foreground text-xs font-medium whitespace-nowrap shadow-lg border border-border-subtle pointer-events-none",
+              "absolute z-50 px-2 py-1 rounded-md bg-slate-900 text-white text-xs font-medium whitespace-nowrap shadow-md border border-slate-800 pointer-events-none",
               positionClasses,
             )}
           >
             {content}
             <div
               className={cn(
-                "absolute w-2 h-2 bg-bg-floating border-border-subtle rotate-45",
+                "absolute w-2 h-2 bg-slate-900 border-slate-800 rotate-45",
                 side === "top" &&
                   "bottom-0 left-1/2 -translate-x-1/2 translate-y-1/2 border-b border-r",
                 side === "bottom" &&

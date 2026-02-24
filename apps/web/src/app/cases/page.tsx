@@ -7,12 +7,7 @@ import { useMonitoringCases } from "@/hooks/queries/useMonitoringData";
 import { useCopilot } from "@/components/aml-officer/copilot-context";
 import { LoadingBoundary } from "@/components/shared/LoadingBoundary";
 import { EmptyState } from "@/components/ui/empty-state";
-import {
-  GlassCard,
-  GlassCardContent,
-  GlassCardHeader,
-  GlassCardTitle,
-} from "@/components/ui/glass-card";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { MetricCard } from "@/components/ui/metric-card";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button-horizon";
@@ -112,7 +107,7 @@ export default function CasesPage() {
   }, [filteredCases, selectedCaseId]);
 
   return (
-    <div className="space-y-6 bg-bg-base text-foreground">
+    <div className="space-y-6 bg-background text-foreground">
       <header className="space-y-1">
         <h1 className="text-3xl font-display font-semibold">Case Management</h1>
         <p className="text-foreground-secondary">
@@ -153,9 +148,11 @@ export default function CasesPage() {
       </section>
 
       <section className="grid gap-4 lg:grid-cols-[420px_1fr]">
-        <GlassCard className="h-[calc(100vh-16rem)] overflow-hidden">
-          <GlassCardHeader className="space-y-3">
-            <GlassCardTitle className="text-base">Case Queue</GlassCardTitle>
+        <Card className="h-[calc(100vh-16rem)] overflow-hidden border-border shadow-sm bg-white flex flex-col">
+          <CardHeader className="space-y-3 pb-4">
+            <CardTitle className="text-base text-foreground font-semibold">
+              Case Queue
+            </CardTitle>
             <div className="grid gap-2">
               <Input
                 placeholder="Search by case, entity, description..."
@@ -206,9 +203,9 @@ export default function CasesPage() {
                 </select>
               </div>
             </div>
-          </GlassCardHeader>
+          </CardHeader>
 
-          <GlassCardContent className="h-[calc(100%-12rem)] overflow-auto">
+          <CardContent className="h-[calc(100%-12rem)] overflow-auto pt-0">
             <LoadingBoundary
               loading={casesQuery.isLoading}
               error={casesQuery.error as Error | undefined}
@@ -228,14 +225,16 @@ export default function CasesPage() {
                 ))}
               </div>
             </LoadingBoundary>
-          </GlassCardContent>
-        </GlassCard>
+          </CardContent>
+        </Card>
 
-        <GlassCard className="h-[calc(100vh-16rem)] overflow-auto">
-          <GlassCardHeader>
-            <GlassCardTitle className="text-base">Case Detail</GlassCardTitle>
-          </GlassCardHeader>
-          <GlassCardContent>
+        <Card className="h-[calc(100vh-16rem)] overflow-auto border-border shadow-sm bg-white">
+          <CardHeader>
+            <CardTitle className="text-base text-foreground font-semibold">
+              Case Detail
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
             {!selectedCase ? (
               <EmptyState
                 title="No case selected"
@@ -321,7 +320,7 @@ export default function CasesPage() {
 
                 <div className="flex flex-wrap gap-2">
                   <Link href={`/cases/${selectedCase.case_id}`}>
-                    <Button variant="glass">Open Full Case</Button>
+                    <Button variant="outline">Open Full Case</Button>
                   </Link>
                   <Button
                     variant="secondary"
@@ -337,8 +336,8 @@ export default function CasesPage() {
                 </div>
               </div>
             )}
-          </GlassCardContent>
-        </GlassCard>
+          </CardContent>
+        </Card>
       </section>
 
       <SARPrepDrawer

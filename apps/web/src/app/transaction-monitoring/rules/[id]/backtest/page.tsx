@@ -8,12 +8,7 @@ import { BarChart3, FlaskConical, History, Target } from "lucide-react";
 import apiClient from "@/lib/http";
 import { useRule } from "@/hooks/queries/useRulesData";
 import { LoadingBoundary } from "@/components/shared/LoadingBoundary";
-import {
-  GlassCard,
-  GlassCardContent,
-  GlassCardHeader,
-  GlassCardTitle,
-} from "@/components/ui/glass-card";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { MetricCard } from "@/components/ui/metric-card";
 import DataTable, { type Column } from "@/components/ui/data-table-horizon";
 import { Button } from "@/components/ui/button-horizon";
@@ -171,7 +166,7 @@ export default function RuleBacktestPage() {
 
           <div className="flex items-center gap-2">
             <Link href="/transaction-monitoring/rules">
-              <Button variant="glass">Back to Rules</Button>
+              <Button variant="outline">Back to Rules</Button>
             </Link>
             <Button
               onClick={() => backtestMutation.mutate()}
@@ -184,11 +179,13 @@ export default function RuleBacktestPage() {
         </div>
       </header>
 
-      <GlassCard>
-        <GlassCardHeader>
-          <GlassCardTitle className="text-base">Configuration</GlassCardTitle>
-        </GlassCardHeader>
-        <GlassCardContent className="grid gap-3 md:grid-cols-3">
+      <Card className="border-border shadow-sm bg-white">
+        <CardHeader>
+          <CardTitle className="text-base text-foreground font-semibold">
+            Configuration
+          </CardTitle>
+        </CardHeader>
+        <CardContent className="grid gap-3 md:grid-cols-3">
           <label className="space-y-1 text-xs text-foreground-secondary">
             <span>Window</span>
             <select
@@ -196,7 +193,7 @@ export default function RuleBacktestPage() {
               onChange={(event) =>
                 setWindowPreset(Number(event.target.value) as 30 | 60 | 90)
               }
-              className="h-10 w-full rounded-lg border border-border-default bg-bg-overlay px-3 text-sm"
+              className="h-10 w-full rounded-lg border border-border bg-slate-50 px-3 text-sm focus:ring-1 focus:ring-primary/20"
             >
               <option value={30}>Last 30 days</option>
               <option value={60}>Last 60 days</option>
@@ -212,7 +209,7 @@ export default function RuleBacktestPage() {
               max={5000}
               value={limit}
               onChange={(event) => setLimit(Number(event.target.value || 1000))}
-              className="h-10 w-full rounded-lg border border-border-default bg-bg-overlay px-3 text-sm"
+              className="h-10 w-full rounded-lg border border-border bg-slate-50 px-3 text-sm focus:ring-1 focus:ring-primary/20"
             />
           </label>
 
@@ -226,11 +223,11 @@ export default function RuleBacktestPage() {
               onChange={(event) =>
                 setSampleSize(Number(event.target.value || 25))
               }
-              className="h-10 w-full rounded-lg border border-border-default bg-bg-overlay px-3 text-sm"
+              className="h-10 w-full rounded-lg border border-border bg-slate-50 px-3 text-sm focus:ring-1 focus:ring-primary/20"
             />
           </label>
-        </GlassCardContent>
-      </GlassCard>
+        </CardContent>
+      </Card>
 
       <LoadingBoundary
         loading={ruleQuery.isLoading}
@@ -275,17 +272,17 @@ export default function RuleBacktestPage() {
 
       {backtestMutation.data ? (
         <>
-          <GlassCard>
-            <GlassCardHeader className="flex flex-row items-center justify-between">
-              <GlassCardTitle className="text-base">
+          <Card className="border-border shadow-sm bg-white">
+            <CardHeader className="flex flex-row items-center justify-between">
+              <CardTitle className="text-base text-foreground font-semibold">
                 Simulation Summary
-              </GlassCardTitle>
+              </CardTitle>
               <StatusBadge status="in_review">
                 Evaluated{" "}
                 {new Date(backtestMutation.data.evaluated_at).toLocaleString()}
               </StatusBadge>
-            </GlassCardHeader>
-            <GlassCardContent className="grid gap-2 text-sm text-foreground-secondary md:grid-cols-2">
+            </CardHeader>
+            <CardContent className="grid gap-2 text-sm text-foreground-secondary md:grid-cols-2">
               <p>
                 Window:{" "}
                 {new Date(
@@ -304,16 +301,16 @@ export default function RuleBacktestPage() {
               <p className="md:text-right">
                 Samples returned: {samples.length}
               </p>
-            </GlassCardContent>
-          </GlassCard>
+            </CardContent>
+          </Card>
 
-          <GlassCard>
-            <GlassCardHeader>
-              <GlassCardTitle className="text-base">
+          <Card className="border-border shadow-sm bg-white">
+            <CardHeader>
+              <CardTitle className="text-base text-foreground font-semibold">
                 Matching Transactions
-              </GlassCardTitle>
-            </GlassCardHeader>
-            <GlassCardContent>
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
               <DataTable
                 data={samples}
                 columns={columns}
@@ -326,8 +323,8 @@ export default function RuleBacktestPage() {
                 emptyTitle="No sample transactions"
                 emptyDescription="Try increasing the lookback window or lowering rule thresholds."
               />
-            </GlassCardContent>
-          </GlassCard>
+            </CardContent>
+          </Card>
         </>
       ) : null}
     </div>

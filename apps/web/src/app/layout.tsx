@@ -1,23 +1,18 @@
 import type { Metadata, Viewport } from "next";
-import { Geist, JetBrains_Mono, Space_Grotesk } from "next/font/google";
+import { Inter, JetBrains_Mono, Calistoga } from "next/font/google";
 import "./globals.css";
 import AppShell from "@/components/app-shell";
 import ReactQueryProvider from "@/components/ReactQueryProvider";
 
 /**
- * ═══════════════════════════════════════════════════════════════════════════════
- * YUFEED HORIZON — Root Layout
- * Modern typography, optimized performance, accessibility-first
- * ═══════════════════════════════════════════════════════════════════════════════
+ * YUFEED — Root Layout
+ * Minimalist Modern design system
+ * Fonts: Inter (body), Calistoga (display), JetBrains Mono (mono)
  */
 
-/* ─────────────────────────────────────────────────────────────────────────────
-   Font Configuration
-   ───────────────────────────────────────────────────────────────────────────── */
-
-const geist = Geist({
+const inter = Inter({
   subsets: ["latin"],
-  variable: "--font-geist",
+  variable: "--font-inter",
   display: "swap",
 });
 
@@ -27,9 +22,10 @@ const jetbrainsMono = JetBrains_Mono({
   display: "swap",
 });
 
-const spaceGrotesk = Space_Grotesk({
+const calistoga = Calistoga({
+  weight: "400",
   subsets: ["latin"],
-  variable: "--font-space-grotesk",
+  variable: "--font-calistoga",
   display: "swap",
 });
 
@@ -79,10 +75,7 @@ export const viewport: Viewport = {
   width: "device-width",
   initialScale: 1,
   maximumScale: 5,
-  themeColor: [
-    { media: "(prefers-color-scheme: dark)", color: "#0a0a0f" },
-    { media: "(prefers-color-scheme: light)", color: "#ffffff" },
-  ],
+  themeColor: "#fafafa",
 };
 
 /* ─────────────────────────────────────────────────────────────────────────────
@@ -97,10 +90,10 @@ export default function RootLayout({
   return (
     <html
       lang="en"
-      className={`${geist.variable} ${jetbrainsMono.variable} ${spaceGrotesk.variable}`}
+      className={`${inter.variable} ${jetbrainsMono.variable} ${calistoga.variable}`}
       suppressHydrationWarning
     >
-      <body className="min-h-screen bg-bg-base text-foreground antialiased">
+      <body className="min-h-screen bg-background text-foreground antialiased">
         <ReactQueryProvider>
           <AppShell>{children}</AppShell>
         </ReactQueryProvider>

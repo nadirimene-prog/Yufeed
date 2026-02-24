@@ -13,7 +13,7 @@ import { springs, transitions } from "@/lib/motion";
  */
 
 type ProgressColor =
-  | "aurora"
+  | "blue"
   | "cyan"
   | "green"
   | "yellow"
@@ -44,37 +44,37 @@ export interface ProgressProps extends React.HTMLAttributes<HTMLDivElement> {
 }
 
 const colorConfig: Record<ProgressColor, { gradient: string; glow: string }> = {
-  aurora: {
-    gradient: "from-primary to-cyan-500",
-    glow: "shadow-[0_0_20px_rgba(109,90,205,0.4)]",
+  blue: {
+    gradient: "from-primary to-accent-secondary",
+    glow: "",
   },
   cyan: {
-    gradient: "from-cyan-500 to-primary",
-    glow: "shadow-[0_0_20px_rgba(0,212,255,0.4)]",
+    gradient: "from-accent-secondary to-primary",
+    glow: "",
   },
   green: {
-    gradient: "from-risk-low to-cyan-500",
-    glow: "shadow-[0_0_20px_rgba(6,214,160,0.4)]",
+    gradient: "from-risk-low to-accent-secondary",
+    glow: "",
   },
   yellow: {
     gradient: "from-risk-medium to-risk-high",
-    glow: "shadow-[0_0_20px_rgba(255,209,102,0.4)]",
+    glow: "",
   },
   orange: {
     gradient: "from-risk-high to-risk-medium",
-    glow: "shadow-[0_0_20px_rgba(255,140,66,0.4)]",
+    glow: "",
   },
   red: {
     gradient: "from-risk-critical to-risk-high",
-    glow: "shadow-[0_0_20px_rgba(255,51,102,0.4)]",
+    glow: "",
   },
   purple: {
-    gradient: "from-purple-500 to-pink-500",
-    glow: "shadow-[0_0_20px_rgba(168,85,247,0.4)]",
+    gradient: "from-primary to-accent-secondary",
+    glow: "",
   },
   gray: {
-    gradient: "from-gray-400 to-gray-500",
-    glow: "shadow-[0_0_15px_rgba(148,163,184,0.2)]",
+    gradient: "from-foreground-disabled to-foreground-tertiary",
+    glow: "",
   },
 };
 
@@ -87,7 +87,7 @@ const sizeConfig = {
 function Progress({
   value,
   max = 100,
-  color = "aurora",
+  color = "blue",
   size = "md",
   showLabel = false,
   labelPosition = "right",
@@ -104,7 +104,12 @@ function Progress({
   const renderLabel = () => {
     if (!showLabel) return null;
     return (
-      <span className={cn("font-mono font-medium text-white/70", sizes.label)}>
+      <span
+        className={cn(
+          "font-mono font-medium text-foreground-secondary",
+          sizes.label,
+        )}
+      >
         {Math.round(percentage)}%
       </span>
     );
@@ -135,7 +140,7 @@ function Progress({
         <div
           className={cn(
             "relative flex-1 overflow-hidden rounded-full",
-            "bg-white/[0.06]",
+            "bg-muted",
             sizes.track,
           )}
         >
@@ -220,7 +225,7 @@ function CircularProgress({
   value,
   size = 64,
   strokeWidth = 4,
-  color = "aurora",
+  color = "blue",
   showLabel = false,
   children,
   animate = true,
@@ -234,9 +239,18 @@ function CircularProgress({
   const gradientId = React.useId();
   // Get gradient colors
   const gradientColors = {
-    aurora: { start: "var(--color-aurora-500)", end: "var(--color-cyan-500)" },
-    cyan: { start: "var(--color-cyan-500)", end: "var(--color-aurora-500)" },
-    green: { start: "var(--color-risk-low)", end: "var(--color-cyan-500)" },
+    blue: {
+      start: "var(--color-primary)",
+      end: "var(--color-accent-secondary)",
+    },
+    cyan: {
+      start: "var(--color-accent-secondary)",
+      end: "var(--color-primary)",
+    },
+    green: {
+      start: "var(--color-risk-low)",
+      end: "var(--color-accent-secondary)",
+    },
     yellow: {
       start: "var(--color-risk-medium)",
       end: "var(--color-risk-high)",
@@ -245,9 +259,18 @@ function CircularProgress({
       start: "var(--color-risk-high)",
       end: "var(--color-risk-medium)",
     },
-    red: { start: "var(--color-risk-critical)", end: "var(--color-risk-high)" },
-    purple: { start: "#a855f7", end: "#ec4899" },
-    gray: { start: "#94a3b8", end: "#64748b" },
+    red: {
+      start: "var(--color-risk-critical)",
+      end: "var(--color-risk-high)",
+    },
+    purple: {
+      start: "var(--color-primary)",
+      end: "var(--color-accent-secondary)",
+    },
+    gray: {
+      start: "var(--color-slate-400)",
+      end: "var(--color-slate-500)",
+    },
   };
 
   return (
@@ -277,7 +300,7 @@ function CircularProgress({
           cy={size / 2}
           r={radius}
           fill="none"
-          stroke="rgba(255, 255, 255, 0.06)"
+          stroke="rgba(0, 0, 0, 0.06)"
           strokeWidth={strokeWidth}
         />
 
@@ -295,7 +318,7 @@ function CircularProgress({
           animate={{ strokeDashoffset: offset }}
           transition={transitions.slow}
           style={{
-            filter: "drop-shadow(0 0 8px rgba(109, 90, 205, 0.4))",
+            filter: "drop-shadow(0 0 6px rgba(0, 82, 255, 0.3))",
           }}
         />
       </svg>
@@ -304,7 +327,7 @@ function CircularProgress({
       <div className="absolute inset-0 flex items-center justify-center">
         {children ??
           (showLabel && (
-            <span className="text-sm font-bold font-mono text-white">
+            <span className="text-sm font-bold font-mono text-foreground">
               {Math.round(percentage)}%
             </span>
           ))}
@@ -336,30 +359,40 @@ export interface StepProgressProps {
 function StepProgress({
   steps,
   currentStep,
-  color = "aurora",
+  color = "blue",
   orientation = "horizontal",
   className,
 }: StepProgressProps) {
   const colors = colorConfig[color];
   const gradientColors = {
-    aurora: "var(--color-aurora-500)",
-    cyan: "var(--color-cyan-500)",
+    blue: "var(--color-primary)",
+    cyan: "var(--color-accent-secondary)",
     green: "var(--color-risk-low)",
     yellow: "var(--color-risk-medium)",
     orange: "var(--color-risk-high)",
     red: "var(--color-risk-critical)",
-    purple: "#a855f7",
-    gray: "#94a3b8",
+    purple: "var(--color-primary)",
+    gray: "var(--color-slate-400)",
+  };
+  const gradientEndColors = {
+    blue: "var(--color-accent-secondary)",
+    cyan: "var(--color-accent-secondary)",
+    green: "var(--color-accent-secondary)",
+    yellow: "var(--color-accent-secondary)",
+    orange: "var(--color-accent-secondary)",
+    red: "var(--color-accent-secondary)",
+    purple: "var(--color-accent-secondary)",
+    gray: "var(--color-slate-500)",
   };
   const gradientGlowColors = {
-    aurora: "rgba(109, 90, 205, 0.5)",
-    cyan: "rgba(0, 212, 255, 0.5)",
-    green: "rgba(6, 214, 160, 0.45)",
-    yellow: "rgba(255, 209, 102, 0.45)",
-    orange: "rgba(255, 140, 66, 0.45)",
-    red: "rgba(255, 51, 102, 0.5)",
-    purple: "rgba(168, 85, 247, 0.45)",
-    gray: "rgba(148, 163, 184, 0.35)",
+    blue: "rgba(0, 82, 255, 0.3)",
+    cyan: "rgba(77, 124, 255, 0.3)",
+    green: "rgba(16, 185, 129, 0.3)",
+    yellow: "rgba(245, 158, 11, 0.3)",
+    orange: "rgba(249, 115, 22, 0.3)",
+    red: "rgba(220, 38, 38, 0.3)",
+    purple: "rgba(0, 82, 255, 0.3)",
+    gray: "rgba(148, 163, 184, 0.2)",
   };
 
   return (
@@ -399,12 +432,12 @@ function StepProgress({
                   isCurrent && "border-transparent",
                   !isCompleted &&
                     !isCurrent &&
-                    "border-white/20 bg-transparent text-white/40",
+                    "border-border-default bg-transparent text-foreground-tertiary",
                 )}
                 style={{
                   background:
                     isCompleted || isCurrent
-                      ? `linear-gradient(135deg, ${gradientColors[color]} 0%, var(--color-cyan-500) 100%)`
+                      ? `linear-gradient(135deg, ${gradientColors[color]} 0%, ${gradientEndColors[color]} 100%)`
                       : undefined,
                   boxShadow: isCurrent
                     ? `0 0 20px ${gradientGlowColors[color]}`
@@ -446,7 +479,7 @@ function StepProgress({
                     orientation === "horizontal"
                       ? "h-0.5 flex-1 mx-2"
                       : "w-0.5 h-8 my-2",
-                    "relative overflow-hidden rounded-full bg-white/10",
+                    "relative overflow-hidden rounded-full bg-border-subtle",
                   )}
                 >
                   <motion.div
@@ -475,13 +508,15 @@ function StepProgress({
               <p
                 className={cn(
                   "text-sm font-medium truncate",
-                  isCompleted || isCurrent ? "text-white" : "text-white/40",
+                  isCompleted || isCurrent
+                    ? "text-foreground"
+                    : "text-foreground-tertiary",
                 )}
               >
                 {step.label}
               </p>
               {step.description && (
-                <p className="text-xs text-white/30 mt-0.5 truncate">
+                <p className="mt-0.5 text-xs text-foreground-tertiary truncate">
                   {step.description}
                 </p>
               )}

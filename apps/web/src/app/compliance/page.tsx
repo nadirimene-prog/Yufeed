@@ -8,12 +8,7 @@ import { useComplianceCases } from "@/hooks/queries/useComplianceData";
 import { useCopilot } from "@/components/aml-officer/copilot-context";
 import { LoadingBoundary } from "@/components/shared/LoadingBoundary";
 import { EmptyState } from "@/components/ui/empty-state";
-import {
-  GlassCard,
-  GlassCardContent,
-  GlassCardHeader,
-  GlassCardTitle,
-} from "@/components/ui/glass-card";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { MetricCard } from "@/components/ui/metric-card";
 import { Button } from "@/components/ui/button-horizon";
 import DataTable, { type Column } from "@/components/ui/data-table-horizon";
@@ -208,10 +203,12 @@ export default function ComplianceDashboardPage() {
         />
       </section>
 
-      <GlassCard>
-        <GlassCardHeader className="gap-3">
+      <Card className="border-border shadow-sm bg-white">
+        <CardHeader className="gap-3">
           <div className="flex flex-wrap items-center justify-between gap-3">
-            <GlassCardTitle className="text-base">Applications</GlassCardTitle>
+            <CardTitle className="text-base text-foreground font-semibold">
+              Applications
+            </CardTitle>
             <div className="flex flex-wrap items-center gap-2">
               <input
                 value={search}
@@ -234,7 +231,7 @@ export default function ComplianceDashboardPage() {
               <Button
                 key={option.key}
                 size="sm"
-                variant={statusFilter === option.key ? "primary" : "glass"}
+                variant={statusFilter === option.key ? "primary" : "outline"}
                 onClick={() =>
                   setStatusFilter(option.key as typeof statusFilter)
                 }
@@ -243,9 +240,9 @@ export default function ComplianceDashboardPage() {
               </Button>
             ))}
           </div>
-        </GlassCardHeader>
+        </CardHeader>
 
-        <GlassCardContent>
+        <CardContent>
           <LoadingBoundary
             loading={casesQuery.isLoading}
             error={casesQuery.error as Error | undefined}
@@ -279,8 +276,8 @@ export default function ComplianceDashboardPage() {
               />
             )}
           </LoadingBoundary>
-        </GlassCardContent>
-      </GlassCard>
+        </CardContent>
+      </Card>
     </div>
   );
 }

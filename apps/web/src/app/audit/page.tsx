@@ -9,8 +9,8 @@ export default function AuditPage() {
       <div className="max-w-7xl mx-auto">
         <Suspense
           fallback={
-            <div className="animate-pulse text-white/50 text-center py-8">
-              Loading audit trail...
+            <div className="animate-pulse text-muted-foreground text-center py-8">
+              Compiling audit lineage and security records...
             </div>
           }
         >

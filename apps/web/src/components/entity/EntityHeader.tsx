@@ -42,7 +42,7 @@ export function EntityHeader({ entity }: EntityHeaderProps) {
         <MetricCard
           title="KYC Status"
           value={entity.risk?.kyc_status ?? "N/A"}
-          color="purple"
+          color="blue"
         />
       </div>
     </div>

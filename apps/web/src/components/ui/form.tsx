@@ -546,7 +546,7 @@ const switchVariants = cva(
     variants: {
       variant: {
         default:
-          "data-[state=checked]:bg-primary data-[state=unchecked]:bg-bg-floating",
+          "data-[state=checked]:bg-primary data-[state=unchecked]:bg-muted",
       },
     },
     defaultVariants: {
@@ -611,7 +611,7 @@ const SwitchWithLabel = React.forwardRef<
       </div>
       <label className="relative inline-flex items-center cursor-pointer">
         <Switch ref={ref} {...props} />
-        <span className="ml-3 w-9 h-5 bg-bg-floating peer-focus:outline-none peer-focus:ring-2 peer-focus:ring-primary/20 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-primary" />
+        <span className="peer ml-3 h-5 w-9 rounded-full bg-muted peer-focus:outline-none peer-focus:ring-2 peer-focus:ring-primary/20 peer-checked:bg-primary peer-checked:after:translate-x-full peer-checked:after:border-primary-foreground after:absolute after:left-[2px] after:top-[2px] after:h-4 after:w-4 after:rounded-full after:border after:border-border-default after:bg-card after:transition-all after:content-['']" />
       </label>
     </div>
   );

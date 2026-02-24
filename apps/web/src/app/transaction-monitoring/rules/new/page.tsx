@@ -145,7 +145,7 @@ export default function RuleBuilderPage() {
 
         <div className="flex items-center gap-2">
           <Button
-            variant="glass"
+            variant="outline"
             onClick={() => router.push("/transaction-monitoring/rules")}
           >
             Cancel

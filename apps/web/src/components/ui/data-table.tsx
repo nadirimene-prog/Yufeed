@@ -127,7 +127,7 @@ export function DataTable<TData, TValue>({
           <div className="flex items-center gap-3 flex-1">
             {searchColumn && (
               <div className="relative max-w-sm">
-                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-white/30" />
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-foreground-tertiary" />
                 <Input
                   placeholder={searchPlaceholder}
                   value={
@@ -161,7 +161,7 @@ export function DataTable<TData, TValue>({
                   key={header.id}
                   className={cn(
                     header.column.getCanSort() &&
-                      "cursor-pointer select-none hover:text-white/60",
+                      "cursor-pointer select-none hover:text-foreground",
                   )}
                   onClick={header.column.getToggleSortingHandler()}
                 >
@@ -209,8 +209,8 @@ export function DataTable<TData, TValue>({
                   exit={{ opacity: 0, y: -10 }}
                   transition={{ ...transitions.fast, delay: index * 0.02 }}
                   className={cn(
-                    "border-b border-white/[0.04] transition-colors",
-                    "hover:bg-white/[0.03]",
+                    "border-b border-border-subtle transition-colors",
+                    "hover:bg-muted/40",
                     "data-[state=selected]:bg-primary/10",
                     onRowClick && "cursor-pointer",
                   )}
@@ -231,7 +231,7 @@ export function DataTable<TData, TValue>({
           ) : (
             <TableRow>
               <TableCell colSpan={columns.length} className="h-32 text-center">
-                <div className="flex flex-col items-center justify-center gap-2 text-white/40">
+                <div className="flex flex-col items-center justify-center gap-2 text-foreground-tertiary">
                   <svg
                     className="h-8 w-8"
                     fill="none"
@@ -261,10 +261,10 @@ export function DataTable<TData, TValue>({
             <select
               value={pageSize}
               onChange={(e) => table.setPageSize(Number(e.target.value))}
-              className="h-8 rounded-lg border border-white/10 bg-white/5 px-2 text-xs text-white focus:outline-none focus:ring-1 focus:ring-primary/40"
+              className="h-8 rounded-lg border border-border-subtle bg-card px-2 text-xs text-foreground focus:outline-none focus:ring-1 focus:ring-primary/40"
             >
               {pageSizes.map((size) => (
-                <option key={size} value={size} className="bg-[#0a0a12]">
+                <option key={size} value={size} className="bg-card">
                   {size}
                 </option>
               ))}
@@ -354,7 +354,7 @@ export function DataTableColumnHeader<TData, TValue>({
       <span>{title}</span>
       <ChevronDown
         className={cn(
-          "h-4 w-4 transition-transform text-white/30",
+          "h-4 w-4 text-foreground-tertiary transition-transform",
           column.getIsSorted() === "desc" && "rotate-0",
           column.getIsSorted() === "asc" && "rotate-180",
           !column.getIsSorted() && "opacity-0 group-hover:opacity-50",

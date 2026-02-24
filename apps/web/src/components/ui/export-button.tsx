@@ -137,8 +137,8 @@ export function ExportButton({
         <div
           className={cn(
             "absolute right-0 z-50 mt-1 w-48 origin-top-right",
-            "rounded-lg border border-gray-200 dark:border-gray-700",
-            "bg-white dark:bg-gray-800 shadow-lg",
+            "rounded-lg border border-border-subtle",
+            "bg-card shadow-lg",
             "animate-in fade-in-0 zoom-in-95",
           )}
           role="menu"
@@ -147,26 +147,26 @@ export function ExportButton({
             onClick={handleCSV}
             className={cn(
               "flex w-full items-center gap-3 px-4 py-2.5 text-sm",
-              "text-gray-700 dark:text-gray-200",
-              "hover:bg-gray-100 dark:hover:bg-gray-700",
+              "text-foreground-secondary",
+              "hover:bg-muted hover:text-foreground",
               "rounded-t-lg transition-colors",
             )}
             role="menuitem"
           >
-            <FileSpreadsheet className="h-4 w-4 text-green-600" />
+            <FileSpreadsheet className="h-4 w-4 text-risk-low" />
             Export as CSV
           </button>
           <button
             onClick={handlePDF}
             className={cn(
               "flex w-full items-center gap-3 px-4 py-2.5 text-sm",
-              "text-gray-700 dark:text-gray-200",
-              "hover:bg-gray-100 dark:hover:bg-gray-700",
+              "text-foreground-secondary",
+              "hover:bg-muted hover:text-foreground",
               "rounded-b-lg transition-colors",
             )}
             role="menuitem"
           >
-            <FileText className="h-4 w-4 text-red-600" />
+            <FileText className="h-4 w-4 text-risk-critical" />
             Export as PDF
           </button>
         </div>

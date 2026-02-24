@@ -36,7 +36,7 @@ export function NotificationBadge({
       <span className="relative flex">
         <span
           className={cn(
-            "absolute top-0 right-0 block rounded-full bg-red-600",
+            "absolute top-0 right-0 block rounded-full bg-primary",
             dotSizes[size],
             pulse && "animate-ping",
             className,
@@ -44,7 +44,7 @@ export function NotificationBadge({
         />
         <span
           className={cn(
-            "relative inline-flex rounded-full bg-red-600",
+            "relative inline-flex rounded-full bg-primary",
             dotSizes[size],
             className,
           )}
@@ -58,7 +58,7 @@ export function NotificationBadge({
   return (
     <span
       className={cn(
-        "inline-flex items-center justify-center rounded-full bg-red-600 font-semibold text-white",
+        "inline-flex items-center justify-center rounded-full bg-primary font-semibold text-primary-foreground",
         sizes[size],
         pulse && "animate-pulse",
         className,

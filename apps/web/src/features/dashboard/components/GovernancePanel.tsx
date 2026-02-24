@@ -157,11 +157,11 @@ export function GovernancePanel({
 
   return (
     <section
-      className="glass-surface rounded-2xl border border-white/10 p-3 sm:p-4"
+      className="rounded-2xl border border-border bg-white p-3 shadow-sm sm:p-4"
       role="region"
       aria-label="Governance metrics"
     >
-      <h2 className="mb-3 text-sm font-semibold text-white">
+      <h2 className="mb-3 text-sm font-semibold text-foreground">
         Governance & Controls
       </h2>
 
@@ -170,21 +170,21 @@ export function GovernancePanel({
           ? Array.from({ length: 6 }).map((_, index) => (
               <div
                 key={`skeleton-${index}`}
-                className="rounded-xl border border-white/10 bg-white/5 p-2"
+                className="rounded-xl border border-border bg-slate-50 p-2"
               >
-                <div className="mb-2 h-3 w-24 animate-shimmer rounded bg-white/10" />
-                <div className="h-5 w-16 animate-shimmer rounded bg-white/10" />
+                <div className="mb-2 h-3 w-24 animate-pulse rounded bg-slate-200" />
+                <div className="h-5 w-16 animate-pulse rounded bg-slate-200" />
               </div>
             ))
           : widgets.map((widget) => (
               <Link
                 key={widget.title}
                 href={widget.href}
-                className="block rounded-xl border border-white/10 bg-white/5 p-2 transition hover:border-white/25"
+                className="block rounded-xl border border-border bg-slate-50 p-2 transition hover:border-border/60 hover:shadow-[0_2px_8px_-4px_rgba(0,0,0,0.1)]"
                 aria-label={`${widget.title} details`}
               >
-                <p className="mb-1 flex items-center justify-between text-[10px] uppercase tracking-wide text-white/50">
-                  <span className="inline-flex items-center gap-1.5">
+                <p className="mb-1 flex items-center justify-between text-[10px] uppercase tracking-wide text-muted-foreground">
+                  <span className="inline-flex items-center gap-1.5 font-medium">
                     <widget.icon className="h-3.5 w-3.5" aria-hidden="true" />
                     {widget.title}
                   </span>
@@ -192,7 +192,7 @@ export function GovernancePanel({
                     data={toHistory(widget.sparklineValue)}
                     width={56}
                     height={18}
-                    color="cyan"
+                    color="primary"
                     ariaLabel={`${widget.title} trend`}
                     className="opacity-80"
                   />
@@ -206,8 +206,8 @@ export function GovernancePanel({
             ))}
       </div>
 
-      <div className="mt-3 rounded-xl border border-white/10 bg-white/5 p-3 text-xs text-white/80">
-        <p className="mb-1 text-[10px] uppercase tracking-wide text-white/50">
+      <div className="mt-3 rounded-xl border border-border bg-slate-50 p-3 text-xs text-foreground">
+        <p className="mb-1 text-[10px] uppercase tracking-wide text-muted-foreground font-medium">
           System health
         </p>
         <StatusIndicator
@@ -215,10 +215,10 @@ export function GovernancePanel({
           label={health?.status ?? "unknown"}
           size="sm"
         />
-        <p className="mt-2 text-white/60">
+        <p className="mt-2 text-muted-foreground">
           Stuck alerts: {health?.stuck_alerts ?? 0}
         </p>
-        <p className="text-white/60">
+        <p className="text-muted-foreground">
           Unprocessed transactions: {health?.unprocessed_transactions ?? 0}
         </p>
       </div>

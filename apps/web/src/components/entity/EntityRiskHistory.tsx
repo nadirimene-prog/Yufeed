@@ -1,12 +1,7 @@
 "use client";
 
 import { LineChart } from "lucide-react";
-import {
-  GlassCard,
-  GlassCardContent,
-  GlassCardHeader,
-  GlassCardTitle,
-} from "@/components/ui/glass-card";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Sparkline } from "@/components/ui/sparkline";
 import type { EntityProfile } from "@/types/entity";
 
@@ -26,31 +21,31 @@ export function EntityRiskHistory({ entity }: EntityRiskHistoryProps) {
   }
 
   return (
-    <GlassCard>
-      <GlassCardHeader>
-        <GlassCardTitle className="flex items-center gap-2">
-          <LineChart className="h-4 w-4" />
+    <Card className="border-border shadow-sm">
+      <CardHeader>
+        <CardTitle className="flex items-center gap-2 text-foreground">
+          <LineChart className="h-4 w-4 text-muted-foreground" />
           Risk History
-        </GlassCardTitle>
-      </GlassCardHeader>
-      <GlassCardContent>
+        </CardTitle>
+      </CardHeader>
+      <CardContent>
         {series.length === 0 ? (
-          <p className="text-sm text-foreground-secondary">
+          <p className="text-sm text-muted-foreground">
             Risk history unavailable.
           </p>
         ) : (
-          <div className="rounded-lg border border-border-subtle bg-bg-overlay p-4">
+          <div className="rounded-lg border border-border bg-slate-50 p-4">
             <Sparkline
               data={series.reverse()}
               width={560}
               height={120}
-              color="aurora"
+              color="blue"
               ariaLabel="Entity risk history"
             />
           </div>
         )}
-      </GlassCardContent>
-    </GlassCard>
+      </CardContent>
+    </Card>
   );
 }
 

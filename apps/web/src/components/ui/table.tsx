@@ -6,7 +6,7 @@ import { cn } from "@/lib/utils";
 /**
  * ═══════════════════════════════════════════════════════════════════
  * TABLE - Sentinel Design System
- * Glass-styled data tables with premium effects
+ * Clean, minimalist data tables
  * ═══════════════════════════════════════════════════════════════════
  */
 
@@ -30,11 +30,7 @@ const TableHeader = React.forwardRef<
 >(({ className, ...props }, ref) => (
   <thead
     ref={ref}
-    className={cn(
-      "[&_tr]:border-b [&_tr]:border-white/[0.06]",
-      "bg-white/[0.02]",
-      className,
-    )}
+    className={cn("[&_tr]:border-b", "bg-muted/50", className)}
     {...props}
   />
 ));
@@ -59,7 +55,7 @@ const TableFooter = React.forwardRef<
   <tfoot
     ref={ref}
     className={cn(
-      "border-t border-white/[0.06] bg-white/[0.02] font-medium [&>tr]:last:border-b-0",
+      "border-t border-border bg-muted/50 font-medium [&>tr]:last:border-b-0",
       className,
     )}
     {...props}
@@ -74,9 +70,9 @@ const TableRow = React.forwardRef<
   <tr
     ref={ref}
     className={cn(
-      "border-b border-white/[0.04] transition-colors",
-      "hover:bg-white/[0.03]",
-      "data-[state=selected]:bg-primary/10",
+      "border-b border-border transition-colors",
+      "hover:bg-muted/50",
+      "data-[state=selected]:bg-muted",
       className,
     )}
     {...props}
@@ -92,7 +88,7 @@ const TableHead = React.forwardRef<
     ref={ref}
     className={cn(
       "h-11 px-4 text-left align-middle",
-      "text-xs font-semibold uppercase tracking-wider text-white/40",
+      "text-xs font-semibold uppercase tracking-wider text-muted-foreground",
       "[&:has([role=checkbox])]:pr-0 [&>[role=checkbox]]:translate-y-[2px]",
       className,
     )}
@@ -108,7 +104,7 @@ const TableCell = React.forwardRef<
   <td
     ref={ref}
     className={cn(
-      "px-4 py-3 align-middle text-white/80",
+      "px-4 py-3 align-middle text-foreground",
       "[&:has([role=checkbox])]:pr-0 [&>[role=checkbox]]:translate-y-[2px]",
       className,
     )}
@@ -123,14 +119,14 @@ const TableCaption = React.forwardRef<
 >(({ className, ...props }, ref) => (
   <caption
     ref={ref}
-    className={cn("mt-4 text-sm text-white/40", className)}
+    className={cn("mt-4 text-sm text-muted-foreground", className)}
     {...props}
   />
 ));
 TableCaption.displayName = "TableCaption";
 
 /**
- * Glass Table Container - Wraps table in glass styling
+ * Glass Table Container - Kept name for compatibility, styled cleanly
  */
 interface GlassTableContainerProps extends React.HTMLAttributes<HTMLDivElement> {
   children: React.ReactNode;
@@ -144,8 +140,8 @@ const GlassTableContainer = React.forwardRef<
     ref={ref}
     className={cn(
       "rounded-xl overflow-hidden",
-      "border border-white/[0.06]",
-      "bg-white/[0.02] backdrop-blur-sm",
+      "border border-border",
+      "bg-card shadow-sm",
       className,
     )}
     {...props}
@@ -168,7 +164,7 @@ const TableToolbar = React.forwardRef<HTMLDivElement, TableToolbarProps>(
       ref={ref}
       className={cn(
         "flex items-center justify-between gap-4 p-4",
-        "border-b border-white/[0.06]",
+        "border-b border-border bg-card",
         className,
       )}
       {...props}
@@ -192,8 +188,8 @@ const TablePagination = React.forwardRef<HTMLDivElement, TablePaginationProps>(
       ref={ref}
       className={cn(
         "flex items-center justify-between gap-4 px-4 py-3",
-        "border-t border-white/[0.06]",
-        "text-sm text-white/50",
+        "border-t border-border bg-card",
+        "text-sm text-muted-foreground",
         className,
       )}
       {...props}

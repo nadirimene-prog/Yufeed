@@ -30,24 +30,24 @@ const statusIcons = {
 
 const statusStyles = {
   draft: {
-    ring: "ring-gray-300 dark:ring-gray-600",
-    bg: "bg-gray-100 dark:bg-gray-800",
-    text: "text-gray-600 dark:text-gray-400",
+    ring: "ring-slate-300",
+    bg: "bg-slate-100",
+    text: "text-slate-600",
   },
   submitted: {
-    ring: "ring-blue-300 dark:ring-blue-700",
-    bg: "bg-blue-50 dark:bg-blue-950/40",
-    text: "text-blue-600 dark:text-blue-400",
+    ring: "ring-blue-300",
+    bg: "bg-blue-50",
+    text: "text-blue-600",
   },
   approved: {
-    ring: "ring-emerald-300 dark:ring-emerald-700",
-    bg: "bg-emerald-50 dark:bg-emerald-950/40",
-    text: "text-emerald-600 dark:text-emerald-400",
+    ring: "ring-emerald-300",
+    bg: "bg-emerald-50",
+    text: "text-emerald-600",
   },
   rejected: {
-    ring: "ring-red-300 dark:ring-red-700",
-    bg: "bg-red-50 dark:bg-red-950/40",
-    text: "text-red-600 dark:text-red-400",
+    ring: "ring-red-300",
+    bg: "bg-red-50",
+    text: "text-red-600",
   },
 } as const;
 
@@ -71,7 +71,7 @@ export function DecisionTimeline({
 
   if (decisions.length === 0) {
     return (
-      <div className="text-center py-12 text-gray-400 dark:text-gray-500">
+      <div className="text-center py-12 text-slate-400">
         <FileEdit className="h-8 w-8 mx-auto mb-2 opacity-50" />
         <p className="text-sm">No decisions yet</p>
       </div>
@@ -86,7 +86,7 @@ export function DecisionTimeline({
       className="relative"
     >
       {/* Vertical line */}
-      <div className="absolute left-5 top-0 bottom-0 w-px bg-gray-200 dark:bg-gray-700" />
+      <div className="absolute left-5 top-0 bottom-0 w-px bg-slate-200" />
 
       <div className="space-y-4">
         {decisions.map((decision) => {
@@ -114,7 +114,7 @@ export function DecisionTimeline({
               {/* Card */}
               <div
                 className={cn(
-                  "rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900/60 p-4",
+                  "rounded-xl border border-slate-200 bg-white p-4",
                   "transition-colors",
                 )}
               >
@@ -130,15 +130,15 @@ export function DecisionTimeline({
                       >
                         {decision.status.toUpperCase()}
                       </span>
-                      <span className="text-xs text-gray-400 dark:text-gray-500">
+                      <span className="text-xs text-slate-400">
                         v{decision.version}
                       </span>
                     </div>
-                    <p className="text-sm font-medium text-gray-900 dark:text-white">
+                    <p className="text-sm font-medium text-slate-900">
                       {dispositionLabels[decision.disposition] ??
                         decision.disposition}
                     </p>
-                    <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">
+                    <p className="text-xs text-slate-500 mt-0.5">
                       by {decision.created_by} ·{" "}
                       {new Date(decision.created_at).toLocaleDateString()}
                     </p>
@@ -148,11 +148,11 @@ export function DecisionTimeline({
                     onClick={() =>
                       setExpandedId(isExpanded ? null : decision.id)
                     }
-                    className="p-1 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800 transition"
+                    className="p-1 rounded-lg hover:bg-slate-100 transition"
                   >
                     <ChevronDown
                       className={cn(
-                        "h-4 w-4 text-gray-400 transition-transform",
+                        "h-4 w-4 text-slate-400 transition-transform",
                         isExpanded && "rotate-180",
                       )}
                     />
@@ -163,15 +163,15 @@ export function DecisionTimeline({
                   <motion.div
                     initial={{ height: 0, opacity: 0 }}
                     animate={{ height: "auto", opacity: 1 }}
-                    className="mt-3 pt-3 border-t border-gray-100 dark:border-gray-800"
+                    className="mt-3 pt-3 border-t border-slate-100"
                   >
-                    <p className="text-sm text-gray-700 dark:text-gray-300 whitespace-pre-wrap">
+                    <p className="text-sm text-slate-700 whitespace-pre-wrap">
                       {decision.rationale}
                     </p>
 
                     {decision.approver_id != null &&
                       decision.approver_id.length > 0 && (
-                        <p className="text-xs text-gray-400 mt-2">
+                        <p className="text-xs text-slate-400 mt-2">
                           Approved by {decision.approver_id} on{" "}
                           {decision.approved_at != null
                             ? new Date(
@@ -183,7 +183,7 @@ export function DecisionTimeline({
 
                     {decision.rejection_reason != null &&
                       decision.rejection_reason.length > 0 && (
-                        <div className="mt-2 p-2 rounded-lg bg-red-50 dark:bg-red-950/20 text-sm text-red-700 dark:text-red-400">
+                        <div className="mt-2 p-2 rounded-lg bg-red-50 text-sm text-red-700">
                           Rejection: {decision.rejection_reason}
                         </div>
                       )}
@@ -210,7 +210,7 @@ export function DecisionTimeline({
                                   }))
                                 }
                                 rows={2}
-                                className="w-full rounded-lg border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800 px-3 py-2 text-xs text-gray-900 dark:text-white placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500/30"
+                                className="w-full rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-xs text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-[#0052FF]/30"
                                 placeholder="Rationale for submission (min 10 chars)…"
                               />
                               <button
@@ -226,8 +226,8 @@ export function DecisionTimeline({
                                 className={cn(
                                   "text-xs px-3 py-1.5 rounded-lg text-white transition",
                                   canSubmit
-                                    ? "bg-blue-600 hover:bg-blue-700"
-                                    : "bg-gray-300 dark:bg-gray-700 cursor-not-allowed",
+                                    ? "bg-[#0052FF] hover:bg-[#0052FF]/90"
+                                    : "bg-slate-300 cursor-not-allowed",
                                 )}
                               >
                                 Submit for Approval

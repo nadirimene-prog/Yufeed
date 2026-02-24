@@ -40,7 +40,7 @@ const tabsListVariants = cva("flex items-center", {
   variants: {
     variant: {
       default: "border-b border-border-subtle",
-      pills: "gap-1 p-1 bg-bg-floating rounded-lg",
+      pills: "gap-1 rounded-lg bg-muted p-1",
       underline: "border-b border-border-subtle",
       cards: "gap-2",
     },
@@ -144,11 +144,11 @@ const tabVariants = cva(
         default:
           "border-b-2 border-transparent text-foreground-secondary hover:text-foreground data-[state=active]:text-primary data-[state=active]:border-primary",
         pills:
-          "rounded-md text-foreground-secondary hover:text-foreground hover:bg-white/5 data-[state=active]:bg-primary data-[state=active]:text-white",
+          "rounded-md text-foreground-secondary hover:bg-secondary hover:text-foreground data-[state=active]:bg-primary data-[state=active]:text-primary-foreground",
         underline:
           "border-b-2 border-transparent text-foreground-secondary hover:text-foreground data-[state=active]:text-foreground data-[state=active]:border-primary",
         cards:
-          "rounded-lg border border-border-subtle bg-bg-elevated px-4 py-3 text-foreground-secondary hover:border-border-default hover:text-foreground data-[state=active]:border-primary data-[state=active]:text-primary data-[state=active]:bg-primary/5",
+          "rounded-lg border border-border-subtle bg-background-elevated px-4 py-3 text-foreground-secondary hover:border-border-default hover:text-foreground data-[state=active]:border-primary data-[state=active]:bg-primary/5 data-[state=active]:text-primary",
       },
       size: {
         sm: "text-xs py-2 px-3",
@@ -326,7 +326,7 @@ export function SegmentedControl({
   return (
     <div
       className={cn(
-        "inline-flex p-1 bg-bg-floating rounded-lg",
+        "inline-flex rounded-lg bg-muted p-1",
         size === "sm" && "p-0.5",
         className,
       )}

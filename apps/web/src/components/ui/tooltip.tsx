@@ -7,7 +7,7 @@ import { cn } from "@/lib/utils";
 /**
  * ═══════════════════════════════════════════════════════════════════
  * TOOLTIP - Sentinel Design System
- * Glass-styled tooltips with smooth animations
+ * Clean tooltips with smooth animations
  * ═══════════════════════════════════════════════════════════════════
  */
 
@@ -33,7 +33,7 @@ const TooltipContent = React.forwardRef<
     {
       className,
       sideOffset = 4,
-      variant = "glass",
+      variant = "dark", // Default to dark for high contrast in light theme
       arrow = true,
       children,
       ...props
@@ -41,9 +41,11 @@ const TooltipContent = React.forwardRef<
     ref,
   ) => {
     const variantStyles = {
-      default: "bg-white/10 backdrop-blur-md border-white/10",
-      glass: "bg-[#0a0a12]/90 backdrop-blur-xl border-white/[0.08]",
-      dark: "bg-[#0a0a12] border-white/[0.06]",
+      default:
+        "border-border-subtle bg-popover text-popover-foreground shadow-md",
+      glass:
+        "border-background/10 bg-foreground/95 text-background backdrop-blur-sm shadow-md", // Deprecated glass, mapped to solid dark
+      dark: "border-background/10 bg-foreground text-background shadow-md",
     };
 
     return (
@@ -51,8 +53,8 @@ const TooltipContent = React.forwardRef<
         ref={ref}
         sideOffset={sideOffset}
         className={cn(
-          "z-50 overflow-hidden rounded-lg border px-3 py-2",
-          "text-sm text-white/90 shadow-xl",
+          "z-50 overflow-hidden rounded-md border px-3 py-1.5",
+          "text-xs font-medium",
           "animate-in fade-in-0 zoom-in-95",
           "data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=closed]:zoom-out-95",
           "data-[side=bottom]:slide-in-from-top-2",
@@ -69,9 +71,8 @@ const TooltipContent = React.forwardRef<
           <TooltipPrimitive.Arrow
             className={cn(
               "fill-current",
-              variant === "glass" && "text-[#0a0a12]/90",
-              variant === "dark" && "text-[#0a0a12]",
-              variant === "default" && "text-white/10",
+              (variant === "glass" || variant === "dark") && "text-foreground",
+              variant === "default" && "text-popover",
             )}
           />
         )}
@@ -109,7 +110,7 @@ function Tooltip({
   side = "top",
   align = "center",
   delayDuration = 200,
-  variant = "glass",
+  variant = "dark",
   className,
   disabled = false,
 }: TooltipProps) {
@@ -149,7 +150,7 @@ interface InfoTooltipProps extends Omit<TooltipProps, "children"> {
 function InfoTooltip({
   content,
   iconSize = "sm",
-  iconColor = "text-white/40",
+  iconColor = "text-muted-foreground",
   ...props
 }: InfoTooltipProps) {
   const sizeClasses = {
@@ -164,7 +165,7 @@ function InfoTooltip({
         type="button"
         className={cn(
           "inline-flex items-center justify-center rounded-full",
-          "hover:text-white/60 transition-colors",
+          "hover:text-foreground transition-colors",
           iconColor,
         )}
       >
@@ -208,6 +209,10 @@ function RichTooltip({
   footer,
   ...props
 }: RichTooltipProps) {
+  const resolvedVariant = props.variant ?? "dark";
+  const isDarkVariant =
+    resolvedVariant === "dark" || resolvedVariant === "glass";
+
   return (
     <TooltipProvider>
       <TooltipRoot delayDuration={props.delayDuration ?? 200}>
@@ -220,13 +225,29 @@ function RichTooltip({
             className={cn("max-w-xs p-0 overflow-hidden", props.className)}
           >
             <div className="p-3 space-y-1">
-              <p className="font-medium text-white">{title}</p>
+              <p className="font-medium">{title}</p>
               {description && (
-                <p className="text-xs text-white/60">{description}</p>
+                <p
+                  className={cn(
+                    "text-xs",
+                    isDarkVariant
+                      ? "text-background/70"
+                      : "text-foreground-secondary",
+                  )}
+                >
+                  {description}
+                </p>
               )}
             </div>
             {footer && (
-              <div className="px-3 py-2 border-t border-white/[0.06] bg-white/[0.02]">
+              <div
+                className={cn(
+                  "px-3 py-2 border-t",
+                  isDarkVariant
+                    ? "border-background/10 bg-foreground/70"
+                    : "border-border-subtle bg-muted/60",
+                )}
+              >
                 {footer}
               </div>
             )}
@@ -262,7 +283,7 @@ function ShortcutTooltip({
             {shortcut.map((key, index) => (
               <kbd
                 key={index}
-                className="inline-flex h-5 min-w-[20px] items-center justify-center rounded border border-white/20 bg-white/10 px-1.5 font-mono text-[10px] font-medium"
+                className="inline-flex h-5 min-w-[20px] items-center justify-center rounded border border-background/15 bg-foreground/80 px-1.5 font-mono text-[10px] font-medium text-background"
               >
                 {key}
               </kbd>

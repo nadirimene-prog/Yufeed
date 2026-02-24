@@ -6,12 +6,7 @@ import { AlertTriangle, CheckCircle, XCircle, ArrowRight } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { DataTable } from "@/components/ui/data-table";
 import { StatusBadge, StatusState } from "@/components/ui/status-indicator";
-import {
-  GlassCard,
-  GlassCardHeader,
-  GlassCardTitle,
-  GlassCardContent,
-} from "@/components/ui/glass-card";
+import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { ProactiveAlert } from "@/lib/aml-officer-api";
 
 interface RecentAlertsTableProps {
@@ -46,10 +41,10 @@ export function RecentAlertsTable({ data, onAction }: RecentAlertsTableProps) {
       cell: ({ row }) => {
         return (
           <div className="max-w-[300px]">
-            <div className="text-sm font-medium text-white truncate">
+            <div className="text-sm font-medium text-foreground truncate">
               {row.original.message}
             </div>
-            <div className="text-xs text-white/50 truncate">
+            <div className="text-xs text-muted-foreground truncate">
               {row.original.recommendation}
             </div>
           </div>
@@ -63,7 +58,7 @@ export function RecentAlertsTable({ data, onAction }: RecentAlertsTableProps) {
         // Mocking relative time for now as API type doesn't have timestamp strictly defined in the view I saw
         // In a real app, use row.original.timestamp
         return (
-          <span className="text-xs text-white/40 whitespace-nowrap">
+          <span className="text-xs text-muted-foreground whitespace-nowrap">
             {Math.floor(Math.random() * 24)}h ago
           </span>
         );
@@ -105,21 +100,21 @@ export function RecentAlertsTable({ data, onAction }: RecentAlertsTableProps) {
   ];
 
   return (
-    <GlassCard className="h-full flex flex-col">
-      <GlassCardHeader className="flex flex-row items-center justify-between py-3">
-        <GlassCardTitle className="text-base flex items-center gap-2">
-          <AlertTriangle className="w-4 h-4 text-[var(--color-risk-high)]" />
-          Pending High Riks Alerts
-        </GlassCardTitle>
+    <Card className="h-full flex flex-col border-border shadow-sm bg-white">
+      <CardHeader className="flex flex-row items-center justify-between py-3">
+        <CardTitle className="text-base flex items-center gap-2 font-semibold text-foreground">
+          <AlertTriangle className="w-4 h-4 text-orange-500" />
+          Pending High Risks Alerts
+        </CardTitle>
         <Button
-          variant="ghost"
+          variant="outline"
           size="sm"
-          rightIcon={<ArrowRight className="w-3 h-3" />}
+          className="border-border text-foreground"
         >
-          View All
+          View All <ArrowRight className="w-3 h-3 ml-2" />
         </Button>
-      </GlassCardHeader>
-      <GlassCardContent className="p-0 flex-1">
+      </CardHeader>
+      <CardContent className="p-0 flex-1">
         <DataTable
           columns={columns}
           data={data}
@@ -127,7 +122,7 @@ export function RecentAlertsTable({ data, onAction }: RecentAlertsTableProps) {
           className="border-0 bg-transparent"
           emptyMessage="No pending alerts requiring attention."
         />
-      </GlassCardContent>
-    </GlassCard>
+      </CardContent>
+    </Card>
   );
 }

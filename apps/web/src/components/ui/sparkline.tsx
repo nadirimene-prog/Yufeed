@@ -4,7 +4,7 @@ import { useMemo } from "react";
 import { cn } from "@/lib/utils";
 
 type SparklineColor =
-  | "aurora"
+  | "blue"
   | "cyan"
   | "green"
   | "yellow"
@@ -45,14 +45,14 @@ interface SparkProgressProps {
 }
 
 const colorMap: Record<SparklineColor, string> = {
-  aurora: "var(--color-aurora-500)",
-  cyan: "var(--color-cyan-500)",
-  green: "var(--color-trend-up)",
+  blue: "var(--color-primary)",
+  cyan: "var(--color-accent-secondary)",
+  green: "var(--color-risk-low)",
   yellow: "var(--color-risk-medium)",
   orange: "var(--color-risk-high)",
-  red: "var(--color-trend-down)",
-  purple: "var(--color-aurora-400)",
-  gray: "var(--color-void-400)",
+  red: "var(--color-risk-critical)",
+  purple: "var(--color-primary)",
+  gray: "var(--color-slate-400)",
 };
 
 function resolveColor(color: string | SparklineColor): string {
@@ -67,7 +67,7 @@ function clamp(value: number, min: number, max: number) {
 
 export function Sparkline({
   data,
-  color = "aurora",
+  color = "blue",
   width = 100,
   height = 40,
   className,
@@ -151,7 +151,7 @@ export function Sparkline({
             "absolute -right-1 -top-1 rounded px-1.5 py-0.5 text-[10px] font-bold",
             trend > 0 && "bg-risk-low-soft text-risk-low",
             trend < 0 && "bg-risk-critical-soft text-risk-critical",
-            trend === 0 && "bg-white/10 text-white/60",
+            trend === 0 && "bg-muted text-foreground-tertiary",
           )}
         >
           {trend > 0 ? "+" : ""}
@@ -164,7 +164,7 @@ export function Sparkline({
 
 export function Sparkbar({
   data,
-  color = "aurora",
+  color = "blue",
   width = 80,
   height = 24,
   className,
@@ -206,7 +206,7 @@ export function Sparkbar({
 export function SparkProgress({
   value,
   max = 100,
-  color = "aurora",
+  color = "blue",
   width = 60,
   height = 4,
   className,
@@ -222,7 +222,7 @@ export function SparkProgress({
       aria-valuenow={Math.round(percentage)}
       aria-valuemin={0}
       aria-valuemax={100}
-      className={cn("overflow-hidden rounded-full bg-white/10", className)}
+      className={cn("overflow-hidden rounded-full bg-muted", className)}
       style={{ width, height }}
     >
       <div

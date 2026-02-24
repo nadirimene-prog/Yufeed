@@ -1,96 +1,84 @@
 import { Bell, KeyRound, Settings, User } from "lucide-react";
 import {
-  GlassCard,
-  GlassCardContent,
-  GlassCardDescription,
-  GlassCardHeader,
-  GlassCardTitle,
-} from "@/components/ui/glass-card";
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
 
 export default function SettingsPage() {
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-3xl font-semibold tracking-tight text-white">
+        <h1 className="text-3xl font-semibold tracking-tight text-foreground">
           Settings
         </h1>
-        <p className="mt-2 text-sm text-white/60">
+        <p className="mt-2 text-sm text-muted-foreground">
           Manage your account, notifications, and system preferences.
         </p>
       </div>
 
       <div className="grid gap-4 md:grid-cols-2">
-        <GlassCard
-          variant="surface"
-          className="bg-white/[0.02] border border-white/[0.06]"
-        >
-          <GlassCardHeader>
-            <GlassCardTitle className="flex items-center gap-2">
-              <User className="h-4 w-4 text-[#00d4ff]" />
+        <Card className="border-border shadow-sm bg-white">
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2 text-foreground font-semibold">
+              <User className="h-4 w-4 text-primary" />
               Account
-            </GlassCardTitle>
-            <GlassCardDescription>
+            </CardTitle>
+            <CardDescription>
               Profile details, security, and session controls.
-            </GlassCardDescription>
-          </GlassCardHeader>
-          <GlassCardContent className="text-sm text-white/70">
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="text-sm text-muted-foreground">
             Coming soon.
-          </GlassCardContent>
-        </GlassCard>
+          </CardContent>
+        </Card>
 
-        <GlassCard
-          variant="surface"
-          className="bg-white/[0.02] border border-white/[0.06]"
-        >
-          <GlassCardHeader>
-            <GlassCardTitle className="flex items-center gap-2">
-              <Bell className="h-4 w-4 text-[#6d5acd]" />
+        <Card className="border-border shadow-sm bg-white">
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2 text-foreground font-semibold">
+              <Bell className="h-4 w-4 text-purple-500" />
               Notifications
-            </GlassCardTitle>
-            <GlassCardDescription>
+            </CardTitle>
+            <CardDescription>
               Real-time alerts and email preferences.
-            </GlassCardDescription>
-          </GlassCardHeader>
-          <GlassCardContent className="text-sm text-white/70">
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="text-sm text-muted-foreground">
             Coming soon.
-          </GlassCardContent>
-        </GlassCard>
+          </CardContent>
+        </Card>
 
-        <GlassCard
-          variant="surface"
-          className="bg-white/[0.02] border border-white/[0.06]"
-        >
-          <GlassCardHeader>
-            <GlassCardTitle className="flex items-center gap-2">
-              <KeyRound className="h-4 w-4 text-[#06d6a0]" />
+        <Card className="border-border shadow-sm bg-white">
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2 text-foreground font-semibold">
+              <KeyRound className="h-4 w-4 text-green-500" />
               API
-            </GlassCardTitle>
-            <GlassCardDescription>
+            </CardTitle>
+            <CardDescription>
               API keys and integration settings.
-            </GlassCardDescription>
-          </GlassCardHeader>
-          <GlassCardContent className="text-sm text-white/70">
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="text-sm text-muted-foreground">
             Coming soon.
-          </GlassCardContent>
-        </GlassCard>
+          </CardContent>
+        </Card>
 
-        <GlassCard
-          variant="surface"
-          className="bg-white/[0.02] border border-white/[0.06]"
-        >
-          <GlassCardHeader>
-            <GlassCardTitle className="flex items-center gap-2">
-              <Settings className="h-4 w-4 text-white/70" />
+        <Card className="border-border shadow-sm bg-white">
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2 text-foreground font-semibold">
+              <Settings className="h-4 w-4 text-slate-500" />
               System
-            </GlassCardTitle>
-            <GlassCardDescription>
+            </CardTitle>
+            <CardDescription>
               Workspace defaults and administrative preferences.
-            </GlassCardDescription>
-          </GlassCardHeader>
-          <GlassCardContent className="text-sm text-white/70">
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="text-sm text-muted-foreground">
             Coming soon.
-          </GlassCardContent>
-        </GlassCard>
+          </CardContent>
+        </Card>
       </div>
     </div>
   );

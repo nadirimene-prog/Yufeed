@@ -28,12 +28,7 @@ import amlOfficerApi, { type ProactiveAlert } from "@/lib/aml-officer-api";
 import { useAMLOfficerBriefing } from "@/hooks/queries/useAMLOfficerData";
 import { LoadingBoundary } from "@/components/shared/LoadingBoundary";
 import { MetricCard } from "@/components/ui/metric-card";
-import {
-  GlassCard,
-  GlassCardHeader,
-  GlassCardTitle,
-  GlassCardContent,
-} from "@/components/ui/glass-card";
+import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { BentoGrid } from "@/components/ui/bento-grid";
 import { Button } from "@/components/ui/button";
 import { RiskBadge } from "@/components/ui/badge-horizon";
@@ -113,14 +108,14 @@ export default function AMLOfficerDashboard() {
           className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between"
         >
           <div>
-            <div className="mb-2 flex items-center gap-2 text-xs uppercase tracking-[0.25em] text-cyan-500/70">
+            <div className="mb-2 flex items-center gap-2 text-xs uppercase tracking-[0.25em] text-primary">
               <Sparkles className="h-3.5 w-3.5" />
               AI Sentinel
             </div>
-            <h1 className="text-3xl font-bold tracking-tight text-white font-display">
+            <h1 className="text-3xl font-bold tracking-tight text-foreground font-display">
               AML Officer Cockpit
             </h1>
-            <p className="text-white/50 mt-2 max-w-2xl">
+            <p className="text-muted-foreground mt-2 max-w-2xl">
               Your intelligent compliance partner for daily operations and
               decisioning.
             </p>
@@ -129,7 +124,7 @@ export default function AMLOfficerDashboard() {
           <div className="flex items-center gap-3">
             <StatusIndicator status="live" label="AI Active" />
             <Button
-              variant="glass"
+              variant="outline"
               size="sm"
               onClick={handleRefresh}
               disabled={refreshing}
@@ -192,37 +187,37 @@ export default function AMLOfficerDashboard() {
           <div className="lg:col-span-2 space-y-6">
             {/* Daily Briefing */}
             {briefing && (
-              <GlassCard className="relative overflow-hidden">
-                <div className="absolute top-0 right-0 p-4 opacity-10">
-                  <Brain className="w-32 h-32 text-[var(--color-aurora-500)]" />
+              <Card className="relative overflow-hidden border-border shadow-sm bg-white">
+                <div className="absolute top-0 right-0 p-4 opacity-5">
+                  <Brain className="w-32 h-32 text-primary" />
                 </div>
-                <GlassCardHeader>
-                  <GlassCardTitle className="flex items-center gap-2">
-                    <Sparkles className="w-5 h-5 text-[var(--color-aurora-500)]" />
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2 text-base font-semibold text-foreground">
+                    <Sparkles className="w-5 h-5 text-primary" />
                     Daily Briefing
-                  </GlassCardTitle>
-                  <p className="text-sm text-white/40 mt-1">
+                  </CardTitle>
+                  <p className="text-sm text-muted-foreground mt-1">
                     Generated at{" "}
                     {new Date(briefing.generated_at).toLocaleTimeString()}
                   </p>
-                </GlassCardHeader>
-                <GlassCardContent>
-                  <p className="text-white/80 text-lg leading-relaxed mb-6">
+                </CardHeader>
+                <CardContent>
+                  <p className="text-foreground text-lg leading-relaxed mb-6">
                     {briefing.narrative.executive_summary}
                   </p>
 
                   {/* Risk Trend Pill */}
-                  <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-white/5 border border-white/10">
-                    <span className="text-xs uppercase tracking-wider text-white/50">
+                  <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-slate-50 border border-border">
+                    <span className="text-xs uppercase tracking-wider text-muted-foreground">
                       Risk Trend
                     </span>
-                    <span className="w-px h-3 bg-white/20" />
-                    <span className="text-sm font-medium capitalize text-white">
+                    <span className="w-px h-3 bg-border" />
+                    <span className="text-sm font-medium capitalize text-foreground">
                       {briefing.risk.trend}
                     </span>
                   </div>
-                </GlassCardContent>
-              </GlassCard>
+                </CardContent>
+              </Card>
             )}
 
             {/* Active Work Queue (RecentAlertsTable) */}
@@ -243,55 +238,55 @@ export default function AMLOfficerDashboard() {
             {/* Application Quick Links (Compact Row) */}
             <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
               <Link href="/transaction-alerts" className="block group">
-                <GlassCard variant="interactive" hover className="h-full">
-                  <GlassCardContent className="p-4 flex items-center gap-3">
-                    <div className="p-2 rounded-lg bg-[var(--color-risk-high-soft)] text-[var(--color-risk-high)]">
+                <Card className="h-full border-border shadow-sm bg-white hover:border-primary/50 transition-colors">
+                  <CardContent className="p-4 flex items-center gap-3">
+                    <div className="p-2 rounded-lg bg-red-50 text-red-600">
                       <AlertTriangle className="w-4 h-4" />
                     </div>
-                    <span className="text-sm font-medium text-white group-hover:text-[var(--color-risk-high)] transition-colors">
+                    <span className="text-sm font-medium text-foreground group-hover:text-red-600 transition-colors">
                       All Alerts
                     </span>
-                  </GlassCardContent>
-                </GlassCard>
+                  </CardContent>
+                </Card>
               </Link>
 
               <Link href="/cases" className="block group">
-                <GlassCard variant="interactive" hover className="h-full">
-                  <GlassCardContent className="p-4 flex items-center gap-3">
-                    <div className="p-2 rounded-lg bg-[var(--color-info-soft)] text-[var(--color-info)]">
+                <Card className="h-full border-border shadow-sm bg-white hover:border-primary/50 transition-colors">
+                  <CardContent className="p-4 flex items-center gap-3">
+                    <div className="p-2 rounded-lg bg-blue-50 text-blue-600">
                       <FileSearch className="w-4 h-4" />
                     </div>
-                    <span className="text-sm font-medium text-white group-hover:text-[var(--color-info)] transition-colors">
+                    <span className="text-sm font-medium text-foreground group-hover:text-blue-600 transition-colors">
                       Cases
                     </span>
-                  </GlassCardContent>
-                </GlassCard>
+                  </CardContent>
+                </Card>
               </Link>
 
               <Link href="/aml-officer/ask" className="block group">
-                <GlassCard variant="interactive" hover className="h-full">
-                  <GlassCardContent className="p-4 flex items-center gap-3">
-                    <div className="p-2 rounded-lg bg-[var(--color-risk-low-soft)] text-[var(--color-risk-low)]">
+                <Card className="h-full border-border shadow-sm bg-white hover:border-primary/50 transition-colors">
+                  <CardContent className="p-4 flex items-center gap-3">
+                    <div className="p-2 rounded-lg bg-green-50 text-green-600">
                       <MessageSquare className="w-4 h-4" />
                     </div>
-                    <span className="text-sm font-medium text-white group-hover:text-[var(--color-risk-low)] transition-colors">
+                    <span className="text-sm font-medium text-foreground group-hover:text-green-600 transition-colors">
                       Copilot
                     </span>
-                  </GlassCardContent>
-                </GlassCard>
+                  </CardContent>
+                </Card>
               </Link>
 
               <Link href="/aml-officer/sanctions" className="block group">
-                <GlassCard variant="interactive" hover className="h-full">
-                  <GlassCardContent className="p-4 flex items-center gap-3">
-                    <div className="p-2 rounded-lg bg-[var(--color-risk-critical-soft)] text-[var(--color-risk-critical)]">
+                <Card className="h-full border-border shadow-sm bg-white hover:border-primary/50 transition-colors">
+                  <CardContent className="p-4 flex items-center gap-3">
+                    <div className="p-2 rounded-lg bg-red-50 text-red-600">
                       <Shield className="w-4 h-4" />
                     </div>
-                    <span className="text-sm font-medium text-white group-hover:text-[var(--color-risk-critical)] transition-colors">
+                    <span className="text-sm font-medium text-foreground group-hover:text-red-600 transition-colors">
                       Sanctions
                     </span>
-                  </GlassCardContent>
-                </GlassCard>
+                  </CardContent>
+                </Card>
               </Link>
             </div>
           </div>
@@ -301,49 +296,49 @@ export default function AMLOfficerDashboard() {
             {/* Priority Actions */}
             {briefing &&
               briefing.recommendations.priority_actions.length > 0 && (
-                <GlassCard>
-                  <GlassCardHeader>
-                    <GlassCardTitle className="text-base flex items-center gap-2">
-                      <CheckCircle className="w-4 h-4 text-[var(--color-risk-low)]" />
+                <Card className="border-border shadow-sm bg-white">
+                  <CardHeader>
+                    <CardTitle className="text-base flex items-center gap-2 font-semibold text-foreground">
+                      <CheckCircle className="w-4 h-4 text-green-500" />
                       Priority Actions
-                    </GlassCardTitle>
-                  </GlassCardHeader>
-                  <GlassCardContent className="space-y-3 pt-0">
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent className="space-y-3 pt-0">
                     {briefing.recommendations.priority_actions.map(
                       (action, index) => (
                         <div
                           key={index}
-                          className="flex gap-3 text-sm p-2 rounded-lg hover:bg-white/5 transition-colors"
+                          className="flex gap-3 text-sm p-2 rounded-lg hover:bg-slate-50 transition-colors"
                         >
-                          <span className="flex-shrink-0 w-5 h-5 bg-[var(--color-aurora-500)] text-white rounded-full flex items-center justify-center text-[10px] font-bold">
+                          <span className="flex-shrink-0 w-5 h-5 bg-primary text-white rounded-full flex items-center justify-center text-[10px] font-bold">
                             {index + 1}
                           </span>
-                          <span className="text-white/80">{action}</span>
+                          <span className="text-foreground">{action}</span>
                         </div>
                       ),
                     )}
-                  </GlassCardContent>
-                </GlassCard>
+                  </CardContent>
+                </Card>
               )}
 
             {/* AI Detected Risks */}
-            <GlassCard className="h-fit">
-              <GlassCardHeader>
-                <GlassCardTitle className="text-base flex items-center gap-2">
-                  <Zap className="w-4 h-4 text-[var(--color-aurora-400)]" />
+            <Card className="h-fit border-border shadow-sm bg-white">
+              <CardHeader>
+                <CardTitle className="text-base flex items-center gap-2 font-semibold text-foreground">
+                  <Zap className="w-4 h-4 text-primary" />
                   AI Detected Risks
-                </GlassCardTitle>
-              </GlassCardHeader>
-              <GlassCardContent className="space-y-3 pt-0">
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-3 pt-0">
                 {proactiveAlerts.length === 0 ? (
-                  <div className="text-center py-6 text-white/30 text-sm">
+                  <div className="text-center py-6 text-muted-foreground text-sm">
                     No proactive alerts detected.
                   </div>
                 ) : (
                   proactiveAlerts.map((alert, index) => (
                     <div
                       key={index}
-                      className={`p-3 rounded-lg border border-white/5 bg-white/[0.02]`}
+                      className={`p-3 rounded-lg border border-border bg-slate-50`}
                     >
                       <div className="flex justify-between items-start mb-1">
                         <RiskBadge
@@ -353,45 +348,45 @@ export default function AMLOfficerDashboard() {
                           {alert.severity}
                         </RiskBadge>
                       </div>
-                      <p className="text-sm font-medium text-white mb-1">
+                      <p className="text-sm font-medium text-foreground mb-1">
                         {alert.message}
                       </p>
-                      <p className="text-xs text-white/50">
+                      <p className="text-xs text-muted-foreground">
                         {alert.recommendation}
                       </p>
                     </div>
                   ))
                 )}
-              </GlassCardContent>
-            </GlassCard>
+              </CardContent>
+            </Card>
 
             {/* Regulations */}
             {briefing && briefing.regulatory.upcoming_deadlines.length > 0 && (
-              <GlassCard>
-                <GlassCardHeader>
-                  <GlassCardTitle className="text-base flex items-center gap-2">
-                    <Calendar className="w-4 h-4 text-[var(--color-aurora-300)]" />
+              <Card className="border-border shadow-sm bg-white">
+                <CardHeader>
+                  <CardTitle className="text-base flex items-center gap-2 font-semibold text-foreground">
+                    <Calendar className="w-4 h-4 text-primary" />
                     Up Next
-                  </GlassCardTitle>
-                </GlassCardHeader>
-                <GlassCardContent className="pt-0">
+                  </CardTitle>
+                </CardHeader>
+                <CardContent className="pt-0">
                   {briefing.regulatory.upcoming_deadlines.map(
                     (deadline, index) => (
                       <div
                         key={index}
-                        className="py-2 border-b border-white/5 last:border-0"
+                        className="py-2 border-b border-border last:border-0"
                       >
-                        <p className="text-sm text-white/80">
+                        <p className="text-sm text-foreground">
                           {deadline.title}
                         </p>
-                        <p className="text-xs text-[var(--color-aurora-300)] mt-0.5">
+                        <p className="text-xs text-muted-foreground mt-0.5">
                           {deadline.days_remaining} days remaining
                         </p>
                       </div>
                     ),
                   )}
-                </GlassCardContent>
-              </GlassCard>
+                </CardContent>
+              </Card>
             )}
           </div>
         </motion.div>

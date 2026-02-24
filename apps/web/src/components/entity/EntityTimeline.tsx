@@ -2,12 +2,7 @@
 
 import { useMemo } from "react";
 import { Clock3 } from "lucide-react";
-import {
-  GlassCard,
-  GlassCardContent,
-  GlassCardHeader,
-  GlassCardTitle,
-} from "@/components/ui/glass-card";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import type { EntityProfile } from "@/types/entity";
 
 interface EntityTimelineProps {
@@ -46,42 +41,40 @@ export function EntityTimeline({ entity }: EntityTimelineProps) {
   }, [entity.alerts, entity.cases, entity.transactions]);
 
   return (
-    <GlassCard>
-      <GlassCardHeader>
-        <GlassCardTitle className="flex items-center gap-2">
-          <Clock3 className="h-4 w-4" />
+    <Card className="border-border shadow-sm">
+      <CardHeader>
+        <CardTitle className="flex items-center gap-2 text-foreground">
+          <Clock3 className="h-4 w-4 text-muted-foreground" />
           Timeline
-        </GlassCardTitle>
-      </GlassCardHeader>
-      <GlassCardContent>
-        <div className="space-y-2">
+        </CardTitle>
+      </CardHeader>
+      <CardContent>
+        <div className="space-y-3">
           {timeline.length === 0 ? (
-            <p className="text-sm text-foreground-secondary">
+            <p className="text-sm text-muted-foreground">
               No timeline events available.
             </p>
           ) : (
             timeline.map((event, index) => (
               <div
                 key={`${event.type}-${event.label}-${index}`}
-                className="rounded-lg border border-border-subtle bg-bg-overlay p-3"
+                className="rounded-lg border border-border bg-slate-50 p-3"
               >
-                <div className="flex items-center justify-between gap-2">
+                <div className="flex items-center justify-between gap-2 border-b border-border/50 pb-2 mb-2">
                   <p className="text-sm font-medium text-foreground">
                     {event.type}: {event.label}
                   </p>
-                  <p className="text-xs text-foreground-tertiary">
+                  <p className="text-[11px] text-muted-foreground">
                     {new Date(event.at ?? "").toLocaleString()}
                   </p>
                 </div>
-                <p className="mt-1 text-xs text-foreground-secondary">
-                  {event.detail}
-                </p>
+                <p className="text-xs text-foreground/80">{event.detail}</p>
               </div>
             ))
           )}
         </div>
-      </GlassCardContent>
-    </GlassCard>
+      </CardContent>
+    </Card>
   );
 }
 

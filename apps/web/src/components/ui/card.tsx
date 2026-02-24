@@ -18,11 +18,13 @@ const cardVariants = cva("rounded-xl border transition-all duration-fast", {
   variants: {
     variant: {
       default:
-        "bg-bg-elevated border-border-subtle hover:border-border-default",
+        "bg-card border-border-subtle hover:border-border-default hover:shadow-sm",
       interactive:
-        "bg-bg-elevated border-border-subtle cursor-pointer hover:border-border-strong hover:shadow-md hover:-translate-y-0.5",
-      elevated: "bg-bg-overlay border-border-default shadow-md hover:shadow-lg",
-      ghost: "bg-transparent border-transparent hover:bg-bg-elevated",
+        "bg-card border-border-subtle cursor-pointer hover:border-border-default hover:shadow-xl hover:-translate-y-0.5",
+      elevated: "bg-card border-border-subtle shadow-lg hover:shadow-xl",
+      featured:
+        "bg-card border-2 border-transparent bg-clip-padding relative z-0 before:absolute before:-inset-[2px] before:-z-10 before:rounded-[inherit] before:bg-gradient-to-br before:from-primary before:via-accent-secondary before:to-primary shadow-accent hover:shadow-accent-lg hover:-translate-y-0.5",
+      ghost: "bg-transparent border-transparent hover:bg-muted",
       outlined:
         "bg-transparent border-border-default hover:border-border-strong",
     },
@@ -109,10 +111,7 @@ const CardTitle = React.forwardRef<
 >(({ className, ...props }, ref) => (
   <h3
     ref={ref}
-    className={cn(
-      "font-display font-semibold text-foreground leading-tight",
-      className,
-    )}
+    className={cn("font-semibold text-foreground leading-tight", className)}
     {...props}
   />
 ));

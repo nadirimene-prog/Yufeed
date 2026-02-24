@@ -115,48 +115,48 @@ export function InvestigationWorkspace({
   );
 
   const content = (
-    <section className="glass-surface flex h-full min-h-0 flex-col rounded-2xl border border-white/10 p-3 sm:p-4">
+    <section className="flex h-full min-h-0 flex-col rounded-2xl border border-border bg-white p-3 shadow-sm sm:p-4">
       <div className="mb-3 flex items-center justify-between">
         <div>
-          <h2 className="text-sm font-semibold text-white">
+          <h2 className="text-sm font-semibold text-foreground">
             Investigation Workspace
           </h2>
-          <p className="text-xs text-white/60">
+          <p className="text-xs text-muted-foreground">
             Decision-ready context and controlled actions.
           </p>
         </div>
         {mobileOpen && onCloseMobile ? (
-          <Button variant="glass" size="sm" onClick={onCloseMobile}>
+          <Button variant="outline" size="sm" onClick={onCloseMobile}>
             Close
           </Button>
         ) : null}
       </div>
 
       {!selectedItem ? (
-        <div className="flex flex-1 items-center justify-center rounded-xl border border-dashed border-white/20 text-sm text-white/60">
+        <div className="flex flex-1 items-center justify-center rounded-xl border border-dashed border-border bg-slate-50 text-sm text-muted-foreground">
           Select a work item to open context.
         </div>
       ) : loading ? (
         <div
-          className="flex flex-1 items-center justify-center text-sm text-white/60"
+          className="flex flex-1 items-center justify-center rounded-xl text-sm text-muted-foreground bg-slate-50"
           role="status"
         >
           Loading workspace...
         </div>
       ) : error ? (
-        <div className="rounded-xl border border-risk-critical/40 bg-risk-critical-soft p-3 text-sm text-risk-critical">
+        <div className="rounded-xl border border-red-200 bg-red-50 p-3 text-sm text-red-600">
           {error}
         </div>
       ) : (
         <div className="flex min-h-0 flex-1 flex-col">
-          <div className="mb-3 rounded-xl border border-white/10 bg-white/5 p-3">
+          <div className="mb-3 rounded-xl border border-border bg-slate-50 p-3">
             <div className="mb-2 flex flex-wrap items-center gap-2">
-              <p className="text-sm font-semibold text-white">
+              <p className="text-sm font-semibold text-foreground">
                 {selectedItem.ref_id}
               </p>
               <span
                 className={cn(
-                  "rounded-full px-2 py-1 text-[10px] uppercase",
+                  "rounded-full px-2 py-1 text-[10px] uppercase border border-border/50 bg-white",
                   severityBadgeClass(selectedItem.severity),
                 )}
               >
@@ -164,28 +164,28 @@ export function InvestigationWorkspace({
               </span>
               <span
                 className={cn(
-                  "rounded-full px-2 py-1 text-[10px] uppercase",
+                  "rounded-full px-2 py-1 text-[10px] uppercase border border-border/50 bg-white",
                   slaBadgeClass(selectedItem.sla_status),
                 )}
               >
                 SLA {selectedItem.sla_status}
               </span>
             </div>
-            <div className="grid grid-cols-2 gap-2 text-[11px] text-white/75">
-              <div className="rounded-lg border border-white/10 bg-black/20 p-2">
-                <p className="text-white/50">Status</p>
+            <div className="grid grid-cols-2 gap-2 text-[11px] text-foreground">
+              <div className="rounded-lg border border-border bg-white p-2">
+                <p className="text-muted-foreground font-medium">Status</p>
                 <p>{selectedItem.status}</p>
               </div>
-              <div className="rounded-lg border border-white/10 bg-black/20 p-2">
-                <p className="text-white/50">Type</p>
+              <div className="rounded-lg border border-border bg-white p-2">
+                <p className="text-muted-foreground font-medium">Type</p>
                 <p>{selectedItem.type_label}</p>
               </div>
-              <div className="rounded-lg border border-white/10 bg-black/20 p-2">
-                <p className="text-white/50">Timer</p>
+              <div className="rounded-lg border border-border bg-white p-2">
+                <p className="text-muted-foreground font-medium">Timer</p>
                 <p>{formatAgeMinutes(selectedItem.age_minutes)}</p>
               </div>
-              <div className="rounded-lg border border-white/10 bg-black/20 p-2">
-                <p className="text-white/50">Owner</p>
+              <div className="rounded-lg border border-border bg-white p-2">
+                <p className="text-muted-foreground font-medium">Owner</p>
                 <p>{selectedItem.owner ?? "Unassigned"}</p>
               </div>
             </div>
@@ -196,8 +196,8 @@ export function InvestigationWorkspace({
               className={cn(
                 "mb-3 rounded-lg border p-2 text-xs",
                 message.type === "success"
-                  ? "border-risk-clear/40 bg-risk-clear-soft text-risk-clear"
-                  : "border-risk-critical/40 bg-risk-critical-soft text-risk-critical",
+                  ? "border-green-200 bg-green-50 text-green-700"
+                  : "border-red-200 bg-red-50 text-red-600",
               )}
               aria-live="assertive"
             >
@@ -215,12 +215,12 @@ export function InvestigationWorkspace({
                 content: (
                   <div className="space-y-3">
                     <div className="grid grid-cols-1 gap-2 md:grid-cols-2">
-                      <div className="rounded-xl border border-white/10 bg-white/5 p-3">
-                        <h3 className="mb-2 flex items-center gap-2 text-xs font-semibold uppercase tracking-wide text-white/70">
-                          <Link2 className="h-4 w-4" />
+                      <div className="rounded-xl border border-border bg-slate-50 p-3">
+                        <h3 className="mb-2 flex items-center gap-2 text-xs font-semibold uppercase tracking-wide text-foreground">
+                          <Link2 className="h-4 w-4 text-muted-foreground" />
                           Linked Entities
                         </h3>
-                        <div className="space-y-1 text-xs text-white/75">
+                        <div className="space-y-1 text-xs text-muted-foreground">
                           {(detail?.linked_entities ?? []).length > 0 ? (
                             detail?.linked_entities.map((entity) => (
                               <Link
@@ -232,17 +232,19 @@ export function InvestigationWorkspace({
                               </Link>
                             ))
                           ) : (
-                            <p className="text-white/50">No linked entities</p>
+                            <p className="text-muted-foreground">
+                              No linked entities
+                            </p>
                           )}
                         </div>
                       </div>
 
-                      <div className="rounded-xl border border-white/10 bg-white/5 p-3">
-                        <h3 className="mb-2 flex items-center gap-2 text-xs font-semibold uppercase tracking-wide text-white/70">
-                          <ExternalLink className="h-4 w-4" />
+                      <div className="rounded-xl border border-border bg-slate-50 p-3">
+                        <h3 className="mb-2 flex items-center gap-2 text-xs font-semibold uppercase tracking-wide text-foreground">
+                          <ExternalLink className="h-4 w-4 text-muted-foreground" />
                           Linked Transactions
                         </h3>
-                        <div className="space-y-1 text-xs text-white/75">
+                        <div className="space-y-1 text-xs text-muted-foreground">
                           {(detail?.linked_transactions ?? []).length > 0 ? (
                             detail?.linked_transactions.map((tx) => (
                               <p key={tx} className="truncate">
@@ -250,7 +252,7 @@ export function InvestigationWorkspace({
                               </p>
                             ))
                           ) : (
-                            <p className="text-white/50">
+                            <p className="text-muted-foreground">
                               No linked transactions
                             </p>
                           )}
@@ -258,9 +260,9 @@ export function InvestigationWorkspace({
                       </div>
                     </div>
 
-                    <div className="rounded-xl border border-white/10 bg-white/5 p-3">
-                      <h3 className="mb-2 flex items-center gap-2 text-xs font-semibold uppercase tracking-wide text-white/70">
-                        <NotebookPen className="h-4 w-4" />
+                    <div className="rounded-xl border border-border bg-slate-50 p-3">
+                      <h3 className="mb-2 flex items-center gap-2 text-xs font-semibold uppercase tracking-wide text-foreground">
+                        <NotebookPen className="h-4 w-4 text-muted-foreground" />
                         Narrative Draft
                       </h3>
                       <textarea
@@ -268,12 +270,12 @@ export function InvestigationWorkspace({
                         onChange={(event) =>
                           setNarrativeDraft(event.target.value)
                         }
-                        className="h-28 w-full rounded-lg border border-white/10 bg-black/20 p-2 text-xs text-white placeholder:text-white/40"
+                        className="h-28 w-full rounded-lg border border-border bg-white p-2 text-xs text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/20"
                         placeholder="Editable rationale for case notes / SAR narrative"
                       />
                       <div className="mt-2 flex justify-end">
                         <Button
-                          variant="glass"
+                          variant="outline"
                           size="sm"
                           disabled={draftPending}
                           onClick={() =>
@@ -291,22 +293,24 @@ export function InvestigationWorkspace({
                 id: "timeline",
                 label: "Timeline",
                 content: (
-                  <div className="rounded-xl border border-white/10 bg-white/5 p-3">
-                    <h3 className="mb-2 flex items-center gap-2 text-xs font-semibold uppercase tracking-wide text-white/70">
-                      <FileClock className="h-4 w-4" />
+                  <div className="rounded-xl border border-border bg-slate-50 p-3">
+                    <h3 className="mb-2 flex items-center gap-2 text-xs font-semibold uppercase tracking-wide text-foreground">
+                      <FileClock className="h-4 w-4 text-muted-foreground" />
                       Context Timeline
                     </h3>
-                    <div className="space-y-1 text-xs text-white/75">
+                    <div className="space-y-1 text-xs text-foreground">
                       {(detail?.context_timeline ?? []).map((event) => (
                         <div
                           key={`${event.at}-${event.label}`}
-                          className="rounded-lg border border-white/10 bg-black/20 p-2"
+                          className="rounded-lg border border-border bg-white p-2"
                         >
-                          <p className="font-medium text-white">
+                          <p className="font-medium text-foreground">
                             {event.label}
                           </p>
-                          <p>{event.detail ?? "-"}</p>
-                          <p className="text-[11px] text-white/50">
+                          <p className="text-muted-foreground">
+                            {event.detail ?? "-"}
+                          </p>
+                          <p className="text-[11px] text-muted-foreground mt-1">
                             {formatDateTime(event.at)}
                           </p>
                         </div>
@@ -319,19 +323,19 @@ export function InvestigationWorkspace({
                 id: "evidence",
                 label: "Evidence",
                 content: (
-                  <div className="rounded-xl border border-white/10 bg-white/5 p-3">
-                    <h3 className="mb-2 text-xs font-semibold uppercase tracking-wide text-white/70">
+                  <div className="rounded-xl border border-border bg-slate-50 p-3">
+                    <h3 className="mb-2 text-xs font-semibold uppercase tracking-wide text-foreground">
                       Evidence Checklist
                     </h3>
-                    <div className="space-y-1 text-xs text-white/75">
+                    <div className="space-y-1 text-xs text-muted-foreground">
                       {(detail?.evidence_checklist ?? []).map((item) => (
                         <p key={item.id} className="flex items-center gap-1.5">
                           <ShieldCheck
                             className={cn(
                               "h-3.5 w-3.5",
                               item.completed
-                                ? "text-risk-clear"
-                                : "text-white/40",
+                                ? "text-green-600"
+                                : "text-muted-foreground/40",
                             )}
                           />
                           {item.label}
@@ -349,9 +353,9 @@ export function InvestigationWorkspace({
                     <AiRecommendationCard
                       recommendation={detail?.ai_recommendation ?? null}
                     />
-                    <div className="rounded-xl border border-white/10 bg-white/5 p-3 text-xs text-white/70">
-                      <p className="mb-1 flex items-center gap-2 text-white/80">
-                        <Sparkles className="h-4 w-4" />
+                    <div className="rounded-xl border border-border bg-slate-50 p-3 text-xs text-muted-foreground">
+                      <p className="mb-1 flex items-center gap-2 text-foreground font-medium">
+                        <Sparkles className="h-4 w-4 text-primary" />
                         AI recommendation rationale
                       </p>
                       <p>
@@ -367,9 +371,9 @@ export function InvestigationWorkspace({
                 label: "Actions",
                 content: (
                   <div className="space-y-3">
-                    <div className="rounded-xl border border-white/10 bg-white/5 p-3">
-                      <h3 className="mb-2 flex items-center gap-2 text-xs font-semibold uppercase tracking-wide text-white/70">
-                        <Clock3 className="h-4 w-4" />
+                    <div className="rounded-xl border border-border bg-slate-50 p-3">
+                      <h3 className="mb-2 flex items-center gap-2 text-xs font-semibold uppercase tracking-wide text-foreground">
+                        <Clock3 className="h-4 w-4 text-muted-foreground" />
                         Actions
                       </h3>
 
@@ -377,7 +381,7 @@ export function InvestigationWorkspace({
                         <div>
                           <label
                             htmlFor="assignee-input"
-                            className="mb-1 block text-[11px] text-white/60"
+                            className="mb-1 block text-[11px] text-muted-foreground"
                           >
                             Assignee
                           </label>
@@ -389,7 +393,7 @@ export function InvestigationWorkspace({
                             }
                             placeholder="Assignee user id"
                             list="workspace-user-list"
-                            className="h-9 w-full rounded-lg border border-white/10 bg-black/20 px-2 text-xs text-white placeholder:text-white/40"
+                            className="h-9 w-full rounded-lg border border-border bg-white px-2 text-xs text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/20"
                           />
                           <datalist id="workspace-user-list">
                             {(workspaceUsersQuery.data ?? []).map((user) => (
@@ -402,7 +406,7 @@ export function InvestigationWorkspace({
                         <div>
                           <label
                             htmlFor="notes-input"
-                            className="mb-1 block text-[11px] text-white/60"
+                            className="mb-1 block text-[11px] text-muted-foreground"
                           >
                             Notes
                           </label>
@@ -411,7 +415,7 @@ export function InvestigationWorkspace({
                             value={notes}
                             onChange={(event) => setNotes(event.target.value)}
                             placeholder="Action notes"
-                            className="h-9 w-full rounded-lg border border-white/10 bg-black/20 px-2 text-xs text-white placeholder:text-white/40"
+                            className="h-9 w-full rounded-lg border border-border bg-white px-2 text-xs text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/20"
                           />
                         </div>
                       </div>
@@ -420,7 +424,7 @@ export function InvestigationWorkspace({
                         {actionButtons.map((entry) => (
                           <Button
                             key={entry.key}
-                            variant="glass"
+                            variant="outline"
                             size="sm"
                             disabled={
                               actionPending ||
@@ -447,8 +451,8 @@ export function InvestigationWorkspace({
                       </div>
 
                       {selectedItem.kind === "alert" && onSnoozeAlert ? (
-                        <div className="mt-3 rounded-lg border border-white/10 bg-black/20 p-2">
-                          <p className="mb-2 text-[11px] uppercase tracking-wide text-white/60">
+                        <div className="mt-3 rounded-lg border border-border bg-white p-2">
+                          <p className="mb-2 text-[11px] uppercase tracking-wide text-muted-foreground font-medium">
                             Cool-off / Snooze
                           </p>
                           <div className="grid grid-cols-1 gap-2 sm:grid-cols-[120px_1fr_auto]">
@@ -457,7 +461,7 @@ export function InvestigationWorkspace({
                               onChange={(event) =>
                                 setSnoozeHours(Number(event.target.value))
                               }
-                              className="h-9 rounded-lg border border-white/10 bg-black/20 px-2 text-xs text-white"
+                              className="h-9 rounded-lg border border-border bg-slate-50 px-2 text-xs text-foreground focus:outline-none focus:ring-2 focus:ring-primary/20"
                               aria-label="Snooze duration"
                             >
                               <option value="1">1 hour</option>
@@ -471,10 +475,10 @@ export function InvestigationWorkspace({
                                 setSnoozeReason(event.target.value)
                               }
                               placeholder="Reason (optional)"
-                              className="h-9 rounded-lg border border-white/10 bg-black/20 px-2 text-xs text-white placeholder:text-white/40"
+                              className="h-9 rounded-lg border border-border bg-slate-50 px-2 text-xs text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/20"
                             />
                             <Button
-                              variant="glass"
+                              variant="outline"
                               size="sm"
                               onClick={() =>
                                 onSnoozeAlert({
@@ -519,22 +523,25 @@ export function InvestigationWorkspace({
                       }
                     />
 
-                    <div className="rounded-xl border border-white/10 bg-white/5 p-3">
-                      <h3 className="mb-2 text-xs font-semibold uppercase tracking-wide text-white/70">
+                    <div className="rounded-xl border border-border bg-slate-50 p-3">
+                      <h3 className="mb-2 text-xs font-semibold uppercase tracking-wide text-foreground">
                         Action History
                       </h3>
-                      <div className="space-y-1 text-xs text-white/75">
+                      <div className="space-y-1 text-xs text-muted-foreground">
                         {(detail?.action_history ?? []).length > 0 ? (
                           detail?.action_history.map((item) => (
                             <p key={`${item.at}-${item.action}`}>
-                              <span className="text-white/50">
+                              <span className="text-muted-foreground/60">
                                 {relativeTime(item.at)}:
                               </span>{" "}
-                              {item.actor} • {item.action}
+                              <span className="font-medium text-foreground">
+                                {item.actor}
+                              </span>{" "}
+                              • {item.action}
                             </p>
                           ))
                         ) : (
-                          <p className="text-white/50">
+                          <p className="text-muted-foreground">
                             No actions recorded yet.
                           </p>
                         )}
@@ -550,7 +557,7 @@ export function InvestigationWorkspace({
                   selectedItem.kind === "case" ? (
                     <CaseComments caseId={selectedItem.ref_id} />
                   ) : (
-                    <div className="rounded-xl border border-white/10 bg-white/5 p-3 text-xs text-white/60">
+                    <div className="rounded-xl border border-border bg-slate-50 p-3 text-xs text-muted-foreground text-center">
                       Comments are available for case work items.
                     </div>
                   ),

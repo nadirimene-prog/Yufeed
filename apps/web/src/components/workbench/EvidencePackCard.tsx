@@ -34,27 +34,25 @@ export function EvidencePackCard({ pack, onClick }: EvidencePackCardProps) {
       variants={staggerItem}
       onClick={onClick}
       className={cn(
-        "group rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900/60 p-4",
-        "transition-all duration-200 hover:shadow-md hover:border-gray-300 dark:hover:border-gray-600",
+        "group rounded-xl border border-slate-200 bg-white p-4",
+        "transition-all duration-200 hover:shadow-md hover:border-slate-300",
         onClick && "cursor-pointer",
       )}
     >
       <div className="flex items-start gap-3">
-        <div className="p-2 rounded-lg bg-violet-50 dark:bg-violet-950/30">
-          <FormatIcon className="h-5 w-5 text-violet-600 dark:text-violet-400" />
+        <div className="p-2 rounded-lg bg-[#0052FF]/5">
+          <FormatIcon className="h-5 w-5 text-[#0052FF]" />
         </div>
 
         <div className="min-w-0 flex-1">
           <div className="flex items-center gap-2 mb-1">
-            <h3 className="text-sm font-semibold text-gray-900 dark:text-white truncate">
+            <h3 className="text-sm font-semibold text-slate-900 truncate">
               {pack.pack_id}
             </h3>
-            <span className="text-xs text-gray-400 dark:text-gray-500">
-              v{pack.version}
-            </span>
+            <span className="text-xs text-slate-400">v{pack.version}</span>
           </div>
 
-          <div className="flex items-center gap-3 text-xs text-gray-400 dark:text-gray-500">
+          <div className="flex items-center gap-3 text-xs text-slate-400">
             <span className="flex items-center gap-1">
               <Hash className="h-3 w-3" />
               {pack.integrity_hash.slice(0, 12)}…
@@ -66,7 +64,7 @@ export function EvidencePackCard({ pack, onClick }: EvidencePackCardProps) {
             <span className="uppercase font-medium">{pack.format}</span>
           </div>
 
-          <p className="text-xs text-gray-400 dark:text-gray-500 mt-1">
+          <p className="text-xs text-slate-400 mt-1">
             Schema {pack.schema_version} · by {pack.created_by}
           </p>
         </div>
@@ -76,9 +74,9 @@ export function EvidencePackCard({ pack, onClick }: EvidencePackCardProps) {
             e.stopPropagation();
             // Download would be handled externally
           }}
-          className="p-2 rounded-lg opacity-0 group-hover:opacity-100 hover:bg-gray-100 dark:hover:bg-gray-800 transition"
+          className="p-2 rounded-lg opacity-0 group-hover:opacity-100 hover:bg-slate-100 transition"
         >
-          <Download className="h-4 w-4 text-gray-400" />
+          <Download className="h-4 w-4 text-slate-400" />
         </button>
       </div>
     </motion.div>

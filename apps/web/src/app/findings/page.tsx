@@ -15,7 +15,7 @@ import {
 } from "lucide-react";
 import { useFindings } from "@/hooks/queries/useWorkbenchData";
 import { FindingCard } from "@/components/workbench/FindingCard";
-import { GlassCard, GlassCardContent } from "@/components/ui/glass-card";
+import { Card, CardContent } from "@/components/ui/card";
 import { staggerContainer, fadeInBlur } from "@/lib/motion";
 import { cn } from "@/lib/utils";
 
@@ -94,10 +94,10 @@ export default function FindingsPage() {
         </p>
       </div>
 
-      {/* Stats Row — glass cards */}
+      {/* Stats Row — cards */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-        <GlassCard variant="surface" className="p-4">
-          <GlassCardContent className="p-0">
+        <Card className="p-4 border-border shadow-sm">
+          <CardContent className="p-0">
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-xs text-gray-500 dark:text-gray-400 mb-0.5">
@@ -111,11 +111,11 @@ export default function FindingsPage() {
                 <Eye className="h-4 w-4 text-gray-600 dark:text-gray-400" />
               </div>
             </div>
-          </GlassCardContent>
-        </GlassCard>
+          </CardContent>
+        </Card>
 
-        <GlassCard variant="surface" className="p-4">
-          <GlassCardContent className="p-0">
+        <Card className="p-4 border-border shadow-sm">
+          <CardContent className="p-0">
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-xs text-gray-500 dark:text-gray-400 mb-0.5">
@@ -129,11 +129,11 @@ export default function FindingsPage() {
                 <Clock className="h-4 w-4 text-blue-600 dark:text-blue-400" />
               </div>
             </div>
-          </GlassCardContent>
-        </GlassCard>
+          </CardContent>
+        </Card>
 
-        <GlassCard variant="surface" className="p-4">
-          <GlassCardContent className="p-0">
+        <Card className="p-4 border-border shadow-sm">
+          <CardContent className="p-0">
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-xs text-gray-500 dark:text-gray-400 mb-0.5">
@@ -147,15 +147,16 @@ export default function FindingsPage() {
                 <ArrowUpRight className="h-4 w-4 text-orange-600 dark:text-orange-400" />
               </div>
             </div>
-          </GlassCardContent>
-        </GlassCard>
+          </CardContent>
+        </Card>
 
-        <GlassCard
-          variant="surface"
-          glow={stats.overdue > 0 ? "critical" : "none"}
-          className="p-4"
+        <Card
+          className={cn(
+            "p-4 shadow-sm",
+            stats.overdue > 0 ? "border-red-200 bg-red-50/20" : "border-border",
+          )}
         >
-          <GlassCardContent className="p-0">
+          <CardContent className="p-0">
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-xs text-gray-500 dark:text-gray-400 mb-0.5">
@@ -190,8 +191,8 @@ export default function FindingsPage() {
                 />
               </div>
             </div>
-          </GlassCardContent>
-        </GlassCard>
+          </CardContent>
+        </Card>
       </div>
 
       {/* Filters */}

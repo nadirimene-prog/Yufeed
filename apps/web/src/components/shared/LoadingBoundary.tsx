@@ -95,13 +95,11 @@ export function LoadingBoundary({
         aria-busy="true"
       >
         <Loader2
-          className="h-12 w-12 animate-spin text-blue-600 dark:text-blue-400"
+          className="h-12 w-12 animate-spin text-[#0052FF]"
           aria-hidden="true"
         />
         {loadingMessage && (
-          <p className="mt-4 text-sm text-gray-600 dark:text-gray-400">
-            {loadingMessage}
-          </p>
+          <p className="mt-4 text-sm text-slate-500">{loadingMessage}</p>
         )}
         <span className="sr-only">{loadingMessage}</span>
       </div>
@@ -115,30 +113,27 @@ export function LoadingBoundary({
     return (
       <div
         className={cn(
-          "flex flex-col items-center justify-center rounded-lg border-2 border-red-200 bg-red-50 p-8 dark:border-red-900 dark:bg-red-950",
+          "flex flex-col items-center justify-center rounded-lg border-2 border-red-200 bg-red-50 p-8",
           className,
         )}
         style={{ minHeight }}
         role="alert"
         aria-live="assertive"
       >
-        <div className="flex h-12 w-12 items-center justify-center rounded-full bg-red-100 dark:bg-red-900">
-          <AlertCircle
-            className="h-6 w-6 text-red-600 dark:text-red-400"
-            aria-hidden="true"
-          />
+        <div className="flex h-12 w-12 items-center justify-center rounded-full bg-red-100">
+          <AlertCircle className="h-6 w-6 text-red-600" aria-hidden="true" />
         </div>
-        <h3 className="mt-4 text-lg font-semibold text-red-900 dark:text-red-100">
+        <h3 className="mt-4 text-lg font-semibold text-red-900">
           {errorTitle}
         </h3>
-        <p className="mt-2 max-w-md text-center text-sm text-red-700 dark:text-red-300">
+        <p className="mt-2 max-w-md text-center text-sm text-red-700">
           {errorMessage}
         </p>
         {onRetry && (
           <Button
             onClick={onRetry}
             variant="outline"
-            className="mt-4 border-red-300 text-red-700 hover:bg-red-100 dark:border-red-700 dark:text-red-300 dark:hover:bg-red-900"
+            className="mt-4 border-red-300 text-red-700 hover:bg-red-100"
           >
             Try Again
           </Button>
@@ -152,23 +147,23 @@ export function LoadingBoundary({
     return (
       <div
         className={cn(
-          "flex flex-col items-center justify-center rounded-lg border-2 border-dashed border-gray-200 bg-gray-50 p-8 dark:border-gray-800 dark:bg-gray-950",
+          "flex flex-col items-center justify-center rounded-lg border-2 border-dashed border-slate-200 bg-slate-50 p-8",
           className,
         )}
         style={{ minHeight }}
         role="status"
         aria-live="polite"
       >
-        <div className="flex h-12 w-12 items-center justify-center rounded-full bg-gray-100 dark:bg-gray-900">
+        <div className="flex h-12 w-12 items-center justify-center rounded-full bg-slate-100">
           {emptyIcon || (
-            <Search className="h-6 w-6 text-gray-400" aria-hidden="true" />
+            <Search className="h-6 w-6 text-slate-400" aria-hidden="true" />
           )}
         </div>
-        <h3 className="mt-4 text-lg font-semibold text-gray-900 dark:text-gray-100">
+        <h3 className="mt-4 text-lg font-semibold text-slate-900">
           {emptyMessage}
         </h3>
         {emptyDescription && (
-          <p className="mt-2 max-w-md text-center text-sm text-gray-600 dark:text-gray-400">
+          <p className="mt-2 max-w-md text-center text-sm text-slate-500">
             {emptyDescription}
           </p>
         )}
@@ -202,7 +197,7 @@ export function TableSkeleton({
         {Array.from({ length: cols }).map((_, i) => (
           <div
             key={i}
-            className="h-4 flex-1 animate-pulse rounded bg-gray-200 dark:bg-gray-800"
+            className="h-4 flex-1 animate-pulse rounded bg-slate-200"
           />
         ))}
       </div>
@@ -212,7 +207,7 @@ export function TableSkeleton({
           {Array.from({ length: cols }).map((_, colIndex) => (
             <div
               key={colIndex}
-              className="h-8 flex-1 animate-pulse rounded bg-gray-100 dark:bg-gray-900"
+              className="h-8 flex-1 animate-pulse rounded bg-slate-100"
               style={{
                 animationDelay: `${(rowIndex * cols + colIndex) * 50}ms`,
               }}
@@ -233,11 +228,11 @@ export function CardSkeleton({ count = 3 }: { count?: number }) {
       aria-label="Loading cards"
     >
       {Array.from({ length: count }).map((_, i) => (
-        <div key={i} className="rounded-lg border p-6 dark:border-gray-800">
-          <div className="h-6 w-3/4 animate-pulse rounded bg-gray-200 dark:bg-gray-800" />
+        <div key={i} className="rounded-lg border p-6 border-slate-200">
+          <div className="h-6 w-3/4 animate-pulse rounded bg-slate-200" />
           <div className="mt-4 space-y-2">
-            <div className="h-4 animate-pulse rounded bg-gray-100 dark:bg-gray-900" />
-            <div className="h-4 w-5/6 animate-pulse rounded bg-gray-100 dark:bg-gray-900" />
+            <div className="h-4 animate-pulse rounded bg-slate-100" />
+            <div className="h-4 w-5/6 animate-pulse rounded bg-slate-100" />
           </div>
         </div>
       ))}

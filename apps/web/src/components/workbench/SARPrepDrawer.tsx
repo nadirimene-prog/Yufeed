@@ -143,7 +143,7 @@ export function SARPrepDrawer({
             <div className="flex justify-end gap-2">
               <Button
                 type="button"
-                variant="glass"
+                variant="outline"
                 onClick={() => onOpenChange(false)}
               >
                 Cancel

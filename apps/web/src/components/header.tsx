@@ -80,13 +80,13 @@ function GlobalSearch() {
       <button
         onClick={() => window.dispatchEvent(new Event("open-command-palette"))}
         className={cn(
-          "hidden md:flex items-center gap-2 rounded-lg border border-border-subtle bg-bg-elevated px-3 py-2 text-sm text-foreground-tertiary transition-colors hover:border-border-default hover:text-foreground-secondary",
+          "hidden md:flex items-center gap-2 rounded-lg border border-[#E2E8F0] bg-white px-3 py-2 text-sm text-foreground-tertiary transition-colors hover:border-[#CBD5E1] hover:text-foreground-secondary",
           "w-64 lg:w-80",
         )}
       >
         <Search className="h-4 w-4" />
         <span className="flex-1 text-left">Search...</span>
-        <kbd className="rounded bg-bg-overlay px-1.5 py-0.5 text-xs font-mono text-foreground-tertiary">
+        <kbd className="rounded bg-slate-100 px-1.5 py-0.5 text-xs font-mono text-foreground-tertiary">
           ⌘K
         </kbd>
       </button>
@@ -133,7 +133,7 @@ function UserMenu() {
     <div className="relative" ref={menuRef}>
       <button
         onClick={() => setIsOpen(!isOpen)}
-        className="flex items-center gap-2 rounded-lg p-1.5 hover:bg-bg-overlay transition-colors"
+        className="flex items-center gap-2 rounded-lg p-1.5 hover:bg-slate-100 transition-colors"
       >
         <div className="h-8 w-8 rounded-full bg-primary/10 flex items-center justify-center text-xs font-semibold text-primary">
           {initials}
@@ -159,7 +159,7 @@ function UserMenu() {
             animate={{ opacity: 1, y: 0, scale: 1 }}
             exit={{ opacity: 0, y: 8, scale: 0.95 }}
             transition={{ duration: 0.15, ease: [0, 0, 0.2, 1] }}
-            className="absolute right-0 top-full mt-2 w-56 rounded-xl border border-border-default bg-bg-overlay shadow-xl overflow-hidden z-50"
+            className="absolute right-0 top-full mt-2 w-56 rounded-xl border border-[#E2E8F0] bg-white shadow-xl overflow-hidden z-50"
           >
             <div className="px-4 py-3 border-b border-border-subtle">
               <div className="font-medium text-foreground">{displayName}</div>
@@ -169,7 +169,7 @@ function UserMenu() {
               <li>
                 <Link
                   href="/profile"
-                  className="flex items-center gap-3 px-4 py-2 text-sm text-foreground-secondary hover:bg-bg-elevated hover:text-foreground"
+                  className="flex items-center gap-3 px-4 py-2 text-sm text-foreground-secondary hover:bg-slate-50 hover:text-foreground"
                 >
                   <User className="h-4 w-4" />
                   Profile
@@ -178,7 +178,7 @@ function UserMenu() {
               <li>
                 <Link
                   href="/settings"
-                  className="flex items-center gap-3 px-4 py-2 text-sm text-foreground-secondary hover:bg-bg-elevated hover:text-foreground"
+                  className="flex items-center gap-3 px-4 py-2 text-sm text-foreground-secondary hover:bg-slate-50 hover:text-foreground"
                 >
                   <Command className="h-4 w-4" />
                   Settings
@@ -187,7 +187,7 @@ function UserMenu() {
             </ul>
             <div className="border-t border-border-subtle py-1">
               <button
-                className="flex w-full items-center gap-3 px-4 py-2 text-sm text-critical-400 hover:bg-critical-500/10"
+                className="flex w-full items-center gap-3 px-4 py-2 text-sm text-[#DC2626] hover:bg-red-50"
                 onClick={handleSignOut}
               >
                 <LogOut className="h-4 w-4" />
@@ -219,7 +219,7 @@ export default function Header({
   return (
     <header
       className={cn(
-        "sticky top-0 z-30 h-14 border-b border-border-subtle bg-bg-base/80 backdrop-blur-xl",
+        "sticky top-0 z-30 h-14 border-b border-[#E2E8F0] bg-white/80 backdrop-blur-xl",
         className,
       )}
     >
@@ -265,7 +265,7 @@ export default function Header({
               icon={<Bell className="h-5 w-5" />}
               label="Notifications"
             />
-            <span className="absolute top-1 right-1 h-2 w-2 rounded-full bg-critical-500 ring-2 ring-bg-base" />
+            <span className="absolute top-1 right-1 h-2 w-2 rounded-full bg-[#DC2626] ring-2 ring-white" />
           </div>
 
           {/* User Menu */}

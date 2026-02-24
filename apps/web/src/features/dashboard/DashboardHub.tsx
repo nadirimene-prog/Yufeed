@@ -7,12 +7,7 @@ import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { AlertTriangle, RefreshCw } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { StatusIndicator } from "@/components/ui/status-indicator";
-import {
-  GlassCard,
-  GlassCardContent,
-  GlassCardHeader,
-  GlassCardTitle,
-} from "@/components/ui/glass-card";
+import { Card, CardContent } from "@/components/ui/card";
 import { getAuthToken, getAuthUserProfile } from "@/lib/auth";
 import {
   DashboardQueueFilter,
@@ -394,22 +389,22 @@ export function DashboardHub() {
   if (!hasToken) {
     return (
       <div className="min-h-[70vh] flex items-center justify-center">
-        <GlassCard className="max-w-md">
-          <GlassCardContent className="py-8 text-center space-y-3">
-            <div className="mx-auto h-12 w-12 rounded-full bg-risk-critical-soft text-risk-critical flex items-center justify-center">
+        <Card className="max-w-md border-border shadow-sm">
+          <CardContent className="py-8 text-center space-y-3">
+            <div className="mx-auto h-12 w-12 rounded-full bg-red-50 text-red-600 flex items-center justify-center">
               <AlertTriangle className="h-6 w-6" />
             </div>
-            <h2 className="text-xl font-semibold text-white">
+            <h2 className="text-xl font-semibold text-foreground">
               Session Required
             </h2>
-            <p className="text-sm text-white/60">
+            <p className="text-sm text-muted-foreground">
               Sign in to access the AMLCO command center.
             </p>
             <Link href="/">
-              <Button variant="gradient">Sign In</Button>
+              <Button>Sign In</Button>
             </Link>
-          </GlassCardContent>
-        </GlassCard>
+          </CardContent>
+        </Card>
       </div>
     );
   }
@@ -417,41 +412,41 @@ export function DashboardHub() {
   if (!DASHBOARD_V3_ENABLED) {
     return (
       <div className="min-h-[70vh] flex items-center justify-center">
-        <GlassCard className="max-w-xl">
-          <GlassCardHeader>
-            <GlassCardTitle className="text-white">
+        <Card className="max-w-xl border-border shadow-sm">
+          <div className="flex flex-col space-y-1.5 p-6">
+            <h3 className="font-semibold leading-none tracking-tight text-foreground">
               AMLCO Command Center V3 Disabled
-            </GlassCardTitle>
-          </GlassCardHeader>
-          <GlassCardContent className="space-y-3">
-            <p className="text-sm text-white/70">
+            </h3>
+          </div>
+          <CardContent className="space-y-3">
+            <p className="text-sm text-muted-foreground">
               Enable `NEXT_PUBLIC_DASHBOARD_AMLCO_V3` to activate the
               triage-first AMLCO experience.
             </p>
             <Link href="/dashboard?view=operations&range=7d">
-              <Button variant="glass">Open Existing Dashboard</Button>
+              <Button variant="outline">Open Existing Dashboard</Button>
             </Link>
-          </GlassCardContent>
-        </GlassCard>
+          </CardContent>
+        </Card>
       </div>
     );
   }
 
   return (
     <div className="flex h-[calc(100vh-3.5rem)] flex-col gap-3">
-      <section className="sticky top-0 z-20 rounded-2xl border border-white/10 bg-white/[0.03] p-3 backdrop-blur-sm">
+      <section className="sticky top-0 z-20 rounded-2xl border border-border bg-white p-3 shadow-sm">
         <div className="grid grid-cols-1 gap-2 lg:grid-cols-[1fr_auto_auto] lg:items-center">
           <div>
-            <h1 className="text-lg font-semibold text-white">
+            <h1 className="text-lg font-semibold text-foreground">
               AMLCO Command Center
             </h1>
-            <p className="text-xs text-white/60">
+            <p className="text-xs text-muted-foreground">
               Triage, investigate, and execute controlled actions.
             </p>
           </div>
 
           <div
-            className="inline-flex rounded-xl border border-white/10 bg-white/5 p-1"
+            className="inline-flex rounded-xl border border-border bg-slate-50 p-1"
             role="tablist"
             aria-label="Dashboard view selector"
           >
@@ -467,8 +462,8 @@ export function DashboardHub() {
                 onClick={() => updateViewRange(option.key, range)}
                 className={
                   option.key === view
-                    ? "rounded-lg bg-aurora-500/20 px-3 py-1.5 text-xs font-semibold uppercase tracking-wide text-aurora-300"
-                    : "rounded-lg px-3 py-1.5 text-xs font-semibold uppercase tracking-wide text-white/60 hover:bg-white/5 hover:text-white"
+                    ? "rounded-lg bg-white px-3 py-1.5 text-xs font-semibold uppercase tracking-wide text-primary shadow-sm ring-1 ring-border/50"
+                    : "rounded-lg px-3 py-1.5 text-xs font-semibold uppercase tracking-wide text-muted-foreground hover:bg-slate-100 hover:text-foreground"
                 }
               >
                 {option.label}
@@ -483,16 +478,16 @@ export function DashboardHub() {
                 updateViewRange(view, event.target.value as DashboardTimeRange)
               }
               aria-label="Time range"
-              className="h-10 rounded-xl border border-white/10 bg-white/5 px-3 text-sm text-white"
+              className="h-10 rounded-xl border border-border bg-white px-3 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-primary/20"
             >
               {RANGE_OPTIONS.map((option) => (
-                <option key={option} value={option} className="bg-[#0b1020]">
+                <option key={option} value={option}>
                   {formatRangeLabel(option)}
                 </option>
               ))}
             </select>
             <Button
-              variant="glass"
+              variant="outline"
               size="sm"
               onClick={() => {
                 overviewQuery.refetch();
@@ -500,7 +495,7 @@ export function DashboardHub() {
                 detailQuery.refetch();
               }}
             >
-              <RefreshCw className="h-3.5 w-3.5" />
+              <RefreshCw className="h-3.5 w-3.5 mr-1" />
               Refresh
             </Button>
             <StatusIndicator status="live" label="AI Active" size="sm" />
@@ -633,16 +628,16 @@ export function DashboardHub() {
             )}
           </div>
 
-          <div className="grid grid-cols-3 gap-2 rounded-xl border border-white/10 bg-white/[0.03] p-2">
+          <div className="grid grid-cols-3 gap-2 rounded-xl border border-border bg-slate-50 p-2 shadow-sm">
             <Button
-              variant={mobilePanel === "queue" ? "primary" : "glass"}
+              variant={mobilePanel === "queue" ? "primary" : "outline"}
               size="sm"
               onClick={() => setMobilePanel("queue")}
             >
               Queue
             </Button>
             <Button
-              variant="glass"
+              variant="outline"
               size="sm"
               disabled={!selectedItem}
               onClick={() => setMobileWorkspaceOpen(true)}
@@ -650,7 +645,7 @@ export function DashboardHub() {
               Detail
             </Button>
             <Button
-              variant={mobilePanel === "governance" ? "primary" : "glass"}
+              variant={mobilePanel === "governance" ? "primary" : "outline"}
               size="sm"
               onClick={() => setMobilePanel("governance")}
             >

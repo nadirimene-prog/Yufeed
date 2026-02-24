@@ -176,24 +176,27 @@ export function UnifiedWorkQueue({
   };
 
   return (
-    <section className="glass-surface flex h-full min-h-0 flex-col rounded-2xl border border-white/10 p-3 sm:p-4">
+    <section className="flex h-full min-h-0 flex-col rounded-2xl border border-border bg-white p-3 shadow-sm sm:p-4">
       <div className="mb-3 flex items-center justify-between gap-2">
         <div>
-          <h2 className="text-sm font-semibold text-white">
+          <h2 className="text-sm font-semibold text-foreground">
             Unified Work Queue
           </h2>
-          <p className="text-xs text-white/60">
+          <p className="text-xs text-muted-foreground">
             Prioritized triage queue grouped for analyst action.
           </p>
         </div>
         <Button
-          variant="glass"
+          variant="outline"
           size="sm"
           onClick={onRefresh}
           disabled={loading}
         >
           <RefreshCw
-            className={cn("mr-1.5 h-3.5 w-3.5", loading && "animate-spin")}
+            className={cn(
+              "mr-1.5 h-3.5 w-3.5 text-muted-foreground",
+              loading && "animate-spin",
+            )}
           />
           Refresh
         </Button>
@@ -209,15 +212,11 @@ export function UnifiedWorkQueue({
                 page: 1,
               })
             }
-            className="h-9 rounded-lg border border-white/10 bg-white/5 px-2 text-xs text-white"
+            className="h-9 rounded-lg border border-border bg-slate-50 px-2 text-xs text-foreground focus:outline-none focus:ring-2 focus:ring-primary/20"
             aria-label="Queue selector"
           >
             {QUEUE_OPTIONS.map((option) => (
-              <option
-                key={option.value}
-                value={option.value}
-                className="bg-[#0b1020]"
-              >
+              <option key={option.value} value={option.value}>
                 {option.label}
               </option>
             ))}
@@ -231,15 +230,11 @@ export function UnifiedWorkQueue({
                 page: 1,
               })
             }
-            className="h-9 rounded-lg border border-white/10 bg-white/5 px-2 text-xs text-white"
+            className="h-9 rounded-lg border border-border bg-slate-50 px-2 text-xs text-foreground focus:outline-none focus:ring-2 focus:ring-primary/20"
             aria-label="Saved queue view"
           >
             {SAVED_VIEW_OPTIONS.map((option) => (
-              <option
-                key={option.value}
-                value={option.value}
-                className="bg-[#0b1020]"
-              >
+              <option key={option.value} value={option.value}>
                 {option.label}
               </option>
             ))}
@@ -255,15 +250,11 @@ export function UnifiedWorkQueue({
                 page: 1,
               })
             }
-            className="h-9 rounded-lg border border-white/10 bg-white/5 px-2 text-xs text-white"
+            className="h-9 rounded-lg border border-border bg-slate-50 px-2 text-xs text-foreground focus:outline-none focus:ring-2 focus:ring-primary/20"
             aria-label="Severity filter"
           >
             {SEVERITY_OPTIONS.map((option) => (
-              <option
-                key={option.value}
-                value={option.value}
-                className="bg-[#0b1020]"
-              >
+              <option key={option.value} value={option.value}>
                 {option.label}
               </option>
             ))}
@@ -277,15 +268,11 @@ export function UnifiedWorkQueue({
                 page: 1,
               })
             }
-            className="h-9 rounded-lg border border-white/10 bg-white/5 px-2 text-xs text-white"
+            className="h-9 rounded-lg border border-border bg-slate-50 px-2 text-xs text-foreground focus:outline-none focus:ring-2 focus:ring-primary/20"
             aria-label="SLA filter"
           >
             {SLA_OPTIONS.map((option) => (
-              <option
-                key={option.value}
-                value={option.value}
-                className="bg-[#0b1020]"
-              >
+              <option key={option.value} value={option.value}>
                 {option.label}
               </option>
             ))}
@@ -301,11 +288,11 @@ export function UnifiedWorkQueue({
                 return "default";
               })
             }
-            className="inline-flex h-9 items-center justify-center gap-1 rounded-lg border border-white/10 bg-white/5 px-2 text-[11px] uppercase tracking-wide text-white/80"
+            className="inline-flex h-9 items-center justify-center gap-1 rounded-lg border border-border bg-slate-50 px-2 text-[11px] uppercase tracking-wide text-muted-foreground hover:bg-slate-100 transition-colors"
           >
             Sort
             <ChevronDown className="h-3.5 w-3.5" />
-            <span className="text-white/50">{sortBy}</span>
+            <span className="text-foreground">{sortBy}</span>
           </button>
         </div>
       </div>
@@ -317,7 +304,7 @@ export function UnifiedWorkQueue({
             onFiltersChange({ search: event.target.value, page: 1 })
           }
           placeholder="Entity / reference / typology"
-          className="h-9 rounded-lg border border-white/10 bg-white/5 px-2 text-xs text-white placeholder:text-white/40"
+          className="h-9 rounded-lg border border-border bg-white px-2 text-xs text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/20"
           aria-label="Queue search"
         />
         <input
@@ -329,14 +316,14 @@ export function UnifiedWorkQueue({
             })
           }
           placeholder="Jurisdiction (e.g. US, FR, GB)"
-          className="h-9 rounded-lg border border-white/10 bg-white/5 px-2 text-xs text-white placeholder:text-white/40"
+          className="h-9 rounded-lg border border-border bg-white px-2 text-xs text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/20"
           aria-label="Jurisdiction filter"
         />
       </div>
 
       <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
         <div
-          className="inline-flex items-center gap-1 rounded-lg border border-white/10 bg-white/5 p-1 text-[11px] text-white/70"
+          className="inline-flex items-center gap-1 rounded-lg border border-border bg-slate-50 p-1 text-[11px] text-muted-foreground"
           aria-live="polite"
         >
           <ListFilter className="h-3.5 w-3.5" />
@@ -346,34 +333,31 @@ export function UnifiedWorkQueue({
         </div>
 
         <div className="flex flex-wrap items-center gap-1">
-          <label className="inline-flex items-center gap-1 rounded-lg border border-white/10 bg-white/5 px-2 py-1 text-[11px] text-white/70">
+          <label className="inline-flex items-center gap-1 rounded-lg border border-border bg-slate-50 px-2 py-1 text-[11px] text-muted-foreground">
             <input
               type="checkbox"
               aria-label="Select all items on this page"
               checked={allSelectedOnPage}
               onChange={(event) => toggleSelectAllOnPage(event.target.checked)}
+              className="rounded border-border focus:ring-primary text-primary"
             />
             Select all
           </label>
           <select
             value={bulkAssignee}
             onChange={(event) => setBulkAssignee(event.target.value)}
-            className="h-8 min-w-[150px] rounded-lg border border-white/10 bg-white/5 px-2 text-[11px] text-white"
+            className="h-8 min-w-[150px] rounded-lg border border-border bg-slate-50 px-2 text-[11px] text-foreground focus:outline-none focus:ring-2 focus:ring-primary/20"
             aria-label="Bulk assignment analyst"
           >
             <option value="">Assign to...</option>
             {(workspaceUsersQuery.data ?? []).map((user) => (
-              <option
-                key={user.user_id}
-                value={user.user_id}
-                className="bg-[#0b1020]"
-              >
+              <option key={user.user_id} value={user.user_id}>
                 {user.user_id}
               </option>
             ))}
           </select>
           <Button
-            variant="glass"
+            variant="outline"
             size="sm"
             onClick={() => runBulkAction("assign", "Bulk assign")}
             disabled={!canBulkAction || bulkAssignee.trim().length === 0}
@@ -381,7 +365,7 @@ export function UnifiedWorkQueue({
             Bulk assign
           </Button>
           <Button
-            variant="glass"
+            variant="outline"
             size="sm"
             onClick={() => runBulkAction("escalate", "Escalate")}
             disabled={!canBulkAction}
@@ -389,7 +373,7 @@ export function UnifiedWorkQueue({
             Escalate
           </Button>
           <Button
-            variant="glass"
+            variant="outline"
             size="sm"
             onClick={() =>
               runBulkAction("mark_in_progress", "Mark In Progress")
@@ -399,7 +383,7 @@ export function UnifiedWorkQueue({
             In Progress
           </Button>
           <Button
-            variant="glass"
+            variant="outline"
             size="sm"
             disabled={selectedRows.size === 0}
             onClick={() => setSelectedRows(new Set())}
@@ -410,7 +394,7 @@ export function UnifiedWorkQueue({
             data={sortedItems as unknown as Record<string, unknown>[]}
             filename="dashboard-work-queue"
             pdfTitle="Dashboard Work Queue"
-            variant="glass"
+            variant="outline"
             size="sm"
             loading={loading}
             columns={[
@@ -432,15 +416,15 @@ export function UnifiedWorkQueue({
         aria-label="Unified work queue items"
       >
         {loading ? (
-          <div className="rounded-xl border border-white/10 p-6 text-center text-sm text-white/50">
+          <div className="rounded-xl border border-border p-6 text-center text-sm text-muted-foreground bg-slate-50">
             Loading queue...
           </div>
         ) : error ? (
-          <div className="rounded-xl border border-risk-critical/40 bg-risk-critical-soft p-4 text-sm text-risk-critical">
+          <div className="rounded-xl border border-red-200 bg-red-50 p-4 text-sm text-red-600">
             {error}
           </div>
         ) : sortedItems.length === 0 ? (
-          <div className="rounded-xl border border-white/10 p-6 text-center text-sm text-white/50">
+          <div className="rounded-xl border border-border p-6 text-center text-sm text-muted-foreground bg-slate-50">
             No queue items for current filters.
           </div>
         ) : (
@@ -476,8 +460,8 @@ export function UnifiedWorkQueue({
                   className={cn(
                     "w-full rounded-xl border p-3 text-left transition",
                     item.item_id === selectedItemId
-                      ? "border-primary/60 bg-primary/10"
-                      : "border-white/10 bg-white/[0.03] hover:border-white/20 hover:bg-white/[0.06]",
+                      ? "border-primary/50 bg-primary/5 shadow-sm"
+                      : "border-border bg-white hover:border-border/60 hover:shadow-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/20",
                   )}
                   aria-label={`Queue item ${item.ref_id}`}
                 >
@@ -491,29 +475,30 @@ export function UnifiedWorkQueue({
                         onChange={(event) =>
                           toggleSelected(item.item_id, event.target.checked)
                         }
+                        className="rounded border-border focus:ring-primary text-primary"
                       />
-                      <span className="font-mono text-xs font-semibold text-white/90">
+                      <span className="font-mono text-xs font-semibold text-foreground">
                         {item.ref_id}
                       </span>
                       {item.sar_required ? (
-                        <span className="inline-flex items-center gap-1 rounded-full bg-risk-high-soft px-2 py-0.5 text-[10px] uppercase text-risk-high">
+                        <span className="inline-flex items-center gap-1 rounded-full bg-red-50 px-2 py-0.5 text-[10px] uppercase text-red-600 border border-red-100">
                           <FileWarning className="h-3 w-3" />
                           SAR Required
                         </span>
                       ) : null}
                     </div>
-                    <span className="text-[11px] text-white/50">
+                    <span className="text-[11px] text-muted-foreground">
                       {formatAgeMinutes(item.age_minutes)} ago
                     </span>
                   </div>
 
-                  <div className="mb-1 flex flex-wrap items-center gap-1.5 text-[10px] uppercase tracking-wide text-white/50">
-                    <span className="rounded-full bg-white/10 px-2 py-0.5">
+                  <div className="mb-1 flex flex-wrap items-center gap-1.5 text-[10px] uppercase tracking-wide text-muted-foreground">
+                    <span className="rounded-full bg-slate-100 px-2 py-0.5 border border-border/50">
                       {item.type_label}
                     </span>
                     <span
                       className={cn(
-                        "rounded-full px-2 py-0.5",
+                        "rounded-full px-2 py-0.5 border border-border/50",
                         severityBadgeClass(item.severity),
                       )}
                     >
@@ -521,22 +506,22 @@ export function UnifiedWorkQueue({
                     </span>
                     <span
                       className={cn(
-                        "rounded-full px-2 py-0.5",
+                        "rounded-full px-2 py-0.5 border border-border/50",
                         slaBadgeClass(item.sla_status),
                       )}
                     >
                       SLA {item.sla_status}
                     </span>
-                    <span className="rounded-full bg-white/10 px-2 py-0.5">
+                    <span className="rounded-full bg-slate-100 px-2 py-0.5 border border-border/50">
                       {item.jurisdiction}
                     </span>
                   </div>
 
-                  <p className="mb-1 truncate text-xs text-white/70">
+                  <p className="mb-1 truncate text-xs text-muted-foreground">
                     {item.typology} ·{" "}
                     <Link
                       href={`/entities/user/${encodeURIComponent(item.entity)}`}
-                      className="font-medium text-white/85 hover:text-primary hover:underline"
+                      className="font-medium text-foreground hover:text-primary hover:underline"
                       onClick={(event) => event.stopPropagation()}
                     >
                       {item.entity}
@@ -544,7 +529,7 @@ export function UnifiedWorkQueue({
                   </p>
 
                   <div className="flex items-center justify-between text-xs">
-                    <span className="truncate text-white/60">
+                    <span className="truncate text-muted-foreground">
                       Owner: {item.owner ?? "Unassigned"}
                     </span>
                     <span
@@ -565,7 +550,7 @@ export function UnifiedWorkQueue({
 
       <div className="mt-3 flex items-center justify-end gap-2">
         <Button
-          variant="glass"
+          variant="outline"
           size="sm"
           disabled={(data?.page ?? 1) <= 1 || loading}
           onClick={() =>
@@ -575,7 +560,7 @@ export function UnifiedWorkQueue({
           Previous
         </Button>
         <Button
-          variant="glass"
+          variant="outline"
           size="sm"
           disabled={
             !data || data.page * data.page_size >= data.total || loading

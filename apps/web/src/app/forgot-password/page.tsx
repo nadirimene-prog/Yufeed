@@ -4,7 +4,7 @@ import { useMemo, useState } from "react";
 import Link from "next/link";
 import { Mail, ShieldCheck } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { GlassCard } from "@/components/ui/glass-card";
+import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 
 export default function ForgotPasswordPage() {
@@ -35,11 +35,11 @@ export default function ForgotPasswordPage() {
 
   return (
     <section className="mx-auto max-w-2xl">
-      <GlassCard variant="elevated" glow="primary" className="p-8">
+      <Card className="p-8 border-border shadow-md">
         <div className="space-y-6">
           <div className="space-y-3">
-            <div className="inline-flex items-center gap-2 text-xs uppercase tracking-[0.2em] text-white/40">
-              <ShieldCheck className="h-4 w-4 text-[#6d5acd]" />
+            <div className="inline-flex items-center gap-2 text-xs uppercase tracking-[0.2em] text-muted-foreground">
+              <ShieldCheck className="h-4 w-4 text-primary" />
               Secure recovery
             </div>
             <h1 className="text-2xl font-semibold text-foreground">
@@ -52,7 +52,7 @@ export default function ForgotPasswordPage() {
             </p>
           </div>
 
-          <div className="rounded-xl border border-white/10 bg-white/5 p-4 text-sm text-muted-foreground">
+          <div className="rounded-xl border border-primary/20 bg-primary/5 p-4 text-sm text-muted-foreground">
             Include your work email, company, and role. We respond within one
             business day.
           </div>
@@ -61,7 +61,7 @@ export default function ForgotPasswordPage() {
             <div className="space-y-2">
               <label
                 htmlFor="email"
-                className="text-xs font-medium text-white/60"
+                className="text-xs font-medium text-muted-foreground"
               >
                 Work email
               </label>
@@ -80,13 +80,14 @@ export default function ForgotPasswordPage() {
                 errorMessageId={emailErrorId}
                 aria-invalid={emailInvalid}
                 aria-describedby={emailErrorId}
+                className="bg-slate-50"
               />
             </div>
             <div className="grid gap-4 md:grid-cols-2">
               <div className="space-y-2">
                 <label
                   htmlFor="company"
-                  className="text-xs font-medium text-white/60"
+                  className="text-xs font-medium text-muted-foreground"
                 >
                   Company
                 </label>
@@ -95,12 +96,13 @@ export default function ForgotPasswordPage() {
                   value={company}
                   onChange={(event) => setCompany(event.target.value)}
                   placeholder="Acme Compliance"
+                  className="bg-slate-50"
                 />
               </div>
               <div className="space-y-2">
                 <label
                   htmlFor="role"
-                  className="text-xs font-medium text-white/60"
+                  className="text-xs font-medium text-muted-foreground"
                 >
                   Role
                 </label>
@@ -109,6 +111,7 @@ export default function ForgotPasswordPage() {
                   value={role}
                   onChange={(event) => setRole(event.target.value)}
                   placeholder="Compliance Officer"
+                  className="bg-slate-50"
                 />
               </div>
             </div>
@@ -116,22 +119,22 @@ export default function ForgotPasswordPage() {
 
           <div className="flex flex-wrap gap-3">
             <Button
-              variant="gradient"
+              variant="primary"
               size="lg"
               onClick={handleEmail}
               disabled={!email || emailInvalid}
             >
-              <Mail className="h-4 w-4" />
+              <Mail className="h-4 w-4 mr-2" />
               Email support
             </Button>
             <Link href="/">
-              <Button variant="ghost" size="lg">
+              <Button variant="outline" size="lg">
                 Back to sign in
               </Button>
             </Link>
           </div>
         </div>
-      </GlassCard>
+      </Card>
     </section>
   );
 }

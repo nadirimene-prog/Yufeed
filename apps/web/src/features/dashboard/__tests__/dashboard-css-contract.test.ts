@@ -24,25 +24,7 @@ describe("dashboard css contract", () => {
   });
 
   it("includes required semantic utility classes used by dashboard/workbench", () => {
-    const requiredClasses = [
-      "bg-risk-low-soft",
-      "bg-risk-medium-soft",
-      "bg-risk-critical-soft",
-      "bg-risk-clear-soft",
-      "text-risk-clear",
-      "bg-aurora-500",
-      "text-aurora-300",
-      "glass-interactive",
-      "glass-surface",
-      "shadow-glass-lg",
-      "border-glass-border-subtle",
-      "bg-glass-bg-subtle",
-      "animate-status-pulse",
-      "animate-pulse-glow",
-      "text-label",
-      "text-display",
-      "text-metric",
-    ];
+    const requiredClasses = ["animate-status-pulse", "text-label"];
 
     for (const className of requiredClasses) {
       expect(cssOutput).toContain(`.${className}`);

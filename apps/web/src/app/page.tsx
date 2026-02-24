@@ -3,11 +3,13 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { FileSearch, Radar, ShieldCheck, Sparkles } from "lucide-react";
+import { FileSearch, Radar, ShieldCheck, ArrowRight } from "lucide-react";
+import { motion } from "framer-motion";
 import { AuthError, getAuthToken, loginWithPassword } from "@/lib/auth";
 import { Button } from "@/components/ui/button";
-import { GlassCard } from "@/components/ui/glass-card";
+import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
+import { SectionBadge } from "@/components/ui/section-badge";
 
 export default function Home() {
   const router = useRouter();
@@ -19,6 +21,7 @@ export default function Home() {
   const [selectedTenant, setSelectedTenant] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
   const errorId = error ? "login-error" : undefined;
   const emailInvalid = email.length > 0 && !/^\S+@\S+\.\S+$/.test(email);
   const emailErrorId = emailInvalid ? "login-email-error" : undefined;
@@ -82,221 +85,256 @@ export default function Home() {
   if (!ready) {
     return (
       <div className="flex min-h-[60vh] items-center justify-center">
-        <div className="text-sm text-muted-foreground">Checking session...</div>
+        <div className="animate-pulse text-sm text-muted-foreground">
+          Checking session...
+        </div>
       </div>
     );
   }
 
   return (
-    <section className="relative overflow-hidden">
-      <div className="pointer-events-none absolute -top-24 left-12 h-60 w-60 rounded-full bg-primary/20 blur-3xl" />
-      <div className="pointer-events-none absolute -bottom-20 right-0 h-72 w-72 rounded-full bg-cyan-500/15 blur-3xl" />
-
-      <div className="grid items-center gap-10 lg:grid-cols-[1.1fr_0.9fr]">
-        <div className="space-y-6">
-          <div className="space-y-3">
-            <div className="text-xs uppercase tracking-[0.3em] text-cyan-500/80">
-              YuFeed Sentinel
-            </div>
-            <h1 className="text-3xl font-semibold text-foreground md:text-4xl">
-              Compliance clarity in minutes, not weeks.
-            </h1>
-            <p className="text-sm text-muted-foreground md:text-base">
-              YuFeed unifies EU regulatory intelligence, AML monitoring, and
-              investigation workflows so your team can act with confidence.
-            </p>
-          </div>
-
-          <div className="space-y-4">
-            {highlights.map((item) => (
-              <div key={item.title} className="flex gap-3">
-                <div className="mt-1 flex h-10 w-10 items-center justify-center rounded-xl bg-white/5 text-cyan-500 shadow-glow-cyan">
-                  <item.icon className="h-5 w-5" />
-                </div>
-                <div>
-                  <div className="text-sm font-semibold text-foreground">
-                    {item.title}
-                  </div>
-                  <p className="text-sm text-muted-foreground">
-                    {item.description}
-                  </p>
-                </div>
-              </div>
-            ))}
-          </div>
-
-          <div className="flex flex-wrap gap-2 text-xs text-muted-foreground">
-            {[
-              "EU legal coverage",
-              "Encrypted at rest",
-              "Audit-ready reporting",
-              "24/7 monitoring",
-            ].map((item) => (
-              <span
-                key={item}
-                className="rounded-full border border-white/10 bg-white/5 px-3 py-1"
-              >
-                {item}
-              </span>
-            ))}
-          </div>
-        </div>
-
-        <GlassCard variant="elevated" glow="primary" className="p-8">
-          <div className="space-y-6">
-            <div className="space-y-2">
-              <div className="inline-flex items-center gap-2 text-xs uppercase tracking-[0.2em] text-white/40">
-                <Sparkles className="h-4 w-4 text-primary" />
-                Secure Console
-              </div>
-              <h2 className="text-xl font-semibold text-foreground">
-                Sign in to your workspace
-              </h2>
-              <p className="text-sm text-muted-foreground">
-                Use your work email to access alerts, cases, and compliance
-                reporting.
+    <div className="min-h-screen bg-[#FAFAFA] flex flex-col">
+      {/* Hero Section */}
+      <section className="relative flex-1 flex flex-col justify-center px-4 py-20 md:px-8 lg:px-12 max-w-7xl mx-auto w-full">
+        <div className="grid items-center gap-12 lg:grid-cols-[1.1fr_0.9fr]">
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.7, ease: [0.16, 1, 0.3, 1] }}
+            className="space-y-8"
+          >
+            <div className="space-y-4">
+              <SectionBadge label="YuFeed Sentinel" />
+              <h1 className="text-4xl lg:text-[4.5rem] font-display text-foreground leading-[1.05] tracking-tight">
+                Compliance clarity in minutes,{" "}
+                <span className="text-gradient relative">
+                  not weeks.<span className="gradient-underline"></span>
+                </span>
+              </h1>
+              <p className="text-lg text-muted-foreground max-w-xl leading-relaxed">
+                YuFeed unifies EU regulatory intelligence, AML monitoring, and
+                investigation workflows so your team can act with absolute
+                confidence.
               </p>
             </div>
 
-            <form onSubmit={handleSubmit} className="space-y-4">
-              <div className="space-y-2">
-                <label
-                  htmlFor="email"
-                  className="block text-xs font-medium text-white/60"
+            <div className="flex flex-wrap gap-3 text-sm font-medium text-foreground-secondary">
+              {[
+                "EU legal coverage",
+                "Encrypted at rest",
+                "Audit-ready reporting",
+                "24/7 monitoring",
+              ].map((item) => (
+                <span
+                  key={item}
+                  className="rounded-full border border-border bg-white px-4 py-1.5 shadow-sm"
                 >
-                  Work email
-                </label>
-                <Input
-                  id="email"
-                  type="email"
-                  required
-                  value={email}
-                  onChange={(event) => setEmail(event.target.value)}
-                  placeholder="name@company.com"
-                  autoComplete="email"
-                  inputMode="email"
-                  error={emailInvalid}
-                  errorMessage={
-                    emailInvalid ? "Enter a valid work email." : undefined
-                  }
-                  errorMessageId={emailErrorId}
-                  aria-invalid={emailInvalid || Boolean(error)}
-                  aria-describedby={
-                    [errorId, emailErrorId].filter(Boolean).join(" ") ||
-                    undefined
-                  }
-                />
-              </div>
+                  {item}
+                </span>
+              ))}
+            </div>
+          </motion.div>
 
-              {availableTenants.length > 0 ? (
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.7, delay: 0.1, ease: [0.16, 1, 0.3, 1] }}
+          >
+            <Card
+              variant="featured"
+              className="p-8 sm:p-10 relative overflow-hidden"
+            >
+              <div className="pointer-events-none absolute -right-20 -top-20 h-64 w-64 rounded-full bg-accent opacity-5 blur-[100px]" />
+
+              <div className="space-y-8 relative z-10">
                 <div className="space-y-2">
-                  <label
-                    htmlFor="tenant"
-                    className="block text-xs font-medium text-white/60"
-                  >
-                    Tenant
-                  </label>
-                  <select
-                    id="tenant"
-                    value={selectedTenant}
-                    onChange={(event) => setSelectedTenant(event.target.value)}
-                    className="h-11 w-full rounded-xl border border-white/10 bg-white/5 px-3 text-sm text-white focus:outline-none focus:ring-1 focus:ring-primary"
-                    required
-                  >
-                    {availableTenants.map((tenant) => (
-                      <option
-                        key={tenant}
-                        value={tenant}
-                        className="bg-[#0a0a12]"
-                      >
-                        {tenant}
-                      </option>
-                    ))}
-                  </select>
-                  <p className="text-xs text-white/50">
-                    Select the workspace you want to access.
+                  <h2 className="text-2xl font-bold text-foreground">
+                    Sign in to your workspace
+                  </h2>
+                  <p className="text-sm text-foreground-secondary">
+                    Use your work email to access alerts, cases, and compliance
+                    reporting.
                   </p>
                 </div>
-              ) : null}
 
-              <div className="space-y-2">
-                <label
-                  htmlFor="password"
-                  className="block text-xs font-medium text-white/60"
-                >
-                  Password
-                </label>
-                <Input
-                  id="password"
-                  type="password"
-                  required
-                  value={password}
-                  onChange={(event) => setPassword(event.target.value)}
-                  placeholder="Enter your password"
-                  autoComplete="current-password"
-                  error={Boolean(error)}
-                  aria-invalid={Boolean(error)}
-                  aria-describedby={errorId}
-                />
-              </div>
+                <form onSubmit={handleSubmit} className="space-y-5">
+                  <div className="space-y-2">
+                    <label
+                      htmlFor="email"
+                      className="block text-sm font-medium text-foreground"
+                    >
+                      Work email
+                    </label>
+                    <Input
+                      id="email"
+                      type="email"
+                      required
+                      value={email}
+                      onChange={(event) => setEmail(event.target.value)}
+                      placeholder="name@company.com"
+                      autoComplete="email"
+                      inputMode="email"
+                      aria-invalid={emailInvalid || Boolean(error)}
+                      aria-describedby={
+                        [errorId, emailErrorId].filter(Boolean).join(" ") ||
+                        undefined
+                      }
+                      className="h-12 border-border focus:ring-accent"
+                    />
+                    {emailInvalid && (
+                      <p
+                        className="text-xs text-destructive mt-1"
+                        id={emailErrorId}
+                      >
+                        Enter a valid work email.
+                      </p>
+                    )}
+                  </div>
 
-              <div className="flex items-center justify-between text-xs text-muted-foreground">
-                <label className="flex items-center gap-2">
-                  <input
-                    id="remember"
-                    type="checkbox"
-                    checked={remember}
-                    onChange={(event) => setRemember(event.target.checked)}
-                    className="h-4 w-4 rounded border-white/20 bg-white/5"
-                  />
-                  Keep me signed in on this device
-                </label>
-                <Link
-                  href="/forgot-password"
-                  className="text-cyan-500/80 hover:text-cyan-500"
-                >
-                  Forgot password?
-                </Link>
-              </div>
+                  {availableTenants.length > 0 && (
+                    <div className="space-y-2">
+                      <label
+                        htmlFor="tenant"
+                        className="block text-sm font-medium text-foreground"
+                      >
+                        Tenant
+                      </label>
+                      <select
+                        id="tenant"
+                        value={selectedTenant}
+                        onChange={(event) =>
+                          setSelectedTenant(event.target.value)
+                        }
+                        className="h-12 w-full rounded-xl border border-border bg-transparent px-3 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-accent focus:ring-offset-2 transition-shadow"
+                        required
+                      >
+                        {availableTenants.map((tenant) => (
+                          <option key={tenant} value={tenant}>
+                            {tenant}
+                          </option>
+                        ))}
+                      </select>
+                      <p className="text-xs text-muted-foreground">
+                        Select the workspace you want to access.
+                      </p>
+                    </div>
+                  )}
 
-              {error ? (
-                <div
-                  id={errorId}
-                  role="alert"
-                  aria-live="polite"
-                  className="rounded-lg border border-risk-critical/30 bg-risk-critical-soft px-3 py-2 text-xs text-risk-critical"
-                >
-                  {error}
+                  <div className="space-y-2">
+                    <div className="flex justify-between items-center">
+                      <label
+                        htmlFor="password"
+                        className="block text-sm font-medium text-foreground"
+                      >
+                        Password
+                      </label>
+                      <Link
+                        href="/forgot-password"
+                        className="text-xs font-medium text-accent hover:text-accent-secondary transition-colors"
+                      >
+                        Forgot password?
+                      </Link>
+                    </div>
+                    <Input
+                      id="password"
+                      type="password"
+                      required
+                      value={password}
+                      onChange={(event) => setPassword(event.target.value)}
+                      placeholder="Enter your password"
+                      autoComplete="current-password"
+                      aria-invalid={Boolean(error)}
+                      aria-describedby={errorId}
+                      className="h-12 border-border focus:ring-accent"
+                    />
+                  </div>
+
+                  <div className="flex items-center text-sm text-foreground-secondary">
+                    <label className="flex items-center gap-2 cursor-pointer">
+                      <input
+                        id="remember"
+                        type="checkbox"
+                        checked={remember}
+                        onChange={(event) => setRemember(event.target.checked)}
+                        className="h-4 w-4 rounded border-border text-accent focus:ring-accent accent-accent transition-colors"
+                      />
+                      Keep me signed in on this device
+                    </label>
+                  </div>
+
+                  {error && (
+                    <div
+                      id={errorId}
+                      role="alert"
+                      aria-live="polite"
+                      className="rounded-lg border border-destructive/20 bg-destructive/10 px-4 py-3 text-sm text-destructive font-medium"
+                    >
+                      {error}
+                    </div>
+                  )}
+
+                  <Button
+                    type="submit"
+                    variant="primary"
+                    size="lg"
+                    loading={loading}
+                    disabled={emailInvalid}
+                    className="w-full h-14"
+                    rightIcon={
+                      <ArrowRight className="h-4 w-4 opacity-70 group-hover:translate-x-1 transition-transform" />
+                    }
+                  >
+                    Sign in to Workspace
+                  </Button>
+                </form>
+
+                <div className="flex items-center justify-center gap-1 text-sm text-foreground-secondary pt-2">
+                  <span>New here?</span>
+                  <Link
+                    href="/request-access"
+                    className="font-medium text-accent hover:text-accent-secondary transition-colors"
+                  >
+                    Request access
+                  </Link>
                 </div>
-              ) : null}
+              </div>
+            </Card>
+          </motion.div>
+        </div>
+      </section>
 
-              <Button
-                type="submit"
-                variant="gradient"
-                size="lg"
-                loading={loading}
-                disabled={emailInvalid}
-                className="w-full"
+      {/* Inverted Stats/Features Section */}
+      <section className="section-inverted relative overflow-hidden py-24 sm:py-32">
+        <div className="absolute inset-0 dot-pattern" />
+        <div className="max-w-7xl mx-auto px-4 md:px-8 lg:px-12 relative z-10">
+          <div className="grid md:grid-cols-3 gap-12 md:gap-8 divide-y md:divide-y-0 md:divide-x divide-slate-800">
+            {highlights.map((item, i) => (
+              <motion.div
+                key={item.title}
+                initial={{ opacity: 0, y: 20 }}
+                whileInView={{ opacity: 1, y: 0 }}
+                viewport={{ once: true, margin: "-100px" }}
+                transition={{ duration: 0.6, delay: i * 0.1 }}
+                className={`${i > 0 ? "pt-12 md:pt-0 md:pl-8" : ""}`}
               >
-                Sign in
-              </Button>
-            </form>
-
-            <div className="flex flex-wrap items-center justify-between gap-2 text-xs text-muted-foreground">
-              <span>
-                New here?{" "}
-                <Link
-                  href="/request-access"
-                  className="text-cyan-500/80 hover:text-cyan-500"
-                >
-                  Request access
-                </Link>
-              </span>
-              <span>Need help? support@yufeed.com</span>
-            </div>
+                <div className="flex flex-col gap-6">
+                  <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-gradient-to-br from-accent to-[#4D7CFF] shadow-accent text-white">
+                    <item.icon className="h-6 w-6" strokeWidth={2.5} />
+                  </div>
+                  <div>
+                    <h3 className="text-xl font-display font-medium text-white mb-2">
+                      {item.title}
+                    </h3>
+                    <p className="text-slate-400 leading-relaxed">
+                      {item.description}
+                    </p>
+                  </div>
+                </div>
+              </motion.div>
+            ))}
           </div>
-        </GlassCard>
-      </div>
-    </section>
+        </div>
+      </section>
+    </div>
   );
 }

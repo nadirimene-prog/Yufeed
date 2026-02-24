@@ -7,13 +7,13 @@ import { cn } from "@/lib/utils";
 /**
  * ═══════════════════════════════════════════════════════════════════
  * INPUT - Sentinel Design System
- * Glass-styled inputs with focus glow and premium interactions
+ * Clean inputs with focus ring and professional interactions
  * ═══════════════════════════════════════════════════════════════════
  */
 
 export interface InputProps extends React.InputHTMLAttributes<HTMLInputElement> {
   /** Input variant */
-  variant?: "default" | "glass" | "ghost";
+  variant?: "default" | "outline" | "glass" | "ghost";
   /** Left icon/element */
   leftElement?: React.ReactNode;
   /** Right icon/element */
@@ -31,7 +31,7 @@ const Input = React.forwardRef<HTMLInputElement, InputProps>(
     {
       className,
       type,
-      variant = "glass",
+      variant = "outline",
       leftElement,
       rightElement,
       error,
@@ -42,23 +42,27 @@ const Input = React.forwardRef<HTMLInputElement, InputProps>(
     },
     ref,
   ) => {
-    const [isFocused, setIsFocused] = React.useState(false);
     const resolvedErrorId =
       errorMessageId || (props.id ? `${props.id}-error` : undefined);
 
     const variantStyles = {
       default: cn(
-        "border-white/10 bg-white/5",
-        "focus:border-primary/50 focus:ring-primary/20",
+        "border-border-subtle bg-card",
+        "focus:border-primary focus:ring-primary/20",
+      ),
+      outline: cn(
+        "border-border-subtle bg-card",
+        "focus:border-primary focus:bg-card",
+        "focus:shadow-[0_0_0_3px_rgba(0,82,255,0.1)]",
       ),
       glass: cn(
-        "border-white/[0.08] bg-white/[0.03] backdrop-blur-sm",
-        "focus:border-primary/40 focus:bg-white/[0.05]",
-        "focus:shadow-[0_0_20px_rgba(109,90,205,0.15)]",
+        "border-border-subtle bg-card/80 backdrop-blur-sm",
+        "focus:border-primary focus:bg-card",
+        "focus:shadow-[0_0_0_3px_rgba(0,82,255,0.1)]",
       ),
       ghost: cn(
         "border-transparent bg-transparent",
-        "focus:bg-white/[0.03] focus:border-white/10",
+        "focus:border-border-subtle focus:bg-muted",
       ),
     };
 
@@ -67,7 +71,7 @@ const Input = React.forwardRef<HTMLInputElement, InputProps>(
         <div className="relative">
           {/* Left element */}
           {leftElement && (
-            <div className="absolute left-3 top-1/2 -translate-y-1/2 text-white/40 pointer-events-none">
+            <div className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-foreground-tertiary">
               {leftElement}
             </div>
           )}
@@ -77,9 +81,9 @@ const Input = React.forwardRef<HTMLInputElement, InputProps>(
             type={type}
             className={cn(
               "flex h-10 w-full rounded-lg border px-3 py-2",
-              "text-sm text-white placeholder:text-white/30",
+              "text-sm text-foreground placeholder:text-foreground-tertiary",
               "transition-all duration-200 ease-out",
-              "focus:outline-none focus:ring-2 focus:ring-offset-0",
+              "focus:outline-none focus:ring-2 focus:ring-primary/20 focus:ring-offset-0",
               "disabled:cursor-not-allowed disabled:opacity-50",
               variantStyles[variant],
               leftElement && "pl-10",
@@ -90,36 +94,14 @@ const Input = React.forwardRef<HTMLInputElement, InputProps>(
             )}
             ref={ref}
             disabled={disabled}
-            onFocus={(e) => {
-              setIsFocused(true);
-              props.onFocus?.(e);
-            }}
-            onBlur={(e) => {
-              setIsFocused(false);
-              props.onBlur?.(e);
-            }}
             {...props}
           />
 
           {/* Right element */}
           {rightElement && (
-            <div className="absolute right-3 top-1/2 -translate-y-1/2 text-white/40">
+            <div className="absolute right-3 top-1/2 -translate-y-1/2 text-foreground-tertiary">
               {rightElement}
             </div>
-          )}
-
-          {/* Focus glow ring (behind input) */}
-          {variant === "glass" && (
-            <div
-              className={cn(
-                "absolute inset-0 rounded-lg pointer-events-none transition-opacity duration-300",
-                isFocused ? "opacity-100" : "opacity-0",
-              )}
-              style={{
-                background:
-                  "linear-gradient(135deg, rgba(109, 90, 205, 0.1) 0%, rgba(0, 212, 255, 0.05) 100%)",
-              }}
-            />
           )}
         </div>
 
@@ -184,7 +166,7 @@ const SearchInput = React.forwardRef<HTMLInputElement, SearchInputProps>(
           }
           rightElement={
             shortcut ? (
-              <kbd className="hidden sm:inline-flex h-5 items-center gap-1 rounded border border-white/10 bg-white/5 px-1.5 font-mono text-[10px] font-medium text-white/30">
+              <kbd className="hidden h-5 items-center gap-1 rounded border border-border-subtle bg-muted px-1.5 font-mono text-[10px] font-medium text-foreground-tertiary sm:inline-flex">
                 {shortcut}
               </kbd>
             ) : undefined
@@ -199,11 +181,11 @@ const SearchInput = React.forwardRef<HTMLInputElement, SearchInputProps>(
 SearchInput.displayName = "SearchInput";
 
 /**
- * Textarea - Glass-styled textarea
+ * Textarea - Clean styled textarea
  */
 export interface TextareaProps extends React.TextareaHTMLAttributes<HTMLTextAreaElement> {
   /** Textarea variant */
-  variant?: "default" | "glass" | "ghost";
+  variant?: "default" | "outline" | "glass" | "ghost";
   /** Error state */
   error?: boolean;
   /** Error message */
@@ -216,7 +198,7 @@ const Textarea = React.forwardRef<HTMLTextAreaElement, TextareaProps>(
   (
     {
       className,
-      variant = "glass",
+      variant = "outline",
       error,
       errorMessage,
       errorMessageId,
@@ -228,17 +210,22 @@ const Textarea = React.forwardRef<HTMLTextAreaElement, TextareaProps>(
       errorMessageId || (props.id ? `${props.id}-error` : undefined);
     const variantStyles = {
       default: cn(
-        "border-white/10 bg-white/5",
-        "focus:border-primary/50 focus:ring-primary/20",
+        "border-border-subtle bg-card",
+        "focus:border-primary focus:ring-primary/20",
+      ),
+      outline: cn(
+        "border-border-subtle bg-card",
+        "focus:border-primary focus:bg-card",
+        "focus:shadow-[0_0_0_3px_rgba(0,82,255,0.1)]",
       ),
       glass: cn(
-        "border-white/[0.08] bg-white/[0.03] backdrop-blur-sm",
-        "focus:border-primary/40 focus:bg-white/[0.05]",
-        "focus:shadow-[0_0_20px_rgba(109,90,205,0.15)]",
+        "border-border-subtle bg-card/80 backdrop-blur-sm",
+        "focus:border-primary focus:bg-card",
+        "focus:shadow-[0_0_0_3px_rgba(0,82,255,0.1)]",
       ),
       ghost: cn(
         "border-transparent bg-transparent",
-        "focus:bg-white/[0.03] focus:border-white/10",
+        "focus:border-border-subtle focus:bg-muted",
       ),
     };
 
@@ -247,9 +234,9 @@ const Textarea = React.forwardRef<HTMLTextAreaElement, TextareaProps>(
         <textarea
           className={cn(
             "flex min-h-[80px] w-full rounded-lg border px-3 py-2",
-            "text-sm text-white placeholder:text-white/30",
+            "text-sm text-foreground placeholder:text-foreground-tertiary",
             "transition-all duration-200 ease-out",
-            "focus:outline-none focus:ring-2 focus:ring-offset-0",
+            "focus:outline-none focus:ring-2 focus:ring-primary/20 focus:ring-offset-0",
             "disabled:cursor-not-allowed disabled:opacity-50",
             "resize-none",
             variantStyles[variant],
@@ -321,8 +308,8 @@ function InputAddon({ children, className }: InputAddonProps) {
     <div
       className={cn(
         "flex items-center justify-center px-3 rounded-lg",
-        "border border-white/[0.08] bg-white/[0.03]",
-        "text-sm text-white/50",
+        "border border-border-subtle bg-muted",
+        "text-sm text-foreground-secondary",
         className,
       )}
     >

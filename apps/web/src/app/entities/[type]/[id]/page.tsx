@@ -4,7 +4,7 @@ import { useEffect } from "react";
 import { useParams, useSearchParams } from "next/navigation";
 import { LoadingBoundary } from "@/components/shared/LoadingBoundary";
 import { EmptyState } from "@/components/ui/empty-state";
-import { GlassCard, GlassCardContent } from "@/components/ui/glass-card";
+import { Card, CardContent } from "@/components/ui/card";
 import { useCopilot } from "@/components/aml-officer/copilot-context";
 import { useEntityProfile } from "@/hooks/queries/useEntityData";
 import EntityHeader from "@/components/entity/EntityHeader";
@@ -17,16 +17,16 @@ import EntityTimeline from "@/components/entity/EntityTimeline";
 
 function DocumentsPlaceholder() {
   return (
-    <GlassCard>
-      <GlassCardContent>
+    <Card className="border-border shadow-sm bg-white">
+      <CardContent className="pt-6">
         <EmptyState
           title="Documents Coming Soon"
           description="Document and evidence bundle integration will be added in the next iteration."
           variant="no-data"
           compact
         />
-      </GlassCardContent>
-    </GlassCard>
+      </CardContent>
+    </Card>
   );
 }
 

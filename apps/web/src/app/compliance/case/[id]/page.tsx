@@ -17,12 +17,7 @@ import toast from "react-hot-toast";
 import { useCopilot } from "@/components/aml-officer/copilot-context";
 import { LoadingBoundary } from "@/components/shared/LoadingBoundary";
 import { EmptyState } from "@/components/ui/empty-state";
-import {
-  GlassCard,
-  GlassCardContent,
-  GlassCardHeader,
-  GlassCardTitle,
-} from "@/components/ui/glass-card";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { MetricCard } from "@/components/ui/metric-card";
 import { Button } from "@/components/ui/button-horizon";
 import { RiskBadge, StatusBadge } from "@/components/ui/badge-horizon";
@@ -271,18 +266,18 @@ export default function ComplianceCaseWorkspacePage() {
                 color={
                   profile.cdd_level?.toLowerCase() === "enhanced"
                     ? "red"
-                    : "aurora"
+                    : "blue"
                 }
                 icon={<ShieldCheck className="h-5 w-5" />}
               />
             </section>
 
             <section className="grid grid-cols-1 gap-4 lg:grid-cols-[1fr_340px]">
-              <GlassCard>
-                <GlassCardHeader className="gap-3">
-                  <GlassCardTitle className="text-base">
+              <Card className="border-border shadow-sm bg-white">
+                <CardHeader className="gap-3">
+                  <CardTitle className="text-base font-semibold text-foreground">
                     {toProfileLabel(profile)}
-                  </GlassCardTitle>
+                  </CardTitle>
 
                   <div className="flex flex-wrap gap-2">
                     {(
@@ -296,16 +291,16 @@ export default function ComplianceCaseWorkspacePage() {
                       <Button
                         key={tab}
                         size="sm"
-                        variant={activeTab === tab ? "primary" : "glass"}
+                        variant={activeTab === tab ? "primary" : "outline"}
                         onClick={() => setActiveTab(tab)}
                       >
                         {tab}
                       </Button>
                     ))}
                   </div>
-                </GlassCardHeader>
+                </CardHeader>
 
-                <GlassCardContent className="space-y-4">
+                <CardContent className="space-y-4">
                   {activeTab === "overview" ? (
                     <div className="grid gap-3 text-sm md:grid-cols-2">
                       <InfoField
@@ -472,7 +467,7 @@ export default function ComplianceCaseWorkspacePage() {
                         </p>
                         <div className="flex flex-wrap gap-2">
                           <Button
-                            variant="glass"
+                            variant="outline"
                             onClick={() => {
                               if (!profile) return;
                               toast.promise(
@@ -490,7 +485,7 @@ export default function ComplianceCaseWorkspacePage() {
                             Run Screening
                           </Button>
                           <Button
-                            variant="glass"
+                            variant="outline"
                             onClick={() => {
                               if (!profile) return;
                               toast.promise(
@@ -511,17 +506,17 @@ export default function ComplianceCaseWorkspacePage() {
                       </div>
                     </div>
                   ) : null}
-                </GlassCardContent>
-              </GlassCard>
+                </CardContent>
+              </Card>
 
               <div className="space-y-4">
-                <GlassCard>
-                  <GlassCardHeader>
-                    <GlassCardTitle className="text-base">
+                <Card className="border-border shadow-sm bg-white">
+                  <CardHeader>
+                    <CardTitle className="text-base font-semibold text-foreground">
                       Verification Pipeline
-                    </GlassCardTitle>
-                  </GlassCardHeader>
-                  <GlassCardContent className="space-y-2">
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent className="space-y-2">
                     {statusTimeline(profile).map((step) => (
                       <div
                         key={step.key}
@@ -550,16 +545,16 @@ export default function ComplianceCaseWorkspacePage() {
                         ) : null}
                       </div>
                     ))}
-                  </GlassCardContent>
-                </GlassCard>
+                  </CardContent>
+                </Card>
 
-                <GlassCard>
-                  <GlassCardHeader>
-                    <GlassCardTitle className="text-base">
+                <Card className="border-border shadow-sm bg-white">
+                  <CardHeader>
+                    <CardTitle className="text-base font-semibold text-foreground">
                       Enhanced Due Diligence
-                    </GlassCardTitle>
-                  </GlassCardHeader>
-                  <GlassCardContent className="space-y-3">
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent className="space-y-3">
                     <label className="space-y-1 text-xs text-foreground-secondary">
                       <span>CDD Level</span>
                       <select
@@ -616,16 +611,16 @@ export default function ComplianceCaseWorkspacePage() {
                       Current sanctions status:{" "}
                       {profile.sanctions_status || "pending"}
                     </div>
-                  </GlassCardContent>
-                </GlassCard>
+                  </CardContent>
+                </Card>
 
-                <GlassCard>
-                  <GlassCardHeader>
-                    <GlassCardTitle className="text-base">
+                <Card className="border-border shadow-sm bg-white">
+                  <CardHeader>
+                    <CardTitle className="text-base font-semibold text-foreground">
                       Case Metadata
-                    </GlassCardTitle>
-                  </GlassCardHeader>
-                  <GlassCardContent className="space-y-1 text-xs text-foreground-secondary">
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent className="space-y-1 text-xs text-foreground-secondary">
                     <p>
                       <span className="text-foreground-tertiary">Case ID:</span>{" "}
                       <span className="font-mono">{profile.id}</span>
@@ -643,8 +638,8 @@ export default function ComplianceCaseWorkspacePage() {
                       </span>{" "}
                       {new Date(profile.updated_at).toLocaleString()}
                     </p>
-                  </GlassCardContent>
-                </GlassCard>
+                  </CardContent>
+                </Card>
               </div>
             </section>
           </>

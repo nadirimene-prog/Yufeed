@@ -96,18 +96,18 @@ export function CaseComments({ caseId, className }: CaseCommentsProps) {
 
   return (
     <section className={className}>
-      <div className="mb-3 rounded-xl border border-white/10 bg-white/5 p-3">
-        <h3 className="mb-2 text-xs font-semibold uppercase tracking-wide text-white/70">
+      <div className="mb-3 rounded-xl border border-border bg-slate-50 p-3 shadow-sm">
+        <h3 className="mb-2 text-xs font-semibold uppercase tracking-wide text-foreground">
           Collaboration Thread
         </h3>
 
         {replyToId ? (
-          <div className="mb-2 flex items-center justify-between rounded-lg border border-aurora-500/30 bg-aurora-500/10 px-2 py-1 text-[11px] text-aurora-300">
+          <div className="mb-2 flex items-center justify-between rounded-lg border border-primary/30 bg-primary/5 px-2 py-1 text-[11px] text-primary">
             <span>Replying to comment #{replyToId}</span>
             <button
               type="button"
               onClick={() => setReplyToId(null)}
-              className="underline"
+              className="underline hover:text-primary/80"
             >
               Cancel
             </button>
@@ -118,13 +118,13 @@ export function CaseComments({ caseId, className }: CaseCommentsProps) {
           value={content}
           onChange={(event) => setContent(event.target.value)}
           placeholder="Write a comment... Use @user_id to mention analysts."
-          className="h-24 w-full rounded-lg border border-white/10 bg-black/20 p-2 text-xs text-white placeholder:text-white/40"
+          className="h-24 w-full rounded-lg border border-border bg-white p-2 text-xs text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/20"
         />
 
         <div className="mt-2 grid gap-2 sm:grid-cols-[1fr_auto]">
           <input
             list="workspace-comment-mentions"
-            className="h-9 rounded-lg border border-white/10 bg-black/20 px-2 text-xs text-white placeholder:text-white/40"
+            className="h-9 rounded-lg border border-border bg-slate-50 px-2 text-xs text-muted-foreground placeholder:text-muted-foreground/60"
             placeholder="Mention helper: start typing @user_id in the comment"
             disabled
             aria-label="Mentions helper"
@@ -137,12 +137,12 @@ export function CaseComments({ caseId, className }: CaseCommentsProps) {
             ))}
           </datalist>
           <Button
-            variant="glass"
+            variant="outline"
             size="sm"
             loading={createComment.isPending}
             onClick={submitComment}
           >
-            <Send className="h-3.5 w-3.5" />
+            <Send className="h-3.5 w-3.5 mr-1" />
             Send
           </Button>
         </div>
@@ -150,7 +150,7 @@ export function CaseComments({ caseId, className }: CaseCommentsProps) {
 
       <div className="space-y-2">
         {(commentsQuery.data ?? []).length === 0 ? (
-          <div className="rounded-xl border border-white/10 bg-white/5 p-3 text-xs text-white/60">
+          <div className="rounded-xl border border-border bg-slate-50 p-3 text-xs text-muted-foreground text-center">
             No comments yet.
           </div>
         ) : null}
@@ -160,25 +160,27 @@ export function CaseComments({ caseId, className }: CaseCommentsProps) {
           return (
             <article
               key={root.id}
-              className="rounded-xl border border-white/10 bg-white/5 p-3"
+              className="rounded-xl border border-border bg-slate-50 p-3 shadow-sm"
             >
-              <header className="mb-1 flex items-center justify-between gap-2 text-[11px] text-white/60">
-                <span>{root.author_id || root.author_email}</span>
+              <header className="mb-1 flex items-center justify-between gap-2 text-[11px] text-muted-foreground">
+                <span className="font-medium text-foreground">
+                  {root.author_id || root.author_email}
+                </span>
                 <span>{new Date(root.created_at).toLocaleString()}</span>
               </header>
-              <p className="whitespace-pre-wrap text-xs text-white/85">
+              <p className="whitespace-pre-wrap text-xs text-foreground mt-1">
                 {root.content}
               </p>
               {(root.mentions ?? []).length > 0 ? (
-                <p className="mt-1 text-[11px] text-aurora-300">
+                <p className="mt-2 text-[11px] font-medium text-primary">
                   Mentions: {(root.mentions ?? []).join(", ")}
                 </p>
               ) : null}
-              <div className="mt-2">
+              <div className="mt-3">
                 <button
                   type="button"
                   onClick={() => setReplyToId(root.id)}
-                  className="inline-flex items-center gap-1 text-[11px] text-foreground-secondary hover:text-foreground"
+                  className="inline-flex items-center gap-1 text-[11px] text-muted-foreground hover:text-foreground transition-colors"
                 >
                   <MessageSquareReply className="h-3.5 w-3.5" />
                   Reply
@@ -186,19 +188,21 @@ export function CaseComments({ caseId, className }: CaseCommentsProps) {
               </div>
 
               {replies.length > 0 ? (
-                <div className="mt-3 space-y-2 border-l border-white/10 pl-3">
+                <div className="mt-3 space-y-2 border-l-2 border-border pl-3">
                   {replies.map((reply) => (
                     <div
                       key={reply.id}
-                      className="rounded-lg border border-white/10 bg-black/20 p-2"
+                      className="rounded-lg border border-border bg-white p-2 shadow-sm"
                     >
-                      <header className="mb-1 flex items-center justify-between gap-2 text-[11px] text-white/60">
-                        <span>{reply.author_id || reply.author_email}</span>
+                      <header className="mb-1 flex items-center justify-between gap-2 text-[11px] text-muted-foreground">
+                        <span className="font-medium text-foreground">
+                          {reply.author_id || reply.author_email}
+                        </span>
                         <span>
                           {new Date(reply.created_at).toLocaleString()}
                         </span>
                       </header>
-                      <p className="whitespace-pre-wrap text-xs text-white/85">
+                      <p className="whitespace-pre-wrap text-xs text-foreground mt-1">
                         {reply.content}
                       </p>
                     </div>

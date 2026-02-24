@@ -14,8 +14,8 @@ import { criticalPulse } from "@/lib/motion";
 
 /**
  * ═══════════════════════════════════════════════════════════════════
- * RISK BADGE - Sentinel Design System
- * Glowing, pulsing risk level indicators
+ * RISK BADGE - Horizon Design System
+ * Risk level indicators
  * ═══════════════════════════════════════════════════════════════════
  */
 
@@ -46,7 +46,7 @@ interface RiskBadgeProps {
   className?: string;
 }
 
-// Risk level configuration with Sentinel colors
+// Risk level configuration with Horizon colors
 const riskConfig: Record<
   RiskLevel,
   {
@@ -64,58 +64,58 @@ const riskConfig: Record<
     label: "Critical",
     icon: AlertOctagon,
     bg: "bg-risk-critical-soft",
-    border: "border-risk-critical/40",
+    border: "border-risk-critical/30",
     text: "text-risk-critical",
-    glow: "shadow-[0_0_12px_rgba(255,51,102,0.3)]",
-    glowStrong: "shadow-[0_0_20px_rgba(255,51,102,0.5)]",
+    glow: "",
+    glowStrong: "",
     shouldPulse: true,
   },
   high: {
     label: "High",
     icon: AlertTriangle,
     bg: "bg-risk-high-soft",
-    border: "border-risk-high/40",
+    border: "border-risk-high/30",
     text: "text-risk-high",
-    glow: "shadow-[0_0_10px_rgba(255,140,66,0.25)]",
-    glowStrong: "shadow-[0_0_16px_rgba(255,140,66,0.4)]",
+    glow: "",
+    glowStrong: "",
     shouldPulse: true,
   },
   medium: {
     label: "Medium",
     icon: AlertCircle,
     bg: "bg-risk-medium-soft",
-    border: "border-risk-medium/40",
+    border: "border-risk-medium/30",
     text: "text-risk-medium",
-    glow: "shadow-[0_0_8px_rgba(255,209,102,0.2)]",
-    glowStrong: "shadow-[0_0_14px_rgba(255,209,102,0.35)]",
+    glow: "",
+    glowStrong: "",
     shouldPulse: false,
   },
   low: {
     label: "Low",
     icon: CheckCircle,
     bg: "bg-risk-low-soft",
-    border: "border-risk-low/40",
+    border: "border-risk-low/30",
     text: "text-risk-low",
-    glow: "shadow-[0_0_6px_rgba(6,214,160,0.15)]",
-    glowStrong: "shadow-[0_0_12px_rgba(6,214,160,0.3)]",
+    glow: "",
+    glowStrong: "",
     shouldPulse: false,
   },
   clear: {
     label: "Clear",
     icon: ShieldCheck,
     bg: "bg-risk-clear-soft",
-    border: "border-risk-clear/30",
-    text: "text-risk-clear",
-    glow: "shadow-[0_0_6px_rgba(0,212,255,0.15)]",
-    glowStrong: "shadow-[0_0_12px_rgba(0,212,255,0.25)]",
+    border: "border-primary/20",
+    text: "text-primary",
+    glow: "",
+    glowStrong: "",
     shouldPulse: false,
   },
   unknown: {
     label: "Unknown",
     icon: HelpCircle,
-    bg: "bg-gray-500/10",
-    border: "border-gray-500/30",
-    text: "text-gray-400",
+    bg: "bg-muted",
+    border: "border-border-default",
+    text: "text-foreground-tertiary",
     glow: "",
     glowStrong: "",
     shouldPulse: false,
@@ -327,8 +327,8 @@ export function RiskIndicator({
     high: "bg-risk-high",
     medium: "bg-risk-medium",
     low: "bg-risk-low",
-    clear: "bg-risk-clear",
-    unknown: "bg-gray-400",
+    clear: "bg-primary",
+    unknown: "bg-foreground-disabled",
   };
 
   return (

@@ -99,7 +99,7 @@ export function RuleConditionGroup({
           <Button
             type="button"
             size="sm"
-            variant="glass"
+            variant="outline"
             onClick={() =>
               onChange({
                 ...group,

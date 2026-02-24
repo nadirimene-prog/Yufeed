@@ -13,7 +13,7 @@ import {
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { GlassCard } from "@/components/ui/glass-card";
+import { Card } from "@/components/ui/card";
 import { cn } from "@/lib/utils";
 import { useCopilot } from "@/components/aml-officer/copilot-context";
 
@@ -91,18 +91,18 @@ export function CopilotWidget() {
               isMinimized ? "h-auto" : "h-[600px]",
             )}
           >
-            <GlassCard className="h-full flex flex-col overflow-hidden border-white/10 shadow-2xl backdrop-blur-3xl bg-[#0a0a12]/80">
+            <Card className="h-full flex flex-col overflow-hidden border-border shadow-xl bg-white">
               {/* Header */}
-              <div className="flex items-center justify-between p-4 border-b border-white/5 bg-white/[0.02]">
+              <div className="flex items-center justify-between p-4 border-b border-border bg-slate-50">
                 <div className="flex items-center gap-2">
-                  <div className="p-1.5 rounded-lg bg-[var(--color-aurora-500)]/20 text-[var(--color-aurora-500)]">
+                  <div className="p-1.5 rounded-lg bg-primary/10 text-primary">
                     <Brain className="w-4 h-4" />
                   </div>
                   <div>
-                    <h3 className="text-sm font-semibold text-white">
+                    <h3 className="text-sm font-semibold text-foreground">
                       AI Copilot
                     </h3>
-                    <p className="text-[10px] text-white/50 flex items-center gap-1">
+                    <p className="text-[10px] text-muted-foreground flex items-center gap-1">
                       <span className="w-1.5 h-1.5 rounded-full bg-green-500 animate-pulse" />
                       Active
                     </p>
@@ -113,7 +113,7 @@ export function CopilotWidget() {
                     variant="ghost"
                     size="icon-sm"
                     onClick={() => setIsMinimized(!isMinimized)}
-                    className="text-white/50 hover:text-white"
+                    className="text-muted-foreground hover:text-foreground"
                   >
                     {isMinimized ? (
                       <Maximize2 className="w-3.5 h-3.5" />
@@ -125,7 +125,7 @@ export function CopilotWidget() {
                     variant="ghost"
                     size="icon-sm"
                     onClick={() => setIsOpen(false)}
-                    className="text-white/50 hover:text-white hover:bg-red-500/10 hover:text-red-400"
+                    className="text-muted-foreground hover:text-foreground hover:bg-red-50 hover:text-red-500"
                   >
                     <X className="w-3.5 h-3.5" />
                   </Button>
@@ -137,7 +137,7 @@ export function CopilotWidget() {
                 <>
                   <div
                     ref={scrollRef}
-                    className="flex-1 overflow-y-auto p-4 space-y-4 scrollbar-thin scrollbar-thumb-white/10"
+                    className="flex-1 overflow-y-auto p-4 space-y-4 scrollbar-thin scrollbar-thumb-slate-200"
                   >
                     {messages.map((msg) => (
                       <div
@@ -153,8 +153,8 @@ export function CopilotWidget() {
                           className={cn(
                             "w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0 text-xs",
                             msg.role === "assistant"
-                              ? "bg-[var(--color-aurora-500)]/10 text-[var(--color-aurora-300)] border border-[var(--color-aurora-500)]/20"
-                              : "bg-white/10 text-white border border-white/10",
+                              ? "bg-primary/10 text-primary border border-primary/20"
+                              : "bg-slate-100 text-slate-600 border border-slate-200",
                           )}
                         >
                           {msg.role === "assistant" ? (
@@ -167,8 +167,8 @@ export function CopilotWidget() {
                           className={cn(
                             "p-3 rounded-2xl text-sm",
                             msg.role === "user"
-                              ? "bg-[var(--color-primary)] text-white/90 rounded-tr-sm"
-                              : "bg-white/5 text-white/80 rounded-tl-sm border border-white/5",
+                              ? "bg-primary text-primary-foreground rounded-tr-sm"
+                              : "bg-slate-50 text-slate-700 rounded-tl-sm border border-border",
                           )}
                         >
                           {msg.content}
@@ -176,7 +176,7 @@ export function CopilotWidget() {
                       </div>
                     ))}
                     {isTyping && (
-                      <div className="flex items-center gap-2 text-xs text-white/30 ml-12">
+                      <div className="flex items-center gap-2 text-xs text-muted-foreground ml-12">
                         <Sparkles className="w-3 h-3 animate-spin" />
                         Thinking...
                       </div>
@@ -184,7 +184,7 @@ export function CopilotWidget() {
                   </div>
 
                   {/* Input Area */}
-                  <div className="p-4 border-t border-white/5 bg-white/[0.01]">
+                  <div className="p-4 border-t border-border bg-white">
                     <form
                       onSubmit={(e) => {
                         e.preventDefault();
@@ -200,12 +200,12 @@ export function CopilotWidget() {
                             ? "Ask about this page..."
                             : "Ask Copilot..."
                         }
-                        className="pr-10 bg-white/5 border-white/10 focus:border-[var(--color-aurora-500)]/50"
+                        className="pr-10 bg-slate-50 border-border focus:border-primary/50 focus:ring-1 focus:ring-primary/20"
                       />
                       <Button
                         type="submit"
                         size="icon-sm"
-                        className="absolute right-1 top-1 h-7 w-7 bg-[var(--color-aurora-500)] hover:bg-[var(--color-aurora-600)] text-white"
+                        className="absolute right-1 top-1 h-7 w-7 bg-primary hover:bg-primary/90 text-primary-foreground shadow-none"
                         disabled={!input.trim() || isTyping}
                       >
                         <Send className="w-3.5 h-3.5" />
@@ -217,7 +217,7 @@ export function CopilotWidget() {
                           <button
                             key={suggestion}
                             onClick={() => setInput(suggestion)}
-                            className="text-[10px] px-2 py-1 rounded-full bg-white/5 border border-white/5 hover:bg-white/10 text-white/60 hover:text-white transition-colors whitespace-nowrap"
+                            className="text-[10px] px-2 py-1 rounded-full bg-slate-50 border border-border hover:bg-slate-100 text-muted-foreground hover:text-foreground transition-colors whitespace-nowrap"
                           >
                             {suggestion}
                           </button>
@@ -227,7 +227,7 @@ export function CopilotWidget() {
                   </div>
                 </>
               )}
-            </GlassCard>
+            </Card>
           </motion.div>
         )}
       </AnimatePresence>
@@ -240,8 +240,8 @@ export function CopilotWidget() {
         className={cn(
           "h-14 w-14 rounded-2xl flex items-center justify-center shadow-lg transition-all duration-300",
           isOpen
-            ? "bg-white/5 text-white/50 hover:text-white" // Muted when open
-            : "bg-gradient-to-br from-[var(--color-aurora-500)] to-[#00d4ff] text-white shadow-aurora-glow", // Vibrant when closed
+            ? "bg-slate-100 text-slate-500 hover:text-foreground border border-border" // Muted when open
+            : "bg-primary text-primary-foreground", // Vibrant when closed
         )}
       >
         {isOpen ? (

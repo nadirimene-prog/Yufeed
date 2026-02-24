@@ -169,23 +169,23 @@ interface ToastItemProps {
 const toastVariants = {
   success: {
     icon: CheckCircle2,
-    className: "border-success-500/20 bg-success-500/10",
-    iconClassName: "text-success-500",
+    className: "border-risk-low/20 bg-risk-low/10",
+    iconClassName: "text-risk-low",
   },
   error: {
     icon: XCircle,
-    className: "border-critical-500/20 bg-critical-500/10",
-    iconClassName: "text-critical-500",
+    className: "border-risk-critical/20 bg-risk-critical/10",
+    iconClassName: "text-risk-critical",
   },
   warning: {
     icon: AlertCircle,
-    className: "border-warning-500/20 bg-warning-500/10",
-    iconClassName: "text-warning-500",
+    className: "border-risk-medium/20 bg-risk-medium/10",
+    iconClassName: "text-risk-medium",
   },
   info: {
     icon: Info,
-    className: "border-info-500/20 bg-info-500/10",
-    iconClassName: "text-info-500",
+    className: "border-primary/20 bg-primary/5",
+    iconClassName: "text-primary",
   },
 };
 
@@ -246,7 +246,7 @@ function ToastItem({ toast, onRemove }: ToastItemProps) {
         </div>
         <button
           onClick={() => onRemove(id)}
-          className="shrink-0 rounded-lg p-1 text-foreground-tertiary hover:bg-white/10 hover:text-foreground transition-colors"
+          className="shrink-0 rounded-lg p-1 text-foreground-tertiary transition-colors hover:bg-muted hover:text-foreground"
           aria-label="Close notification"
         >
           <X className="h-4 w-4" />

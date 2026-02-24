@@ -187,10 +187,7 @@ function TableSkeleton({
       {Array.from({ length: rows }).map((_, rowIndex) => (
         <tr
           key={rowIndex}
-          className={cn(
-            "animate-pulse",
-            rowIndex % 2 === 1 && "bg-bg-elevated/50",
-          )}
+          className={cn("animate-pulse", rowIndex % 2 === 1 && "bg-muted/50")}
         >
           {Array.from({ length: columns }).map((_, colIndex) => (
             <td
@@ -199,7 +196,7 @@ function TableSkeleton({
             >
               <div
                 className={cn(
-                  "h-4 bg-bg-floating rounded",
+                  "h-4 rounded bg-muted",
                   colIndex === 0 && "w-3/4",
                   colIndex === columns - 1 && "w-1/2",
                 )}
@@ -229,7 +226,7 @@ function EmptyState({
     <tr>
       <td colSpan={100} className="px-4 py-16 text-center">
         <div className="mx-auto max-w-sm">
-          <div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-full bg-bg-floating">
+          <div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-full bg-muted">
             <Search className="h-6 w-6 text-foreground-tertiary" />
           </div>
           <h3 className="text-lg font-medium text-foreground">{title}</h3>
@@ -277,7 +274,7 @@ function Pagination({
         <select
           value={pageSize}
           onChange={(e) => onPageSizeChange(Number(e.target.value))}
-          className="rounded border border-border-default bg-bg-elevated px-2 py-1 text-sm focus:border-primary focus:outline-none"
+          className="rounded border border-border-subtle bg-card px-2 py-1 text-sm focus:border-primary focus:outline-none"
         >
           {pageSizeOptions.map((size) => (
             <option key={size} value={size}>
@@ -339,7 +336,7 @@ function Pagination({
                   "h-8 w-8 rounded-md text-sm font-medium transition-colors",
                   currentPage === pageNum
                     ? "bg-primary text-white"
-                    : "text-foreground-secondary hover:bg-bg-floating hover:text-foreground",
+                    : "text-foreground-secondary hover:bg-muted hover:text-foreground",
                 )}
                 aria-current={currentPage === pageNum ? "page" : undefined}
               >
@@ -494,7 +491,7 @@ export function DataTable<T>({
   return (
     <div
       className={cn(
-        "bg-bg-elevated rounded-xl border border-border-subtle overflow-hidden",
+        "rounded-xl border border-border-subtle bg-card overflow-hidden shadow-sm",
         className,
       )}
     >
@@ -539,7 +536,7 @@ export function DataTable<T>({
       <div className="overflow-x-auto">
         <table className="w-full">
           <caption className="sr-only">{captionText}</caption>
-          <thead className="bg-bg-overlay">
+          <thead className="bg-muted/50">
             <tr>
               {selectable && (
                 <th className="px-4 py-3 w-10">
@@ -606,9 +603,9 @@ export function DataTable<T>({
                     role={onRowClick ? "button" : undefined}
                     className={cn(
                       "transition-colors",
-                      striped && index % 2 === 1 && "bg-bg-overlay/50",
+                      striped && index % 2 === 1 && "bg-muted/50",
                       isSelected && "bg-primary/5",
-                      onRowClick && "cursor-pointer hover:bg-bg-floating",
+                      onRowClick && "cursor-pointer hover:bg-muted/70",
                       rowClassName?.(row),
                     )}
                   >

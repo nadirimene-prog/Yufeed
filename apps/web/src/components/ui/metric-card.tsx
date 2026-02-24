@@ -11,7 +11,7 @@ import { staggerItem, transitions } from "@/lib/motion";
 /**
  * ═══════════════════════════════════════════════════════════════════
  * METRIC CARD - Sentinel Design System
- * Premium dashboard metric display with glass effects
+ * Premium dashboard metric display with clean surfaces
  * ═══════════════════════════════════════════════════════════════════
  */
 
@@ -19,15 +19,14 @@ export type MetricCardSize = "sm" | "md" | "lg";
 export type MetricCardVariant = "default" | "hero" | "compact";
 export type TrendDirection = "up" | "down" | "neutral";
 export type MetricColor =
-  | "aurora"
+  | "blue"
   | "cyan"
   | "green"
   | "yellow"
   | "orange"
   | "red"
   | "purple"
-  | "gray"
-  | "blue";
+  | "gray";
 export type StatusType = "live" | "stale" | "error";
 
 interface MetricCardProps {
@@ -51,7 +50,7 @@ interface MetricCardProps {
   size?: MetricCardSize;
   /** Card variant */
   variant?: MetricCardVariant;
-  /** Enable glow effect based on importance */
+  /** @deprecated Glow removed in light-mode migration */
   glow?: boolean;
   /** Progress value (0-100) for optional progress bar */
   progress?: number;
@@ -69,63 +68,48 @@ const colorConfig: Record<
   MetricColor,
   {
     icon: string;
-    glow: string;
     progress: string;
     sparkline: string;
   }
 > = {
-  aurora: {
-    icon: "text-primary bg-primary/10",
-    glow: "shadow-glow-aurora",
-    progress: "from-primary to-cyan-500",
-    sparkline: "aurora",
-  },
   blue: {
-    icon: "text-info-500 bg-info-500/10",
-    glow: "shadow-glow-cyan",
-    progress: "from-info-500 to-cyan-400",
-    sparkline: "cyan",
+    icon: "bg-primary/10 text-primary",
+    progress: "from-primary to-accent-secondary",
+    sparkline: "blue",
   },
   cyan: {
-    icon: "text-cyan-500 bg-cyan-500/10",
-    glow: "shadow-glow-cyan",
-    progress: "from-cyan-500 to-primary",
+    icon: "bg-accent-secondary/10 text-accent-secondary",
+    progress: "from-accent-secondary to-primary",
     sparkline: "cyan",
   },
   green: {
-    icon: "text-risk-low bg-risk-low/10",
-    glow: "shadow-[0_0_20px_rgba(6,214,160,0.3)]",
-    progress: "from-risk-low to-cyan-500",
+    icon: "bg-risk-low/10 text-risk-low",
+    progress: "from-risk-low to-accent-secondary",
     sparkline: "green",
   },
   yellow: {
-    icon: "text-risk-medium bg-risk-medium/10",
-    glow: "shadow-[0_0_20px_rgba(255,209,102,0.3)]",
+    icon: "bg-risk-medium/10 text-risk-medium",
     progress: "from-risk-medium to-risk-high",
     sparkline: "yellow",
   },
   orange: {
-    icon: "text-risk-high bg-risk-high/10",
-    glow: "shadow-[0_0_20px_rgba(255,140,66,0.3)]",
+    icon: "bg-risk-high/10 text-risk-high",
     progress: "from-risk-high to-risk-medium",
     sparkline: "orange",
   },
   red: {
-    icon: "text-risk-critical bg-risk-critical/10",
-    glow: "shadow-glow-critical",
+    icon: "bg-risk-critical/10 text-risk-critical",
     progress: "from-risk-critical to-risk-high",
     sparkline: "red",
   },
   purple: {
-    icon: "text-primary bg-primary/10",
-    glow: "shadow-glow-aurora",
-    progress: "from-primary to-secondary",
-    sparkline: "aurora",
+    icon: "bg-primary/10 text-primary",
+    progress: "from-primary to-accent-secondary",
+    sparkline: "blue",
   },
   gray: {
-    icon: "text-foreground-tertiary bg-foreground-tertiary/10",
-    glow: "shadow-[0_0_15px_rgba(148,163,184,0.2)]",
-    progress: "from-foreground-tertiary to-foreground-secondary",
+    icon: "bg-muted text-foreground-tertiary",
+    progress: "from-foreground-disabled to-foreground-tertiary",
     sparkline: "gray",
   },
 };
@@ -166,10 +150,10 @@ export function MetricCard({
   icon,
   trend,
   sparklineData,
-  color = "aurora",
+  color = "blue",
   size = "md",
   variant = "default",
-  glow = false,
+  glow: _glow = false,
   progress,
   animate = true,
   status,
@@ -177,7 +161,7 @@ export function MetricCard({
   loading = false,
 }: MetricCardProps) {
   const sizes = sizeConfig[size];
-  const colors = colorConfig[color] ?? colorConfig.aurora;
+  const colors = colorConfig[color] ?? colorConfig.blue;
 
   if (loading) {
     return <MetricCardSkeleton size={size} className={className} />;
@@ -192,10 +176,10 @@ export function MetricCard({
 
   const trendColor =
     trend?.direction === "up"
-      ? "text-trend-up"
+      ? "text-risk-low"
       : trend?.direction === "down"
-        ? "text-trend-down"
-        : "text-trend-neutral";
+        ? "text-risk-critical"
+        : "text-muted-foreground";
   const trendAriaLabel =
     trend?.direction === "up"
       ? "trending up"
@@ -242,22 +226,15 @@ export function MetricCard({
       whileTap="tap"
       className={cn(
         "relative overflow-hidden rounded-xl",
-        "glass-interactive",
-        glow && colors.glow,
+        "border border-border-subtle bg-card shadow-sm",
         sizes.container,
         variant === "hero" && "col-span-2 row-span-2",
         variant === "compact" && "flex items-center gap-4",
         className,
       )}
     >
-      {/* Subtle top gradient highlight */}
-      <div
-        className="absolute inset-x-0 top-0 h-px"
-        style={{
-          background:
-            "linear-gradient(90deg, transparent, rgba(255,255,255,0.1), transparent)",
-        }}
-      />
+      {/* Subtle top border accent */}
+      <div className="absolute inset-x-0 top-0 h-px bg-border-subtle" />
 
       {/* Status indicator */}
       {status && (
@@ -311,7 +288,7 @@ export function MetricCard({
           {/* Progress bar */}
           {typeof progress === "number" && (
             <div
-              className="mt-3 h-1.5 w-full overflow-hidden rounded-full bg-white/5"
+              className="mt-3 h-1.5 w-full overflow-hidden rounded-full bg-muted"
               role="progressbar"
               aria-valuenow={Math.min(100, Math.max(0, progress))}
               aria-valuemin={0}
@@ -382,20 +359,18 @@ function MetricCardSkeleton({
   return (
     <div
       className={cn(
-        "relative overflow-hidden rounded-xl glass-surface",
+        "relative overflow-hidden rounded-xl border border-border-subtle bg-card",
         sizes.container,
         className,
       )}
     >
       <div className="flex items-start justify-between">
         <div className="flex-1 space-y-3">
-          <div className="h-3 w-20 rounded bg-white/5 animate-shimmer" />
-          <div className="h-8 w-24 rounded bg-white/5 animate-shimmer" />
-          <div className="h-3 w-16 rounded bg-white/5 animate-shimmer" />
+          <div className="h-3 w-20 rounded bg-muted animate-pulse" />
+          <div className="h-8 w-24 rounded bg-muted animate-pulse" />
+          <div className="h-3 w-16 rounded bg-muted animate-pulse" />
         </div>
-        <div
-          className={cn("rounded-lg bg-white/5 animate-shimmer", sizes.icon)}
-        />
+        <div className={cn("rounded-lg bg-muted animate-pulse", sizes.icon)} />
       </div>
     </div>
   );

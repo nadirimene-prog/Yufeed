@@ -107,7 +107,7 @@ export function CreateCaseModal({
             <div className="flex justify-end gap-2 pt-1">
               <Button
                 type="button"
-                variant="glass"
+                variant="outline"
                 onClick={() => onOpenChange(false)}
               >
                 Cancel

@@ -125,8 +125,8 @@ export default function PolicyForm({
     <form onSubmit={handleSubmit} className={cn("space-y-4", className)}>
       {/* Name */}
       <div className="space-y-1.5">
-        <label className="text-sm font-medium text-white/70">
-          Policy Name <span className="text-red-400">*</span>
+        <label className="text-sm font-medium text-slate-600">
+          Policy Name <span className="text-red-500">*</span>
         </label>
         <input
           type="text"
@@ -135,30 +135,30 @@ export default function PolicyForm({
           onChange={handleChange}
           required
           placeholder="e.g., AML Policy"
-          className="w-full px-3 py-2 rounded-lg bg-white/5 border border-white/10 text-white placeholder-white/40 focus:outline-none focus:ring-2 focus:ring-[#6d5acd]/50"
+          className="w-full px-3 py-2 rounded-lg bg-white border border-[#E2E8F0] text-slate-900 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-[#0052FF]/50"
         />
       </div>
 
       {/* Version and Language */}
       <div className="grid grid-cols-2 gap-4">
         <div className="space-y-1.5">
-          <label className="text-sm font-medium text-white/70">Version</label>
+          <label className="text-sm font-medium text-slate-600">Version</label>
           <input
             type="text"
             name="version"
             value={formData.version}
             onChange={handleChange}
             placeholder="e.g., 1.0"
-            className="w-full px-3 py-2 rounded-lg bg-white/5 border border-white/10 text-white placeholder-white/40 focus:outline-none focus:ring-2 focus:ring-[#6d5acd]/50"
+            className="w-full px-3 py-2 rounded-lg bg-white border border-[#E2E8F0] text-slate-900 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-[#0052FF]/50"
           />
         </div>
         <div className="space-y-1.5">
-          <label className="text-sm font-medium text-white/70">Language</label>
+          <label className="text-sm font-medium text-slate-600">Language</label>
           <select
             name="language"
             value={formData.language}
             onChange={handleChange}
-            className="w-full px-3 py-2 rounded-lg bg-white/5 border border-white/10 text-white focus:outline-none focus:ring-2 focus:ring-[#6d5acd]/50"
+            className="w-full px-3 py-2 rounded-lg bg-white border border-[#E2E8F0] text-slate-900 focus:outline-none focus:ring-2 focus:ring-[#0052FF]/50"
           >
             {languageOptions.map((opt) => (
               <option key={opt.value} value={opt.value}>
@@ -172,23 +172,23 @@ export default function PolicyForm({
       {/* Owner and Status */}
       <div className="grid grid-cols-2 gap-4">
         <div className="space-y-1.5">
-          <label className="text-sm font-medium text-white/70">Owner</label>
+          <label className="text-sm font-medium text-slate-600">Owner</label>
           <input
             type="text"
             name="owner"
             value={formData.owner}
             onChange={handleChange}
             placeholder="e.g., compliance@company.com"
-            className="w-full px-3 py-2 rounded-lg bg-white/5 border border-white/10 text-white placeholder-white/40 focus:outline-none focus:ring-2 focus:ring-[#6d5acd]/50"
+            className="w-full px-3 py-2 rounded-lg bg-white border border-[#E2E8F0] text-slate-900 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-[#0052FF]/50"
           />
         </div>
         <div className="space-y-1.5">
-          <label className="text-sm font-medium text-white/70">Status</label>
+          <label className="text-sm font-medium text-slate-600">Status</label>
           <select
             name="status"
             value={formData.status}
             onChange={handleChange}
-            className="w-full px-3 py-2 rounded-lg bg-white/5 border border-white/10 text-white focus:outline-none focus:ring-2 focus:ring-[#6d5acd]/50"
+            className="w-full px-3 py-2 rounded-lg bg-white border border-[#E2E8F0] text-slate-900 focus:outline-none focus:ring-2 focus:ring-[#0052FF]/50"
           >
             {statusOptions.map((opt) => (
               <option key={opt.value} value={opt.value}>
@@ -201,7 +201,7 @@ export default function PolicyForm({
 
       {/* Effective Date */}
       <div className="space-y-1.5">
-        <label className="text-sm font-medium text-white/70">
+        <label className="text-sm font-medium text-slate-600">
           Effective Date
         </label>
         <input
@@ -209,13 +209,13 @@ export default function PolicyForm({
           name="effective_date"
           value={formData.effective_date}
           onChange={handleChange}
-          className="w-full px-3 py-2 rounded-lg bg-white/5 border border-white/10 text-white focus:outline-none focus:ring-2 focus:ring-[#6d5acd]/50"
+          className="w-full px-3 py-2 rounded-lg bg-white border border-[#E2E8F0] text-slate-900 focus:outline-none focus:ring-2 focus:ring-[#0052FF]/50"
         />
       </div>
 
       {/* External URL */}
       <div className="space-y-1.5">
-        <label className="text-sm font-medium text-white/70">
+        <label className="text-sm font-medium text-slate-600">
           External Document URL (Notion, etc.)
         </label>
         <input
@@ -224,13 +224,13 @@ export default function PolicyForm({
           value={formData.source_url}
           onChange={handleChange}
           placeholder="https://notion.so/..."
-          className="w-full px-3 py-2 rounded-lg bg-white/5 border border-white/10 text-white placeholder-white/40 focus:outline-none focus:ring-2 focus:ring-[#6d5acd]/50"
+          className="w-full px-3 py-2 rounded-lg bg-white border border-[#E2E8F0] text-slate-900 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-[#0052FF]/50"
         />
       </div>
 
       {/* Content */}
       <div className="space-y-1.5">
-        <label className="text-sm font-medium text-white/70">
+        <label className="text-sm font-medium text-slate-600">
           Content / Notes
         </label>
         <textarea
@@ -239,13 +239,13 @@ export default function PolicyForm({
           onChange={handleChange}
           placeholder="Policy content or summary..."
           rows={4}
-          className="w-full px-3 py-2 rounded-lg bg-white/5 border border-white/10 text-white placeholder-white/40 focus:outline-none focus:ring-2 focus:ring-[#6d5acd]/50 resize-none"
+          className="w-full px-3 py-2 rounded-lg bg-white border border-[#E2E8F0] text-slate-900 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-[#0052FF]/50 resize-none"
         />
       </div>
 
       {/* Error */}
       {error && (
-        <div className="p-3 rounded-lg bg-red-500/10 border border-red-500/30 text-red-400 text-sm">
+        <div className="p-3 rounded-lg bg-red-50 border border-red-200 text-[#DC2626] text-sm">
           {error}
         </div>
       )}
@@ -258,7 +258,7 @@ export default function PolicyForm({
             variant="outline"
             onClick={onCancel}
             disabled={isSubmitting}
-            className="border-white/10 text-white/70 hover:bg-white/5"
+            className="border-[#E2E8F0] text-slate-600 hover:bg-slate-50"
           >
             <X className="h-4 w-4 mr-2" />
             Cancel

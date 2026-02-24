@@ -520,8 +520,8 @@ export default function SARPreparePage() {
     <Suspense
       fallback={
         <div className="flex items-center justify-center min-h-screen">
-          <div className="animate-pulse text-white/50">
-            Loading SAR preparation...
+          <div className="animate-pulse text-muted-foreground">
+            Processing context and compiling initial narrative map...
           </div>
         </div>
       }

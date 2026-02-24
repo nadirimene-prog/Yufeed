@@ -15,12 +15,7 @@ import { useMonitoringAlerts } from "@/hooks/queries/useMonitoringData";
 import { useWorkspaceUsers } from "@/hooks/queries/useSpecializedData";
 import { LoadingBoundary } from "@/components/shared/LoadingBoundary";
 import EmptyState from "@/components/ui/empty-state";
-import {
-  GlassCard,
-  GlassCardContent,
-  GlassCardHeader,
-  GlassCardTitle,
-} from "@/components/ui/glass-card";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { MetricCard } from "@/components/ui/metric-card";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button-horizon";
@@ -297,9 +292,11 @@ export default function TransactionAlertsPage() {
         variants={staggerItem}
         className="grid gap-4 lg:grid-cols-[420px_1fr]"
       >
-        <GlassCard className="h-[calc(100vh-16rem)] overflow-hidden">
-          <GlassCardHeader className="space-y-3">
-            <GlassCardTitle className="text-base">Alert Queue</GlassCardTitle>
+        <Card className="h-[calc(100vh-16rem)] overflow-hidden border-border shadow-sm bg-white flex flex-col">
+          <CardHeader className="space-y-3 pb-4">
+            <CardTitle className="text-base text-foreground font-semibold">
+              Alert Queue
+            </CardTitle>
             <div className="grid grid-cols-1 gap-2">
               <Input
                 placeholder="Search by alert, entity, rule..."
@@ -381,7 +378,7 @@ export default function TransactionAlertsPage() {
             <div className="flex flex-wrap items-center gap-2">
               <Button
                 size="sm"
-                variant="glass"
+                variant="outline"
                 onClick={handleBulkTriage}
                 disabled={selectedAlerts.size === 0}
               >
@@ -417,9 +414,9 @@ export default function TransactionAlertsPage() {
                 loading={alertsQuery.isLoading}
               />
             </div>
-          </GlassCardHeader>
+          </CardHeader>
 
-          <GlassCardContent className="h-[calc(100%-13rem)] overflow-auto">
+          <CardContent className="h-[calc(100%-13rem)] overflow-auto pt-0">
             <LoadingBoundary
               loading={alertsQuery.isLoading}
               error={alertsQuery.error as Error | undefined}
@@ -509,14 +506,16 @@ export default function TransactionAlertsPage() {
                 </div>
               )}
             </LoadingBoundary>
-          </GlassCardContent>
-        </GlassCard>
+          </CardContent>
+        </Card>
 
-        <GlassCard className="h-[calc(100vh-16rem)] overflow-auto">
-          <GlassCardHeader>
-            <GlassCardTitle className="text-base">Alert Detail</GlassCardTitle>
-          </GlassCardHeader>
-          <GlassCardContent>
+        <Card className="h-[calc(100vh-16rem)] overflow-auto border-border shadow-sm bg-white">
+          <CardHeader>
+            <CardTitle className="text-base text-foreground font-semibold">
+              Alert Detail
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
             {!selectedAlert ? (
               <EmptyState
                 title="No alert selected"
@@ -646,13 +645,13 @@ export default function TransactionAlertsPage() {
                     Mark In Review
                   </Button>
                   <Link href={`/transaction-alerts/${selectedAlert.alert_id}`}>
-                    <Button variant="glass">Open Full Page</Button>
+                    <Button variant="outline">Open Full Page</Button>
                   </Link>
                 </div>
               </div>
             )}
-          </GlassCardContent>
-        </GlassCard>
+          </CardContent>
+        </Card>
       </motion.div>
 
       <CreateCaseModal

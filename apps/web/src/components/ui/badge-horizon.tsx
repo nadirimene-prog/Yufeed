@@ -20,7 +20,7 @@ const badgeVariants = cva(
       /* Color variants */
       variant: {
         default:
-          "bg-bg-overlay text-foreground-secondary border border-border-subtle",
+          "bg-muted text-foreground-secondary border border-border-subtle",
         primary: "bg-primary/10 text-primary border border-primary/20",
         secondary: "bg-secondary/10 text-secondary border border-secondary/20",
         success:
@@ -49,18 +49,38 @@ const badgeVariants = cva(
       {
         variant: "default",
         mode: "solid",
-        class: "bg-bg-floating text-foreground",
+        class: "bg-secondary text-foreground",
       },
-      { variant: "primary", mode: "solid", class: "bg-primary text-white" },
-      { variant: "secondary", mode: "solid", class: "bg-secondary text-white" },
-      { variant: "success", mode: "solid", class: "bg-success-500 text-white" },
-      { variant: "warning", mode: "solid", class: "bg-warning-500 text-white" },
+      {
+        variant: "primary",
+        mode: "solid",
+        class: "bg-primary text-primary-foreground",
+      },
+      {
+        variant: "secondary",
+        mode: "solid",
+        class: "bg-secondary text-foreground",
+      },
+      {
+        variant: "success",
+        mode: "solid",
+        class: "bg-success-500 text-primary-foreground",
+      },
+      {
+        variant: "warning",
+        mode: "solid",
+        class: "bg-warning-500 text-primary-foreground",
+      },
       {
         variant: "critical",
         mode: "solid",
-        class: "bg-critical-500 text-white",
+        class: "bg-critical-500 text-primary-foreground",
       },
-      { variant: "info", mode: "solid", class: "bg-info-500 text-white" },
+      {
+        variant: "info",
+        mode: "solid",
+        class: "bg-info-500 text-primary-foreground",
+      },
     ],
     defaultVariants: {
       variant: "default",
@@ -286,9 +306,9 @@ const CountBadge = React.forwardRef<HTMLSpanElement, CountBadgeProps>(
     const displayCount = count > max ? `${max}+` : count;
 
     const variantClasses = {
-      default: "bg-bg-floating text-foreground-secondary",
-      primary: "bg-primary text-white",
-      critical: "bg-critical-500 text-white",
+      default: "bg-secondary text-foreground-secondary",
+      primary: "bg-primary text-primary-foreground",
+      critical: "bg-critical-500 text-primary-foreground",
     }[variant];
 
     return (

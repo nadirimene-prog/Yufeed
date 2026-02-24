@@ -112,9 +112,8 @@ export function FindingCard({
       whileHover={{ y: -2, scale: 1.01 }}
       className={cn(
         "group relative flex flex-col gap-3 rounded-2xl border p-4 transition-all duration-300",
-        "bg-void-925/40 backdrop-blur-md border-white/10 hover:border-white/20 hover:bg-void-900/60",
-        finding.severity === "critical" &&
-          "hover:shadow-[var(--surface-glow-error)]",
+        "bg-white border-border shadow-sm hover:border-primary/20",
+        finding.severity === "critical" && "hover:shadow-sm",
       )}
       onClick={onClick}
     >
@@ -152,26 +151,26 @@ export function FindingCard({
                 {finding.finding_type}
               </span>
             </div>
-            <h3 className="text-sm font-semibold text-white/90 line-clamp-1 group-hover:text-white transition-colors">
+            <h3 className="text-sm font-semibold text-foreground line-clamp-1 transition-colors">
               {finding.title}
             </h3>
           </div>
         </div>
-        <div className="text-[10px] text-white/30 font-mono flex items-center gap-1">
+        <div className="text-[10px] text-muted-foreground font-mono flex items-center gap-1">
           <Clock size={10} />
           {timeAgo(finding.created_at)}
         </div>
       </div>
 
-      <p className="text-xs text-white/50 line-clamp-2 leading-relaxed pl-11">
+      <p className="text-xs text-muted-foreground line-clamp-2 leading-relaxed pl-11">
         {finding.summary}
       </p>
 
       <div className="mt-2 flex items-center justify-between pl-11">
         <div className="flex items-center gap-4">
           <div className="flex items-center gap-1.5">
-            <User size={12} className="text-white/20" />
-            <span className="text-[11px] text-white/40">
+            <User size={12} className="text-muted-foreground" />
+            <span className="text-[11px] text-muted-foreground">
               {finding.assigned_to || "Unassigned"}
             </span>
           </div>
@@ -181,7 +180,7 @@ export function FindingCard({
         <div className="flex items-center gap-2 opacity-0 group-hover:opacity-100 transition-opacity translate-x-2 group-hover:translate-x-0 transition-transform">
           {finding.status === "open" && (
             <Button
-              variant="glass"
+              variant="outline"
               size="sm"
               className="h-7 px-2 text-[10px] bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-400 border-emerald-500/20"
               onClick={(e) => {
@@ -195,7 +194,7 @@ export function FindingCard({
           )}
           {finding.status !== "escalated" && (
             <Button
-              variant="glass"
+              variant="outline"
               size="sm"
               className="h-7 px-2 text-[10px] bg-aurora-500/10 hover:bg-aurora-500/20 text-aurora-400 border-aurora-500/20"
               onClick={(e) => {

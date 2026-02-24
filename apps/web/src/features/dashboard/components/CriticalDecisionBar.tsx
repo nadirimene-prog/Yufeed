@@ -139,7 +139,7 @@ export function CriticalDecisionBar({
 
   return (
     <section
-      className="rounded-2xl border border-white/10 bg-white/[0.03] p-3"
+      className="rounded-2xl border border-border bg-white p-3 shadow-sm"
       aria-live="polite"
     >
       <div className="grid grid-cols-3 gap-2 xl:grid-cols-6">
@@ -151,10 +151,10 @@ export function CriticalDecisionBar({
             return (
               <div
                 key={tile.id}
-                className="rounded-xl border border-white/10 bg-white/[0.02] p-3"
+                className="rounded-xl border border-border bg-slate-50 p-3"
               >
-                <div className="mb-2 h-3 w-16 animate-shimmer rounded bg-white/10" />
-                <div className="h-6 w-12 animate-shimmer rounded bg-white/10" />
+                <div className="mb-2 h-3 w-16 animate-pulse rounded bg-slate-200" />
+                <div className="h-6 w-12 animate-pulse rounded bg-slate-200" />
               </div>
             );
           }

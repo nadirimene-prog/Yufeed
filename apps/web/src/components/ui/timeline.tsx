@@ -28,33 +28,33 @@ interface TimelineProps {
 
 const typeConfig = {
   success: {
-    color: "text-green-600 dark:text-green-400",
-    bgColor: "bg-green-100 dark:bg-green-900/20",
-    borderColor: "border-green-200 dark:border-green-800",
+    color: "text-risk-low",
+    bgColor: "bg-risk-low-soft",
+    borderColor: "border-risk-low/20",
     icon: CheckCircle,
   },
   warning: {
-    color: "text-yellow-600 dark:text-yellow-400",
-    bgColor: "bg-yellow-100 dark:bg-yellow-900/20",
-    borderColor: "border-yellow-200 dark:border-yellow-800",
+    color: "text-risk-medium",
+    bgColor: "bg-risk-medium-soft",
+    borderColor: "border-risk-medium/20",
     icon: AlertCircle,
   },
   error: {
-    color: "text-red-600 dark:text-red-400",
-    bgColor: "bg-red-100 dark:bg-red-900/20",
-    borderColor: "border-red-200 dark:border-red-800",
+    color: "text-risk-critical",
+    bgColor: "bg-risk-critical-soft",
+    borderColor: "border-risk-critical/20",
     icon: AlertCircle,
   },
   info: {
-    color: "text-blue-600 dark:text-blue-400",
-    bgColor: "bg-blue-100 dark:bg-blue-900/20",
-    borderColor: "border-blue-200 dark:border-blue-800",
+    color: "text-primary",
+    bgColor: "bg-primary/10",
+    borderColor: "border-primary/20",
     icon: Info,
   },
   neutral: {
-    color: "text-gray-600 dark:text-gray-400",
-    bgColor: "bg-gray-100 dark:bg-gray-700",
-    borderColor: "border-gray-200 dark:border-gray-600",
+    color: "text-foreground-secondary",
+    bgColor: "bg-muted",
+    borderColor: "border-border-subtle",
     icon: Circle,
   },
 };
@@ -118,7 +118,7 @@ export function Timeline({
               {!isLast && (
                 <div
                   className={cn(
-                    "w-0.5 flex-1 bg-gray-200 dark:bg-slate-700",
+                    "w-0.5 flex-1 bg-border-subtle",
                     compact ? "my-1" : "my-2",
                   )}
                 />
@@ -130,7 +130,7 @@ export function Timeline({
               <div className="flex items-start justify-between gap-4 mb-1">
                 <h4
                   className={cn(
-                    "font-semibold text-gray-900 dark:text-white",
+                    "font-semibold text-foreground",
                     compact ? "text-sm" : "text-base",
                   )}
                 >
@@ -138,7 +138,7 @@ export function Timeline({
                 </h4>
                 <time
                   className={cn(
-                    "text-gray-500 dark:text-gray-400 flex items-center gap-1 whitespace-nowrap",
+                    "flex items-center gap-1 whitespace-nowrap text-foreground-tertiary",
                     compact ? "text-xs" : "text-sm",
                   )}
                 >
@@ -150,7 +150,7 @@ export function Timeline({
               {event.description && (
                 <p
                   className={cn(
-                    "text-gray-600 dark:text-gray-400",
+                    "text-foreground-secondary",
                     compact ? "text-xs" : "text-sm",
                   )}
                 >
@@ -159,7 +159,7 @@ export function Timeline({
               )}
 
               {event.actor && (
-                <p className="text-xs text-gray-500 dark:text-gray-500 mt-1">
+                <p className="mt-1 text-xs text-foreground-tertiary">
                   by {event.actor}
                 </p>
               )}
@@ -169,7 +169,7 @@ export function Timeline({
                   {Object.entries(event.metadata).map(([key, value]) => (
                     <span
                       key={key}
-                      className="inline-flex items-center px-2 py-1 rounded-md bg-gray-100 dark:bg-slate-700 text-xs text-gray-600 dark:text-gray-400"
+                      className="inline-flex items-center rounded-md bg-muted px-2 py-1 text-xs text-foreground-secondary"
                     >
                       <span className="font-medium mr-1">{key}:</span>
                       {String(value)}

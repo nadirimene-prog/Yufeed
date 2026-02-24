@@ -116,7 +116,7 @@ export default function AppShell({ children }: AppShellProps) {
 
   if (isChromeless) {
     return (
-      <div className="min-h-screen bg-bg-base">
+      <div className="min-h-screen bg-background">
         <PageTransition>{children}</PageTransition>
       </div>
     );
@@ -124,8 +124,8 @@ export default function AppShell({ children }: AppShellProps) {
 
   if (!authChecked) {
     return (
-      <div className="flex min-h-screen items-center justify-center bg-bg-base">
-        <div className="text-sm text-foreground-secondary">
+      <div className="flex min-h-screen items-center justify-center bg-background">
+        <div className="text-sm text-muted-foreground animate-pulse">
           Checking session...
         </div>
       </div>
@@ -134,7 +134,7 @@ export default function AppShell({ children }: AppShellProps) {
 
   return (
     <CopilotProvider>
-      <div className="min-h-screen bg-bg-base">
+      <div className="min-h-screen bg-background">
         <SkipLink />
 
         {/* Sidebar - Desktop */}

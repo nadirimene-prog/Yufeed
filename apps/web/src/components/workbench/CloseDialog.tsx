@@ -63,23 +63,21 @@ export function CloseDialog({
             initial="initial"
             animate="animate"
             exit="exit"
-            className="relative w-full max-w-md bg-white dark:bg-gray-900 rounded-2xl shadow-2xl border border-gray-200 dark:border-gray-700 p-6"
+            className="relative w-full max-w-md bg-white rounded-2xl shadow-2xl border border-slate-200 p-6"
           >
             <div className="flex items-center justify-between mb-4">
-              <h2 className="text-lg font-semibold text-gray-900 dark:text-white">
-                {title}
-              </h2>
+              <h2 className="text-lg font-semibold text-slate-900">{title}</h2>
               <button
                 onClick={handleClose}
-                className="p-1.5 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800 transition"
+                className="p-1.5 rounded-lg hover:bg-slate-100 transition"
               >
-                <X className="h-4 w-4 text-gray-400" />
+                <X className="h-4 w-4 text-slate-400" />
               </button>
             </div>
 
             <div className="space-y-4">
               <div>
-                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1.5">
+                <label className="block text-sm font-medium text-slate-700 mb-1.5">
                   Reason
                 </label>
                 <div className="flex flex-wrap gap-2">
@@ -90,8 +88,8 @@ export function CloseDialog({
                       className={cn(
                         "text-xs px-3 py-1.5 rounded-full border transition",
                         reason === r.value
-                          ? "border-blue-500 bg-blue-50 text-blue-700 dark:border-blue-400 dark:bg-blue-950/40 dark:text-blue-300"
-                          : "border-gray-200 dark:border-gray-700 text-gray-600 dark:text-gray-400 hover:border-gray-300 dark:hover:border-gray-600",
+                          ? "border-[#0052FF] bg-blue-50 text-[#0052FF]"
+                          : "border-slate-200 text-slate-600 hover:border-slate-300",
                       )}
                     >
                       {r.label}
@@ -101,14 +99,14 @@ export function CloseDialog({
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1.5">
+                <label className="block text-sm font-medium text-slate-700 mb-1.5">
                   Comment
                 </label>
                 <textarea
                   value={comment}
                   onChange={(e) => setComment(e.target.value)}
                   rows={3}
-                  className="w-full rounded-xl border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800 px-3 py-2 text-sm text-gray-900 dark:text-white placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500/30 focus:border-blue-500"
+                  className="w-full rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-sm text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-[#0052FF]/30 focus:border-[#0052FF]"
                   placeholder="Optional comment..."
                 />
               </div>
@@ -117,7 +115,7 @@ export function CloseDialog({
             <div className="flex gap-2 mt-6">
               <button
                 onClick={handleClose}
-                className="flex-1 text-sm px-4 py-2 rounded-xl border border-gray-200 dark:border-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800 transition"
+                className="flex-1 text-sm px-4 py-2 rounded-xl border border-slate-200 text-slate-700 hover:bg-slate-50 transition"
               >
                 Cancel
               </button>
@@ -127,8 +125,8 @@ export function CloseDialog({
                 className={cn(
                   "flex-1 text-sm px-4 py-2 rounded-xl text-white transition",
                   reason
-                    ? "bg-blue-600 hover:bg-blue-700"
-                    : "bg-gray-300 dark:bg-gray-700 cursor-not-allowed",
+                    ? "bg-[#0052FF] hover:bg-[#0052FF]/90"
+                    : "bg-slate-300 cursor-not-allowed",
                 )}
               >
                 Confirm

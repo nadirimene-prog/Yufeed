@@ -57,7 +57,7 @@ function Skeleton({
   return (
     <div
       className={cn(
-        "bg-bg-floating",
+        "bg-muted",
         animate && "animate-pulse",
         variantClasses,
         className,
@@ -242,7 +242,7 @@ function SkeletonTable({
     >
       <table className="w-full">
         {hasHeader && (
-          <thead className="bg-bg-overlay border-b border-border-subtle">
+          <thead className="bg-muted/50 border-b border-border-subtle">
             <tr>
               {Array.from({ length: columns }).map((_, index) => (
                 <th key={index} className="px-4 py-3">
@@ -260,7 +260,7 @@ function SkeletonTable({
           {Array.from({ length: rows }).map((_, rowIndex) => (
             <tr
               key={rowIndex}
-              className={rowIndex % 2 === 1 ? "bg-bg-overlay/50" : ""}
+              className={rowIndex % 2 === 1 ? "bg-muted/50" : ""}
             >
               {Array.from({ length: columns }).map((_, colIndex) => (
                 <td key={colIndex} className="px-4 py-4">
