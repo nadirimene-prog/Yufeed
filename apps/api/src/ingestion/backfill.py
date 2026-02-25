@@ -20,7 +20,7 @@ from src.ingestion.content_extractor import ContentExtractor
 from src.ingestion.title import derive_title_from_text, is_placeholder_title
 from src.search import index_document
 from src.ai.analyzer import analyze_document
-from src.ai.cost_tracker import log_usage_from_analysis
+from src.ai.usage_instrumentation import UsageLogContext, log_usage_events
 from src.ai.rag_indexer import RAGIndexer
 from src.services.obligation_service import seed_obligations_for_doc
 from src.compliance.scope import infer_scope_tags
@@ -203,8 +203,14 @@ class ContentBackfillService:
                 "article_breakdown": article_breakdown,
             }
         )
-
-        log_usage_from_analysis(self.db, analysis_results, document_id=doc.id)
+        log_usage_events(
+            analysis_results.get("usage_events") or [],
+            default_context=UsageLogContext(
+                tenant_id=getattr(doc, "tenant_id", None),
+                document_id=doc.id,
+                operation="document_analysis",
+            ),
+        )
 
         doc.compliance_domain = analysis_results.get("compliance_domain")
         doc.risk_level = analysis_results.get("risk_level")

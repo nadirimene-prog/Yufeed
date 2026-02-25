@@ -41,6 +41,19 @@ const alertExportColumns: ExportColumn<Record<string, unknown>>[] = [
   { key: "created_at", label: "Created At" },
 ];
 
+function getApiErrorDetail(error: unknown, fallback: string) {
+  const detail =
+    typeof error === "object" &&
+    error !== null &&
+    "response" in error &&
+    typeof (error as { response?: { data?: { detail?: unknown } } }).response
+      ?.data?.detail === "string"
+      ? (error as { response?: { data?: { detail?: string } } }).response?.data
+          ?.detail
+      : null;
+  return detail?.trim() || fallback;
+}
+
 function toRiskLevel(
   severity: string,
 ): "critical" | "high" | "medium" | "low" | "info" {
@@ -181,14 +194,20 @@ export default function TransactionAlertsPage() {
   const handleBulkTriage = async () => {
     if (selectedAlerts.size === 0) return;
     const alertIds = Array.from(selectedAlerts);
-    const request = apiClient.post("/api/ai/triage/batch", {
-      alert_ids: alertIds,
-    });
-    await toast.promise(request, {
-      loading: `Triaging ${alertIds.length} alerts...`,
-      success: `Triaged ${alertIds.length} alerts`,
-      error: "Failed to triage alerts",
-    });
+    await toast.promise(
+      apiClient.post("/api/ai/triage/batch", {
+        alert_ids: alertIds,
+      }),
+      {
+        loading: `Queueing triage for ${alertIds.length} alerts...`,
+        success: `Queued triage for ${alertIds.length} selected alerts`,
+        error: (error) =>
+          getApiErrorDetail(
+            error,
+            "Failed to queue AI triage for selected alerts",
+          ),
+      },
+    );
     setSelectedAlerts(new Set());
     await alertsQuery.refetch();
   };

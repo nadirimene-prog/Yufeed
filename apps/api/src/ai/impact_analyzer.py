@@ -11,6 +11,7 @@ import json
 import anthropic
 
 from src.models.impact_assessment import ImpactLevel, BusinessArea, ActionStatus
+from src.ai.usage_instrumentation import UsageLogContext, log_anthropic_response_usage
 
 logger = logging.getLogger(__name__)
 
@@ -28,7 +29,14 @@ class ImpactAnalyzer:
             self.client = None
             logger.warning("ANTHROPIC_API_KEY not set - using fallback impact analysis")
 
-    def analyze_impact(self, document: Dict[str, Any]) -> Dict[str, Any]:
+    def analyze_impact(
+        self,
+        document: Dict[str, Any],
+        *,
+        tenant_id: Optional[str] = None,
+        user_id: Optional[str] = None,
+        document_id: Optional[int] = None,
+    ) -> Dict[str, Any]:
         """
         Perform comprehensive impact analysis on a legal document.
 
@@ -55,6 +63,21 @@ class ImpactAnalyzer:
                 max_tokens=4000,
                 temperature=0.3,
                 messages=[{"role": "user", "content": prompt}],
+            )
+            log_anthropic_response_usage(
+                message,
+                context=UsageLogContext(
+                    tenant_id=tenant_id,
+                    user_id=user_id,
+                    document_id=document_id,
+                    operation="impact_analysis",
+                    request_metadata={
+                        "feature": "impact_analysis",
+                        "celex": document.get("celex"),
+                        "prompt_chars": len(prompt),
+                        "max_tokens": 4000,
+                    },
+                ),
             )
 
             # Parse response

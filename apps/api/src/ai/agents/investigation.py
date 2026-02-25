@@ -232,7 +232,7 @@ Maintain the highest standards of accuracy and professionalism."""
 
         except Exception as e:
             logger.error(f"Investigation failed: {e}")
-            return AgentResult.error(self.agent_type, str(e))
+            return AgentResult.from_error(self.agent_type, str(e))
 
     def _build_investigation_prompt(self, context: AgentContext) -> str:
         """Build the user prompt for investigation."""

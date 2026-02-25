@@ -35,12 +35,49 @@ AI_COST_CONFIG = {
         "claude-3-opus": {"prompt": 0.015, "completion": 0.075},
         "claude-3-sonnet": {"prompt": 0.003, "completion": 0.015},
         "claude-3-haiku": {"prompt": 0.00025, "completion": 0.00125},
+        # Aliases / versioned IDs used in runtime paths.
+        "claude-sonnet-4": {"prompt": 0.003, "completion": 0.015},
+        "claude-sonnet-4-20250514": {"prompt": 0.003, "completion": 0.015},
+        "claude-3-haiku-20240307": {"prompt": 0.00025, "completion": 0.00125},
+        "claude-3-5-sonnet-20240620": {"prompt": 0.003, "completion": 0.015},
     },
     "azure": {
         "gpt-4": {"prompt": 0.03, "completion": 0.06},
         "gpt-35-turbo": {"prompt": 0.002, "completion": 0.002},
     },
 }
+
+MODEL_PRICING_ALIASES = {
+    "openai": {
+        "gpt-4.1": "gpt-4",
+        "gpt-4.1-mini": "gpt-4-turbo",
+        "gpt-4o": "gpt-4-turbo",
+        "gpt-4o-mini": "gpt-3.5-turbo",
+    },
+    "anthropic": {
+        "claude-sonnet-4-20250514": "claude-sonnet-4",
+        "claude-3-haiku-20240307": "claude-3-haiku",
+        "claude-3-5-sonnet-20240620": "claude-3-sonnet",
+    },
+    "azure": {},
+}
+
+
+def normalize_model_for_pricing(provider: str, model: str) -> str:
+    """Map runtime/provider model IDs to the pricing table key."""
+    aliases = MODEL_PRICING_ALIASES.get(provider, {})
+    normalized = aliases.get(model, model)
+    if provider == "anthropic" and normalized not in AI_COST_CONFIG.get(provider, {}):
+        lowered = model.lower()
+        if lowered.startswith("claude-sonnet-4"):
+            return "claude-sonnet-4"
+        if "haiku" in lowered:
+            return "claude-3-haiku"
+        if "sonnet" in lowered:
+            return "claude-3-sonnet"
+        if "opus" in lowered:
+            return "claude-3-opus"
+    return normalized
 
 
 def estimate_cost(provider: str, model: str, prompt_tokens: int, completion_tokens: int) -> float:
@@ -60,11 +97,14 @@ def estimate_cost(provider: str, model: str, prompt_tokens: int, completion_toke
         logger.warning(f"Unknown AI provider: {provider}")
         return 0.0
 
-    if model not in AI_COST_CONFIG[provider]:
-        logger.warning(f"Unknown model: {model} for provider {provider}")
+    pricing_model = normalize_model_for_pricing(provider, model)
+    if pricing_model not in AI_COST_CONFIG[provider]:
+        logger.warning(
+            f"Unknown model: {model} (normalized={pricing_model}) for provider {provider}"
+        )
         return 0.0
 
-    pricing = AI_COST_CONFIG[provider][model]
+    pricing = AI_COST_CONFIG[provider][pricing_model]
 
     # Cost per 1K tokens
     prompt_cost = (prompt_tokens / 1000) * pricing["prompt"]
@@ -137,11 +177,11 @@ def log_usage(
         ai_api_calls_total.labels(provider=provider, model=model, tenant_id=tenant_id).inc()
 
         ai_api_tokens_used_total.labels(
-            provider=provider, model=model, tenant_id=tenant_id, type="prompt"
+            provider=provider, model=model, tenant_id=tenant_id, token_type="prompt"
         ).inc(prompt_tokens)
 
         ai_api_tokens_used_total.labels(
-            provider=provider, model=model, tenant_id=tenant_id, type="completion"
+            provider=provider, model=model, tenant_id=tenant_id, token_type="completion"
         ).inc(completion_tokens)
 
         ai_api_cost_usd.labels(provider=provider, model=model, tenant_id=tenant_id).inc(

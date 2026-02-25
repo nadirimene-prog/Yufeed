@@ -429,7 +429,7 @@ Provide a comprehensive impact assessment:
             return await self._monitor_risks(context)
         else:
             return AgentResult(
-                agent_id=self.agent_id,
+                agent_type=self.agent_type,
                 success=False,
                 result=None,
                 confidence=0.0,
@@ -489,7 +489,7 @@ Provide a comprehensive impact assessment:
             )
 
             return AgentResult(
-                agent_id=self.agent_id,
+                agent_type=self.agent_type,
                 success=True,
                 result=briefing.to_dict(),
                 confidence=self.calculate_confidence(response),
@@ -509,7 +509,7 @@ Provide a comprehensive impact assessment:
         except Exception as e:
             logger.error(f"Briefing generation error: {e}")
             return AgentResult(
-                agent_id=self.agent_id,
+                agent_type=self.agent_type,
                 success=False,
                 result=None,
                 confidence=0.0,
@@ -528,7 +528,7 @@ Provide a comprehensive impact assessment:
 
             if not question:
                 return AgentResult(
-                    agent_id=self.agent_id,
+                    agent_type=self.agent_type,
                     success=False,
                     result=None,
                     confidence=0.0,
@@ -559,7 +559,7 @@ Provide a comprehensive impact assessment:
             response = await self.call_claude(prompt, context)
 
             return AgentResult(
-                agent_id=self.agent_id,
+                agent_type=self.agent_type,
                 success=True,
                 result={
                     "question": question,
@@ -578,7 +578,7 @@ Provide a comprehensive impact assessment:
         except Exception as e:
             logger.error(f"Q&A error: {e}")
             return AgentResult(
-                agent_id=self.agent_id,
+                agent_type=self.agent_type,
                 success=False,
                 result=None,
                 confidence=0.0,
@@ -604,7 +604,7 @@ Provide a comprehensive impact assessment:
             response = await self.call_claude(prompt, context)
 
             return AgentResult(
-                agent_id=self.agent_id,
+                agent_type=self.agent_type,
                 success=True,
                 result=response,
                 confidence=self.calculate_confidence(response),
@@ -618,7 +618,7 @@ Provide a comprehensive impact assessment:
         except Exception as e:
             logger.error(f"Impact assessment error: {e}")
             return AgentResult(
-                agent_id=self.agent_id,
+                agent_type=self.agent_type,
                 success=False,
                 result=None,
                 confidence=0.0,
@@ -663,7 +663,7 @@ Provide a comprehensive impact assessment:
         ]
 
         return AgentResult(
-            agent_id=self.agent_id,
+            agent_type=self.agent_type,
             success=True,
             result={
                 "proactive_alerts": [pa.to_dict() for pa in proactive_alerts],

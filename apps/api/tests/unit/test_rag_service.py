@@ -2,7 +2,7 @@ import pytest
 import asyncio
 from datetime import datetime, timezone
 
-from src.ai.rag_service import RAGService, MAX_QUERY_LENGTH
+from src.ai.rag_service import RAGService, MAX_QUERY_LENGTH, ConversationManager
 from src.models.models import LegalDocument
 
 
@@ -109,3 +109,37 @@ async def test_rag_service_retrieve_chunks_fallback(monkeypatch, db_session):
 
     chunks = await service._retrieve_chunks("question", db_session, max_documents=2, filters=None)
     assert chunks
+
+
+@pytest.mark.unit
+@pytest.mark.asyncio
+async def test_conversation_manager_opens_and_closes_session_per_turn(monkeypatch):
+    sessions = {"created": 0, "closed": 0}
+
+    class DummySession:
+        def close(self):
+            sessions["closed"] += 1
+
+    def fake_session_local():
+        sessions["created"] += 1
+        return DummySession()
+
+    async def fake_ask(self, question, **kwargs):
+        assert kwargs.get("db") is not None
+        return {"answer": "ok", "sources": [], "confidence": "low"}
+
+    monkeypatch.setattr("src.ai.rag_service.SessionLocal", fake_session_local)
+    monkeypatch.setattr(RAGService, "ask", fake_ask)
+    monkeypatch.setattr(
+        RAGService,
+        "suggest_followup_questions",
+        lambda self, query, answer, documents: ["next"],
+    )
+
+    manager = ConversationManager()
+    result = await manager.ask("question", tenant_id="default", user_id="user-1")
+
+    assert result["answer"] == "ok"
+    assert result["followup_questions"] == ["next"]
+    assert sessions["created"] == 1
+    assert sessions["closed"] == 1

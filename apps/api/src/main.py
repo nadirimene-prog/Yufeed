@@ -78,6 +78,15 @@ async def lifespan(app: FastAPI):
         from src.database import Base, sync_engine
 
         Base.metadata.create_all(bind=sync_engine)
+    elif settings.FEATURE_SEMANTIC_POLICY_MATCHING and os.getenv(
+        "RAG_EMBEDDING_WARMUP_ON_STARTUP", "true"
+    ).strip().lower() not in {"0", "false", "no", "n"}:
+        try:
+            from src.ai.embeddings import warm_embeddings_async
+
+            warm_embeddings_async()
+        except Exception as exc:
+            logger.warning("Embedding warmup startup hook failed: %s", exc)
 
     yield
 
@@ -270,6 +279,41 @@ def health_check():
 @app.get("/api/healthz", tags=["monitoring"], include_in_schema=False)
 def health_check_alias():
     return health_check()
+
+
+@app.get("/healthz/ai", tags=["monitoring"], include_in_schema=False)
+def ai_health_check():
+    """Public AI configuration health check for local/dev diagnostics."""
+    anthropic_key_set = bool((os.getenv("ANTHROPIC_API_KEY") or "").strip())
+    openai_key_set = bool((os.getenv("OPENAI_API_KEY") or "").strip())
+
+    return JSONResponse(
+        content={
+            "status": "ok" if (anthropic_key_set or openai_key_set) else "degraded",
+            "service": "yufeed-api",
+            "ts": int(time.time()),
+            "providers": {
+                "anthropic_configured": anthropic_key_set,
+                "openai_configured": openai_key_set,
+            },
+            "features": {
+                # Current implementation status (not future intent)
+                "ai_agents_triage": {"enabled": anthropic_key_set, "provider": "anthropic"},
+                "ai_agents_enrichment": {"enabled": anthropic_key_set, "provider": "anthropic"},
+                "rag_answer_generation": {"enabled": anthropic_key_set, "provider": "anthropic"},
+                "analyzer_openai_fallback": {"enabled": openai_key_set, "provider": "openai"},
+            },
+            "note": (
+                "AI agent routes (/api/ai/*) currently require ANTHROPIC_API_KEY. "
+                "OPENAI_API_KEY is used only in specific OpenAI-compatible analyzer paths."
+            ),
+        }
+    )
+
+
+@app.get("/api/healthz/ai", tags=["monitoring"], include_in_schema=False)
+def ai_health_check_alias():
+    return ai_health_check()
 
 
 # ----------------------------------------------------------------------

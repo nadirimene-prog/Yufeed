@@ -264,3 +264,42 @@ def test_sar_prepare_returns_and_persists_lifecycle(client, admin_headers, db_se
     db_session.refresh(case)
     assert isinstance(case.evidence, dict)
     assert case.evidence["sar_lifecycle"]["current_status"] == "draft"
+
+
+@pytest.mark.unit
+def test_workflow_execute_populates_agent_context_fields(client, admin_headers, monkeypatch):
+    captured = {}
+
+    class _FakeWorkflowResult:
+        def to_dict(self):
+            return {"success": True, "workflow_id": "wf-1"}
+
+    class _FakeOfficer:
+        async def execute_workflow(self, workflow_type, initial_context):
+            captured["workflow_type"] = workflow_type
+            captured["context"] = initial_context
+            return _FakeWorkflowResult()
+
+    monkeypatch.setattr(aml_officer_api, "get_aml_officer", lambda db: _FakeOfficer())
+
+    response = client.post(
+        "/api/aml-officer/workflow/execute",
+        headers=admin_headers,
+        params={"workflow_type": "compliance_qa"},
+        json={
+            "primary_data": {"question_id": "q1"},
+            "input_data": {"action": "answer_question", "question": "What is AMLD6?"},
+        },
+    )
+
+    assert response.status_code == 200
+    payload = response.json()
+    assert payload["success"] is True
+
+    context = captured["context"]
+    assert context.tenant_id == "default"
+    assert context.user_role == "admin"
+    assert context.input_data["action"] == "answer_question"
+    assert context.input_data["question"] == "What is AMLD6?"
+    assert isinstance(context.session_id, str)
+    assert context.session_id

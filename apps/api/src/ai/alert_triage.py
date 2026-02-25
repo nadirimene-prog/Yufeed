@@ -12,6 +12,7 @@ from typing import Dict, Any, Optional, List
 from anthropic import Anthropic
 from sqlalchemy.orm import Session
 
+from src.ai.cost_tracker import log_usage
 from src.models.transaction_models import Alert, Transaction, MonitoringRule
 from src.models.models import LegalDocument
 
@@ -93,7 +94,13 @@ class AlertTriageAgent:
         context = self._build_alert_context(alert, transaction, rule, regulations)
 
         # Get AI analysis
-        analysis = self._analyze_with_claude(context)
+        analysis = self._analyze_with_claude(
+            context,
+            tenant_id=getattr(alert, "tenant_id", None),
+            operation="alert_triage",
+            user_id=getattr(alert, "user_id", None),
+            alert_id=alert.id,
+        )
 
         # Update alert with AI insights
         if analysis:
@@ -131,6 +138,36 @@ class AlertTriageAgent:
                 logger.info(f"Triaged alert {alert.alert_id}: {analysis.get('recommendation')}")
             except Exception as e:
                 logger.error(f"Error triaging alert {alert.id}: {e}")
+
+        return results
+
+    def batch_triage_alert_ids(self, alert_ids: List[int]) -> List[Dict[str, Any]]:
+        """
+        Triage a specific set of alert IDs in batch.
+        """
+        if not self.client:
+            logger.warning("AI batch triage unavailable")
+            return []
+
+        alerts = self.db.query(Alert).filter(Alert.id.in_(alert_ids)).all()
+        by_id = {alert.id: alert for alert in alerts}
+
+        results: List[Dict[str, Any]] = []
+        for alert_id in alert_ids:
+            alert = by_id.get(alert_id)
+            if not alert:
+                logger.warning("Skipping missing alert in selected batch triage: %s", alert_id)
+                continue
+            try:
+                analysis = self.triage_alert(alert.id)
+                results.append({"alert_id": alert.alert_id, "analysis": analysis})
+                logger.info(
+                    "Triaged selected alert %s: %s",
+                    alert.alert_id,
+                    analysis.get("recommendation"),
+                )
+            except Exception as e:
+                logger.error(f"Error triaging selected alert {alert.id}: {e}")
 
         return results
 
@@ -208,7 +245,15 @@ class AlertTriageAgent:
 
         return context
 
-    def _analyze_with_claude(self, context: str) -> Dict[str, Any]:
+    def _analyze_with_claude(
+        self,
+        context: str,
+        *,
+        tenant_id: Optional[str] = None,
+        operation: Optional[str] = None,
+        user_id: Optional[str] = None,
+        alert_id: Optional[int] = None,
+    ) -> Dict[str, Any]:
         """
         Send context to Claude for analysis.
         """
@@ -262,6 +307,19 @@ Be thorough but concise. Focus on actionable insights."""
                 messages=[{"role": "user", "content": prompt}],
             )
 
+            self._log_claude_usage(
+                response,
+                tenant_id=tenant_id,
+                operation=operation,
+                user_id=user_id,
+                request_metadata={
+                    "feature": "alert_triage",
+                    "max_tokens": 2000,
+                    "prompt_chars": len(prompt),
+                    "alert_id": alert_id,
+                },
+            )
+
             # Extract JSON from response
             import json
 
@@ -288,6 +346,52 @@ Be thorough but concise. Focus on actionable insights."""
         except Exception as e:
             logger.error(f"Error calling Claude API: {e}")
             return self._fallback_triage()
+
+    def _log_claude_usage(
+        self,
+        response: Any,
+        *,
+        tenant_id: Optional[str],
+        operation: Optional[str],
+        user_id: Optional[str],
+        request_metadata: Optional[Dict[str, Any]] = None,
+    ) -> None:
+        """Persist Anthropic usage details when the SDK returns token counts."""
+        if not tenant_id:
+            return
+
+        usage = getattr(response, "usage", None)
+        if usage is None:
+            return
+
+        try:
+            prompt_tokens = int(getattr(usage, "input_tokens", 0) or 0)
+            completion_tokens = int(getattr(usage, "output_tokens", 0) or 0)
+
+            # Anthropic may report cache token buckets separately; include them in prompt-side usage.
+            prompt_tokens += int(getattr(usage, "cache_creation_input_tokens", 0) or 0)
+            prompt_tokens += int(getattr(usage, "cache_read_input_tokens", 0) or 0)
+
+            if prompt_tokens <= 0 and completion_tokens <= 0:
+                return
+
+            log_usage(
+                db=self.db,
+                provider="anthropic",
+                model=str(getattr(response, "model", None) or "claude-sonnet-4-20250514"),
+                prompt_tokens=prompt_tokens,
+                completion_tokens=completion_tokens,
+                tenant_id=tenant_id,
+                operation=operation,
+                user_id=user_id,
+                request_metadata=request_metadata,
+                response_metadata={
+                    "response_id": str(getattr(response, "id", "") or ""),
+                    "stop_reason": str(getattr(response, "stop_reason", "") or ""),
+                },
+            )
+        except Exception as exc:
+            logger.warning("Failed to log AI usage for Claude response: %s", exc)
 
     def _apply_triage_results(self, alert: Alert, analysis: Dict[str, Any]):
         """
@@ -449,6 +553,19 @@ Format as professional compliance documentation."""
                 model="claude-sonnet-4-20250514",
                 max_tokens=4000,
                 messages=[{"role": "user", "content": prompt}],
+            )
+
+            self._log_claude_usage(
+                response,
+                tenant_id=getattr(alert, "tenant_id", None),
+                operation="investigation_report",
+                user_id=getattr(alert, "user_id", None),
+                request_metadata={
+                    "feature": "investigation_report",
+                    "max_tokens": 4000,
+                    "prompt_chars": len(prompt),
+                    "alert_id": alert.id,
+                },
             )
 
             return response.content[0].text

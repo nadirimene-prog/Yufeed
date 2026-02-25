@@ -3,6 +3,7 @@
 import Link from "next/link";
 import {
   BarChart3,
+  Bot,
   ClipboardCheck,
   FileCheck2,
   FileWarning,
@@ -12,6 +13,7 @@ import {
 import { Sparkline } from "@/components/ui/sparkline";
 import { StatusIndicator } from "@/components/ui/status-indicator";
 import {
+  AiUsageSummaryResponse,
   DashboardGovernanceSnapshot,
   DashboardQueueSummary,
   SystemHealthSnapshot,
@@ -21,6 +23,9 @@ interface GovernancePanelProps {
   governance: DashboardGovernanceSnapshot | undefined;
   queueSummary: DashboardQueueSummary | undefined;
   health: SystemHealthSnapshot | undefined;
+  aiUsage: AiUsageSummaryResponse | undefined;
+  aiUsageLoading?: boolean;
+  aiUsageError?: boolean;
   loading?: boolean;
 }
 
@@ -77,6 +82,9 @@ export function GovernancePanel({
   governance,
   queueSummary,
   health,
+  aiUsage,
+  aiUsageLoading = false,
+  aiUsageError = false,
   loading = false,
 }: GovernancePanelProps) {
   const safeGovernance: DashboardGovernanceSnapshot =
@@ -155,6 +163,10 @@ export function GovernancePanel({
     },
   ];
 
+  const topProvider = aiUsage?.by_provider?.[0];
+  const topOperation = aiUsage?.by_operation?.[0];
+  const trackingStatus = aiUsage?.tracking_status ?? "partial";
+
   return (
     <section
       className="rounded-2xl border border-border bg-white p-3 shadow-sm sm:p-4"
@@ -183,7 +195,7 @@ export function GovernancePanel({
                 className="block rounded-xl border border-border bg-slate-50 p-2 transition hover:border-border/60 hover:shadow-[0_2px_8px_-4px_rgba(0,0,0,0.1)]"
                 aria-label={`${widget.title} details`}
               >
-                <p className="mb-1 flex items-center justify-between text-[10px] uppercase tracking-wide text-muted-foreground">
+                <div className="mb-1 flex items-center justify-between text-[10px] uppercase tracking-wide text-muted-foreground">
                   <span className="inline-flex items-center gap-1.5 font-medium">
                     <widget.icon className="h-3.5 w-3.5" aria-hidden="true" />
                     {widget.title}
@@ -196,7 +208,7 @@ export function GovernancePanel({
                     ariaLabel={`${widget.title} trend`}
                     className="opacity-80"
                   />
-                </p>
+                </div>
                 <p
                   className={`text-sm font-semibold ${toneClass(widget.tone)}`}
                 >
@@ -221,6 +233,33 @@ export function GovernancePanel({
         <p className="text-muted-foreground">
           Unprocessed transactions: {health?.unprocessed_transactions ?? 0}
         </p>
+        <p className="mt-2 mb-1 text-[10px] uppercase tracking-wide text-muted-foreground font-medium">
+          Tracked AI usage (30d)
+        </p>
+        <p className="inline-flex items-center gap-1.5 text-muted-foreground">
+          <Bot className="h-3.5 w-3.5" aria-hidden="true" />
+          Calls:{" "}
+          {aiUsageLoading
+            ? "Loading..."
+            : aiUsageError
+              ? "Unavailable"
+              : (aiUsage?.summary.total_calls ?? 0)}
+        </p>
+        {!aiUsageLoading && !aiUsageError && aiUsage ? (
+          <>
+            <p className="mt-1 text-muted-foreground">
+              Top provider: {topProvider?.provider ?? "n/a"} (
+              {topProvider?.calls ?? 0})
+            </p>
+            <p className="text-muted-foreground">
+              Top operation: {topOperation?.operation ?? "n/a"} (
+              {topOperation?.calls ?? 0})
+            </p>
+            <p className="text-[10px] uppercase tracking-wide text-muted-foreground">
+              Tracking: {trackingStatus}
+            </p>
+          </>
+        ) : null}
       </div>
     </section>
   );

@@ -14,6 +14,7 @@ from sqlalchemy.orm import Session
 
 from src.models.transaction_models import Alert, Transaction, MonitoringRule
 from src.models.models import LegalDocument
+from src.ai.usage_instrumentation import UsageLogContext, log_anthropic_response_usage
 
 logger = logging.getLogger(__name__)
 
@@ -158,6 +159,20 @@ Keep it concise (2-3 paragraphs maximum).
                 max_tokens=1000,
                 messages=[{"role": "user", "content": prompt}],
             )
+            log_anthropic_response_usage(
+                response,
+                context=UsageLogContext(
+                    tenant_id=getattr(alert, "tenant_id", None),
+                    user_id=getattr(alert, "user_id", None),
+                    operation="regulatory_enrichment_context",
+                    request_metadata={
+                        "feature": "regulatory_enrichment",
+                        "alert_id": alert.id,
+                        "prompt_chars": len(prompt),
+                        "max_tokens": 1000,
+                    },
+                ),
+            )
 
             return response.content[0].text
 
@@ -191,7 +206,7 @@ Keep it concise (2-3 paragraphs maximum).
         # Generate SAR narrative
         narrative = ""
         if include_narrative:
-            narrative = self._generate_sar_narrative(context)
+            narrative = self._generate_sar_narrative(context, alert=alert)
 
         # Build SAR structure
         sar_draft = {
@@ -261,7 +276,7 @@ Keep it concise (2-3 paragraphs maximum).
 
         return context
 
-    def _generate_sar_narrative(self, context: str) -> str:
+    def _generate_sar_narrative(self, context: str, alert: Optional[Alert] = None) -> str:
         """
         Generate SAR narrative using Claude.
         """
@@ -289,6 +304,20 @@ Format: 3-5 concise paragraphs.
                 model="claude-sonnet-4-20250514",
                 max_tokens=1500,
                 messages=[{"role": "user", "content": prompt}],
+            )
+            log_anthropic_response_usage(
+                response,
+                context=UsageLogContext(
+                    tenant_id=getattr(alert, "tenant_id", None) if alert else None,
+                    user_id=getattr(alert, "user_id", None) if alert else None,
+                    operation="sar_narrative_generation",
+                    request_metadata={
+                        "feature": "sar_narrative",
+                        "alert_id": getattr(alert, "id", None) if alert else None,
+                        "prompt_chars": len(prompt),
+                        "max_tokens": 1500,
+                    },
+                ),
             )
 
             return response.content[0].text

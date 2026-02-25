@@ -15,6 +15,8 @@ from src.search import search_documents as opensearch_documents, search_rag_chun
 from src.config import settings
 import os
 import logging
+from src.database import SessionLocal
+from src.ai.usage_instrumentation import UsageLogContext, log_anthropic_response_usage
 
 logger = logging.getLogger(__name__)
 MAX_QUERY_LENGTH = 2000
@@ -41,6 +43,8 @@ class RAGService:
         db: Optional[Session] = None,
         max_documents: int = 5,
         filters: Optional[Dict[str, Any]] = None,
+        tenant_id: Optional[str] = None,
+        user_id: Optional[str] = None,
     ) -> Dict[str, Any]:
         """
         Answer a natural language query using RAG.
@@ -75,7 +79,13 @@ class RAGService:
 
         # Step 2: Generate answer using Claude
         if self.client:
-            answer_data = await self._generate_answer(query, retrieved_chunks)
+            answer_data = await self._generate_answer(
+                query,
+                retrieved_chunks,
+                filters=filters,
+                tenant_id=tenant_id,
+                user_id=user_id,
+            )
         else:
             answer_data = self._fallback_answer(query, retrieved_chunks)
 
@@ -171,7 +181,15 @@ class RAGService:
 
         return enriched_docs
 
-    async def _generate_answer(self, query: str, chunks: List[Dict[str, Any]]) -> Dict[str, Any]:
+    async def _generate_answer(
+        self,
+        query: str,
+        chunks: List[Dict[str, Any]],
+        *,
+        filters: Optional[Dict[str, Any]] = None,
+        tenant_id: Optional[str] = None,
+        user_id: Optional[str] = None,
+    ) -> Dict[str, Any]:
         """
         Generate an answer using Claude with retrieved chunks as context.
         """
@@ -189,7 +207,7 @@ class RAGService:
             }
 
         prompt = self._build_rag_prompt(query, chunks)
-        logger.error("DEBUG: About to call Claude API with model claude-3-5-sonnet-20240620")
+        logger.debug("Calling Claude API for RAG answer generation")
 
         try:
             # Try haiku first (more widely available), fall back to sonnet
@@ -199,6 +217,22 @@ class RAGService:
                 max_tokens=2000,
                 temperature=0.3,
                 messages=[{"role": "user", "content": prompt}],
+            )
+            log_anthropic_response_usage(
+                message,
+                context=UsageLogContext(
+                    tenant_id=tenant_id,
+                    user_id=user_id,
+                    operation="rag_answer_generation",
+                    request_metadata={
+                        "feature": "rag",
+                        "query_length": len(query),
+                        "retrieved_chunks": len(chunks),
+                        "document_count": len({c.get("celex") for c in chunks if c.get("celex")}),
+                        "filters_present": bool(filters),
+                        "max_tokens": 2000,
+                    },
+                ),
             )
 
             answer_text = message.content[0].text
@@ -287,13 +321,21 @@ Answer:"""
         max_documents: int = 5,
         conversation_history: Optional[List[Dict[str, str]]] = None,
         filters: Optional[Dict[str, Any]] = None,
+        db: Optional[Session] = None,
+        tenant_id: Optional[str] = None,
+        user_id: Optional[str] = None,
     ) -> Dict[str, Any]:
         """
         Public API for asking a question.
         Matches the orchestrator's expectations.
         """
         response = await self.answer_query(
-            query=question, max_documents=max_documents, filters=filters
+            query=question,
+            db=db,
+            max_documents=max_documents,
+            filters=filters,
+            tenant_id=tenant_id,
+            user_id=user_id,
         )
 
         # Add follow-up questions
@@ -352,17 +394,33 @@ class ConversationManager:
     Manages multi-turn conversations with context retention.
     """
 
-    def __init__(self, db: Session):
-        self.db = db
-        self.rag_service = RAGService(db)
+    def __init__(self):
+        self.rag_service = RAGService()
         self.conversation_history: List[Dict[str, str]] = []
 
-    async def ask(self, query: str, filters: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
+    async def ask(
+        self,
+        query: str,
+        filters: Optional[Dict[str, Any]] = None,
+        tenant_id: Optional[str] = None,
+        user_id: Optional[str] = None,
+    ) -> Dict[str, Any]:
         """
         Process a query in the context of the conversation.
         """
-        # TODO: In production, enhance query with conversation context
-        response = await self.rag_service.ask(question=query, filters=filters)
+        # Open a fresh DB session per turn to avoid retaining request-scoped sessions.
+        db = SessionLocal()
+        try:
+            # TODO: In production, enhance query with conversation context
+            response = await self.rag_service.ask(
+                question=query,
+                filters=filters,
+                db=db,
+                tenant_id=tenant_id,
+                user_id=user_id,
+            )
+        finally:
+            db.close()
 
         # Store in conversation history
         self.conversation_history.append({"role": "user", "content": query})

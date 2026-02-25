@@ -26,6 +26,7 @@ import hashlib
 from anthropic import Anthropic
 
 from src.core.circuit_breaker import CircuitOpenError, anthropic_breaker
+from src.ai.usage_instrumentation import UsageLogContext, log_anthropic_response_usage
 
 
 def utc_now() -> datetime:
@@ -77,6 +78,16 @@ class Citation:
     excerpt: Optional[str] = None
     relevance_score: float = 1.0
 
+    def to_dict(self) -> Dict[str, Any]:
+        """Serialize citation for API responses."""
+        return {
+            "source_type": self.source_type,
+            "reference": self.reference,
+            "celex_id": self.celex_id,
+            "excerpt": self.excerpt,
+            "relevance_score": self.relevance_score,
+        }
+
 
 @dataclass
 class ReasoningStep:
@@ -87,6 +98,16 @@ class ReasoningStep:
     evidence: List[str] = field(default_factory=list)
     conclusion: Optional[str] = None
     confidence: float = 1.0
+
+    def to_dict(self) -> Dict[str, Any]:
+        """Serialize reasoning step for API responses."""
+        return {
+            "step": self.step_number,
+            "description": self.description,
+            "evidence": self.evidence,
+            "conclusion": self.conclusion,
+            "confidence": self.confidence,
+        }
 
 
 @dataclass
@@ -102,6 +123,7 @@ class AgentContext:
     session_id: str
     user_id: Optional[str] = None
     user_role: Optional[str] = None
+    tenant_id: Optional[str] = None
 
     # Conversation history for multi-turn interactions
     conversation_history: List[Dict[str, Any]] = field(default_factory=list)
@@ -113,6 +135,7 @@ class AgentContext:
     # Data payloads (alert, case, transaction, etc.)
     primary_data: Optional[Dict[str, Any]] = None
     related_data: List[Dict[str, Any]] = field(default_factory=list)
+    input_data: Dict[str, Any] = field(default_factory=dict)
 
     # Regulatory context
     applicable_regulations: List[Dict[str, Any]] = field(default_factory=list)
@@ -139,10 +162,12 @@ class AgentContext:
             "session_id": self.session_id,
             "user_id": self.user_id,
             "user_role": self.user_role,
+            "tenant_id": self.tenant_id,
             "task_type": self.task_type,
             "task_id": self.task_id,
             "primary_data": self.primary_data,
             "related_data": self.related_data,
+            "input_data": self.input_data,
             "applicable_regulations": self.applicable_regulations,
             "conversation_history": self.conversation_history,
             "created_at": self.created_at.isoformat(),
@@ -167,6 +192,10 @@ class AgentResult:
     recommendation: Optional[ActionRecommendation] = None
     summary: str = ""
     detailed_analysis: str = ""
+    # Compatibility payload used by some AML Officer agents.
+    result: Optional[Any] = None
+    metadata: Dict[str, Any] = field(default_factory=dict)
+    reasoning: str = ""
 
     # Confidence and reasoning
     confidence: float = 0.0
@@ -200,6 +229,7 @@ class AgentResult:
 
     # Error handling
     error_message: Optional[str] = None
+    error: Optional[str] = None
 
     # Timestamps
     created_at: datetime = field(default_factory=datetime.utcnow)
@@ -213,6 +243,9 @@ class AgentResult:
             "recommendation": self.recommendation.value if self.recommendation else None,
             "summary": self.summary,
             "detailed_analysis": self.detailed_analysis,
+            "result": self.result,
+            "metadata": self.metadata,
+            "reasoning": self.reasoning,
             "confidence": self.confidence,
             "confidence_level": self.confidence_level.value,
             "reasoning_chain": [
@@ -247,12 +280,13 @@ class AgentResult:
             "processing_time_ms": self.processing_time_ms,
             "tokens_used": self.tokens_used,
             "model_used": self.model_used,
-            "error_message": self.error_message,
+            "error_message": self.error_message or self.error,
+            "error": self.error or self.error_message,
             "created_at": self.created_at.isoformat(),
         }
 
     @classmethod
-    def error(cls, agent_type: AgentType, message: str) -> "AgentResult":
+    def from_error(cls, agent_type: AgentType, message: str) -> "AgentResult":
         """Create an error result."""
         return cls(
             agent_type=agent_type,
@@ -419,6 +453,26 @@ class BaseAgent(ABC, Generic[T]):
                 f"{self.agent_type.value} agent completed in {processing_time}ms, "
                 f"tokens: {response.usage.input_tokens + response.usage.output_tokens}"
             )
+            log_anthropic_response_usage(
+                response,
+                context=UsageLogContext(
+                    tenant_id=context.tenant_id,
+                    operation=(f"agent.{self.agent_type.value}.{context.task_type or 'process'}"),
+                    user_id=context.user_id,
+                    request_metadata={
+                        "agent_type": self.agent_type.value,
+                        "agent_version": self.agent_version,
+                        "session_id": context.session_id,
+                        "task_id": context.task_id,
+                        "json_mode": json_mode,
+                        "prompt_chars": len(user_prompt),
+                        "message_count": len(messages),
+                        "temperature": context.temperature,
+                        "max_tokens": max_tokens or context.max_tokens,
+                    },
+                    response_metadata={"processing_time_ms": processing_time},
+                ),
+            )
 
             # Parse JSON if requested
             if json_mode:
@@ -542,6 +596,31 @@ class BaseAgent(ABC, Generic[T]):
             )
             for c in raw_citations
         ]
+
+    def calculate_confidence(self, response: Dict[str, Any]) -> float:
+        """Best-effort numeric confidence extraction used by legacy AML agents."""
+        if not isinstance(response, dict):
+            return 0.5
+
+        raw_conf = response.get("confidence")
+        if isinstance(raw_conf, (int, float)):
+            return max(0.0, min(1.0, float(raw_conf)))
+
+        if isinstance(raw_conf, str):
+            value = raw_conf.strip().lower()
+            if value == "high":
+                return 0.85
+            if value == "medium":
+                return 0.65
+            if value == "low":
+                return 0.35
+            try:
+                return max(0.0, min(1.0, float(value)))
+            except ValueError:
+                return 0.5
+
+        # Infer from recommendation presence when no explicit confidence is returned.
+        return 0.6 if response.get("recommendation") else 0.5
 
     def calculate_confidence_level(self, confidence: float) -> ConfidenceLevel:
         """Convert numeric confidence to level."""

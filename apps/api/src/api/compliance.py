@@ -21,6 +21,7 @@ from src.models.annotation import Annotation
 from src.schemas import schemas
 from src.schemas import compliance as comp_schemas
 from src.ai.analyzer import analyze_document
+from src.ai.usage_instrumentation import UsageLogContext, log_usage_events
 from src.services.obligation_service import seed_obligations_for_doc
 from src.services.kyc_onboarding import KYCOnboardingService
 from src.services.kyc_periodic_review import KYCPeriodicReviewService
@@ -154,6 +155,15 @@ def analyze_document_endpoint(
                 "full_text": doc.full_text,
                 "article_breakdown": article_breakdown,
             }
+        )
+        log_usage_events(
+            analysis_results.get("usage_events") or [],
+            default_context=UsageLogContext(
+                tenant_id=_resolve_tenant_id(request),
+                user_id=_resolve_user_id(request),
+                document_id=doc.id,
+                operation="document_analysis",
+            ),
         )
 
         # Update document with results

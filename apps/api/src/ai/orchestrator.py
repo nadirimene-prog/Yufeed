@@ -239,7 +239,7 @@ class AMLOfficer:
                 condition=lambda results: any(r.risk_score and r.risk_score > 70 for r in results),
             ),
             WorkflowStep(
-                agent_type=AgentType.REGULATORY,
+                agent_type=AgentType.COMPLIANCE_OFFICER,
                 name="Regulatory Mapping",
                 description="Map findings to regulations",
             ),
@@ -265,7 +265,7 @@ class AMLOfficer:
         ],
         WorkflowType.COMPLIANCE_QA: [
             WorkflowStep(
-                agent_type=AgentType.REGULATORY,
+                agent_type=AgentType.COMPLIANCE_OFFICER,
                 name="Regulatory Query",
                 description="Answer compliance question with citations",
             )
@@ -299,7 +299,9 @@ class AMLOfficer:
             from .agents.investigation import InvestigationAgent
             from .agents.sar import SARAgent
             from .agents.compliance_officer import ComplianceOfficerAgent
+            from .agents.triage_adapter import TriageAdapterAgent
 
+            self._agents[AgentType.TRIAGE] = TriageAdapterAgent()
             self._agents[AgentType.INVESTIGATION] = InvestigationAgent()
             self._agents[AgentType.SAR] = SARAgent()
             self._agents[AgentType.COMPLIANCE_OFFICER] = ComplianceOfficerAgent()
@@ -334,6 +336,7 @@ class AMLOfficer:
         related_transactions: Optional[List[Dict[str, Any]]] = None,
         related_regulations: Optional[List[Dict[str, Any]]] = None,
         user_id: Optional[str] = None,
+        tenant_id: Optional[str] = None,
     ) -> AgentResult:
         """
         Investigate a single alert using the Investigation Agent.
@@ -357,12 +360,15 @@ class AMLOfficer:
 
         agent = self.get_agent(AgentType.INVESTIGATION)
         if not agent:
-            return AgentResult.error(AgentType.INVESTIGATION, "Investigation agent not available")
+            return AgentResult.from_error(
+                AgentType.INVESTIGATION, "Investigation agent not available"
+            )
 
         # Build context
         context = AgentContext(
             session_id=str(uuid.uuid4()),
             user_id=user_id,
+            tenant_id=tenant_id,
             task_type="alert_investigation",
             task_id=str(alert_id),
             primary_data=alert_data,
@@ -384,7 +390,7 @@ class AMLOfficer:
 
         except Exception as e:
             logger.error(f"Investigation failed for alert {alert_id}: {e}")
-            return AgentResult.error(AgentType.INVESTIGATION, str(e))
+            return AgentResult.from_error(AgentType.INVESTIGATION, str(e))
 
     async def batch_investigate(
         self, alerts: List[Dict[str, Any]], max_concurrent: int = 5
@@ -418,7 +424,7 @@ class AMLOfficer:
         for i, result in enumerate(results):
             if isinstance(result, Exception):
                 processed_results.append(
-                    AgentResult.error(
+                    AgentResult.from_error(
                         AgentType.INVESTIGATION, f"Investigation failed: {str(result)}"
                     )
                 )
@@ -490,6 +496,17 @@ class AMLOfficer:
             try:
                 # Add previous results to context
                 context.previous_agent_results = results.copy()
+                context.input_data = dict(context.input_data or {})
+                if step.agent_type == AgentType.COMPLIANCE_OFFICER:
+                    if workflow_type == WorkflowType.DAILY_BRIEFING:
+                        context.input_data.setdefault("action", "generate_briefing")
+                    elif workflow_type == WorkflowType.COMPLIANCE_QA:
+                        context.input_data.setdefault("action", "answer_question")
+                    elif (
+                        workflow_type == WorkflowType.FULL_INVESTIGATION
+                        and step.name == "Regulatory Mapping"
+                    ):
+                        context.input_data.setdefault("action", "assess_impact")
 
                 result = await asyncio.wait_for(
                     agent.process(context), timeout=step.timeout_seconds
@@ -610,7 +627,10 @@ class AMLOfficer:
     # =========================================================================
 
     async def generate_daily_briefing(
-        self, user_id: Optional[str] = None, lookback_hours: int = 24
+        self,
+        user_id: Optional[str] = None,
+        lookback_hours: int = 24,
+        tenant_id: Optional[str] = None,
     ) -> DailyBriefing:
         """
         Generate a daily compliance briefing.
@@ -668,6 +688,8 @@ class AMLOfficer:
         question: str,
         context: Optional[Dict[str, Any]] = None,
         conversation_history: Optional[List[Dict[str, str]]] = None,
+        user_id: Optional[str] = None,
+        tenant_id: Optional[str] = None,
     ) -> Dict[str, Any]:
         """
         Answer a compliance question using AI.
@@ -692,7 +714,12 @@ class AMLOfficer:
         rag = RAGService(self.db)
 
         response = await rag.ask(
-            question=question, max_documents=5, conversation_history=conversation_history
+            question=question,
+            max_documents=5,
+            conversation_history=conversation_history,
+            db=self.db,
+            tenant_id=tenant_id,
+            user_id=user_id,
         )
 
         return {
@@ -752,6 +779,8 @@ class AMLOfficer:
         case_data: Dict[str, Any],
         related_alerts: List[Dict[str, Any]],
         related_transactions: List[Dict[str, Any]],
+        tenant_id: Optional[str] = None,
+        user_id: Optional[str] = None,
     ) -> Dict[str, Any]:
         """
         Prepare a SAR (Suspicious Activity Report) for filing.
@@ -785,6 +814,8 @@ class AMLOfficer:
         # Build context for SAR agent
         context = AgentContext(
             session_id=str(uuid.uuid4()),
+            tenant_id=tenant_id,
+            user_id=user_id,
             task_type="sar_preparation",
             task_id=str(case_id),
             primary_data=case_data,
@@ -822,13 +853,6 @@ class AMLOfficer:
             }
 
 
-# Singleton instance for easy access
-_aml_officer: Optional[AMLOfficer] = None
-
-
 def get_aml_officer(db_session=None) -> AMLOfficer:
-    """Get or create the AI AML Officer singleton."""
-    global _aml_officer
-    if _aml_officer is None:
-        _aml_officer = AMLOfficer(db_session)
-    return _aml_officer
+    """Create a request-scoped AML Officer instance."""
+    return AMLOfficer(db_session)

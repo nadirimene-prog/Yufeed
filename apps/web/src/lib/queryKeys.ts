@@ -92,6 +92,8 @@ export const dashboardKeys = {
   all: ["dashboard"] as const,
   overview: (view: string, timeRange: string) =>
     [...dashboardKeys.all, "overview", view, timeRange] as const,
+  aiUsageSummary: (days: number) =>
+    [...dashboardKeys.all, "ai-usage-summary", days] as const,
   badges: () => [...dashboardKeys.all, "badges"] as const,
   workQueue: (params: unknown) =>
     [...dashboardKeys.all, "work-queue", params] as const,

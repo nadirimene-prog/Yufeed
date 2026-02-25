@@ -2,7 +2,7 @@
 API endpoints for Impact Assessment functionality.
 """
 
-from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi import APIRouter, Depends, HTTPException, Query, Request
 from sqlalchemy.orm import Session
 from typing import List, Optional
 from datetime import datetime, timezone
@@ -17,6 +17,7 @@ from pydantic import BaseModel
 
 from src.database import get_db
 from src import models
+from src.auth.dependencies import CurrentUser, get_current_user_optional
 from src.models.impact_assessment import (
     ImpactAssessment,
     ActionItem,
@@ -26,6 +27,7 @@ from src.models.impact_assessment import (
     ActionStatus,
 )
 from src.ai.impact_analyzer import ImpactAnalyzer
+from src.tenancy.context import get_current_tenant
 
 router = APIRouter(prefix="/impact", tags=["impact-assessment"])
 
@@ -97,7 +99,11 @@ class AnalyzeRequest(BaseModel):
 
 @router.post("/documents/{celex}/analyze")
 def create_impact_assessment(
-    celex: str, request: AnalyzeRequest = AnalyzeRequest(), db: Session = Depends(get_db)
+    http_request: Request,
+    celex: str,
+    request: AnalyzeRequest = AnalyzeRequest(),
+    db: Session = Depends(get_db),
+    current_user: Optional[CurrentUser] = Depends(get_current_user_optional),
 ):
     """
     Generate AI-powered impact assessment for a document.
@@ -132,10 +138,24 @@ def create_impact_assessment(
 
     # Run AI analysis
     analyzer = ImpactAnalyzer()
-    analysis = analyzer.analyze_impact(doc_data)
+    analysis = analyzer.analyze_impact(
+        doc_data,
+        tenant_id=get_current_tenant(),
+        user_id=(
+            current_user.user_id
+            if current_user
+            else getattr(getattr(http_request.state, "user", None), "user_id", None)
+        ),
+        document_id=doc.id,
+    )
 
     # Delete existing if force regeneration
     if existing and request.force:
+        # GapAnalysis is not configured with delete cascade on the ORM relationship,
+        # so delete child gaps explicitly before removing the old assessment.
+        db.query(GapAnalysis).filter(GapAnalysis.assessment_id == existing.id).delete(
+            synchronize_session=False
+        )
         db.delete(existing)
         db.commit()
 

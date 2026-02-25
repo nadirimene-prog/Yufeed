@@ -26,6 +26,9 @@ def register_routers(app: FastAPI) -> None:
     from .api.ai_agents import router as ai_agents_router
 
     include_with_api_prefix(ai_agents_router)
+    from .api.ai_costs import router as ai_costs_router
+
+    include_with_api_prefix(ai_costs_router)
     from .api.alerts import router as alerts_router
 
     include_with_api_prefix(alerts_router)

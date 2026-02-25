@@ -85,6 +85,37 @@ export interface DashboardThroughputSnapshot {
   median_case_resolution_hours: number;
 }
 
+export interface AiUsageSummaryResponse {
+  period: {
+    start: string;
+    end: string;
+  };
+  summary: {
+    total_calls: number;
+    total_cost_usd: number;
+    total_tokens: number;
+    avg_cost_per_call: number;
+  };
+  by_provider: Array<{
+    provider: string;
+    calls: number;
+    cost_usd: number;
+    tokens: number;
+  }>;
+  by_model: Array<{
+    model: string;
+    calls: number;
+    cost_usd: number;
+    tokens: number;
+  }>;
+  by_operation: Array<{
+    operation: string;
+    calls: number;
+    cost_usd: number;
+  }>;
+  tracking_status?: "partial" | "full" | string;
+}
+
 export interface DashboardOverviewResponse {
   view: DashboardView;
   time_range: DashboardTimeRange;

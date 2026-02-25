@@ -14,6 +14,7 @@ import { fetchWithAuth } from "@/lib/auth";
 import { getApiBaseUrl } from "@/lib/apiBaseUrl";
 import { logger } from "@/lib/logger";
 import { useWorkspaceUsers } from "@/hooks/queries/useSpecializedData";
+import toast from "react-hot-toast";
 
 const API_URL = getApiBaseUrl();
 
@@ -116,6 +117,18 @@ export default function AlertDetailPage() {
     }
   };
 
+  const readErrorDetail = async (res: Response, fallback: string) => {
+    try {
+      const data = (await res.json()) as { detail?: unknown };
+      if (typeof data?.detail === "string" && data.detail.trim()) {
+        return data.detail;
+      }
+    } catch {
+      // Ignore JSON parse failures and use fallback.
+    }
+    return fallback;
+  };
+
   const handleTriage = async () => {
     if (!alert) return;
     setTriaging(true);
@@ -128,10 +141,16 @@ export default function AlertDetailPage() {
       });
 
       if (res.ok) {
+        toast.success("AI triage completed");
         fetchAlertDetails();
+      } else {
+        const detail = await readErrorDetail(res, "Failed to triage alert");
+        toast.error(detail);
+        logger.error("AI triage failed:", detail);
       }
     } catch (error) {
       logger.error("Error triaging alert:", error);
+      toast.error("Failed to triage alert");
     } finally {
       setTriaging(false);
     }

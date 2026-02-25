@@ -617,6 +617,19 @@ def get_obligation(
 def get_policy_template_suggestions(
     obligation_id: int,
     limit: int = Query(3, ge=1, le=10),
+    low_latency: bool = Query(
+        False,
+        description="Skip LLM refinement and return semantic/keyword ranking only for lower latency",
+    ),
+    llm_refine_budget_ms: Optional[int] = Query(
+        None,
+        ge=1,
+        le=60000,
+        description=(
+            "Skip starting LLM refinement if local semantic matching already exceeded this budget "
+            "(milliseconds)"
+        ),
+    ),
     db: Session = Depends(get_db),
     current_user: CurrentUser = Depends(
         require_any_role(["admin", "compliance", "aml_officer", "auditor", "user"])
@@ -632,8 +645,13 @@ def get_policy_template_suggestions(
         raise HTTPException(status_code=404, detail="Obligation not found")
 
     obligation, doc = row
-    matcher = PolicyMatcher(db)
-    suggestions = matcher.suggest_policies(obligation, limit=limit)
+    matcher = PolicyMatcher(db, user_id=str(current_user.user_id))
+    suggestions = matcher.suggest_policies(
+        obligation,
+        limit=limit,
+        enable_llm_refinement=False if low_latency else None,
+        llm_refine_budget_ms=llm_refine_budget_ms,
+    )
     effective_tenant_id = _effective_tenant_id(current_user)
 
     # Fallback to legacy template scoring if semantic matcher returns nothing.

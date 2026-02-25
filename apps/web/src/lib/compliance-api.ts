@@ -245,12 +245,23 @@ export const getPolicyTemplates = async (params?: {
 export const getPolicyTemplateSuggestions = async (
   obligationId: number,
   limit: number = 3,
+  options?: {
+    lowLatency?: boolean;
+    llmRefineBudgetMs?: number;
+  },
 ): Promise<{
   items: PolicySuggestion[];
 }> => {
+  const lowLatency = options?.lowLatency ?? true;
   const response = await apiClient.get(
     `/api/obligations/${obligationId}/policy-suggestions`,
-    { params: { limit } },
+    {
+      params: {
+        limit,
+        low_latency: lowLatency,
+        llm_refine_budget_ms: options?.llmRefineBudgetMs,
+      },
+    },
   );
   return response.data;
 };

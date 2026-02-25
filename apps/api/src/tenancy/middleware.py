@@ -285,8 +285,10 @@ class TenantMiddleware(BaseHTTPMiddleware):
             "/api/openapi.json",
             "/health",
             "/healthz",
+            "/healthz/ai",
             "/api/health",  # Test alias
             "/api/healthz",  # Test alias
+            "/api/healthz/ai",
             "/metrics",
             "/api/auth/login",
             "/api/auth/register",

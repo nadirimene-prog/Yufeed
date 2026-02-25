@@ -348,7 +348,7 @@ Important:
             confidence = self.calculate_confidence(response)
 
             return AgentResult(
-                agent_id=self.agent_id,
+                agent_type=self.agent_type,
                 success=True,
                 result=sar_draft.to_dict(),
                 confidence=confidence,
@@ -364,7 +364,7 @@ Important:
         except Exception as e:
             logger.error(f"SAR Agent error: {e}")
             return AgentResult(
-                agent_id=self.agent_id,
+                agent_type=self.agent_type,
                 success=False,
                 result=None,
                 confidence=0.0,
@@ -659,7 +659,7 @@ class SARWorkflowManager:
     ) -> SARDraft:
         """Generate a new SAR draft."""
         context = AgentContext(
-            request_id=f"sar-{case_id}",
+            session_id=f"sar-{case_id}",
             user_id="system",
             input_data={
                 "case_id": case_id,

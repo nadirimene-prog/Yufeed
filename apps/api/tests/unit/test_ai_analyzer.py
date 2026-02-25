@@ -64,6 +64,9 @@ def test_analyzer_full_analysis_fallback(monkeypatch):
         RiskLevel.LOW.value,
     }
     assert "analyzed_at" in result
+    assert result["usage_events"] == []
+    assert result["usage_summary"]["calls"] == 0
+    assert result["usage_summary"]["providers"] == []
 
 
 @pytest.mark.unit
@@ -102,3 +105,68 @@ def test_extract_obligations_parses_markdown_fences(monkeypatch):
     assert isinstance(out, list)
     assert out
     assert out[0]["obligation"] == "Banks shall maintain records"
+
+
+@pytest.mark.unit
+def test_analyzer_collects_usage_events_for_anthropic_calls(monkeypatch):
+    class DummyUsage:
+        input_tokens = 10
+        output_tokens = 5
+        cache_creation_input_tokens = 0
+        cache_read_input_tokens = 0
+
+    class DummyChunk:
+        def __init__(self, text: str):
+            self.text = text
+
+    class DummyMessage:
+        def __init__(self, text: str, model: str = "claude-3-haiku-20240307"):
+            self.content = [DummyChunk(text)]
+            self.usage = DummyUsage()
+            self.model = model
+            self.id = "msg_test"
+            self.stop_reason = "end_turn"
+
+    class DummyMessages:
+        def create(self, *args, **kwargs):
+            prompt = kwargs["messages"][0]["content"]
+            if "Classify this EU legal document" in prompt:
+                return DummyMessage("aml")
+            if "Assess the compliance risk level" in prompt:
+                return DummyMessage("high")
+            if "Extract the key compliance obligations" in prompt:
+                return DummyMessage(
+                    '[{"obligation":"Banks shall maintain records","article":"Article 1","deadline":null,"applicability":"banks","source_excerpt":"Banks shall maintain records"}]'
+                )
+            if "Extract the implementation/transposition deadline" in prompt:
+                return DummyMessage("none")
+            if "Create a concise executive summary" in prompt:
+                return DummyMessage("Short summary")
+            raise AssertionError(f"Unexpected prompt: {prompt[:120]}")
+
+    class DummyClient:
+        def __init__(self):
+            self.messages = DummyMessages()
+
+    monkeypatch.setattr(ai_analyzer, "client", DummyClient())
+    monkeypatch.setattr(ai_analyzer, "ANTHROPIC_DISABLED_REASON", None)
+    monkeypatch.setattr(ai_analyzer, "OPENAI_DISABLED_REASON", "disabled-for-test")
+
+    result = ai_analyzer.analyze_document(
+        {
+            "celex": "CELEX-TEST",
+            "title": "AML Regulation",
+            "publication_date": datetime(2024, 6, 1, tzinfo=timezone.utc),
+            "full_text": "Banks shall maintain records.",
+            "article_breakdown": [{"number": "1", "content": "Banks shall maintain records."}],
+        }
+    )
+
+    ops = [event["operation"] for event in result["usage_events"]]
+    assert "document_analysis.classify" in ops
+    assert "document_analysis.assess_risk" in ops
+    assert "document_analysis.extract_obligations" in ops
+    assert "document_analysis.extract_deadline" in ops
+    assert "document_analysis.generate_summary" in ops
+    assert result["usage_summary"]["calls"] >= 5
+    assert "anthropic" in result["usage_summary"]["providers"]

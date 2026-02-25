@@ -48,6 +48,19 @@ def test_base_agent_cache_and_builders():
 
 
 @pytest.mark.unit
+def test_agent_context_to_dict_includes_tenant_and_input_data():
+    context = AgentContext(
+        session_id="sess-ctx",
+        user_id="user-1",
+        tenant_id="tenant-1",
+        input_data={"action": "answer_question"},
+    )
+    payload = context.to_dict()
+    assert payload["tenant_id"] == "tenant-1"
+    assert payload["input_data"] == {"action": "answer_question"}
+
+
+@pytest.mark.unit
 def test_base_agent_auto_act():
     agent = DummyAgent(api_key=None)
 
@@ -70,10 +83,58 @@ def test_base_agent_auto_act():
 
 @pytest.mark.unit
 @pytest.mark.asyncio
-async def test_base_agent_call_claude_mock_response():
+async def test_base_agent_call_claude_mock_response(monkeypatch):
     agent = DummyAgent(api_key=None)
+    # Force deterministic mock path regardless of local env keys.
+    agent.is_configured = False
     context = AgentContext(session_id="sess-2")
 
     response = await agent.call_claude("prompt", context)
     assert "summary" in response
     assert response.get("_meta")
+
+
+@pytest.mark.unit
+@pytest.mark.asyncio
+async def test_base_agent_call_claude_logs_usage_when_configured(monkeypatch):
+    agent = DummyAgent(api_key=None)
+    agent.is_configured = True
+
+    class DummyMessages:
+        def create(self, *args, **kwargs):
+            return None
+
+    class DummyClient:
+        messages = DummyMessages()
+
+    class DummyUsage:
+        input_tokens = 12
+        output_tokens = 8
+
+    class DummyChunk:
+        text = "hello"
+
+    class DummyResponse:
+        content = [DummyChunk()]
+        usage = DummyUsage()
+        model = "claude-sonnet-4-20250514"
+        id = "msg_test"
+        stop_reason = "end_turn"
+
+    agent.client = DummyClient()
+
+    called = {"count": 0}
+    monkeypatch.setattr(
+        "src.ai.agents.base.anthropic_breaker.call",
+        lambda _fn, **kwargs: DummyResponse(),
+    )
+    monkeypatch.setattr(
+        "src.ai.agents.base.log_anthropic_response_usage",
+        lambda response, context: called.__setitem__("count", called["count"] + 1) or True,
+    )
+
+    context = AgentContext(session_id="sess-3", tenant_id="default", task_type="test_task")
+    response = await agent.call_claude("prompt", context, json_mode=False)
+
+    assert called["count"] == 1
+    assert response["content"] == "hello"

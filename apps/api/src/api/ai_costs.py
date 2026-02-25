@@ -10,11 +10,16 @@ from typing import Optional
 from datetime import datetime, timedelta
 
 from src.database import get_db
-from src.context import get_current_tenant
+from src.auth.dependencies import CurrentUser, require_any_role, require_role
+from src.tenancy.context import get_current_tenant
 from src.services.ai_cost_service import AICostService
 from pydantic import BaseModel
 
-router = APIRouter(prefix="/ai-costs", tags=["ai-costs"])
+router = APIRouter(
+    prefix="/ai-costs",
+    tags=["ai-costs"],
+    dependencies=[Depends(require_any_role(["admin", "compliance", "analyst", "aml_officer"]))],
+)
 
 
 class BudgetUpdate(BaseModel):
@@ -42,11 +47,14 @@ def get_usage_summary(
     end_date = datetime.utcnow()
     start_date = end_date - timedelta(days=days)
 
-    return service.get_usage_summary(
+    summary = service.get_usage_summary(
         tenant_id=tenant_id,
         start_date=start_date,
         end_date=end_date,
     )
+    if isinstance(summary, dict) and "tracking_status" not in summary:
+        summary["tracking_status"] = "full"
+    return summary
 
 
 @router.get("/daily-trend")
@@ -81,12 +89,13 @@ def get_budget_status(db: Session = Depends(get_db)):
 @router.put("/budget")
 def update_budget(
     budget_update: BudgetUpdate,
+    _current_user: CurrentUser = Depends(require_role("admin")),
     db: Session = Depends(get_db),
 ):
     """
     Update budget limits for the tenant.
 
-    Requires admin privileges (implement authorization check).
+    Requires admin privileges.
     """
     tenant_id = get_current_tenant()
     service = AICostService(db)

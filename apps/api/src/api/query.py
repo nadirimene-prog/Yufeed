@@ -4,15 +4,22 @@ Natural Language Query API Endpoints
 Provides a ChatGPT-style interface for asking questions about EU regulations.
 """
 
-from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi import APIRouter, Depends, HTTPException, Query, Request
 from sqlalchemy.orm import Session
 from pydantic import BaseModel, Field
 from typing import Optional, List, Dict, Any
 from src.database import get_db
 from src.ai.rag_service import RAGService, ConversationManager
+from src.auth.dependencies import CurrentUser, get_current_user_optional
+from src.tenancy.context import get_current_tenant
 import os
 
 router = APIRouter(prefix="/query", tags=["Natural Language Query"])
+
+
+def _request_user_id(request: Request) -> Optional[str]:
+    request_user = getattr(request.state, "user", None)
+    return getattr(request_user, "user_id", None)
 
 
 # Request/Response Models
@@ -71,7 +78,12 @@ conversations: Dict[str, ConversationManager] = {}
 
 
 @router.post("/ask", response_model=QueryResponse)
-async def ask_question(request: QueryRequest, db: Session = Depends(get_db)):
+async def ask_question(
+    request: QueryRequest,
+    http_request: Request,
+    db: Session = Depends(get_db),
+    current_user: Optional[CurrentUser] = Depends(get_current_user_optional),
+):
     """
     Ask a natural language question about EU regulations.
 
@@ -93,6 +105,7 @@ async def ask_question(request: QueryRequest, db: Session = Depends(get_db)):
     - Suggested follow-up questions
     """
     rag_service = RAGService()
+    tenant_id = get_current_tenant()
 
     filters = {}
     if request.compliance_domain:
@@ -102,7 +115,12 @@ async def ask_question(request: QueryRequest, db: Session = Depends(get_db)):
 
     try:
         result = await rag_service.answer_query(
-            query=request.query, db=db, max_documents=request.max_documents, filters=filters
+            query=request.query,
+            db=db,
+            max_documents=request.max_documents,
+            filters=filters,
+            tenant_id=tenant_id,
+            user_id=(current_user.user_id if current_user else _request_user_id(http_request)),
         )
 
         # Add follow-up suggestions
@@ -119,7 +137,12 @@ async def ask_question(request: QueryRequest, db: Session = Depends(get_db)):
 
 
 @router.post("/conversation", response_model=QueryResponse)
-async def conversation_turn(request: ConversationRequest, db: Session = Depends(get_db)):
+async def conversation_turn(
+    request: ConversationRequest,
+    http_request: Request,
+    db: Session = Depends(get_db),
+    current_user: Optional[CurrentUser] = Depends(get_current_user_optional),
+):
     """
     Multi-turn conversation with context retention.
 
@@ -148,12 +171,18 @@ async def conversation_turn(request: ConversationRequest, db: Session = Depends(
     conv_id = request.conversation_id or str(uuid.uuid4())
 
     if conv_id not in conversations:
-        conversations[conv_id] = ConversationManager(db)
+        conversations[conv_id] = ConversationManager()
 
     conv_manager = conversations[conv_id]
+    tenant_id = get_current_tenant()
 
     try:
-        result = await conv_manager.ask(query=request.query, filters=request.filters)
+        result = await conv_manager.ask(
+            query=request.query,
+            filters=request.filters,
+            tenant_id=tenant_id,
+            user_id=(current_user.user_id if current_user else _request_user_id(http_request)),
+        )
 
         return QueryResponse(query=request.query, **result)
 

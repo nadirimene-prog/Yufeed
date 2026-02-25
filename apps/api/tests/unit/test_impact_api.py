@@ -59,7 +59,7 @@ class TestImpactAPI:
 
         from src.api import impact as impact_api
 
-        def fake_analyze(self, doc_data):
+        def fake_analyze(self, doc_data, **kwargs):
             return analysis_payload
 
         monkeypatch.setattr(impact_api.ImpactAnalyzer, "analyze_impact", fake_analyze)

@@ -29,7 +29,7 @@ from src.database import get_db
 from src.ai.orchestrator import get_aml_officer, AMLOfficer, WorkflowType
 from src.ai.agents.base import AgentContext, ActionRecommendation
 from src.integrations.sanctions import SanctionsService, SanctionsListType
-from src.auth.dependencies import require_any_role
+from src.auth.dependencies import CurrentUser, get_current_user, require_any_role
 from src.utils.event_bus import publish_event_safe
 from src.models.transaction_models import Case
 
@@ -164,19 +164,13 @@ class SanctionsScreenResponse(BaseModel):
 
 
 @router.post("/investigate", response_model=InvestigationResponse)
-async def investigate_alert(request: InvestigateAlertRequest, db: Session = Depends(get_db)):
+async def investigate_alert(
+    request: InvestigateAlertRequest,
+    db: Session = Depends(get_db),
+    current_user: CurrentUser = Depends(get_current_user),
+):
     """
     Investigate a single alert using the AI Investigation Agent.
-
-    The Investigation Agent performs:
-    - Multi-step chain-of-thought analysis
-    - Evidence gathering and correlation
-    - Pattern identification
-    - Risk assessment
-    - Regulatory citation matching
-    - Action recommendation
-
-    Returns a comprehensive investigation report.
     """
     try:
         aml_officer = get_aml_officer(db)
@@ -186,7 +180,8 @@ async def investigate_alert(request: InvestigateAlertRequest, db: Session = Depe
             alert_data=request.alert_data,
             related_transactions=request.related_transactions,
             related_regulations=request.related_regulations,
-            user_id=request.user_id,
+            user_id=request.user_id or current_user.user_id,
+            tenant_id=current_user.tenant_id,
         )
 
         return InvestigationResponse(
@@ -278,7 +273,9 @@ async def get_investigation(investigation_id: str, db: Session = Depends(get_db)
 
 @router.get("/briefing/daily", response_model=DailyBriefingResponse)
 async def get_daily_briefing(
-    lookback_hours: int = Query(default=24, ge=1, le=168), db: Session = Depends(get_db)
+    lookback_hours: int = Query(default=24, ge=1, le=168),
+    db: Session = Depends(get_db),
+    current_user: CurrentUser = Depends(get_current_user),
 ):
     """
     Generate a daily compliance briefing.
@@ -296,7 +293,11 @@ async def get_daily_briefing(
     try:
         aml_officer = get_aml_officer(db)
 
-        briefing = await aml_officer.generate_daily_briefing(lookback_hours=lookback_hours)
+        briefing = await aml_officer.generate_daily_briefing(
+            lookback_hours=lookback_hours,
+            user_id=current_user.user_id,
+            tenant_id=current_user.tenant_id,
+        )
 
         return DailyBriefingResponse(
             briefing_id=briefing.briefing_id,
@@ -356,7 +357,9 @@ async def get_weekly_briefing(db: Session = Depends(get_db)):
 
 @router.post("/ask", response_model=ComplianceAnswerResponse)
 async def ask_compliance_question(
-    request: ComplianceQuestionRequest, db: Session = Depends(get_db)
+    request: ComplianceQuestionRequest,
+    db: Session = Depends(get_db),
+    current_user: CurrentUser = Depends(get_current_user),
 ):
     """
     Ask a compliance question and get an AI-powered answer.
@@ -379,6 +382,8 @@ async def ask_compliance_question(
             question=request.question,
             context=request.context,
             conversation_history=request.conversation_history,
+            user_id=current_user.user_id,
+            tenant_id=current_user.tenant_id,
         )
 
         return ComplianceAnswerResponse(
@@ -427,7 +432,11 @@ async def get_proactive_alerts(db: Session = Depends(get_db)):
 
 
 @router.post("/sar/prepare")
-async def prepare_sar(request: SARPrepareRequest, db: Session = Depends(get_db)):
+async def prepare_sar(
+    request: SARPrepareRequest,
+    db: Session = Depends(get_db),
+    current_user: CurrentUser = Depends(get_current_user),
+):
     """
     Prepare a Suspicious Activity Report (SAR).
 
@@ -448,6 +457,8 @@ async def prepare_sar(request: SARPrepareRequest, db: Session = Depends(get_db))
             case_data=request.case_data,
             related_alerts=request.related_alerts,
             related_transactions=request.related_transactions,
+            user_id=current_user.user_id,
+            tenant_id=current_user.tenant_id,
         )
 
         now = utc_now()
@@ -685,7 +696,10 @@ async def get_sanctions_statistics():
 
 @router.post("/workflow/execute")
 async def execute_workflow(
-    workflow_type: str, context_data: Dict[str, Any], db: Session = Depends(get_db)
+    workflow_type: str,
+    context_data: Dict[str, Any],
+    db: Session = Depends(get_db),
+    current_user: CurrentUser = Depends(get_current_user),
 ):
     """
     Execute a multi-agent workflow.
@@ -712,11 +726,15 @@ async def execute_workflow(
         aml_officer = get_aml_officer(db)
 
         context = AgentContext(
-            session_id=context_data.get("session_id", ""),
-            user_id=context_data.get("user_id"),
+            session_id=context_data.get("session_id") or str(uuid.uuid4()),
+            user_id=context_data.get("user_id") or current_user.user_id,
+            user_role=current_user.role,
+            tenant_id=current_user.tenant_id,
             task_type=workflow_type,
+            task_id=context_data.get("task_id"),
             primary_data=context_data.get("primary_data"),
             related_data=context_data.get("related_data", []),
+            input_data=context_data.get("input_data", {}),
             applicable_regulations=context_data.get("applicable_regulations", []),
         )
 

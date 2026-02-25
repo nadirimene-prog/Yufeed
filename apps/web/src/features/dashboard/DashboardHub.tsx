@@ -21,6 +21,7 @@ import {
   WorkspaceMessage,
 } from "@/features/dashboard/types";
 import { useDashboardOverview } from "@/features/dashboard/useDashboardOverview";
+import { useAiUsageSummary } from "@/features/dashboard/useAiUsageSummary";
 import { useWorkQueue } from "@/features/dashboard/useWorkQueue";
 import { useWorkItemDetail } from "@/features/dashboard/useWorkItemDetail";
 import { useWorkItemActions } from "@/features/dashboard/useWorkItemActions";
@@ -191,6 +192,9 @@ export function DashboardHub() {
   const dashboardEnabled = hasToken && DASHBOARD_V3_ENABLED;
 
   const overviewQuery = useDashboardOverview(view, range, {
+    enabled: dashboardEnabled,
+  });
+  const aiUsageQuery = useAiUsageSummary(30, {
     enabled: dashboardEnabled,
   });
   const queueQuery = useWorkQueue(filters, {
@@ -491,6 +495,7 @@ export function DashboardHub() {
               size="sm"
               onClick={() => {
                 overviewQuery.refetch();
+                aiUsageQuery.refetch();
                 queueQuery.refetch();
                 detailQuery.refetch();
               }}
@@ -536,6 +541,7 @@ export function DashboardHub() {
             onRefresh={() => {
               queueQuery.refetch();
               overviewQuery.refetch();
+              aiUsageQuery.refetch();
             }}
             onBulkAction={runBulkAction}
           />
@@ -569,6 +575,9 @@ export function DashboardHub() {
               governance={overviewQuery.data?.governance}
               queueSummary={overviewQuery.data?.queue_summary}
               health={overviewQuery.data?.system_health}
+              aiUsage={aiUsageQuery.data}
+              aiUsageLoading={aiUsageQuery.isLoading}
+              aiUsageError={aiUsageQuery.isError}
               loading={overviewQuery.isLoading}
             />
 
@@ -606,6 +615,7 @@ export function DashboardHub() {
                 onRefresh={() => {
                   queueQuery.refetch();
                   overviewQuery.refetch();
+                  aiUsageQuery.refetch();
                 }}
                 onBulkAction={runBulkAction}
               />
@@ -615,6 +625,9 @@ export function DashboardHub() {
                   governance={overviewQuery.data?.governance}
                   queueSummary={overviewQuery.data?.queue_summary}
                   health={overviewQuery.data?.system_health}
+                  aiUsage={aiUsageQuery.data}
+                  aiUsageLoading={aiUsageQuery.isLoading}
+                  aiUsageError={aiUsageQuery.isError}
                   loading={overviewQuery.isLoading}
                 />
                 <TrendStrip

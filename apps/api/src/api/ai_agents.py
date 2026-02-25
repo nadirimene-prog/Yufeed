@@ -8,7 +8,7 @@ from sqlalchemy.orm import Session
 from typing import List, Optional
 from pydantic import BaseModel
 
-from src.database import get_db
+from src.database import get_db, SessionLocal
 from src.ai.alert_triage import AlertTriageAgent
 from src.ai.regulatory_enrichment import RegulatoryEnrichmentService
 from src.models.transaction_models import Alert
@@ -58,6 +58,7 @@ class SARDraftResponse(BaseModel):
 
 class BatchTriageRequest(BaseModel):
     limit: int = 50
+    alert_ids: Optional[List[int]] = None
 
 
 class EnrichmentRequest(BaseModel):
@@ -122,10 +123,21 @@ def batch_triage_alerts(
 
     This is a background task that processes alerts asynchronously.
     """
-    agent = AlertTriageAgent(db)
+    mode = "selected_ids" if request.alert_ids else "pending_limit"
 
-    # Run batch triage in background
-    background_tasks.add_task(agent.batch_triage_pending_alerts, limit=request.limit)
+    if request.alert_ids:
+        # Validate alerts exist up front
+        found_alerts = db.query(Alert).filter(Alert.id.in_(request.alert_ids)).all()
+        found_ids = {a.id for a in found_alerts}
+        missing_ids = [alert_id for alert_id in request.alert_ids if alert_id not in found_ids]
+        if missing_ids:
+            raise HTTPException(
+                status_code=404, detail=f"Some alerts not found: {', '.join(map(str, missing_ids))}"
+            )
+
+        background_tasks.add_task(_batch_triage_selected_task, request.alert_ids)
+    else:
+        background_tasks.add_task(_batch_triage_pending_task, request.limit)
 
     publish_event_safe(
         "events.raw",
@@ -135,14 +147,23 @@ def batch_triage_alerts(
             "source": "ai_agents",
             "payload": {
                 "limit": request.limit,
+                "alert_ids": request.alert_ids or [],
+                "mode": mode,
             },
         },
     )
 
     return {
         "status": "started",
-        "message": f"Batch triage of up to {request.limit} alerts initiated",
+        "message": (
+            f"Batch triage of {len(request.alert_ids)} selected alerts initiated"
+            if request.alert_ids
+            else f"Batch triage of up to {request.limit} alerts initiated"
+        ),
         "note": "Processing in background. Check alert statuses for updates.",
+        "mode": mode,
+        "requested_count": len(request.alert_ids) if request.alert_ids else None,
+        "processed_target": len(request.alert_ids) if request.alert_ids else request.limit,
     }
 
 
@@ -253,15 +274,13 @@ def batch_enrich_alerts(
     """
     Enrich multiple alerts with regulatory context in batch.
     """
-    service = RegulatoryEnrichmentService(db)
-
     # Validate alerts exist
     alerts = db.query(Alert).filter(Alert.id.in_(alert_ids)).all()
     if len(alerts) != len(alert_ids):
         raise HTTPException(status_code=404, detail="Some alerts not found")
 
-    # Run enrichment in background
-    background_tasks.add_task(service.batch_enrich_alerts, alert_ids)
+    # Run enrichment in background using a fresh DB session
+    background_tasks.add_task(_batch_enrich_alerts_task, alert_ids)
 
     publish_event_safe(
         "events.raw",
@@ -281,6 +300,33 @@ def batch_enrich_alerts(
         "message": f"Batch enrichment of {len(alert_ids)} alerts initiated",
         "alert_count": len(alert_ids),
     }
+
+
+def _batch_triage_pending_task(limit: int) -> None:
+    db = SessionLocal()
+    try:
+        agent = AlertTriageAgent(db)
+        agent.batch_triage_pending_alerts(limit=limit)
+    finally:
+        db.close()
+
+
+def _batch_triage_selected_task(alert_ids: List[int]) -> None:
+    db = SessionLocal()
+    try:
+        agent = AlertTriageAgent(db)
+        agent.batch_triage_alert_ids(alert_ids)
+    finally:
+        db.close()
+
+
+def _batch_enrich_alerts_task(alert_ids: List[int]) -> None:
+    db = SessionLocal()
+    try:
+        service = RegulatoryEnrichmentService(db)
+        service.batch_enrich_alerts(alert_ids)
+    finally:
+        db.close()
 
 
 @router.post("/enrich/auto-link-regulations")
@@ -420,7 +466,8 @@ def get_ai_status():
     """
     import os
 
-    anthropic_key_set = bool(os.getenv("ANTHROPIC_API_KEY"))
+    anthropic_key_set = bool((os.getenv("ANTHROPIC_API_KEY") or "").strip())
+    openai_key_set = bool((os.getenv("OPENAI_API_KEY") or "").strip())
 
     return {
         "status": "operational" if anthropic_key_set else "degraded",
@@ -430,9 +477,13 @@ def get_ai_status():
             "sar_generation": anthropic_key_set,
             "investigation_reports": anthropic_key_set,
         },
+        "providers": {
+            "anthropic_configured": anthropic_key_set,
+            "openai_configured": openai_key_set,
+        },
         "model": "claude-sonnet-4-20250514" if anthropic_key_set else None,
         "note": (
-            "Set ANTHROPIC_API_KEY to enable AI features"
+            "AI agent routes use ANTHROPIC_API_KEY. OPENAI_API_KEY alone will not enable /api/ai triage/enrichment."
             if not anthropic_key_set
             else "All AI features available"
         ),

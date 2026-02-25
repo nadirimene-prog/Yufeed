@@ -69,6 +69,11 @@ jobs:
         run: |
           python scripts/security_audit.py --mode fail
 
+      - name: Enforce AI provider call instrumentation
+        working-directory: ./apps/api
+        run: |
+          python scripts/check_ai_call_wrappers.py
+
       - name: Run linting
         working-directory: ./apps/api
         run: |

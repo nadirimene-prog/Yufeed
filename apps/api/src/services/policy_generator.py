@@ -32,6 +32,7 @@ from src.models.transaction_models import MonitoringRule
 from src.services.rules_engine import RuleBuilder
 from src.tenancy.context import get_current_tenant
 from src.config import settings
+from src.ai.usage_instrumentation import UsageLogContext, log_anthropic_response_usage
 
 logger = logging.getLogger(__name__)
 
@@ -52,6 +53,7 @@ class PolicyGenerationRequest:
     variable_values: Dict[str, Any]
     base_policy_id: Optional[int] = None
     created_by: str = ""
+    tenant_id: Optional[str] = None
 
 
 @dataclass
@@ -122,6 +124,12 @@ class PolicyGenerator:
         # 1. Create generation job
         job_id = str(uuid.uuid4())
         self._create_job(job_id, request)
+        telemetry_ctx = {
+            "tenant_id": request.tenant_id or get_current_tenant(),
+            "user_id": request.created_by or None,
+            "job_id": job_id,
+            "template_id": request.template_id,
+        }
 
         try:
             # 2. Load template and obligations
@@ -137,7 +145,11 @@ class PolicyGenerator:
             generated_sections = []
             for section in sections:
                 generated = await self._generate_section(
-                    section=section, obligations=obligations, variables=variables, template=template
+                    section=section,
+                    obligations=obligations,
+                    variables=variables,
+                    template=template,
+                    telemetry_context=telemetry_ctx,
                 )
                 generated_sections.append(generated)
 
@@ -331,6 +343,7 @@ class PolicyGenerator:
         obligations: List[RegulatoryObligation],
         variables: Dict[str, Any],
         template: PolicyTemplate,
+        telemetry_context: Optional[Dict[str, Any]] = None,
     ) -> GeneratedPolicySection:
         """Generate content for a policy section."""
 
@@ -342,7 +355,10 @@ class PolicyGenerator:
         # If section depends on obligations, generate AI content
         if section.get("depends_on_obligations") and obligations:
             content = await self._generate_ai_section(
-                section=section, obligations=obligations, variables=variables
+                section=section,
+                obligations=obligations,
+                variables=variables,
+                telemetry_context=telemetry_context,
             )
             confidence = 0.85  # Placeholder for AI confidence
         else:
@@ -363,7 +379,11 @@ class PolicyGenerator:
         )
 
     async def _generate_ai_section(
-        self, section: Dict, obligations: List[RegulatoryObligation], variables: Dict[str, Any]
+        self,
+        section: Dict,
+        obligations: List[RegulatoryObligation],
+        variables: Dict[str, Any],
+        telemetry_context: Optional[Dict[str, Any]] = None,
     ) -> str:
         """Generate section content using AI."""
 
@@ -380,6 +400,23 @@ class PolicyGenerator:
                 max_tokens=2000,
                 temperature=0.3,
                 messages=[{"role": "user", "content": prompt}],
+            )
+            log_anthropic_response_usage(
+                response,
+                context=UsageLogContext(
+                    tenant_id=(telemetry_context or {}).get("tenant_id"),
+                    user_id=(telemetry_context or {}).get("user_id"),
+                    operation="policy_generation_section",
+                    request_metadata={
+                        "feature": "policy_generator",
+                        "template_id": (telemetry_context or {}).get("template_id"),
+                        "section_name": section.get("name"),
+                        "obligation_count": len(obligations),
+                        "job_id": (telemetry_context or {}).get("job_id"),
+                        "prompt_chars": len(prompt),
+                        "max_tokens": 2000,
+                    },
+                ),
             )
 
             return response.content[0].text

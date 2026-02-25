@@ -7,7 +7,7 @@ Endpoints for AI-powered policy generation from obligations.
 from fastapi import APIRouter, Depends, HTTPException, BackgroundTasks, Query
 from sqlalchemy.orm import Session
 from sqlalchemy import text
-from sqlalchemy.exc import OperationalError
+from sqlalchemy.exc import OperationalError, ProgrammingError
 from typing import List, Optional, Dict, Any
 from datetime import datetime, timezone, timedelta
 from pydantic import BaseModel, Field, model_validator
@@ -33,7 +33,13 @@ POLICY_GENERATOR_COMPAT_DEADLINE = "2026-03-31"
 
 def _is_missing_sqlite_table_error(exc: Exception, *table_names: str) -> bool:
     message = str(exc).lower()
-    if "sqlite" not in message or "no such table" not in message:
+    is_sqlite_missing = "sqlite" in message and "no such table" in message
+    is_postgres_missing = (
+        "undefinedtable" in message
+        or ('relation "' in message and "does not exist" in message)
+        or ("relation " in message and " does not exist" in message)
+    )
+    if not (is_sqlite_missing or is_postgres_missing):
         return False
     return not table_names or any(table.lower() in message for table in table_names)
 
@@ -121,6 +127,7 @@ async def generate_policy(
         variable_values=request.variable_values or {},
         base_policy_id=request.base_policy_id,
         created_by=current_user.user_id,
+        tenant_id=current_user.tenant_id,
     )
 
     # Start generation
@@ -138,7 +145,7 @@ async def generate_policy(
             "preview_url": f"/api/policy-generator/results/{result.job_id}/preview",
         }
 
-    except OperationalError as e:
+    except (OperationalError, ProgrammingError) as e:
         if _is_missing_sqlite_table_error(
             e,
             "policy_generation_jobs",
@@ -604,5 +611,18 @@ async def quick_generate(
             "approve_url": f"/api/policy-generator/results/{result.job_id}/approve",
         }
 
+    except (OperationalError, ProgrammingError) as e:
+        if _is_missing_sqlite_table_error(
+            e,
+            "policy_generation_jobs",
+            "policy_section_templates",
+            "policy_template_variables",
+        ):
+            return {
+                "status": "accepted",
+                "job_id": None,
+                "detail": "Policy generator tables are not initialized in this environment",
+            }
+        raise HTTPException(status_code=500, detail=f"Generation failed: {str(e)}")
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Generation failed: {str(e)}")

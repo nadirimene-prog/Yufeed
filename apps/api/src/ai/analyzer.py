@@ -31,6 +31,7 @@ _analysis_ctx = threading.local()
 def _reset_llm_usage() -> None:
     """Reset per-thread LLM usage markers for the current analysis run."""
     _analysis_ctx.llm_providers = set()
+    _analysis_ctx.llm_usage_events = []
 
 
 def _mark_llm_usage(provider: str) -> None:
@@ -47,6 +48,92 @@ def _llm_providers_used() -> List[str]:
     if not providers:
         return []
     return sorted(providers)
+
+
+def _record_usage_event(
+    *,
+    provider: str,
+    model: str,
+    prompt_tokens: int,
+    completion_tokens: int,
+    operation: Optional[str],
+    request_metadata: Optional[Dict[str, Any]] = None,
+    response_metadata: Optional[Dict[str, Any]] = None,
+) -> None:
+    events = getattr(_analysis_ctx, "llm_usage_events", None)
+    if events is None:
+        events = []
+        _analysis_ctx.llm_usage_events = events
+    events.append(
+        {
+            "provider": provider,
+            "model": model,
+            "prompt_tokens": int(prompt_tokens or 0),
+            "completion_tokens": int(completion_tokens or 0),
+            "operation": operation,
+            "request_metadata": request_metadata or {},
+            "response_metadata": response_metadata or {},
+        }
+    )
+
+
+def _record_anthropic_usage(message: Any, operation: str) -> None:
+    usage = getattr(message, "usage", None)
+    if usage is None:
+        return
+    prompt_tokens = int(getattr(usage, "input_tokens", 0) or 0)
+    prompt_tokens += int(getattr(usage, "cache_creation_input_tokens", 0) or 0)
+    prompt_tokens += int(getattr(usage, "cache_read_input_tokens", 0) or 0)
+    completion_tokens = int(getattr(usage, "output_tokens", 0) or 0)
+    _record_usage_event(
+        provider="anthropic",
+        model=str(getattr(message, "model", "") or "unknown"),
+        prompt_tokens=prompt_tokens,
+        completion_tokens=completion_tokens,
+        operation=operation,
+        response_metadata={
+            "response_id": str(getattr(message, "id", "") or ""),
+            "stop_reason": str(getattr(message, "stop_reason", "") or ""),
+        },
+    )
+
+
+def _record_openai_usage(data: Dict[str, Any], model: str, operation: Optional[str]) -> None:
+    usage = data.get("usage")
+    if not isinstance(usage, dict):
+        return
+    _record_usage_event(
+        provider="openai",
+        model=str(data.get("model") or model or "unknown"),
+        prompt_tokens=int(usage.get("prompt_tokens") or 0),
+        completion_tokens=int(usage.get("completion_tokens") or 0),
+        operation=operation,
+        response_metadata={
+            "response_id": str(data.get("id") or ""),
+            "object": str(data.get("object") or ""),
+        },
+    )
+
+
+def _llm_usage_events() -> List[Dict[str, Any]]:
+    events = getattr(_analysis_ctx, "llm_usage_events", None)
+    if not events:
+        return []
+    return list(events)
+
+
+def _llm_usage_summary() -> Dict[str, Any]:
+    events = _llm_usage_events()
+    providers = sorted({str(e.get("provider")) for e in events if e.get("provider")})
+    return {
+        "calls": len(events),
+        "prompt_tokens": sum(int(e.get("prompt_tokens") or 0) for e in events),
+        "completion_tokens": sum(int(e.get("completion_tokens") or 0) for e in events),
+        "total_tokens": sum(
+            int(e.get("prompt_tokens") or 0) + int(e.get("completion_tokens") or 0) for e in events
+        ),
+        "providers": providers,
+    }
 
 
 def _llm_was_used() -> bool:
@@ -94,7 +181,12 @@ def _is_openai_quota_error(exc: Exception) -> bool:
     )
 
 
-def _openai_chat(prompt: str, max_tokens: int, temperature: float = 0.3) -> str:
+def _openai_chat(
+    prompt: str,
+    max_tokens: int,
+    temperature: float = 0.3,
+    operation: Optional[str] = None,
+) -> str:
     api_key = settings.OPENAI_API_KEY
     if not api_key:
         raise RuntimeError("missing OPENAI_API_KEY")
@@ -134,6 +226,7 @@ def _openai_chat(prompt: str, max_tokens: int, temperature: float = 0.3) -> str:
             data = response.json()
             content = data["choices"][0]["message"]["content"]
             _mark_llm_usage("openai")
+            _record_openai_usage(data, model, operation)
             return content
         except Exception as exc:
             last_exc = exc
@@ -207,6 +300,7 @@ Respond with ONLY the category code (e.g., "aml", "crypto", "payments")."""
                 messages=[{"role": "user", "content": prompt}],
             )
             _mark_llm_usage("anthropic")
+            _record_anthropic_usage(message, "document_analysis.classify")
 
             result = message.content[0].text.strip().lower()
             # Validate result
@@ -238,7 +332,16 @@ Categories:
 
 Respond with ONLY the category code (e.g., "aml", "crypto", "payments")."""
 
-            result = _openai_chat(prompt, max_tokens=50, temperature=0.0).strip().lower()
+            result = (
+                _openai_chat(
+                    prompt,
+                    max_tokens=50,
+                    temperature=0.0,
+                    operation="document_analysis.classify",
+                )
+                .strip()
+                .lower()
+            )
             valid_domains = [d.value for d in ComplianceDomain]
             return result if result in valid_domains else ComplianceDomain.OTHER.value
         except Exception as e:
@@ -281,6 +384,7 @@ Respond with ONLY the risk level (high, medium, or low)."""
                 messages=[{"role": "user", "content": prompt}],
             )
             _mark_llm_usage("anthropic")
+            _record_anthropic_usage(message, "document_analysis.assess_risk")
 
             result = message.content[0].text.strip().lower()
             valid_levels = [r.value for r in RiskLevel]
@@ -312,7 +416,16 @@ Risk Levels:
 
 Respond with ONLY the risk level (high, medium, or low)."""
 
-            result = _openai_chat(prompt, max_tokens=50, temperature=0.0).strip().lower()
+            result = (
+                _openai_chat(
+                    prompt,
+                    max_tokens=50,
+                    temperature=0.0,
+                    operation="document_analysis.assess_risk",
+                )
+                .strip()
+                .lower()
+            )
             valid_levels = [r.value for r in RiskLevel]
             return result if result in valid_levels else RiskLevel.UNKNOWN.value
         except Exception as e:
@@ -547,6 +660,7 @@ Extract 3-7 obligations if available. If no obligations are present, return [].
                 messages=[{"role": "user", "content": prompt}],
             )
             _mark_llm_usage("anthropic")
+            _record_anthropic_usage(message, "document_analysis.extract_obligations")
             result_text = message.content[0].text.strip()
             return _parse_result(result_text)
         except Exception as e:
@@ -561,6 +675,7 @@ Extract 3-7 obligations if available. If no obligations are present, return [].
                         messages=[{"role": "user", "content": prompt}],
                     )
                     _mark_llm_usage("anthropic")
+                    _record_anthropic_usage(message, "document_analysis.extract_obligations")
                     result_text = message.content[0].text.strip()
                     return _parse_result(result_text)
                 except Exception as e2:
@@ -572,7 +687,12 @@ Extract 3-7 obligations if available. If no obligations are present, return [].
 
     if _openai_enabled():
         try:
-            result_text = _openai_chat(prompt, max_tokens=1000, temperature=0.3).strip()
+            result_text = _openai_chat(
+                prompt,
+                max_tokens=1000,
+                temperature=0.3,
+                operation="document_analysis.extract_obligations",
+            ).strip()
             return _parse_result(result_text)
         except Exception as e:
             if _is_openai_quota_error(e):
@@ -610,6 +730,7 @@ If no deadline can be determined, respond with "none".
                 messages=[{"role": "user", "content": prompt}],
             )
             _mark_llm_usage("anthropic")
+            _record_anthropic_usage(message, "document_analysis.extract_deadline")
 
             result = message.content[0].text.strip().lower()
             if result == "none":
@@ -642,7 +763,16 @@ If you can determine a specific deadline date, respond with ONLY the date in YYY
 If you can only determine a relative timeframe (e.g., "18 months"), calculate from publication date.
 If no deadline can be determined, respond with "none".
 """
-            result = _openai_chat(prompt, max_tokens=100, temperature=0.0).strip().lower()
+            result = (
+                _openai_chat(
+                    prompt,
+                    max_tokens=100,
+                    temperature=0.0,
+                    operation="document_analysis.extract_deadline",
+                )
+                .strip()
+                .lower()
+            )
             if result == "none":
                 return None
             try:
@@ -687,6 +817,7 @@ Keep it under 100 words."""
                 messages=[{"role": "user", "content": prompt}],
             )
             _mark_llm_usage("anthropic")
+            _record_anthropic_usage(message, "document_analysis.generate_summary")
 
             return message.content[0].text.strip()
 
@@ -708,7 +839,12 @@ Focus on:
 - Main compliance requirements
 
 Keep it under 100 words."""
-            return _openai_chat(prompt, max_tokens=200, temperature=0.3).strip()
+            return _openai_chat(
+                prompt,
+                max_tokens=200,
+                temperature=0.3,
+                operation="document_analysis.generate_summary",
+            ).strip()
         except Exception as e:
             if _is_openai_quota_error(e):
                 _disable_openai("insufficient_credits")
@@ -764,4 +900,6 @@ def analyze_document(doc_data: Dict[str, Any]) -> Dict[str, Any]:
         "analyzed_at": utc_now() if _llm_was_used() else None,
         "analysis_provider": analysis_provider,
         "llm_providers": providers,
+        "usage_events": _llm_usage_events(),
+        "usage_summary": _llm_usage_summary(),
     }
