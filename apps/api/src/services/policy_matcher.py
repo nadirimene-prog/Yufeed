@@ -13,11 +13,13 @@ from sqlalchemy.orm import Session
 
 from src.ai.embeddings import EmbeddingProvider
 from src.ai.usage_instrumentation import UsageLogContext, log_anthropic_response_usage
+from src.ai.prompts.guardrails import RAW_JSON_ONLY_RULES
 from src.config import settings
 from src.models.compliance_workflow import PolicyDocument, RegulatoryObligation
 from src.tenancy.context import get_current_tenant
 
 logger = logging.getLogger(__name__)
+POLICY_MATCH_REFINEMENT_PROMPT_VERSION = "2026-02-25.1"
 
 
 _POLICY_EMBED_CACHE: Dict[int, Dict[str, Any]] = {}
@@ -340,13 +342,26 @@ class PolicyMatcher:
             }
             for s in suggestions[:3]
         ]
-        prompt = (
-            "Tu es un assistant compliance. Choisis la meilleure policy pour cette obligation, "
-            'retourne JSON: {"items":[{"policy_document_id":int,"confidence":0..1,'
-            '"reasoning":"..."}]}.\n'
-            f"Obligation:\n{obligation_text}\n"
-            f"Candidates:\n{json.dumps(compact, ensure_ascii=False)}"
-        )
+        prompt = f"""You are a compliance policy matching assistant.
+
+Task:
+- Rank the best candidate policies for the obligation below.
+- Use only the provided obligation text and candidate list.
+- Do not invent policy_document_id values.
+- Prefer candidates with stronger semantic overlap, clearer applicability fit, and stronger practical implementation coverage.
+- If two candidates are close, prefer the one with the higher semantic_score.
+
+Return a JSON object in this format:
+{{"items":[{{"policy_document_id":123,"confidence":0.0,"reasoning":"brief evidence-based reason"}}]}}
+
+{RAW_JSON_ONLY_RULES}
+
+Obligation:
+{obligation_text}
+
+Candidates:
+{json.dumps(compact, ensure_ascii=False)}
+"""
         try:
             msg = client.messages.create(
                 model="claude-3-haiku-20240307",
@@ -361,6 +376,7 @@ class PolicyMatcher:
                     user_id=getattr(self, "user_id", None),
                     request_metadata={
                         "feature": "policy_matcher",
+                        "prompt_version": POLICY_MATCH_REFINEMENT_PROMPT_VERSION,
                         "candidate_count": len(suggestions),
                         "llm_refinement_enabled": True,
                         "obligation_length": len(obligation_text),

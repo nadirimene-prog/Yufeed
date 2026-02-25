@@ -54,6 +54,8 @@ class InvestigationAgent(BaseAgent):
     7. Action Recommendation - Suggest next steps
     """
 
+    PROMPT_VERSION = "2026-02-25.1"
+
     INVESTIGATION_PROMPT = """You are an expert AML/CFT Investigation Agent for a European financial institution.
 
 Your task is to conduct a thorough investigation of the provided alert and generate a comprehensive investigation report.
@@ -110,18 +112,11 @@ Based on your analysis, recommend one of:
 
 Respond with a JSON object containing:
 
-```json
 {
     "summary": "Brief executive summary (2-3 sentences)",
     "detailed_analysis": "Comprehensive analysis (paragraph form)",
-    "reasoning_chain": [
-        {
-            "description": "Step description",
-            "evidence": ["Evidence point 1", "Evidence point 2"],
-            "conclusion": "Step conclusion",
-            "confidence": 0.85
-        }
-    ],
+    "decision_rationale": "Evidence-based recommendation rationale",
+    "key_assumptions": ["Material assumptions only, if any"],
     "red_flags": ["Red flag 1", "Red flag 2"],
     "mitigating_factors": ["Mitigating factor 1"],
     "risk_factors": ["Risk factor 1", "Risk factor 2"],
@@ -164,7 +159,6 @@ Respond with a JSON object containing:
         }
     ]
 }
-```
 
 ## Important Guidelines
 
@@ -176,6 +170,9 @@ Respond with a JSON object containing:
 6. **Document uncertainty** - Clearly state when evidence is inconclusive
 7. **Actionable recommendations** - Provide specific, actionable next steps
 8. **Audit trail** - Ensure all conclusions are traceable to evidence
+9. **No speculation** - Use null/empty lists when evidence is missing
+10. **Grounding** - Use only the provided alert/transaction/regulatory context, and do not invent facts
+11. **JSON output** - Return raw JSON only (no Markdown/code fences or extra prose)
 
 Remember: Your analysis may be used in regulatory examinations and legal proceedings.
 Maintain the highest standards of accuracy and professionalism."""
@@ -187,6 +184,10 @@ Maintain the highest standards of accuracy and professionalism."""
     @property
     def system_prompt(self) -> str:
         return self.INVESTIGATION_PROMPT
+
+    @property
+    def prompt_version(self) -> str:
+        return self.PROMPT_VERSION
 
     @property
     def agent_version(self) -> str:
@@ -209,6 +210,7 @@ Maintain the highest standards of accuracy and professionalism."""
         try:
             # Build the investigation prompt
             user_prompt = self._build_investigation_prompt(context)
+            context.input_data["_prompt_version"] = self.prompt_version
 
             # Call Claude for analysis
             response = await self.call_claude(
@@ -311,8 +313,30 @@ Maintain the highest standards of accuracy and professionalism."""
         confidence = float(response.get("confidence", 0.5))
         confidence_level = self.calculate_confidence_level(confidence)
 
-        # Build reasoning chain
-        reasoning_chain = self.build_reasoning_chain(response.get("reasoning_chain", []))
+        # Build reasoning chain (support newer rationale-style output while
+        # remaining backward compatible with legacy reasoning_chain).
+        raw_steps = response.get("reasoning_chain", [])
+        if not raw_steps and isinstance(response.get("decision_rationale"), str):
+            evidence: List[str] = []
+            for item in response.get("evidence_summary", []) or []:
+                if isinstance(item, dict):
+                    desc = item.get("description")
+                    if isinstance(desc, str) and desc.strip():
+                        evidence.append(desc.strip())
+            assumptions = response.get("key_assumptions", [])
+            if isinstance(assumptions, list):
+                evidence.extend(
+                    [f"Assumption: {a}" for a in assumptions if isinstance(a, str) and a.strip()]
+                )
+            raw_steps = [
+                {
+                    "description": "Decision rationale",
+                    "evidence": evidence[:8],
+                    "conclusion": response.get("decision_rationale", ""),
+                    "confidence": response.get("confidence", 0.5),
+                }
+            ]
+        reasoning_chain = self.build_reasoning_chain(raw_steps)
 
         # Build citations
         citations = self.build_citations(response.get("citations", []))

@@ -13,10 +13,13 @@ from anthropic import Anthropic
 from sqlalchemy.orm import Session
 
 from src.ai.cost_tracker import log_usage
+from src.ai.prompts.guardrails import GROUNDING_RULES, RAW_JSON_ONLY_RULES, FACTUAL_NARRATIVE_RULES
 from src.models.transaction_models import Alert, Transaction, MonitoringRule
 from src.models.models import LegalDocument
 
 logger = logging.getLogger(__name__)
+TRIAGE_ANALYSIS_PROMPT_VERSION = "2026-02-25.1"
+INVESTIGATION_REPORT_PROMPT_VERSION = "2026-02-25.1"
 
 
 class AlertTriageAgent:
@@ -291,6 +294,9 @@ Provide your analysis in the following JSON format:
     ]
 }}
 
+{GROUNDING_RULES}
+{RAW_JSON_ONLY_RULES}
+
 Consider:
 1. Transaction patterns and behavioral indicators
 2. Regulatory requirements and obligations
@@ -314,6 +320,7 @@ Be thorough but concise. Focus on actionable insights."""
                 user_id=user_id,
                 request_metadata={
                     "feature": "alert_triage",
+                    "prompt_version": TRIAGE_ANALYSIS_PROMPT_VERSION,
                     "max_tokens": 2000,
                     "prompt_chars": len(prompt),
                     "alert_id": alert_id,
@@ -546,6 +553,9 @@ Include:
 6. Recommended Actions
 7. Next Steps
 
+{FACTUAL_NARRATIVE_RULES}
+
+If facts are missing, explicitly mark them as unavailable instead of inferring them.
 Format as professional compliance documentation."""
 
         try:
@@ -562,6 +572,7 @@ Format as professional compliance documentation."""
                 user_id=getattr(alert, "user_id", None),
                 request_metadata={
                     "feature": "investigation_report",
+                    "prompt_version": INVESTIGATION_REPORT_PROMPT_VERSION,
                     "max_tokens": 4000,
                     "prompt_chars": len(prompt),
                     "alert_id": alert.id,

@@ -17,10 +17,12 @@ import os
 import logging
 from src.database import SessionLocal
 from src.ai.usage_instrumentation import UsageLogContext, log_anthropic_response_usage
+from src.ai.prompts.guardrails import RAG_GROUNDING_RULES
 
 logger = logging.getLogger(__name__)
 MAX_QUERY_LENGTH = 2000
 CONTROL_CHAR_RE = re.compile(r"[\x00-\x08\x0b\x0c\x0e-\x1f\x7f]")
+RAG_ANSWER_PROMPT_VERSION = "2026-02-25.1"
 
 
 class RAGService:
@@ -226,6 +228,7 @@ class RAGService:
                     operation="rag_answer_generation",
                     request_metadata={
                         "feature": "rag",
+                        "prompt_version": RAG_ANSWER_PROMPT_VERSION,
                         "query_length": len(query),
                         "retrieved_chunks": len(chunks),
                         "document_count": len({c.get("celex") for c in chunks if c.get("celex")}),
@@ -296,20 +299,21 @@ class RAGService:
 
 User Question: {query}
 
-Based on the following EU legal documents, provide a comprehensive, accurate answer:
+Based on the following EU legal documents, provide a comprehensive, accurate answer.
 
 {'=' * 80}
 {chr(10).join(context_parts)}
 {'=' * 80}
 
 Instructions:
-1. Answer the question directly and concisely
-2. Cite sources using the bracket IDs like [1], [2] that correspond to the excerpts
-3. Reference specific CELEX numbers when making claims
-4. Highlight key obligations and deadlines
-5. If the excerpts don't fully answer the question, acknowledge limitations
-6. Use clear, professional language suitable for compliance officers
-7. Structure your answer with bullet points or sections if appropriate
+{RAG_GROUNDING_RULES}
+1. Answer the question directly and concisely.
+2. Cite sources using bracket IDs like [1], [2] for every material claim.
+3. Reference CELEX numbers when available in the excerpts.
+4. Highlight key obligations and deadlines only when supported by the excerpts.
+5. If the excerpts do not fully answer the question, acknowledge limitations and what additional evidence is needed.
+6. Use clear, professional language suitable for compliance officers.
+7. Structure your answer with short sections or bullet points when helpful.
 
 Answer:"""
 

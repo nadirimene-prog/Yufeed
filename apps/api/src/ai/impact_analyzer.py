@@ -12,8 +12,10 @@ import anthropic
 
 from src.models.impact_assessment import ImpactLevel, BusinessArea, ActionStatus
 from src.ai.usage_instrumentation import UsageLogContext, log_anthropic_response_usage
+from src.ai.prompts.guardrails import GROUNDING_RULES, RAW_JSON_ONLY_RULES
 
 logger = logging.getLogger(__name__)
+IMPACT_ANALYSIS_PROMPT_VERSION = "2026-02-25.1"
 
 
 class ImpactAnalyzer:
@@ -73,6 +75,7 @@ class ImpactAnalyzer:
                     operation="impact_analysis",
                     request_metadata={
                         "feature": "impact_analysis",
+                        "prompt_version": IMPACT_ANALYSIS_PROMPT_VERSION,
                         "celex": document.get("celex"),
                         "prompt_chars": len(prompt),
                         "max_tokens": 4000,
@@ -120,8 +123,7 @@ class ImpactAnalyzer:
 **Your Task:**
 Analyze how this regulation impacts a typical European bank's AML/CFT operations. Provide a structured assessment.
 
-**Response Format (JSON):**
-```json
+**Response Format (JSON object):**
 {
   "overall_impact_level": "critical|high|medium|low|minimal",
   "executive_summary": "2-3 sentence summary for C-suite executives",
@@ -161,7 +163,6 @@ Analyze how this regulation impacts a typical European bank's AML/CFT operations
     "requires_policy_updates": true
   }
 }
-```
 
 **Business Areas:**
 - onboarding: Customer onboarding / KYC
@@ -184,9 +185,8 @@ Analyze how this regulation impacts a typical European bank's AML/CFT operations
 - Identify dependencies between actions
 - Consider phased implementation if deadline allows
 - Think about what a bank likely has vs. what's needed
-
-Provide only the JSON response, no additional text.
 """
+        prompt += f"\n{GROUNDING_RULES}\n{RAW_JSON_ONLY_RULES}\n"
 
         return prompt
 

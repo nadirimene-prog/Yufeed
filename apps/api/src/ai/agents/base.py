@@ -362,6 +362,11 @@ class BaseAgent(ABC, Generic[T]):
         """Return the version of this agent."""
         return "1.0.0"
 
+    @property
+    def prompt_version(self) -> str:
+        """Return the version identifier for the active prompt set."""
+        return self.agent_version
+
     @abstractmethod
     async def process(self, context: AgentContext) -> T:
         """
@@ -464,6 +469,9 @@ class BaseAgent(ABC, Generic[T]):
                         "agent_version": self.agent_version,
                         "session_id": context.session_id,
                         "task_id": context.task_id,
+                        "prompt_version": (
+                            context.input_data.get("_prompt_version") or self.prompt_version
+                        ),
                         "json_mode": json_mode,
                         "prompt_chars": len(user_prompt),
                         "message_count": len(messages),

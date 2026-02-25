@@ -285,6 +285,11 @@ Generate a compliance briefing with the following sections:
     "areas_of_concern": ["Specific areas needing attention"],
     "positive_developments": ["Things going well"]
 }}
+
+Important:
+- Use only the provided operational/regulatory/system data.
+- Do not invent statistics, deadlines, or incidents.
+- Return raw JSON only (no Markdown/code fences or extra prose).
 """
 
     COMPLIANCE_QA_PROMPT = """You are an expert EU AML/CFT Compliance Advisor.
@@ -316,6 +321,8 @@ Provide a comprehensive answer that:
 3. Explains practical implications
 4. Notes any jurisdictional variations
 5. Suggests related topics for further reading
+6. Clearly distinguish what is supported by the provided context vs. general interpretation
+7. If the provided context is insufficient, state the limitation in "caveats"
 
 ## Response Format (JSON)
 {{
@@ -334,6 +341,11 @@ Provide a comprehensive answer that:
     "caveats": ["Any limitations or caveats"],
     "jurisdictional_notes": "Notes about member state variations if relevant"
 }}
+
+Important:
+- Ground the answer in the provided regulatory context and question history.
+- If the provided context is insufficient, state that in caveats instead of guessing.
+- Return raw JSON only (no Markdown/code fences or extra prose).
 """
 
     IMPACT_ASSESSMENT_PROMPT = """You are an expert EU Regulatory Impact Analyst.
@@ -391,6 +403,12 @@ Provide a comprehensive impact assessment:
     "non_compliance_risks": ["Risks if not compliant"],
     "recommendations": ["Strategic recommendations"]
 }}
+
+Important:
+- Use only the provided regulation/current-status/org-profile context.
+- Do not invent deadlines, costs, or requirements without support in the input.
+- Use null or conservative estimates when information is missing.
+- Return raw JSON only (no Markdown/code fences or extra prose).
 """
 
     @property
@@ -473,6 +491,7 @@ Provide a comprehensive impact assessment:
                 regulatory_updates=regulatory_updates,
                 system_health=self._format_stats(system_health),
             )
+            context.input_data["_prompt_version"] = "compliance_officer.briefing.2026-02-25.1"
 
             # Call Claude
             response = await self.call_claude(prompt, context)
@@ -554,6 +573,7 @@ Provide a comprehensive impact assessment:
                 conversation_history=history_text or "No previous conversation",
                 question=question,
             )
+            context.input_data["_prompt_version"] = "compliance_officer.qa.2026-02-25.1"
 
             # Call Claude
             response = await self.call_claude(prompt, context)
@@ -600,6 +620,7 @@ Provide a comprehensive impact assessment:
                 current_status=current_status or "Standard EU AML program",
                 org_profile=org_profile or "EU-based financial institution",
             )
+            context.input_data["_prompt_version"] = "compliance_officer.impact.2026-02-25.1"
 
             response = await self.call_claude(prompt, context)
 

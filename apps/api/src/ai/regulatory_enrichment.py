@@ -15,8 +15,11 @@ from sqlalchemy.orm import Session
 from src.models.transaction_models import Alert, Transaction, MonitoringRule
 from src.models.models import LegalDocument
 from src.ai.usage_instrumentation import UsageLogContext, log_anthropic_response_usage
+from src.ai.prompts.guardrails import FACTUAL_NARRATIVE_RULES
 
 logger = logging.getLogger(__name__)
+REGULATORY_CONTEXT_PROMPT_VERSION = "2026-02-25.1"
+SAR_NARRATIVE_PROMPT_VERSION = "2026-02-25.1"
 
 
 class RegulatoryEnrichmentService:
@@ -135,7 +138,7 @@ class RegulatoryEnrichmentService:
                 if hasattr(reg, "summary") and reg.summary:
                     prompt += f"- Summary: {reg.summary}\n"
 
-        prompt += """
+        prompt += f"""
 
 # Your Task
 
@@ -149,6 +152,8 @@ Your explanation should:
 5. Provide guidance for compliance officers
 
 Write in professional but accessible language. Focus on actionable compliance insights.
+{FACTUAL_NARRATIVE_RULES}
+If a specific article, obligation, or fact is missing from the provided data, say so explicitly.
 
 Keep it concise (2-3 paragraphs maximum).
 """
@@ -167,6 +172,7 @@ Keep it concise (2-3 paragraphs maximum).
                     operation="regulatory_enrichment_context",
                     request_metadata={
                         "feature": "regulatory_enrichment",
+                        "prompt_version": REGULATORY_CONTEXT_PROMPT_VERSION,
                         "alert_id": alert.id,
                         "prompt_chars": len(prompt),
                         "max_tokens": 1000,
@@ -295,6 +301,8 @@ Write a clear, factual narrative describing:
 Use professional, objective language suitable for regulatory filing.
 Be specific about amounts, dates, and patterns.
 Do not speculate - stick to observable facts.
+{FACTUAL_NARRATIVE_RULES}
+If key details are unavailable, identify the information gap rather than inventing specifics.
 
 Format: 3-5 concise paragraphs.
 """
@@ -313,6 +321,7 @@ Format: 3-5 concise paragraphs.
                     operation="sar_narrative_generation",
                     request_metadata={
                         "feature": "sar_narrative",
+                        "prompt_version": SAR_NARRATIVE_PROMPT_VERSION,
                         "alert_id": getattr(alert, "id", None) if alert else None,
                         "prompt_chars": len(prompt),
                         "max_tokens": 1500,

@@ -199,6 +199,8 @@ class SARAgent(BaseAgent):
     5. Generates jurisdiction-specific filing formats
     """
 
+    PROMPT_VERSION = "2026-02-25.1"
+
     SAR_NARRATIVE_PROMPT = """You are an expert AML/CFT SAR Filing Agent specializing in EU regulations.
 
 Your task is to generate a comprehensive Suspicious Activity Report (SAR) narrative based on the case data provided.
@@ -281,6 +283,10 @@ Important:
 - Include specific transaction amounts and dates
 - Maintain subject privacy where appropriate
 - Flag any information gaps
+- Use null for unknown subject fields instead of inventing values
+- Return raw JSON only (no Markdown/code fences, no extra text)
+- Use only the facts provided in the case/investigation/transaction details
+- If key details are unavailable, state the gap instead of inferring it
 """
 
     @property
@@ -290,6 +296,10 @@ Important:
     @property
     def system_prompt(self) -> str:
         return self.SAR_NARRATIVE_PROMPT
+
+    @property
+    def prompt_version(self) -> str:
+        return self.PROMPT_VERSION
 
     def __init__(self):
         super().__init__()
@@ -331,6 +341,7 @@ Important:
                 ),
                 transaction_details=transaction_details,
             )
+            context.input_data["_prompt_version"] = self.prompt_version
 
             # Call Claude for narrative generation
             response = await self.call_claude(prompt, context)

@@ -33,8 +33,10 @@ from src.services.rules_engine import RuleBuilder
 from src.tenancy.context import get_current_tenant
 from src.config import settings
 from src.ai.usage_instrumentation import UsageLogContext, log_anthropic_response_usage
+from src.ai.prompts.guardrails import FACTUAL_NARRATIVE_RULES
 
 logger = logging.getLogger(__name__)
+POLICY_GENERATION_SECTION_PROMPT_VERSION = "2026-02-25.1"
 
 
 def _is_missing_sqlite_table_error(exc: Exception, *table_names: str) -> bool:
@@ -409,6 +411,7 @@ class PolicyGenerator:
                     operation="policy_generation_section",
                     request_metadata={
                         "feature": "policy_generator",
+                        "prompt_version": POLICY_GENERATION_SECTION_PROMPT_VERSION,
                         "template_id": (telemetry_context or {}).get("template_id"),
                         "section_name": section.get("name"),
                         "obligation_count": len(obligations),
@@ -460,6 +463,11 @@ Requirements:
 4. Include clear procedures
 5. Use numbered sections for clarity
 6. Length: 300-800 words
+7. Do not invent article references or obligations that are not present in the supplied obligations
+8. If obligation details are incomplete, use neutral placeholders like "[TO BE COMPLETED]" for missing specifics
+9. Do not add disclaimers or commentary outside the policy section text
+
+{FACTUAL_NARRATIVE_RULES}
 
 Generate the policy section content only, without the title:"""
 

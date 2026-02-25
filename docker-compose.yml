@@ -74,9 +74,10 @@ services:
   # ============================================================================
 
   api:
+    image: yufeed-backend-dev
     build:
       context: ./apps/api
-      dockerfile: Dockerfile
+      dockerfile: Dockerfile.dev
     container_name: yufeed-api
     command: uvicorn src.main:app --host 0.0.0.0 --port 8000 --reload
     depends_on:
@@ -152,9 +153,7 @@ services:
     restart: always
 
   worker:
-    build:
-      context: ./apps/api
-      dockerfile: Dockerfile
+    image: yufeed-backend-dev
     container_name: yufeed-worker
     command: python -m celery -A src.worker.celery_app worker --loglevel=info
     depends_on:
@@ -212,9 +211,7 @@ services:
     restart: always
 
   beat:
-    build:
-      context: ./apps/api
-      dockerfile: Dockerfile
+    image: yufeed-backend-dev
     container_name: yufeed-beat
     command: python -m celery -A src.worker.celery_app beat --loglevel=info --schedule /tmp/celerybeat-schedule
     depends_on:

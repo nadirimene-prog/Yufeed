@@ -1,0 +1,31 @@
+.git
+.gitignore
+.DS_Store
+
+# Local Python environments / caches
+.venv
+venv
+__pycache__
+*.pyc
+*.pyo
+*.pyd
+.mypy_cache
+.pytest_cache
+.ruff_cache
+.hypothesis
+.tox
+
+# Test / coverage artifacts
+.coverage
+.coverage.*
+coverage.xml
+htmlcov
+
+# Local runtime artifacts
+*.log
+*.sqlite
+*.db
+celerybeat-schedule
+
+# Local model/cache downloads (can be very large)
+.cache

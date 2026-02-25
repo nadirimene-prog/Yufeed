@@ -17,6 +17,7 @@ import anthropic  # Using Claude for legal text analysis
 from src.utils.time import utc_now
 from src.models.models import ComplianceDomain, RiskLevel
 from src.config import settings
+from src.ai.prompts.guardrails import GROUNDING_RULES, RAW_JSON_ONLY_RULES
 
 # Initialize Anthropic client
 ANTHROPIC_API_KEY = settings.ANTHROPIC_API_KEY
@@ -26,6 +27,13 @@ OPENAI_DISABLED_REASON: Optional[str] = None
 logger = logging.getLogger(__name__)
 
 _analysis_ctx = threading.local()
+ANALYZER_PROMPT_VERSIONS = {
+    "classify": "2026-02-25.1",
+    "assess_risk": "2026-02-25.1",
+    "extract_obligations": "2026-02-25.1",
+    "extract_deadline": "2026-02-25.1",
+    "generate_summary": "2026-02-25.1",
+}
 
 
 def _reset_llm_usage() -> None:
@@ -77,7 +85,9 @@ def _record_usage_event(
     )
 
 
-def _record_anthropic_usage(message: Any, operation: str) -> None:
+def _record_anthropic_usage(
+    message: Any, operation: str, request_metadata: Optional[Dict[str, Any]] = None
+) -> None:
     usage = getattr(message, "usage", None)
     if usage is None:
         return
@@ -91,6 +101,7 @@ def _record_anthropic_usage(message: Any, operation: str) -> None:
         prompt_tokens=prompt_tokens,
         completion_tokens=completion_tokens,
         operation=operation,
+        request_metadata=request_metadata or {},
         response_metadata={
             "response_id": str(getattr(message, "id", "") or ""),
             "stop_reason": str(getattr(message, "stop_reason", "") or ""),
@@ -98,7 +109,12 @@ def _record_anthropic_usage(message: Any, operation: str) -> None:
     )
 
 
-def _record_openai_usage(data: Dict[str, Any], model: str, operation: Optional[str]) -> None:
+def _record_openai_usage(
+    data: Dict[str, Any],
+    model: str,
+    operation: Optional[str],
+    request_metadata: Optional[Dict[str, Any]] = None,
+) -> None:
     usage = data.get("usage")
     if not isinstance(usage, dict):
         return
@@ -108,6 +124,7 @@ def _record_openai_usage(data: Dict[str, Any], model: str, operation: Optional[s
         prompt_tokens=int(usage.get("prompt_tokens") or 0),
         completion_tokens=int(usage.get("completion_tokens") or 0),
         operation=operation,
+        request_metadata=request_metadata or {},
         response_metadata={
             "response_id": str(data.get("id") or ""),
             "object": str(data.get("object") or ""),
@@ -186,6 +203,7 @@ def _openai_chat(
     max_tokens: int,
     temperature: float = 0.3,
     operation: Optional[str] = None,
+    request_metadata: Optional[Dict[str, Any]] = None,
 ) -> str:
     api_key = settings.OPENAI_API_KEY
     if not api_key:
@@ -226,7 +244,7 @@ def _openai_chat(
             data = response.json()
             content = data["choices"][0]["message"]["content"]
             _mark_llm_usage("openai")
-            _record_openai_usage(data, model, operation)
+            _record_openai_usage(data, model, operation, request_metadata=request_metadata)
             return content
         except Exception as exc:
             last_exc = exc
@@ -269,14 +287,8 @@ def _risk_heuristic(title: str) -> str:
     return RiskLevel.LOW.value
 
 
-def classify_document(title: str, celex: str) -> Optional[str]:
-    """
-    Classify document into compliance domain based on title and CELEX.
-    Returns: ComplianceDomain value or None
-    """
-    if _anthropic_enabled():
-        try:
-            prompt = f"""Classify this EU legal document into ONE compliance domain category.
+def _build_classification_prompt(title: str, celex: str) -> str:
+    return f"""Classify this EU legal document into ONE compliance domain category.
 
 Document: {celex}
 Title: {title}
@@ -292,7 +304,114 @@ Categories:
 - gdpr: Data Protection / Privacy
 - other: Other compliance areas
 
-Respond with ONLY the category code (e.g., "aml", "crypto", "payments")."""
+{GROUNDING_RULES}
+
+Response rules:
+- Return ONLY one category code from the list above.
+- No punctuation, quotes, or extra text.
+"""
+
+
+def _build_risk_prompt(title: str, celex: str, compliance_domain: Optional[str]) -> str:
+    return f"""Assess the compliance risk level of this EU regulation for a bank's operations.
+
+Document: {celex}
+Title: {title}
+Compliance Domain: {compliance_domain or "unknown"}
+
+Consider:
+- Direct impact on banking operations
+- Penalties for non-compliance
+- Implementation complexity
+- Regulatory scrutiny level
+
+Risk Levels:
+- high: Critical compliance requirement, severe penalties, high regulatory scrutiny
+- medium: Important but manageable, moderate impact
+- low: Minor impact, informational, or not directly applicable to banks
+
+{GROUNDING_RULES}
+
+Response rules:
+- Respond with ONLY one of: high, medium, low.
+- No punctuation, quotes, or extra text.
+"""
+
+
+def _build_obligations_prompt(title: str, celex: str, context: str) -> str:
+    return f"""Extract the key compliance obligations from this EU regulation that banks or regulated entities must follow.
+
+Document: {celex}
+Title: {title}
+
+{context}
+
+For each obligation, provide:
+1. obligation: the specific requirement (clear, actionable)
+2. article: article or section reference (if available, else null)
+3. deadline: specific date or timeframe if stated (else null)
+4. applicability: who/what this applies to (e.g., PSP, VASP, banks) (else null)
+5. source_excerpt: short supporting excerpt copied from provided context (max 200 chars)
+
+Output schema (JSON array):
+[
+  {{"obligation": "Banks must...", "article": "Article 5", "deadline": "2026-01-01", "applicability": "banks", "source_excerpt": "..." }}
+]
+
+Extract 3-7 obligations if available. If no obligations are present, return [].
+{GROUNDING_RULES}
+Additional extraction rule:
+- source_excerpt must be copied from the provided excerpts/context, not paraphrased.
+{RAW_JSON_ONLY_RULES}
+"""
+
+
+def _build_deadline_prompt(title: str, publication_date: Optional[datetime]) -> str:
+    publication = publication_date.strftime("%Y-%m-%d") if publication_date else "unknown"
+    return f"""Extract the implementation/transposition deadline from this EU legal document title.
+
+Title: {title}
+Publication Date: {publication}
+
+Look only for explicit deadline/date phrases present in the title (for example:
+"applicable from", "entry into force", "transposition deadline").
+
+If the title contains an explicit relative timeframe (e.g., "18 months"), calculate the date from Publication Date.
+If there is no explicit deadline/date information in the title, respond with "none".
+
+{GROUNDING_RULES}
+
+Response rules:
+- Return ONLY a date in YYYY-MM-DD format, or "none".
+- No extra text.
+"""
+
+
+def _build_summary_prompt(title: str, celex: str) -> str:
+    return f"""Create a concise executive summary (2-3 sentences) of this EU regulation for an AML/Compliance Officer at a bank.
+
+Document: {celex}
+Title: {title}
+
+Focus on:
+- What this regulation does
+- Key impact on banks
+- Main compliance requirements
+
+{GROUNDING_RULES}
+
+Keep it under 100 words. If title-only information is insufficient, acknowledge the limitation briefly.
+"""
+
+
+def classify_document(title: str, celex: str) -> Optional[str]:
+    """
+    Classify document into compliance domain based on title and CELEX.
+    Returns: ComplianceDomain value or None
+    """
+    if _anthropic_enabled():
+        try:
+            prompt = _build_classification_prompt(title, celex)
 
             message = client.messages.create(
                 model="claude-3-haiku-20240307",  # Fast and cost-effective
@@ -300,7 +419,14 @@ Respond with ONLY the category code (e.g., "aml", "crypto", "payments")."""
                 messages=[{"role": "user", "content": prompt}],
             )
             _mark_llm_usage("anthropic")
-            _record_anthropic_usage(message, "document_analysis.classify")
+            _record_anthropic_usage(
+                message,
+                "document_analysis.classify",
+                request_metadata={
+                    "prompt_version": ANALYZER_PROMPT_VERSIONS["classify"],
+                    "prompt_chars": len(prompt),
+                },
+            )
 
             result = message.content[0].text.strip().lower()
             # Validate result
@@ -314,23 +440,7 @@ Respond with ONLY the category code (e.g., "aml", "crypto", "payments")."""
 
     if _openai_enabled():
         try:
-            prompt = f"""Classify this EU legal document into ONE compliance domain category.
-
-Document: {celex}
-Title: {title}
-
-Categories:
-- aml: Anti-Money Laundering
-- cft: Counter-Terrorist Financing
-- sanctions: Economic Sanctions
-- kyc: Know Your Customer
-- cdd: Customer Due Diligence
-- payments: Payment Services
-- crypto: Crypto Assets / Digital Assets
-- gdpr: Data Protection / Privacy
-- other: Other compliance areas
-
-Respond with ONLY the category code (e.g., "aml", "crypto", "payments")."""
+            prompt = _build_classification_prompt(title, celex)
 
             result = (
                 _openai_chat(
@@ -338,6 +448,10 @@ Respond with ONLY the category code (e.g., "aml", "crypto", "payments")."""
                     max_tokens=50,
                     temperature=0.0,
                     operation="document_analysis.classify",
+                    request_metadata={
+                        "prompt_version": ANALYZER_PROMPT_VERSIONS["classify"],
+                        "prompt_chars": len(prompt),
+                    },
                 )
                 .strip()
                 .lower()
@@ -359,24 +473,7 @@ def assess_risk_level(title: str, celex: str, compliance_domain: Optional[str] =
     """
     if _anthropic_enabled():
         try:
-            prompt = f"""Assess the compliance risk level of this EU regulation for a bank's operations.
-
-Document: {celex}
-Title: {title}
-Compliance Domain: {compliance_domain or "unknown"}
-
-Consider:
-- Direct impact on banking operations
-- Penalties for non-compliance
-- Implementation complexity
-- Regulatory scrutiny level
-
-Risk Levels:
-- high: Critical compliance requirement, severe penalties, high regulatory scrutiny
-- medium: Important but manageable, moderate impact
-- low: Minor impact, informational, or not directly applicable to banks
-
-Respond with ONLY the risk level (high, medium, or low)."""
+            prompt = _build_risk_prompt(title, celex, compliance_domain)
 
             message = client.messages.create(
                 model="claude-3-haiku-20240307",
@@ -384,7 +481,14 @@ Respond with ONLY the risk level (high, medium, or low)."""
                 messages=[{"role": "user", "content": prompt}],
             )
             _mark_llm_usage("anthropic")
-            _record_anthropic_usage(message, "document_analysis.assess_risk")
+            _record_anthropic_usage(
+                message,
+                "document_analysis.assess_risk",
+                request_metadata={
+                    "prompt_version": ANALYZER_PROMPT_VERSIONS["assess_risk"],
+                    "prompt_chars": len(prompt),
+                },
+            )
 
             result = message.content[0].text.strip().lower()
             valid_levels = [r.value for r in RiskLevel]
@@ -397,24 +501,7 @@ Respond with ONLY the risk level (high, medium, or low)."""
 
     if _openai_enabled():
         try:
-            prompt = f"""Assess the compliance risk level of this EU regulation for a bank's operations.
-
-Document: {celex}
-Title: {title}
-Compliance Domain: {compliance_domain or "unknown"}
-
-Consider:
-- Direct impact on banking operations
-- Penalties for non-compliance
-- Implementation complexity
-- Regulatory scrutiny level
-
-Risk Levels:
-- high: Critical compliance requirement, severe penalties, high regulatory scrutiny
-- medium: Important but manageable, moderate impact
-- low: Minor impact, informational, or not directly applicable to banks
-
-Respond with ONLY the risk level (high, medium, or low)."""
+            prompt = _build_risk_prompt(title, celex, compliance_domain)
 
             result = (
                 _openai_chat(
@@ -422,6 +509,10 @@ Respond with ONLY the risk level (high, medium, or low)."""
                     max_tokens=50,
                     temperature=0.0,
                     operation="document_analysis.assess_risk",
+                    request_metadata={
+                        "prompt_version": ANALYZER_PROMPT_VERSIONS["assess_risk"],
+                        "prompt_chars": len(prompt),
+                    },
                 )
                 .strip()
                 .lower()
@@ -592,28 +683,7 @@ def extract_obligations(
     elif full_text:
         context = "Relevant excerpts:\\n" + _select_full_text_obligation_snippets(full_text)
 
-    prompt = f"""Extract the key compliance obligations from this EU regulation that banks or regulated entities must follow.
-
-Document: {celex}
-Title: {title}
-
-{context}
-
-For each obligation, provide:
-1. obligation: the specific requirement (clear, actionable)
-2. article: article or section reference (if available)
-3. deadline: specific date or timeframe if stated
-4. applicability: who/what this applies to (e.g., PSP, VASP, banks)
-5. source_excerpt: a short supporting excerpt (max 200 chars)
-
-Format as JSON array:
-[
-  {{"obligation": "Banks must...", "article": "Article 5", "deadline": "2026-01-01", "applicability": "banks", "source_excerpt": "…"}},
-  ...
-]
-
-Extract 3-7 obligations if available. If no obligations are present, return [].
-    Respond with JSON only."""
+    prompt = _build_obligations_prompt(title, celex, context)
 
     def _parse_result(result_text: str) -> List[Dict[str, str]]:
         if not result_text:
@@ -660,7 +730,14 @@ Extract 3-7 obligations if available. If no obligations are present, return [].
                 messages=[{"role": "user", "content": prompt}],
             )
             _mark_llm_usage("anthropic")
-            _record_anthropic_usage(message, "document_analysis.extract_obligations")
+            _record_anthropic_usage(
+                message,
+                "document_analysis.extract_obligations",
+                request_metadata={
+                    "prompt_version": ANALYZER_PROMPT_VERSIONS["extract_obligations"],
+                    "prompt_chars": len(prompt),
+                },
+            )
             result_text = message.content[0].text.strip()
             return _parse_result(result_text)
         except Exception as e:
@@ -675,7 +752,14 @@ Extract 3-7 obligations if available. If no obligations are present, return [].
                         messages=[{"role": "user", "content": prompt}],
                     )
                     _mark_llm_usage("anthropic")
-                    _record_anthropic_usage(message, "document_analysis.extract_obligations")
+                    _record_anthropic_usage(
+                        message,
+                        "document_analysis.extract_obligations",
+                        request_metadata={
+                            "prompt_version": ANALYZER_PROMPT_VERSIONS["extract_obligations"],
+                            "prompt_chars": len(prompt),
+                        },
+                    )
                     result_text = message.content[0].text.strip()
                     return _parse_result(result_text)
                 except Exception as e2:
@@ -692,6 +776,10 @@ Extract 3-7 obligations if available. If no obligations are present, return [].
                 max_tokens=1000,
                 temperature=0.3,
                 operation="document_analysis.extract_obligations",
+                request_metadata={
+                    "prompt_version": ANALYZER_PROMPT_VERSIONS["extract_obligations"],
+                    "prompt_chars": len(prompt),
+                },
             ).strip()
             return _parse_result(result_text)
         except Exception as e:
@@ -709,20 +797,7 @@ def extract_deadline(title: str, publication_date: Optional[datetime] = None) ->
     """
     if _anthropic_enabled():
         try:
-            prompt = f"""Extract the implementation/transposition deadline from this EU legal document title.
-
-Title: {title}
-Publication Date: {publication_date.strftime('%Y-%m-%d') if publication_date else 'unknown'}
-
-Common patterns:
-- Directives: typically 18-24 months for transposition
-- Regulations: often immediate or 6-12 months
-- Look for phrases like "applicable from", "entry into force", "transposition deadline"
-
-If you can determine a specific deadline date, respond with ONLY the date in YYYY-MM-DD format.
-If you can only determine a relative timeframe (e.g., "18 months"), calculate from publication date.
-If no deadline can be determined, respond with "none".
-"""
+            prompt = _build_deadline_prompt(title, publication_date)
 
             message = client.messages.create(
                 model="claude-3-haiku-20240307",
@@ -730,7 +805,14 @@ If no deadline can be determined, respond with "none".
                 messages=[{"role": "user", "content": prompt}],
             )
             _mark_llm_usage("anthropic")
-            _record_anthropic_usage(message, "document_analysis.extract_deadline")
+            _record_anthropic_usage(
+                message,
+                "document_analysis.extract_deadline",
+                request_metadata={
+                    "prompt_version": ANALYZER_PROMPT_VERSIONS["extract_deadline"],
+                    "prompt_chars": len(prompt),
+                },
+            )
 
             result = message.content[0].text.strip().lower()
             if result == "none":
@@ -749,26 +831,17 @@ If no deadline can be determined, respond with "none".
 
     if _openai_enabled():
         try:
-            prompt = f"""Extract the implementation/transposition deadline from this EU legal document title.
-
-Title: {title}
-Publication Date: {publication_date.strftime('%Y-%m-%d') if publication_date else 'unknown'}
-
-Common patterns:
-- Directives: typically 18-24 months for transposition
-- Regulations: often immediate or 6-12 months
-- Look for phrases like "applicable from", "entry into force", "transposition deadline"
-
-If you can determine a specific deadline date, respond with ONLY the date in YYYY-MM-DD format.
-If you can only determine a relative timeframe (e.g., "18 months"), calculate from publication date.
-If no deadline can be determined, respond with "none".
-"""
+            prompt = _build_deadline_prompt(title, publication_date)
             result = (
                 _openai_chat(
                     prompt,
                     max_tokens=100,
                     temperature=0.0,
                     operation="document_analysis.extract_deadline",
+                    request_metadata={
+                        "prompt_version": ANALYZER_PROMPT_VERSIONS["extract_deadline"],
+                        "prompt_chars": len(prompt),
+                    },
                 )
                 .strip()
                 .lower()
@@ -799,17 +872,7 @@ def generate_summary(title: str, celex: str) -> str:
     """
     if _anthropic_enabled():
         try:
-            prompt = f"""Create a concise executive summary (2-3 sentences) of this EU regulation for an AML/Compliance Officer at a bank.
-
-Document: {celex}
-Title: {title}
-
-Focus on:
-- What this regulation does
-- Key impact on banks
-- Main compliance requirements
-
-Keep it under 100 words."""
+            prompt = _build_summary_prompt(title, celex)
 
             message = client.messages.create(
                 model="claude-3-haiku-20240307",
@@ -817,7 +880,14 @@ Keep it under 100 words."""
                 messages=[{"role": "user", "content": prompt}],
             )
             _mark_llm_usage("anthropic")
-            _record_anthropic_usage(message, "document_analysis.generate_summary")
+            _record_anthropic_usage(
+                message,
+                "document_analysis.generate_summary",
+                request_metadata={
+                    "prompt_version": ANALYZER_PROMPT_VERSIONS["generate_summary"],
+                    "prompt_chars": len(prompt),
+                },
+            )
 
             return message.content[0].text.strip()
 
@@ -828,22 +898,16 @@ Keep it under 100 words."""
 
     if _openai_enabled():
         try:
-            prompt = f"""Create a concise executive summary (2-3 sentences) of this EU regulation for an AML/Compliance Officer at a bank.
-
-Document: {celex}
-Title: {title}
-
-Focus on:
-- What this regulation does
-- Key impact on banks
-- Main compliance requirements
-
-Keep it under 100 words."""
+            prompt = _build_summary_prompt(title, celex)
             return _openai_chat(
                 prompt,
                 max_tokens=200,
                 temperature=0.3,
                 operation="document_analysis.generate_summary",
+                request_metadata={
+                    "prompt_version": ANALYZER_PROMPT_VERSIONS["generate_summary"],
+                    "prompt_chars": len(prompt),
+                },
             ).strip()
         except Exception as e:
             if _is_openai_quota_error(e):
