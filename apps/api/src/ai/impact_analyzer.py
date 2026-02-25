@@ -5,6 +5,8 @@ Uses Claude to assess how regulations affect bank operations.
 
 import logging
 import os
+import time
+import random
 from typing import Dict, List, Any, Optional
 from datetime import datetime, timedelta
 import json
@@ -28,6 +30,46 @@ class ImpactAnalyzer:
             self.client = None
             logger.warning("ANTHROPIC_API_KEY not set - using fallback impact analysis")
 
+    def _is_retryable_anthropic_error(self, exc: Exception) -> bool:
+        status_code = getattr(exc, "status_code", None)
+        if status_code in {429, 529}:
+            return True
+        response = getattr(exc, "response", None)
+        response_status = getattr(response, "status_code", None)
+        if response_status in {429, 529}:
+            return True
+        msg = str(exc).lower()
+        return "overloaded_error" in msg or "rate_limit" in msg or "too many requests" in msg
+
+    def _call_claude_with_retry(self, **kwargs):
+        retries = max(0, int(os.getenv("ANTHROPIC_RETRIES", "2")))
+        backoff = max(0.1, float(os.getenv("ANTHROPIC_BACKOFF_SECONDS", "1.0")))
+        max_backoff = max(backoff, float(os.getenv("ANTHROPIC_MAX_BACKOFF_SECONDS", "8.0")))
+        jitter = max(0.0, float(os.getenv("ANTHROPIC_JITTER_SECONDS", "0.25")))
+
+        last_exc: Optional[Exception] = None
+        for attempt in range(retries + 1):
+            try:
+                return self.client.messages.create(**kwargs)
+            except Exception as exc:
+                last_exc = exc
+                if attempt >= retries or not self._is_retryable_anthropic_error(exc):
+                    raise
+                sleep_s = min(max_backoff, backoff * (2**attempt))
+                if jitter:
+                    sleep_s += random.uniform(0.0, jitter)
+                logger.warning(
+                    "Retryable Anthropic error in impact analysis (attempt %s/%s): %s. Retrying in %.2fs",
+                    attempt + 1,
+                    retries + 1,
+                    exc,
+                    sleep_s,
+                )
+                time.sleep(sleep_s)
+        if last_exc:
+            raise last_exc
+        raise RuntimeError("Anthropic request failed")
+
     def analyze_impact(self, document: Dict[str, Any]) -> Dict[str, Any]:
         """
         Perform comprehensive impact analysis on a legal document.
@@ -50,7 +92,7 @@ class ImpactAnalyzer:
             prompt = self._build_impact_prompt(document)
 
             # Call Claude for analysis
-            message = self.client.messages.create(
+            message = self._call_claude_with_retry(
                 model="claude-sonnet-4-20250514",
                 max_tokens=4000,
                 temperature=0.3,
@@ -59,7 +101,15 @@ class ImpactAnalyzer:
 
             # Parse response
             response_text = message.content[0].text
-            analysis = self._parse_impact_response(response_text)
+            try:
+                analysis = self._parse_impact_response_strict(response_text)
+            except (json.JSONDecodeError, ValueError, TypeError) as parse_exc:
+                logger.warning(
+                    "Malformed JSON from impact analysis model, attempting repair: %s",
+                    parse_exc,
+                )
+                repaired_text = self._repair_impact_json_response(response_text)
+                analysis = self._parse_impact_response_strict(repaired_text)
 
             logger.info(f"Impact analysis completed for {document.get('celex')}")
             return analysis
@@ -167,31 +217,174 @@ Provide only the JSON response, no additional text.
 
         return prompt
 
+    def _extract_json_payload_text(self, response_text: str) -> str:
+        """Extract a JSON object from a response that may include markdown fences."""
+        text = (response_text or "").strip()
+
+        if "```json" in text:
+            json_start = text.find("```json") + 7
+            json_end = text.find("```", json_start)
+            if json_end != -1:
+                text = text[json_start:json_end].strip()
+        elif "```" in text:
+            fenced_start = text.find("```") + 3
+            fenced_end = text.find("```", fenced_start)
+            if fenced_end != -1:
+                text = text[fenced_start:fenced_end].strip()
+
+        obj_start = text.find("{")
+        obj_end = text.rfind("}") + 1
+        if obj_start == -1 or obj_end <= obj_start:
+            raise ValueError("No JSON found in response")
+        return text[obj_start:obj_end]
+
+    def _normalize_impact_response(self, parsed: Dict[str, Any]) -> Dict[str, Any]:
+        return {
+            "overall_impact_level": parsed.get("overall_impact_level", "medium"),
+            "executive_summary": parsed.get("executive_summary", ""),
+            "affected_areas": parsed.get("affected_areas", []),
+            "key_changes": parsed.get("key_changes", []),
+            "action_items": parsed.get("action_items", []),
+            "gaps": parsed.get("gaps", []),
+            "resource_estimates": parsed.get("resource_estimates", {}),
+        }
+
+    def _validate_impact_response_schema(self, analysis: Dict[str, Any]) -> Dict[str, Any]:
+        """Validate and normalize impact schema (keys, top-level types, key ranges)."""
+        if not isinstance(analysis, dict):
+            raise TypeError("Impact analysis response must be a JSON object")
+
+        required_keys = {
+            "overall_impact_level",
+            "executive_summary",
+            "affected_areas",
+            "key_changes",
+            "action_items",
+            "gaps",
+            "resource_estimates",
+        }
+        missing = sorted(required_keys - set(analysis.keys()))
+        if missing:
+            raise ValueError(f"Missing required impact keys: {', '.join(missing)}")
+
+        allowed_levels = {"critical", "high", "medium", "low", "minimal"}
+        impact_level = analysis["overall_impact_level"]
+        if not isinstance(impact_level, str) or impact_level not in allowed_levels:
+            raise ValueError("overall_impact_level must be one of critical/high/medium/low/minimal")
+
+        summary = analysis["executive_summary"]
+        if not isinstance(summary, str):
+            raise TypeError("executive_summary must be a string")
+
+        def _string_list(key: str) -> List[str]:
+            value = analysis[key]
+            if not isinstance(value, list):
+                raise TypeError(f"{key} must be a list")
+            normalized: List[str] = []
+            for item in value:
+                if not isinstance(item, str):
+                    raise TypeError(f"{key} items must be strings")
+                normalized.append(item)
+            return normalized
+
+        affected_areas = _string_list("affected_areas")
+        key_changes = _string_list("key_changes")
+
+        action_items = analysis["action_items"]
+        if not isinstance(action_items, list):
+            raise TypeError("action_items must be a list")
+        for idx, item in enumerate(action_items):
+            if not isinstance(item, dict):
+                raise TypeError(f"action_items[{idx}] must be an object")
+            if "priority" in item:
+                priority = item["priority"]
+                if not isinstance(priority, (int, float)) or int(priority) != priority:
+                    raise TypeError(f"action_items[{idx}].priority must be an integer")
+                if not 1 <= int(priority) <= 5:
+                    raise ValueError(f"action_items[{idx}].priority must be between 1 and 5")
+            if "estimated_hours" in item:
+                est_hours = item["estimated_hours"]
+                if not isinstance(est_hours, (int, float)):
+                    raise TypeError(f"action_items[{idx}].estimated_hours must be numeric")
+                if est_hours < 0:
+                    raise ValueError(f"action_items[{idx}].estimated_hours must be >= 0")
+
+        gaps = analysis["gaps"]
+        if not isinstance(gaps, list):
+            raise TypeError("gaps must be a list")
+        allowed_gap_severity = allowed_levels
+        for idx, gap in enumerate(gaps):
+            if not isinstance(gap, dict):
+                raise TypeError(f"gaps[{idx}] must be an object")
+            if "severity" in gap and gap["severity"] not in allowed_gap_severity:
+                raise ValueError(f"gaps[{idx}].severity is invalid")
+            for numeric_key in ("estimated_cost", "estimated_timeline_days"):
+                if numeric_key in gap:
+                    numeric_value = gap[numeric_key]
+                    if not isinstance(numeric_value, (int, float)):
+                        raise TypeError(f"gaps[{idx}].{numeric_key} must be numeric")
+                    if numeric_value < 0:
+                        raise ValueError(f"gaps[{idx}].{numeric_key} must be >= 0")
+
+        resource_estimates = analysis["resource_estimates"]
+        if not isinstance(resource_estimates, dict):
+            raise TypeError("resource_estimates must be an object")
+        for numeric_key in ("total_hours", "total_cost_eur"):
+            if numeric_key in resource_estimates:
+                numeric_value = resource_estimates[numeric_key]
+                if not isinstance(numeric_value, (int, float)):
+                    raise TypeError(f"resource_estimates.{numeric_key} must be numeric")
+                if numeric_value < 0:
+                    raise ValueError(f"resource_estimates.{numeric_key} must be >= 0")
+        for bool_key in (
+            "requires_system_changes",
+            "requires_process_changes",
+            "requires_policy_updates",
+        ):
+            if bool_key in resource_estimates and not isinstance(
+                resource_estimates[bool_key], bool
+            ):
+                raise TypeError(f"resource_estimates.{bool_key} must be boolean")
+
+        normalized = dict(analysis)
+        normalized["overall_impact_level"] = impact_level
+        normalized["executive_summary"] = summary
+        normalized["affected_areas"] = affected_areas
+        normalized["key_changes"] = key_changes
+        return normalized
+
+    def _parse_impact_response_strict(self, response_text: str) -> Dict[str, Any]:
+        """Parse and normalize Claude JSON response, raising on malformed output."""
+        json_str = self._extract_json_payload_text(response_text)
+        parsed = json.loads(json_str)
+        if not isinstance(parsed, dict):
+            raise TypeError("Impact analysis response must be a JSON object")
+        normalized = self._normalize_impact_response(parsed)
+        return self._validate_impact_response_schema(normalized)
+
+    def _repair_impact_json_response(self, malformed_response: str) -> str:
+        """Ask Claude to repair malformed JSON without adding commentary."""
+        repair_prompt = f"""The following assistant output is intended to be JSON but is malformed.
+
+Return only valid JSON. Do not add markdown code fences. Do not add commentary.
+Preserve the original meaning and keys as much as possible.
+
+Malformed output:
+{malformed_response}
+"""
+        repair = self._call_claude_with_retry(
+            model="claude-sonnet-4-20250514",
+            max_tokens=4500,
+            temperature=0,
+            messages=[{"role": "user", "content": repair_prompt}],
+        )
+        return repair.content[0].text
+
     def _parse_impact_response(self, response_text: str) -> Dict[str, Any]:
-        """Parse Claude's JSON response."""
+        """Backward-compatible parser that falls back to a minimal structure."""
         try:
-            # Extract JSON from response (handle markdown code blocks)
-            json_start = response_text.find("{")
-            json_end = response_text.rfind("}") + 1
-
-            if json_start == -1 or json_end == 0:
-                raise ValueError("No JSON found in response")
-
-            json_str = response_text[json_start:json_end]
-            parsed = json.loads(json_str)
-
-            # Validate and normalize
-            return {
-                "overall_impact_level": parsed.get("overall_impact_level", "medium"),
-                "executive_summary": parsed.get("executive_summary", ""),
-                "affected_areas": parsed.get("affected_areas", []),
-                "key_changes": parsed.get("key_changes", []),
-                "action_items": parsed.get("action_items", []),
-                "gaps": parsed.get("gaps", []),
-                "resource_estimates": parsed.get("resource_estimates", {}),
-            }
-
-        except json.JSONDecodeError as e:
+            return self._parse_impact_response_strict(response_text)
+        except (json.JSONDecodeError, ValueError, TypeError) as e:
             logger.error(f"Failed to parse JSON response: {e}")
             logger.error(f"Response was: {response_text[:500]}")
             return self._fallback_analysis_structure()

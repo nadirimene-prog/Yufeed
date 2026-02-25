@@ -7,6 +7,9 @@ regulatory requirements to provide compliance-aware triage.
 """
 
 import os
+import json
+import time
+import random
 import logging
 from typing import Dict, Any, Optional, List
 from anthropic import Anthropic
@@ -39,6 +42,169 @@ class AlertTriageAgent:
             self.client = None
         else:
             self.client = Anthropic(api_key=api_key)
+
+    def _is_retryable_anthropic_error(self, exc: Exception) -> bool:
+        """Retry on transient provider throttling/overload failures."""
+        status_code = getattr(exc, "status_code", None)
+        if status_code in {429, 529}:
+            return True
+        response = getattr(exc, "response", None)
+        response_status = getattr(response, "status_code", None)
+        if response_status in {429, 529}:
+            return True
+        msg = str(exc).lower()
+        return "overloaded_error" in msg or "rate_limit" in msg or "too many requests" in msg
+
+    def _call_claude_with_retry(self, **kwargs):
+        """Bounded retry wrapper for Anthropic calls in synchronous UX paths."""
+        retries = max(0, int(os.getenv("ANTHROPIC_RETRIES", "2")))
+        backoff = max(0.1, float(os.getenv("ANTHROPIC_BACKOFF_SECONDS", "1.0")))
+        max_backoff = max(backoff, float(os.getenv("ANTHROPIC_MAX_BACKOFF_SECONDS", "8.0")))
+        jitter = max(0.0, float(os.getenv("ANTHROPIC_JITTER_SECONDS", "0.25")))
+
+        last_exc: Optional[Exception] = None
+        for attempt in range(retries + 1):
+            try:
+                return self.client.messages.create(**kwargs)
+            except Exception as exc:
+                last_exc = exc
+                if attempt >= retries or not self._is_retryable_anthropic_error(exc):
+                    raise
+                sleep_s = min(max_backoff, backoff * (2**attempt))
+                if jitter:
+                    sleep_s += random.uniform(0.0, jitter)
+                logger.warning(
+                    "Retryable Anthropic error in alert triage (attempt %s/%s): %s. Retrying in %.2fs",
+                    attempt + 1,
+                    retries + 1,
+                    exc,
+                    sleep_s,
+                )
+                time.sleep(sleep_s)
+        if last_exc:
+            raise last_exc
+        raise RuntimeError("Anthropic request failed")
+
+    def _extract_json_payload_text(self, response_text: str) -> str:
+        """Extract the most likely JSON object from a model response."""
+        text = (response_text or "").strip()
+
+        if "```json" in text:
+            json_start = text.find("```json") + 7
+            json_end = text.find("```", json_start)
+            if json_end != -1:
+                text = text[json_start:json_end].strip()
+        elif "```" in text:
+            fenced_start = text.find("```") + 3
+            fenced_end = text.find("```", fenced_start)
+            if fenced_end != -1:
+                text = text[fenced_start:fenced_end].strip()
+
+        obj_start = text.find("{")
+        obj_end = text.rfind("}") + 1
+        if obj_start != -1 and obj_end > obj_start:
+            return text[obj_start:obj_end].strip()
+
+        return text
+
+    def _repair_json_with_claude(self, malformed_response: str) -> str:
+        """Ask Claude to repair malformed JSON without changing semantics."""
+        repair_prompt = f"""The following assistant output is intended to be JSON but is malformed.
+
+Return only valid JSON. Do not add markdown code fences. Do not add commentary.
+Preserve the original meaning and keys as much as possible.
+
+Malformed output:
+{malformed_response}
+"""
+        repair = self._call_claude_with_retry(
+            model="claude-sonnet-4-20250514",
+            max_tokens=2500,
+            messages=[{"role": "user", "content": repair_prompt}],
+        )
+        return repair.content[0].text
+
+    def _validate_triage_analysis_schema(self, analysis: Dict[str, Any]) -> Dict[str, Any]:
+        """Validate and normalize triage schema (keys, types, ranges)."""
+        if not isinstance(analysis, dict):
+            raise TypeError("Triage analysis must be a JSON object")
+
+        required_keys = {
+            "recommendation",
+            "confidence",
+            "priority",
+            "reasoning",
+            "true_positive_likelihood",
+            "investigation_steps",
+            "regulatory_concerns",
+            "sar_likelihood",
+            "recommended_actions",
+            "red_flags",
+            "mitigating_factors",
+        }
+        missing = sorted(required_keys - set(analysis.keys()))
+        if missing:
+            raise ValueError(f"Missing required triage keys: {', '.join(missing)}")
+
+        allowed_recommendations = {"escalate", "investigate", "false_positive", "monitor"}
+        recommendation = str(analysis["recommendation"]).strip()
+        if recommendation not in allowed_recommendations:
+            raise ValueError(f"Invalid recommendation: {recommendation}")
+
+        def _probability(key: str) -> float:
+            value = analysis[key]
+            if not isinstance(value, (int, float)):
+                raise TypeError(f"{key} must be numeric")
+            value = float(value)
+            if not 0.0 <= value <= 1.0:
+                raise ValueError(f"{key} must be between 0 and 1")
+            return value
+
+        confidence = _probability("confidence")
+        true_positive_likelihood = _probability("true_positive_likelihood")
+        sar_likelihood = _probability("sar_likelihood")
+
+        priority_raw = analysis["priority"]
+        if not isinstance(priority_raw, (int, float)):
+            raise TypeError("priority must be numeric")
+        priority = int(priority_raw)
+        if priority != priority_raw and not (
+            isinstance(priority_raw, float) and priority_raw.is_integer()
+        ):
+            raise TypeError("priority must be an integer")
+        if not 1 <= priority <= 5:
+            raise ValueError("priority must be between 1 and 5")
+
+        def _string_field(key: str) -> str:
+            value = analysis[key]
+            if not isinstance(value, str):
+                raise TypeError(f"{key} must be a string")
+            return value.strip()
+
+        def _string_list(key: str) -> List[str]:
+            value = analysis[key]
+            if not isinstance(value, list):
+                raise TypeError(f"{key} must be a list")
+            normalized: List[str] = []
+            for item in value:
+                if not isinstance(item, str):
+                    raise TypeError(f"{key} items must be strings")
+                normalized.append(item.strip())
+            return normalized
+
+        return {
+            "recommendation": recommendation,
+            "confidence": confidence,
+            "priority": priority,
+            "reasoning": _string_field("reasoning"),
+            "true_positive_likelihood": true_positive_likelihood,
+            "investigation_steps": _string_list("investigation_steps"),
+            "regulatory_concerns": _string_field("regulatory_concerns"),
+            "sar_likelihood": sar_likelihood,
+            "recommended_actions": _string_list("recommended_actions"),
+            "red_flags": _string_list("red_flags"),
+            "mitigating_factors": _string_list("mitigating_factors"),
+        }
 
     def triage_alert(self, alert_id: int) -> Dict[str, Any]:
         """
@@ -256,28 +422,26 @@ Consider:
 
 Be thorough but concise. Focus on actionable insights."""
 
-            response = self.client.messages.create(
+            response = self._call_claude_with_retry(
                 model="claude-sonnet-4-20250514",
                 max_tokens=2000,
                 messages=[{"role": "user", "content": prompt}],
             )
 
-            # Extract JSON from response
-            import json
-
             response_text = response.content[0].text
-
-            # Try to extract JSON (Claude might wrap it in markdown)
-            if "```json" in response_text:
-                json_start = response_text.find("```json") + 7
-                json_end = response_text.find("```", json_start)
-                response_text = response_text[json_start:json_end].strip()
-            elif "```" in response_text:
-                json_start = response_text.find("```") + 3
-                json_end = response_text.find("```", json_start)
-                response_text = response_text[json_start:json_end].strip()
-
-            analysis = json.loads(response_text)
+            try:
+                analysis = self._validate_triage_analysis_schema(
+                    json.loads(self._extract_json_payload_text(response_text))
+                )
+            except (json.JSONDecodeError, ValueError, TypeError) as parse_exc:
+                logger.warning(
+                    "Invalid triage model output (parse/schema), attempting repair: %s",
+                    parse_exc,
+                )
+                repaired_text = self._repair_json_with_claude(response_text)
+                analysis = self._validate_triage_analysis_schema(
+                    json.loads(self._extract_json_payload_text(repaired_text))
+                )
 
             logger.info(
                 f"Claude analysis: {analysis.get('recommendation')} (confidence: {analysis.get('confidence')})"
@@ -445,7 +609,7 @@ Include:
 Format as professional compliance documentation."""
 
         try:
-            response = self.client.messages.create(
+            response = self._call_claude_with_retry(
                 model="claude-sonnet-4-20250514",
                 max_tokens=4000,
                 messages=[{"role": "user", "content": prompt}],
