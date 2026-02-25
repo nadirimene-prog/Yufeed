@@ -432,7 +432,7 @@ function StepProgress({
                   isCurrent && "border-transparent",
                   !isCompleted &&
                     !isCurrent &&
-                    "border-border-default bg-transparent text-foreground-tertiary",
+                    "border-[#E2E8F0] bg-transparent text-foreground-tertiary",
                 )}
                 style={{
                   background:

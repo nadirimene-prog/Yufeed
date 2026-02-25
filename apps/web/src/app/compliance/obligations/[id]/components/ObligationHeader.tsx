@@ -21,11 +21,9 @@ export default function ObligationHeader({
   return (
     <div className="flex flex-col gap-2 lg:flex-row lg:items-center lg:justify-between">
       <div>
-        <div className="text-xs text-gray-500">Obligation {obligationId}</div>
-        <h1 className="text-2xl font-semibold text-gray-900 dark:text-white">
-          {title}
-        </h1>
-        <div className="mt-2 flex flex-wrap gap-2 text-xs text-gray-500">
+        <div className="text-xs text-slate-500">Obligation {obligationId}</div>
+        <h1 className="text-2xl font-semibold text-slate-900">{title}</h1>
+        <div className="mt-2 flex flex-wrap gap-2 text-xs text-slate-500">
           <span>{celex ?? "—"}</span>
           <span>•</span>
           <span>{jurisdiction ?? "EU"}</span>
@@ -36,15 +34,15 @@ export default function ObligationHeader({
       <div className="flex items-center gap-2">
         <span
           className={
-            "rounded-full px-3 py-1 text-xs font-semibold " +
+            "rounded-full px-3 py-1 text-xs font-semibold" +
             obligationStatusStyle(status)
           }
         >
-          {status.replace("_", " ")}
+          {status.replace("_", "")}
         </span>
         <Link
           href="/compliance/obligations"
-          className="rounded-full border border-gray-200 bg-white px-4 py-2 text-xs font-medium text-gray-600 hover:border-gray-300 dark:border-slate-700 dark:bg-slate-900 dark:text-gray-300"
+          className="rounded-full border border-slate-200 bg-white px-4 py-2 text-xs font-medium text-slate-600 hover:border-slate-300"
         >
           Back
         </Link>

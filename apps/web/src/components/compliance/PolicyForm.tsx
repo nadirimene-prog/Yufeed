@@ -267,7 +267,7 @@ export default function PolicyForm({
         <Button
           type="submit"
           disabled={isSubmitting || !formData.name.trim()}
-          className="bg-[#6d5acd] hover:bg-[#5d4abd] flex-1"
+          className="bg-[#0052FF] hover:bg-[#0046DD] flex-1"
         >
           {isSubmitting ? (
             <Loader2 className="h-4 w-4 animate-spin mr-2" />

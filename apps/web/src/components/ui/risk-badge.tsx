@@ -114,7 +114,7 @@ const riskConfig: Record<
     label: "Unknown",
     icon: HelpCircle,
     bg: "bg-muted",
-    border: "border-border-default",
+    border: "border-[#E2E8F0]",
     text: "text-foreground-tertiary",
     glow: "",
     glowStrong: "",

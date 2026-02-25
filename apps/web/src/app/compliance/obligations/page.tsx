@@ -17,13 +17,10 @@ import type { Obligation } from "@/types/compliance";
 
 const obligationStatusStyle = (status?: string) => {
   const value = (status ?? "draft").toLowerCase();
-  if (value === "approved")
-    return "bg-emerald-50 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-300";
-  if (value === "in_review")
-    return "bg-blue-50 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300";
-  if (value === "rejected")
-    return "bg-rose-50 text-rose-700 dark:bg-rose-900/30 dark:text-rose-300";
-  return "bg-amber-50 text-amber-700 dark:bg-amber-900/30 dark:text-amber-300";
+  if (value === "approved") return "bg-emerald-50 text-emerald-700";
+  if (value === "in_review") return "bg-blue-50 text-blue-700";
+  if (value === "rejected") return "bg-rose-50 text-rose-700";
+  return "bg-amber-50 text-amber-700";
 };
 
 const formatDate = (value?: string | null) => {
@@ -174,29 +171,29 @@ export default function ObligationsPage() {
     <div className="space-y-6">
       <header className="flex flex-col gap-2 lg:flex-row lg:items-center lg:justify-between">
         <div>
-          <h1 className="text-2xl font-semibold text-gray-900 dark:text-white">
+          <h1 className="text-2xl font-semibold text-slate-900">
             Regulatory obligations
           </h1>
-          <p className="text-sm text-gray-500 dark:text-gray-400">
+          <p className="text-sm text-slate-500">
             Track obligations extracted from EU/FR publications and validate
             them internally.
           </p>
         </div>
         <Link
           href="/dashboard"
-          className="inline-flex items-center gap-2 rounded-full border border-gray-200 bg-white px-4 py-2 text-xs font-medium text-gray-600 hover:border-gray-300 dark:border-slate-700 dark:bg-slate-900 dark:text-gray-300"
+          className="inline-flex items-center gap-2 rounded-full border border-slate-200 bg-white px-4 py-2 text-xs font-medium text-slate-600 hover:border-slate-300"
         >
           Back to dashboard
         </Link>
       </header>
 
       {obligationsQuery.isError && (
-        <div className="rounded-lg border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-800 dark:border-rose-900/40 dark:bg-rose-900/20 dark:text-rose-200">
+        <div className="rounded-lg border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-800">
           Failed to load obligations.
         </div>
       )}
 
-      <div className="flex flex-wrap gap-3 text-xs text-gray-500">
+      <div className="flex flex-wrap gap-3 text-xs text-slate-500">
         <input
           value={query}
           onChange={(event) => {
@@ -204,7 +201,7 @@ export default function ObligationsPage() {
             setPage(0);
           }}
           placeholder="Search CELEX, title, obligation text..."
-          className="min-w-[220px] rounded-full border border-gray-200 bg-white px-4 py-2 text-xs text-gray-700 shadow-sm focus:border-gray-300 focus:outline-none dark:border-slate-800 dark:bg-slate-900 dark:text-gray-300"
+          className="min-w-[220px] rounded-full border border-slate-200 bg-white px-4 py-2 text-xs text-slate-700 shadow-sm focus:border-slate-300 focus:outline-none"
         />
         <select
           value={statusFilter}
@@ -212,7 +209,7 @@ export default function ObligationsPage() {
             setStatusFilter(event.target.value);
             setPage(0);
           }}
-          className="rounded-full border border-gray-200 bg-white px-3 py-2 text-xs font-medium text-gray-600 dark:border-slate-800 dark:bg-slate-900 dark:text-gray-300"
+          className="rounded-full border border-slate-200 bg-white px-3 py-2 text-xs font-medium text-slate-600"
         >
           <option value="pending">Pending (draft + review)</option>
           <option value="draft">Draft</option>
@@ -226,7 +223,7 @@ export default function ObligationsPage() {
             setJurisdictionFilter(event.target.value);
             setPage(0);
           }}
-          className="rounded-full border border-gray-200 bg-white px-3 py-2 text-xs font-medium text-gray-600 dark:border-slate-800 dark:bg-slate-900 dark:text-gray-300"
+          className="rounded-full border border-slate-200 bg-white px-3 py-2 text-xs font-medium text-slate-600"
         >
           <option value="all">All jurisdictions</option>
           <option value="EU">EU</option>
@@ -238,7 +235,7 @@ export default function ObligationsPage() {
             setSourceFilter(event.target.value);
             setPage(0);
           }}
-          className="rounded-full border border-gray-200 bg-white px-3 py-2 text-xs font-medium text-gray-600 dark:border-slate-800 dark:bg-slate-900 dark:text-gray-300"
+          className="rounded-full border border-slate-200 bg-white px-3 py-2 text-xs font-medium text-slate-600"
         >
           <option value="all">All sources</option>
           <option value="eur-lex">EUR-Lex</option>
@@ -250,7 +247,7 @@ export default function ObligationsPage() {
             setScopeFilter(event.target.value);
             setPage(0);
           }}
-          className="rounded-full border border-gray-200 bg-white px-3 py-2 text-xs font-medium text-gray-600 dark:border-slate-800 dark:bg-slate-900 dark:text-gray-300"
+          className="rounded-full border border-slate-200 bg-white px-3 py-2 text-xs font-medium text-slate-600"
         >
           <option value="psp,eme,vasp">PSP / EMI / VASP</option>
           <option value="all">All scopes</option>
@@ -260,21 +257,21 @@ export default function ObligationsPage() {
         </select>
       </div>
 
-      <div className="rounded-lg border border-gray-200 bg-white p-6 shadow-sm dark:border-slate-800 dark:bg-slate-900">
-        <div className="flex items-center justify-between text-sm text-gray-500 dark:text-gray-400">
+      <div className="rounded-lg border border-slate-200 bg-white p-6 shadow-sm">
+        <div className="flex items-center justify-between text-sm text-slate-500">
           <div>{loading ? "Loading obligations…" : `${total} obligations`}</div>
           <div className="flex items-center gap-2">
             <button
               onClick={togglePageSelection}
               disabled={loading || !pageItemIds.length}
-              className="rounded-full border border-gray-200 bg-white px-3 py-1 text-[11px] font-semibold text-gray-600 disabled:cursor-not-allowed disabled:opacity-50 dark:border-slate-700 dark:bg-slate-900 dark:text-gray-300"
+              className="rounded-full border border-slate-200 bg-white px-3 py-1 text-[11px] font-semibold text-slate-600 disabled:cursor-not-allowed disabled:opacity-50"
             >
               {allPageSelected ? "Unselect page" : "Select page"}
             </button>
             <button
               onClick={handleBulkApprove}
               disabled={bulkLoading || selectedObligationIds.length === 0}
-              className="rounded-full border border-emerald-200 bg-emerald-50 px-3 py-1 text-[11px] font-semibold text-emerald-700 disabled:cursor-not-allowed disabled:opacity-50 dark:border-emerald-800/50 dark:bg-emerald-900/20 dark:text-emerald-300"
+              className="rounded-full border border-emerald-200 bg-emerald-50 px-3 py-1 text-[11px] font-semibold text-emerald-700 disabled:cursor-not-allowed disabled:opacity-50"
             >
               {bulkLoading
                 ? "Approving..."
@@ -288,12 +285,12 @@ export default function ObligationsPage() {
 
         <div className="mt-4 space-y-4">
           {loading ? (
-            <div className="text-sm text-gray-500">Loading...</div>
+            <div className="text-sm text-slate-500">Loading...</div>
           ) : items.length ? (
             items.map((item) => (
               <div
                 key={item.id}
-                className="rounded-lg border border-gray-100 bg-gray-50/60 p-4 dark:border-slate-800 dark:bg-slate-800/40"
+                className="rounded-lg border border-slate-100 bg-slate-50/60 p-4"
               >
                 <div className="flex items-start justify-between gap-3">
                   <div className="flex min-w-0 gap-3">
@@ -301,35 +298,35 @@ export default function ObligationsPage() {
                       type="checkbox"
                       checked={selectedObligationIds.includes(item.id)}
                       onChange={() => toggleItemSelection(item.id)}
-                      className="mt-1 h-4 w-4 rounded border-gray-300 bg-white text-emerald-600 focus:ring-emerald-500 dark:border-slate-600 dark:bg-slate-900"
+                      className="mt-1 h-4 w-4 rounded border-slate-300 bg-white text-emerald-600 focus:ring-emerald-500"
                     />
                     <div className="min-w-0">
                       <Link
                         href={`/compliance/obligations/${item.id}`}
-                        className="text-sm font-semibold text-gray-900 hover:underline dark:text-white"
+                        className="text-sm font-semibold text-slate-900 hover:underline"
                       >
                         {item.document.title}
                       </Link>
-                      <div className="mt-1 text-xs text-gray-500">
-                        {item.document.celex} •{" "}
-                        {item.document.jurisdiction ?? "EU"} •{" "}
+                      <div className="mt-1 text-xs text-slate-500">
+                        {item.document.celex} •{""}
+                        {item.document.jurisdiction ?? "EU"} •{""}
                         {item.document.source_system ?? "source"}
                       </div>
-                      <p className="mt-2 text-xs text-gray-500 line-clamp-2 dark:text-gray-400">
+                      <p className="mt-2 text-xs text-slate-500 line-clamp-2">
                         {item.obligation_text}
                       </p>
                     </div>
                   </div>
                   <span
                     className={
-                      "rounded-full px-3 py-1 text-[11px] font-semibold " +
+                      "rounded-full px-3 py-1 text-[11px] font-semibold" +
                       obligationStatusStyle(item.status)
                     }
                   >
-                    {item.status.replace("_", " ")}
+                    {item.status.replace("_", "")}
                   </span>
                 </div>
-                <div className="mt-3 flex flex-wrap items-center gap-2 text-[11px] text-gray-400">
+                <div className="mt-3 flex flex-wrap items-center gap-2 text-[11px] text-slate-400">
                   <span>{item.article_ref || "No article ref"}</span>
                   <span>•</span>
                   <span>Updated {formatDate(item.updated_at)}</span>
@@ -343,7 +340,7 @@ export default function ObligationsPage() {
                         disabled={
                           actionLoading === `${item.id}:${action.status}`
                         }
-                        className="rounded-full border border-gray-200 bg-white px-3 py-1 text-[11px] font-semibold text-gray-600 hover:border-gray-300 disabled:cursor-not-allowed disabled:opacity-60 dark:border-slate-700 dark:bg-slate-900 dark:text-gray-300"
+                        className="rounded-full border border-slate-200 bg-white px-3 py-1 text-[11px] font-semibold text-slate-600 hover:border-slate-300 disabled:cursor-not-allowed disabled:opacity-60"
                       >
                         {action.label}
                       </button>
@@ -353,7 +350,7 @@ export default function ObligationsPage() {
               </div>
             ))
           ) : (
-            <div className="text-sm text-gray-500">
+            <div className="text-sm text-slate-500">
               No obligations match your filters.
             </div>
           )}
@@ -363,7 +360,7 @@ export default function ObligationsPage() {
           <button
             onClick={() => setPage((prev) => Math.max(0, prev - 1))}
             disabled={page === 0}
-            className="rounded-full border border-gray-200 bg-white px-4 py-2 text-xs font-medium text-gray-600 disabled:opacity-50 dark:border-slate-800 dark:bg-slate-900 dark:text-gray-300"
+            className="rounded-full border border-slate-200 bg-white px-4 py-2 text-xs font-medium text-slate-600 disabled:opacity-50"
           >
             Previous
           </button>
@@ -372,7 +369,7 @@ export default function ObligationsPage() {
               setPage((prev) => Math.min(totalPages - 1, prev + 1))
             }
             disabled={page + 1 >= totalPages}
-            className="rounded-full border border-gray-200 bg-white px-4 py-2 text-xs font-medium text-gray-600 disabled:opacity-50 dark:border-slate-800 dark:bg-slate-900 dark:text-gray-300"
+            className="rounded-full border border-slate-200 bg-white px-4 py-2 text-xs font-medium text-slate-600 disabled:opacity-50"
           >
             Next
           </button>

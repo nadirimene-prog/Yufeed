@@ -42,15 +42,11 @@ interface PolicySection {
 
 const policyStatusStyle = (status?: string | null) => {
   const value = (status ?? "draft").toLowerCase();
-  if (value === "active")
-    return "bg-emerald-50 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-300";
-  if (value === "approved")
-    return "bg-blue-50 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300";
-  if (value === "in_review")
-    return "bg-amber-50 text-amber-700 dark:bg-amber-900/30 dark:text-amber-300";
-  if (value === "retired")
-    return "bg-rose-50 text-rose-700 dark:bg-rose-900/30 dark:text-rose-300";
-  return "bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-300";
+  if (value === "active") return "bg-emerald-50 text-emerald-700";
+  if (value === "approved") return "bg-blue-50 text-blue-700";
+  if (value === "in_review") return "bg-amber-50 text-amber-700";
+  if (value === "retired") return "bg-rose-50 text-rose-700";
+  return "bg-slate-100 text-slate-600";
 };
 
 const useDebouncedValue = <T,>(value: T, delayMs: number) => {
@@ -300,35 +296,35 @@ export default function PoliciesPage() {
     <div className="space-y-6">
       <header className="flex flex-col gap-2 lg:flex-row lg:items-center lg:justify-between">
         <div>
-          <h1 className="text-2xl font-semibold text-gray-900 dark:text-white">
+          <h1 className="text-2xl font-semibold text-slate-900">
             Policy library
           </h1>
-          <p className="text-sm text-gray-500 dark:text-gray-400">
+          <p className="text-sm text-slate-500">
             Capture YuFeed internal policies and map them to compliance
             obligations.
           </p>
         </div>
         <Link
           href="/dashboard"
-          className="inline-flex items-center gap-2 rounded-full border border-gray-200 bg-white px-4 py-2 text-xs font-medium text-gray-600 hover:border-gray-300 dark:border-slate-700 dark:bg-slate-900 dark:text-gray-300"
+          className="inline-flex items-center gap-2 rounded-full border border-slate-200 bg-white px-4 py-2 text-xs font-medium text-slate-600 hover:border-slate-300"
         >
           Back to dashboard
         </Link>
       </header>
 
-      <div className="flex flex-wrap gap-3 text-xs text-gray-500">
+      <div className="flex flex-wrap gap-3 text-xs text-slate-500">
         <input
           value={query}
           onChange={(event) => setQuery(event.target.value)}
           placeholder="Search policy ID or name..."
-          className="min-w-[220px] rounded-full border border-gray-200 bg-white px-4 py-2 text-xs text-gray-700 shadow-sm focus:border-gray-300 focus:outline-none dark:border-slate-800 dark:bg-slate-900 dark:text-gray-300"
+          className="min-w-[220px] rounded-full border border-slate-200 bg-white px-4 py-2 text-xs text-slate-700 shadow-sm focus:border-slate-300 focus:outline-none"
         />
         <select
           value={statusFilter}
           onChange={(event) =>
             setStatusFilter(event.target.value as PolicyStatus | "all")
           }
-          className="rounded-full border border-gray-200 bg-white px-3 py-2 text-xs font-medium text-gray-600 dark:border-slate-800 dark:bg-slate-900 dark:text-gray-300"
+          className="rounded-full border border-slate-200 bg-white px-3 py-2 text-xs font-medium text-slate-600"
         >
           <option value="all">All statuses</option>
           <option value="draft">Draft</option>
@@ -339,35 +335,35 @@ export default function PoliciesPage() {
         </select>
       </div>
 
-      <div className="rounded-lg border border-gray-200 bg-white p-6 shadow-sm dark:border-slate-800 dark:bg-slate-900">
+      <div className="rounded-lg border border-slate-200 bg-white p-6 shadow-sm">
         <div className="flex flex-wrap items-start justify-between gap-4">
           <div>
-            <div className="text-sm font-semibold text-gray-900 dark:text-white">
+            <div className="text-sm font-semibold text-slate-900">
               Master policies
             </div>
-            <p className="mt-1 text-xs text-gray-500">
+            <p className="mt-1 text-xs text-slate-500">
               Seeded master policy library for compliance obligations. These are
               the canonical policies used for mapping.
             </p>
           </div>
-          <div className="text-xs text-gray-500">
+          <div className="text-xs text-slate-500">
             {templatesLoading
               ? "Loading master policies…"
               : `${templatesTotal} policies`}
           </div>
         </div>
 
-        <div className="mt-4 flex flex-wrap gap-3 text-xs text-gray-500">
+        <div className="mt-4 flex flex-wrap gap-3 text-xs text-slate-500">
           <input
             value={templateQuery}
             onChange={(event) => setTemplateQuery(event.target.value)}
             placeholder="Search master policies..."
-            className="min-w-[220px] rounded-full border border-gray-200 bg-white px-4 py-2 text-xs text-gray-700 shadow-sm focus:border-gray-300 focus:outline-none dark:border-slate-800 dark:bg-slate-900 dark:text-gray-300"
+            className="min-w-[220px] rounded-full border border-slate-200 bg-white px-4 py-2 text-xs text-slate-700 shadow-sm focus:border-slate-300 focus:outline-none"
           />
           <select
             value={templateCategory}
             onChange={(event) => setTemplateCategory(event.target.value)}
-            className="rounded-full border border-gray-200 bg-white px-3 py-2 text-xs font-medium text-gray-600 dark:border-slate-800 dark:bg-slate-900 dark:text-gray-300"
+            className="rounded-full border border-slate-200 bg-white px-3 py-2 text-xs font-medium text-slate-600"
           >
             <option value="all">All categories</option>
             {templateCategories.map((category) => (
@@ -380,37 +376,37 @@ export default function PoliciesPage() {
 
         <div className="mt-4 grid gap-3 md:grid-cols-2 xl:grid-cols-3">
           {templatesLoading ? (
-            <div className="text-sm text-gray-500">
+            <div className="text-sm text-slate-500">
               Loading master policies...
             </div>
           ) : templates.length ? (
             templates.map((template) => (
               <div
                 key={template.template_id}
-                className="rounded-lg border border-gray-100 bg-gray-50/60 p-4 text-xs text-gray-600 dark:border-slate-800 dark:bg-slate-800/40"
+                className="rounded-lg border border-slate-100 bg-slate-50/60 p-4 text-xs text-slate-600"
               >
                 <div className="flex items-start justify-between gap-3">
                   <div className="min-w-0">
-                    <div className="text-sm font-semibold text-gray-900 dark:text-white">
+                    <div className="text-sm font-semibold text-slate-900">
                       {template.name}
                     </div>
-                    <div className="mt-1 text-[11px] text-gray-500">
+                    <div className="mt-1 text-[11px] text-slate-500">
                       {template.template_id}
                     </div>
                   </div>
-                  <span className="rounded-full bg-indigo-50 px-2 py-1 text-[10px] font-semibold text-indigo-700 dark:bg-indigo-900/30 dark:text-indigo-300">
+                  <span className="rounded-full bg-indigo-50 px-2 py-1 text-[10px] font-semibold text-indigo-700">
                     {template.category}
                   </span>
                 </div>
                 {template.regulatory_basis?.length ? (
-                  <div className="mt-2 text-[11px] text-gray-500">
-                    {template.regulatory_basis.join(" • ")}
+                  <div className="mt-2 text-[11px] text-slate-500">
+                    {template.regulatory_basis.join(" •")}
                   </div>
                 ) : null}
                 <button
                   onClick={() => handleCreateFromTemplate(template)}
                   disabled={templateActionLoading === template.template_id}
-                  className="mt-3 w-full rounded-full border border-gray-200 bg-white px-3 py-2 text-[11px] font-semibold text-gray-600 hover:border-gray-300 disabled:cursor-not-allowed disabled:opacity-60 dark:border-slate-700 dark:bg-slate-900 dark:text-gray-300"
+                  className="mt-3 w-full rounded-full border border-slate-200 bg-white px-3 py-2 text-[11px] font-semibold text-slate-600 hover:border-slate-300 disabled:cursor-not-allowed disabled:opacity-60"
                 >
                   {templateActionLoading === template.template_id
                     ? "Opening..."
@@ -419,20 +415,20 @@ export default function PoliciesPage() {
               </div>
             ))
           ) : (
-            <div className="text-sm text-gray-500">No templates found.</div>
+            <div className="text-sm text-slate-500">No templates found.</div>
           )}
         </div>
 
-        <div className="mt-4 flex items-center justify-between text-xs text-gray-500">
+        <div className="mt-4 flex items-center justify-between text-xs text-slate-500">
           <span>
-            Page {templatePage} of{" "}
+            Page {templatePage} of{""}
             {Math.max(1, Math.ceil(templatesTotal / templatePageSize))}
           </span>
           <div className="flex gap-2">
             <button
               onClick={() => setTemplatePage((prev) => Math.max(1, prev - 1))}
               disabled={templatePage === 1}
-              className="rounded-full border border-gray-200 bg-white px-3 py-1 text-[11px] font-semibold text-gray-600 hover:border-gray-300 disabled:opacity-60 dark:border-slate-700 dark:bg-slate-900 dark:text-gray-300"
+              className="rounded-full border border-slate-200 bg-white px-3 py-1 text-[11px] font-semibold text-slate-600 hover:border-slate-300 disabled:opacity-60"
             >
               Prev
             </button>
@@ -447,7 +443,7 @@ export default function PoliciesPage() {
               disabled={
                 templatePage >= Math.ceil(templatesTotal / templatePageSize)
               }
-              className="rounded-full border border-gray-200 bg-white px-3 py-1 text-[11px] font-semibold text-gray-600 hover:border-gray-300 disabled:opacity-60 dark:border-slate-700 dark:bg-slate-900 dark:text-gray-300"
+              className="rounded-full border border-slate-200 bg-white px-3 py-1 text-[11px] font-semibold text-slate-600 hover:border-slate-300 disabled:opacity-60"
             >
               Next
             </button>
@@ -456,11 +452,11 @@ export default function PoliciesPage() {
       </div>
 
       <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_minmax(0,360px)]">
-        <div className="rounded-lg border border-gray-200 bg-white p-6 shadow-sm dark:border-slate-800 dark:bg-slate-900">
-          <div className="flex items-center justify-between text-sm text-gray-500 dark:text-gray-400">
+        <div className="rounded-lg border border-slate-200 bg-white p-6 shadow-sm">
+          <div className="flex items-center justify-between text-sm text-slate-500">
             <div>{loading ? "Loading policies…" : `${total} policies`}</div>
             <div>
-              Active:{" "}
+              Active:{""}
               {
                 policies.filter((item) => (item.status ?? "draft") === "active")
                   .length
@@ -470,7 +466,7 @@ export default function PoliciesPage() {
 
           <div className="mt-4 space-y-3">
             {loading ? (
-              <div className="text-sm text-gray-500">Loading...</div>
+              <div className="text-sm text-slate-500">Loading...</div>
             ) : policies.length ? (
               policies.map((policy) => (
                 <button
@@ -478,46 +474,46 @@ export default function PoliciesPage() {
                   onClick={() => setSelectedPolicyId(policy.id)}
                   className={`w-full rounded-lg border px-4 py-3 text-left transition ${
                     selectedPolicyId === policy.id
-                      ? "border-indigo-200 bg-indigo-50/60 dark:border-indigo-500/40 dark:bg-indigo-950/20"
-                      : "border-gray-100 bg-gray-50/60 hover:border-gray-200 dark:border-slate-800 dark:bg-slate-800/40"
+                      ? "border-indigo-200 bg-indigo-50/60"
+                      : "border-slate-100 bg-slate-50/60 hover:border-slate-200"
                   }`}
                 >
                   <div className="flex items-center justify-between gap-2">
-                    <div className="text-sm font-semibold text-gray-900 dark:text-white">
+                    <div className="text-sm font-semibold text-slate-900">
                       {policy.name}
                     </div>
                     <span
                       className={`rounded-full px-2 py-1 text-[10px] font-semibold ${policyStatusStyle(policy.status)}`}
                     >
-                      {(policy.status ?? "draft").replace("_", " ")}
+                      {(policy.status ?? "draft").replace("_", "")}
                     </span>
                   </div>
-                  <div className="mt-1 text-xs text-gray-500">
-                    {policy.policy_id} •{" "}
+                  <div className="mt-1 text-xs text-slate-500">
+                    {policy.policy_id} •{""}
                     {policy.language?.toUpperCase() ?? "EN"}
                   </div>
-                  <div className="mt-1 text-xs text-gray-400">
+                  <div className="mt-1 text-xs text-slate-400">
                     Updated {formatDate(policy.updated_at)}
                   </div>
                 </button>
               ))
             ) : (
-              <div className="text-sm text-gray-500">
+              <div className="text-sm text-slate-500">
                 No policies found yet.
               </div>
             )}
           </div>
 
-          <div className="mt-4 flex items-center justify-between text-xs text-gray-500">
+          <div className="mt-4 flex items-center justify-between text-xs text-slate-500">
             <span>
-              Page {policyPage} of{" "}
+              Page {policyPage} of{""}
               {Math.max(1, Math.ceil(total / policyPageSize))}
             </span>
             <div className="flex gap-2">
               <button
                 onClick={() => setPolicyPage((prev) => Math.max(1, prev - 1))}
                 disabled={policyPage === 1}
-                className="rounded-full border border-gray-200 bg-white px-3 py-1 text-[11px] font-semibold text-gray-600 hover:border-gray-300 disabled:opacity-60 dark:border-slate-700 dark:bg-slate-900 dark:text-gray-300"
+                className="rounded-full border border-slate-200 bg-white px-3 py-1 text-[11px] font-semibold text-slate-600 hover:border-slate-300 disabled:opacity-60"
               >
                 Prev
               </button>
@@ -528,7 +524,7 @@ export default function PoliciesPage() {
                   )
                 }
                 disabled={policyPage >= Math.ceil(total / policyPageSize)}
-                className="rounded-full border border-gray-200 bg-white px-3 py-1 text-[11px] font-semibold text-gray-600 hover:border-gray-300 disabled:opacity-60 dark:border-slate-700 dark:bg-slate-900 dark:text-gray-300"
+                className="rounded-full border border-slate-200 bg-white px-3 py-1 text-[11px] font-semibold text-slate-600 hover:border-slate-300 disabled:opacity-60"
               >
                 Next
               </button>
@@ -537,21 +533,21 @@ export default function PoliciesPage() {
         </div>
 
         <div className="space-y-6">
-          <div className="rounded-lg border border-gray-200 bg-white p-6 shadow-sm dark:border-slate-800 dark:bg-slate-900">
-            <div className="text-sm font-semibold text-gray-900 dark:text-white">
+          <div className="rounded-lg border border-slate-200 bg-white p-6 shadow-sm">
+            <div className="text-sm font-semibold text-slate-900">
               Create policy
             </div>
-            <p className="mt-1 text-xs text-gray-500">
+            <p className="mt-1 text-xs text-slate-500">
               Capture internal policy documents and assign ownership + language.
             </p>
-            <div className="mt-4 space-y-3 text-xs text-gray-600">
+            <div className="mt-4 space-y-3 text-xs text-slate-600">
               <input
                 value={policyForm.name}
                 onChange={(event) =>
                   setPolicyForm({ ...policyForm, name: event.target.value })
                 }
                 placeholder="Policy name"
-                className="w-full rounded-md border border-gray-200 bg-white px-3 py-2 text-xs text-gray-700 dark:border-slate-800 dark:bg-slate-900 dark:text-gray-300"
+                className="w-full rounded-md border border-slate-200 bg-white px-3 py-2 text-xs text-slate-700"
               />
               <input
                 value={policyForm.owner}
@@ -559,7 +555,7 @@ export default function PoliciesPage() {
                   setPolicyForm({ ...policyForm, owner: event.target.value })
                 }
                 placeholder="Owner (Head of Compliance)"
-                className="w-full rounded-md border border-gray-200 bg-white px-3 py-2 text-xs text-gray-700 dark:border-slate-800 dark:bg-slate-900 dark:text-gray-300"
+                className="w-full rounded-md border border-slate-200 bg-white px-3 py-2 text-xs text-slate-700"
               />
               <div className="grid gap-3 sm:grid-cols-2">
                 <select
@@ -570,7 +566,7 @@ export default function PoliciesPage() {
                       status: event.target.value as PolicyStatus,
                     })
                   }
-                  className="rounded-md border border-gray-200 bg-white px-3 py-2 text-xs text-gray-700 dark:border-slate-800 dark:bg-slate-900 dark:text-gray-300"
+                  className="rounded-md border border-slate-200 bg-white px-3 py-2 text-xs text-slate-700"
                 >
                   <option value="draft">Draft</option>
                   <option value="in_review">In review</option>
@@ -586,7 +582,7 @@ export default function PoliciesPage() {
                       language: event.target.value,
                     })
                   }
-                  className="rounded-md border border-gray-200 bg-white px-3 py-2 text-xs text-gray-700 dark:border-slate-800 dark:bg-slate-900 dark:text-gray-300"
+                  className="rounded-md border border-slate-200 bg-white px-3 py-2 text-xs text-slate-700"
                 >
                   <option value="en">English</option>
                   <option value="fr">French</option>
@@ -601,23 +597,23 @@ export default function PoliciesPage() {
                   })
                 }
                 placeholder="Source URL (optional)"
-                className="w-full rounded-md border border-gray-200 bg-white px-3 py-2 text-xs text-gray-700 dark:border-slate-800 dark:bg-slate-900 dark:text-gray-300"
+                className="w-full rounded-md border border-slate-200 bg-white px-3 py-2 text-xs text-slate-700"
               />
               <button
                 onClick={handleCreatePolicy}
                 disabled={actionLoading === "policy"}
-                className="w-full rounded-full border border-gray-200 bg-white px-4 py-2 text-xs font-semibold text-gray-600 hover:border-gray-300 disabled:cursor-not-allowed disabled:opacity-60 dark:border-slate-700 dark:bg-slate-900 dark:text-gray-300"
+                className="w-full rounded-full border border-slate-200 bg-white px-4 py-2 text-xs font-semibold text-slate-600 hover:border-slate-300 disabled:cursor-not-allowed disabled:opacity-60"
               >
                 {actionLoading === "policy" ? "Saving..." : "Add policy"}
               </button>
             </div>
           </div>
 
-          <div className="rounded-lg border border-gray-200 bg-white p-6 shadow-sm dark:border-slate-800 dark:bg-slate-900">
-            <div className="text-sm font-semibold text-gray-900 dark:text-white">
+          <div className="rounded-lg border border-slate-200 bg-white p-6 shadow-sm">
+            <div className="text-sm font-semibold text-slate-900">
               Policy sections
             </div>
-            <p className="mt-1 text-xs text-gray-500">
+            <p className="mt-1 text-xs text-slate-500">
               {selectedPolicy
                 ? `Sections for ${selectedPolicy.name}.`
                 : "Select a policy to manage sections."}
@@ -625,28 +621,28 @@ export default function PoliciesPage() {
             {selectedPolicy ? (
               <Link
                 href={`/compliance/policies/${selectedPolicy.id}`}
-                className="mt-2 inline-flex text-xs font-medium text-indigo-600 hover:underline dark:text-indigo-300"
+                className="mt-2 inline-flex text-xs font-medium text-indigo-600 hover:underline"
               >
                 Open final policy view
               </Link>
             ) : null}
 
-            <div className="mt-4 space-y-3 text-xs text-gray-600">
+            <div className="mt-4 space-y-3 text-xs text-slate-600">
               {selectedPolicy ? (
                 <>
                   <div className="space-y-2">
                     {sectionsLoading ? (
-                      <div className="text-sm text-gray-500">
+                      <div className="text-sm text-slate-500">
                         Loading sections...
                       </div>
                     ) : sections.length ? (
                       sections.map((section) => (
                         <div
                           key={section.id}
-                          className="rounded-md border border-gray-100 bg-gray-50/60 px-3 py-2 dark:border-slate-800 dark:bg-slate-800/40"
+                          className="rounded-md border border-slate-100 bg-slate-50/60 px-3 py-2"
                         >
                           <div className="flex items-center justify-between">
-                            <div className="text-xs font-semibold text-gray-800 dark:text-gray-100">
+                            <div className="text-xs font-semibold text-slate-800">
                               {section.title ??
                                 section.section_ref ??
                                 "Untitled section"}
@@ -654,24 +650,24 @@ export default function PoliciesPage() {
                             <span
                               className={`rounded-full px-2 py-1 text-[10px] font-semibold ${policyStatusStyle(section.status)}`}
                             >
-                              {(section.status ?? "draft").replace("_", " ")}
+                              {(section.status ?? "draft").replace("_", "")}
                             </span>
                           </div>
-                          <div className="mt-1 text-[11px] text-gray-500">
+                          <div className="mt-1 text-[11px] text-slate-500">
                             {section.section_ref ?? "No ref"} • v
                             {section.version ?? "1"}
                           </div>
                         </div>
                       ))
                     ) : (
-                      <div className="text-sm text-gray-500">
+                      <div className="text-sm text-slate-500">
                         No sections yet.
                       </div>
                     )}
                   </div>
 
-                  <div className="border-t border-gray-100 pt-4 dark:border-slate-800">
-                    <div className="text-xs font-semibold text-gray-600 dark:text-gray-300">
+                  <div className="border-t border-slate-100 pt-4">
+                    <div className="text-xs font-semibold text-slate-600">
                       Add a section
                     </div>
                     <div className="mt-2 space-y-2">
@@ -684,7 +680,7 @@ export default function PoliciesPage() {
                           })
                         }
                         placeholder="Section ref (ex: POL-1.2)"
-                        className="w-full rounded-md border border-gray-200 bg-white px-3 py-2 text-xs text-gray-700 dark:border-slate-800 dark:bg-slate-900 dark:text-gray-300"
+                        className="w-full rounded-md border border-slate-200 bg-white px-3 py-2 text-xs text-slate-700"
                       />
                       <input
                         value={sectionForm.title}
@@ -695,7 +691,7 @@ export default function PoliciesPage() {
                           })
                         }
                         placeholder="Section title"
-                        className="w-full rounded-md border border-gray-200 bg-white px-3 py-2 text-xs text-gray-700 dark:border-slate-800 dark:bg-slate-900 dark:text-gray-300"
+                        className="w-full rounded-md border border-slate-200 bg-white px-3 py-2 text-xs text-slate-700"
                       />
                       <div className="grid gap-3 sm:grid-cols-2">
                         <select
@@ -706,7 +702,7 @@ export default function PoliciesPage() {
                               status: event.target.value,
                             })
                           }
-                          className="rounded-md border border-gray-200 bg-white px-3 py-2 text-xs text-gray-700 dark:border-slate-800 dark:bg-slate-900 dark:text-gray-300"
+                          className="rounded-md border border-slate-200 bg-white px-3 py-2 text-xs text-slate-700"
                         >
                           <option value="draft">Draft</option>
                           <option value="in_review">In review</option>
@@ -721,7 +717,7 @@ export default function PoliciesPage() {
                             })
                           }
                           placeholder="Version"
-                          className="rounded-md border border-gray-200 bg-white px-3 py-2 text-xs text-gray-700 dark:border-slate-800 dark:bg-slate-900 dark:text-gray-300"
+                          className="rounded-md border border-slate-200 bg-white px-3 py-2 text-xs text-slate-700"
                         />
                       </div>
                       <textarea
@@ -734,12 +730,12 @@ export default function PoliciesPage() {
                         }
                         placeholder="Section content (optional)"
                         rows={3}
-                        className="w-full rounded-md border border-gray-200 bg-white px-3 py-2 text-xs text-gray-700 dark:border-slate-800 dark:bg-slate-900 dark:text-gray-300"
+                        className="w-full rounded-md border border-slate-200 bg-white px-3 py-2 text-xs text-slate-700"
                       />
                       <button
                         onClick={createSection}
                         disabled={actionLoading === "section"}
-                        className="w-full rounded-full border border-gray-200 bg-white px-4 py-2 text-xs font-semibold text-gray-600 hover:border-gray-300 disabled:cursor-not-allowed disabled:opacity-60 dark:border-slate-700 dark:bg-slate-900 dark:text-gray-300"
+                        className="w-full rounded-full border border-slate-200 bg-white px-4 py-2 text-xs font-semibold text-slate-600 hover:border-slate-300 disabled:cursor-not-allowed disabled:opacity-60"
                       >
                         {actionLoading === "section"
                           ? "Saving..."
@@ -749,7 +745,7 @@ export default function PoliciesPage() {
                   </div>
                 </>
               ) : (
-                <div className="text-sm text-gray-500">
+                <div className="text-sm text-slate-500">
                   Select a policy from the list to manage sections.
                 </div>
               )}

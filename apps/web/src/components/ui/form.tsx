@@ -80,14 +80,14 @@ const FormLabel = React.forwardRef<HTMLLabelElement, FormLabelProps>(
         htmlFor={id}
         className={cn(
           "flex items-center gap-1.5 text-sm font-medium",
-          error ? "text-critical-400" : "text-foreground",
+          error ? "text-[#DC2626]" : "text-foreground",
           className,
         )}
         {...props}
       >
         {children}
         {required && (
-          <span className="text-critical-400" aria-hidden="true">
+          <span className="text-[#DC2626]" aria-hidden="true">
             *
           </span>
         )}
@@ -148,7 +148,7 @@ const FormError = React.forwardRef<HTMLParagraphElement, FormErrorProps>(
         ref={ref}
         id={`${id}-error`}
         className={cn(
-          "flex items-center gap-1.5 text-xs text-critical-400",
+          "flex items-center gap-1.5 text-xs text-[#DC2626]",
           className,
         )}
         role="alert"
@@ -174,7 +174,7 @@ const inputVariants = cva(
         default:
           "border-border-default hover:border-border-strong focus:border-primary focus:ring-2 focus:ring-primary/20",
         error:
-          "border-critical-400 focus:border-critical-400 focus:ring-2 focus:ring-critical-400/20",
+          "border-red-300 focus:border-red-300 focus:ring-2 focus:ring-red-300/20",
         success:
           "border-success-500 focus:border-success-500 focus:ring-2 focus:ring-success-500/20",
       },
@@ -277,7 +277,7 @@ const textareaVariants = cva(
         default:
           "border-border-default hover:border-border-strong focus:border-primary focus:ring-2 focus:ring-primary/20",
         error:
-          "border-critical-400 focus:border-critical-400 focus:ring-2 focus:ring-critical-400/20",
+          "border-red-300 focus:border-red-300 focus:ring-2 focus:ring-red-300/20",
       },
     },
     defaultVariants: {
@@ -364,7 +364,7 @@ const selectVariants = cva(
         default:
           "border-border-default hover:border-border-strong focus:border-primary focus:ring-2 focus:ring-primary/20",
         error:
-          "border-critical-400 focus:border-critical-400 focus:ring-2 focus:ring-critical-400/20",
+          "border-red-300 focus:border-red-300 focus:ring-2 focus:ring-red-300/20",
       },
       selectSize: {
         sm: "h-8 text-xs",

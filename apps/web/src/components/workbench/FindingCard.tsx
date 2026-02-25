@@ -71,13 +71,13 @@ const statusConfig: Record<
   string,
   { label: string; color: string; bg: string }
 > = {
-  new: { label: "New", color: "text-cyan-400", bg: "bg-cyan-400/10" },
+  new: { label: "New", color: "text-[#4D7CFF]", bg: "bg-[#4D7CFF]/10" },
   open: { label: "Open", color: "text-amber-400", bg: "bg-amber-400/10" },
   triaged: { label: "Triaged", color: "text-blue-400", bg: "bg-blue-400/10" },
   escalated: {
     label: "Escalated",
-    color: "text-purple-400",
-    bg: "bg-purple-400/10",
+    color: "text-[#0052FF]",
+    bg: "bg-[#0052FF]/10",
   },
   closed: {
     label: "Closed",
@@ -147,7 +147,7 @@ export function FindingCard({
               >
                 {status.label}
               </span>
-              <span className="text-[10px] text-white/30 uppercase tracking-tighter">
+              <span className="text-[10px] text-slate-400 uppercase tracking-tighter">
                 {finding.finding_type}
               </span>
             </div>
@@ -196,7 +196,7 @@ export function FindingCard({
             <Button
               variant="outline"
               size="sm"
-              className="h-7 px-2 text-[10px] bg-aurora-500/10 hover:bg-aurora-500/20 text-aurora-400 border-aurora-500/20"
+              className="h-7 px-2 text-[10px] bg-[#0052FF]/10 hover:bg-[#0052FF]/20 text-[#0052FF] border-[#0052FF]/20"
               onClick={(e) => {
                 e.stopPropagation();
                 onEscalate?.(finding.id);
