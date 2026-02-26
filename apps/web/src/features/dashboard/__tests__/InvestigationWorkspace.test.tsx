@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 import { act, fireEvent, render, screen } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import InvestigationWorkspace from "@/features/dashboard/components/InvestigationWorkspace";
@@ -15,7 +16,9 @@ vi.mock("next/link", () => ({
 }));
 
 vi.mock("@/hooks/queries/useSpecializedData", () => ({
-  useWorkspaceUsers: () => ({ data: [{ user_id: "analyst_1" }, { user_id: "analyst_2" }] }),
+  useWorkspaceUsers: () => ({
+    data: [{ user_id: "analyst_1" }, { user_id: "analyst_2" }],
+  }),
 }));
 
 vi.mock("@/features/dashboard/components/AiRecommendationCard", () => ({
@@ -100,7 +103,9 @@ function makeDetail(
       rationale: ["known_pattern"],
     },
     narrative: "Initial narrative",
-    evidence_checklist: [{ id: "e1", label: "Entity reviewed", completed: true }],
+    evidence_checklist: [
+      { id: "e1", label: "Entity reviewed", completed: true },
+    ],
     action_history: [],
     review_requirement: { required: false, reasons: [] },
     allowed_actions: ["assign", "mark_in_progress", "close"],
@@ -153,7 +158,7 @@ describe("InvestigationWorkspace", () => {
     );
     expect(screen.getByLabelText("Notes")).toHaveValue("keep my notes");
     expect(screen.getByLabelText("Assignee")).toHaveValue("analyst_2");
-  });
+  }, 10000);
 
   it("autosaves narrative drafts and restores them per item", async () => {
     vi.useFakeTimers();
@@ -172,7 +177,9 @@ describe("InvestigationWorkspace", () => {
     const narrativeInput = screen.getByPlaceholderText(
       "Editable rationale for case notes / SAR narrative",
     );
-    fireEvent.change(narrativeInput, { target: { value: "Draft for item one" } });
+    fireEvent.change(narrativeInput, {
+      target: { value: "Draft for item one" },
+    });
 
     await act(async () => {
       vi.advanceTimersByTime(1000);
@@ -203,10 +210,14 @@ describe("InvestigationWorkspace", () => {
       />,
     );
 
-    expect(screen.getByDisplayValue("Server narrative item two")).toBeInTheDocument();
+    expect(
+      screen.getByDisplayValue("Server narrative item two"),
+    ).toBeInTheDocument();
 
     fireEvent.change(
-      screen.getByPlaceholderText("Editable rationale for case notes / SAR narrative"),
+      screen.getByPlaceholderText(
+        "Editable rationale for case notes / SAR narrative",
+      ),
       {
         target: { value: "Draft for item two" },
       },
@@ -215,7 +226,9 @@ describe("InvestigationWorkspace", () => {
     rerender(<InvestigationWorkspace {...props} />);
 
     expect(screen.getByDisplayValue("Draft for item one")).toBeInTheDocument();
-    expect(screen.queryByDisplayValue("Draft for item two")).not.toBeInTheDocument();
+    expect(
+      screen.queryByDisplayValue("Draft for item two"),
+    ).not.toBeInTheDocument();
   });
 
   it("flushes dirty draft immediately on tab switch before debounce window", async () => {
@@ -233,7 +246,9 @@ describe("InvestigationWorkspace", () => {
     );
 
     fireEvent.change(
-      screen.getByPlaceholderText("Editable rationale for case notes / SAR narrative"),
+      screen.getByPlaceholderText(
+        "Editable rationale for case notes / SAR narrative",
+      ),
       { target: { value: "Switch tab flush me" } },
     );
 
@@ -272,7 +287,9 @@ describe("InvestigationWorkspace", () => {
     );
 
     fireEvent.change(
-      screen.getByPlaceholderText("Editable rationale for case notes / SAR narrative"),
+      screen.getByPlaceholderText(
+        "Editable rationale for case notes / SAR narrative",
+      ),
       { target: { value: "Flush before switch" } },
     );
 

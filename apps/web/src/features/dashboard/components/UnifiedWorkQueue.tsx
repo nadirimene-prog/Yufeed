@@ -106,22 +106,22 @@ export function UnifiedWorkQueue({
   const [selectedRows, setSelectedRows] = useState<Set<string>>(new Set());
   const [sortBy, setSortBy] = useState<QueueSort>("default");
   const [bulkAssignee, setBulkAssignee] = useState("");
-  const [advancedFiltersOpen, setAdvancedFiltersOpen] = useState(false);
-  const [density, setDensity] = useState<QueueDensity>("comfortable");
-  const [searchDraft, setSearchDraft] = useState(filters.search);
-  const [jurisdictionDraft, setJurisdictionDraft] = useState(filters.jurisdiction);
-  const [pendingBulkAction, setPendingBulkAction] = useState<PendingBulkAction>(
-    null,
+  const [advancedFiltersOpen, setAdvancedFiltersOpen] = useState(() =>
+    readBooleanPref(QUEUE_ADVANCED_PREF_KEY, false),
   );
+  const [density, setDensity] = useState<QueueDensity>(() =>
+    readDensityPref("comfortable"),
+  );
+  const [searchDraft, setSearchDraft] = useState(() => filters.search);
+  const [jurisdictionDraft, setJurisdictionDraft] = useState(
+    () => filters.jurisdiction,
+  );
+  const [pendingBulkAction, setPendingBulkAction] =
+    useState<PendingBulkAction>(null);
   const rowRefs = useRef<Array<HTMLDivElement | null>>([]);
   const searchDebounceRef = useRef<number | null>(null);
   const jurisdictionDebounceRef = useRef<number | null>(null);
   const workspaceUsersQuery = useWorkspaceUsers();
-
-  useEffect(() => {
-    setAdvancedFiltersOpen(readBooleanPref(QUEUE_ADVANCED_PREF_KEY, false));
-    setDensity(readDensityPref("comfortable"));
-  }, []);
 
   useEffect(() => {
     if (typeof window === "undefined") return;
@@ -137,11 +137,15 @@ export function UnifiedWorkQueue({
   }, [density]);
 
   useEffect(() => {
-    setSearchDraft(filters.search);
+    queueMicrotask(() => {
+      setSearchDraft(filters.search);
+    });
   }, [filters.search]);
 
   useEffect(() => {
-    setJurisdictionDraft(filters.jurisdiction);
+    queueMicrotask(() => {
+      setJurisdictionDraft(filters.jurisdiction);
+    });
   }, [filters.jurisdiction]);
 
   useEffect(() => {
@@ -181,19 +185,21 @@ export function UnifiedWorkQueue({
   const items = useMemo(() => data?.items ?? [], [data?.items]);
 
   useEffect(() => {
-    setSelectedRows((current) => {
-      if (current.size === 0) return current;
-      const visibleIds = new Set(items.map((item) => item.item_id));
-      let changed = false;
-      const next = new Set<string>();
-      for (const id of current) {
-        if (visibleIds.has(id)) {
-          next.add(id);
-        } else {
-          changed = true;
+    queueMicrotask(() => {
+      setSelectedRows((current) => {
+        if (current.size === 0) return current;
+        const visibleIds = new Set(items.map((item) => item.item_id));
+        let changed = false;
+        const next = new Set<string>();
+        for (const id of current) {
+          if (visibleIds.has(id)) {
+            next.add(id);
+          } else {
+            changed = true;
+          }
         }
-      }
-      return changed ? next : current;
+        return changed ? next : current;
+      });
     });
   }, [items]);
 
@@ -208,6 +214,15 @@ export function UnifiedWorkQueue({
     }
     return copy;
   }, [items, sortBy]);
+
+  const toggleSelected = (itemId: string, checked: boolean) => {
+    setSelectedRows((current) => {
+      const next = new Set(current);
+      if (checked) next.add(itemId);
+      else next.delete(itemId);
+      return next;
+    });
+  };
 
   useEffect(() => {
     const onKeyDown = (event: KeyboardEvent) => {
@@ -253,7 +268,8 @@ export function UnifiedWorkQueue({
       }
 
       const targetItem =
-        (currentIndex >= 0 ? sortedItems[currentIndex] : sortedItems[0]) ?? null;
+        (currentIndex >= 0 ? sortedItems[currentIndex] : sortedItems[0]) ??
+        null;
       if (!targetItem) return;
 
       event.preventDefault();
@@ -300,15 +316,6 @@ export function UnifiedWorkQueue({
       } else {
         sortedItems.forEach((item) => next.delete(item.item_id));
       }
-      return next;
-    });
-  };
-
-  const toggleSelected = (itemId: string, checked: boolean) => {
-    setSelectedRows((current) => {
-      const next = new Set(current);
-      if (checked) next.add(itemId);
-      else next.delete(itemId);
       return next;
     });
   };
@@ -590,7 +597,9 @@ export function UnifiedWorkQueue({
         <Button
           variant="outline"
           size="sm"
-          disabled={!data || data.page * data.page_size >= data.total || loading}
+          disabled={
+            !data || data.page * data.page_size >= data.total || loading
+          }
           onClick={() => onFiltersChange({ page: filters.page + 1 })}
         >
           Next

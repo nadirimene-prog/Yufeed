@@ -73,7 +73,9 @@ export function ReviewProvenanceCard({
                 Returned
               </p>
             ) : (
-              <p className="text-muted-foreground">No review outcome recorded</p>
+              <p className="text-muted-foreground">
+                No review outcome recorded
+              </p>
             )}
             {provenance.return_reason ? (
               <p className="mt-1 text-muted-foreground">

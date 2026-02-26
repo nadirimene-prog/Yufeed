@@ -2,7 +2,10 @@
 
 import { useEffect, useRef } from "react";
 import apiClient from "@/lib/http";
-import type { DashboardTelemetryEventName, DashboardTelemetryPayload } from "@/features/dashboard/telemetry";
+import type {
+  DashboardTelemetryEventName,
+  DashboardTelemetryPayload,
+} from "@/features/dashboard/telemetry";
 
 interface DashboardTelemetryEnvelope {
   event: DashboardTelemetryEventName;
@@ -52,9 +55,12 @@ export function useDashboardTelemetryBridge({
         flushingRef.current = false;
         if (queueRef.current.length > 0) {
           clearFlushTimer();
-          flushTimerRef.current = window.setTimeout(() => {
-            void flushQueue();
-          }, Math.max(250, flushIntervalMs));
+          flushTimerRef.current = window.setTimeout(
+            () => {
+              void flushQueue();
+            },
+            Math.max(250, flushIntervalMs),
+          );
         }
       }
     };
@@ -66,10 +72,13 @@ export function useDashboardTelemetryBridge({
         return;
       }
       if (flushTimerRef.current) return;
-      flushTimerRef.current = window.setTimeout(() => {
-        flushTimerRef.current = null;
-        void flushQueue();
-      }, Math.max(250, flushIntervalMs));
+      flushTimerRef.current = window.setTimeout(
+        () => {
+          flushTimerRef.current = null;
+          void flushQueue();
+        },
+        Math.max(250, flushIntervalMs),
+      );
     };
 
     const onTelemetry = (event: WindowEventMap["dashboard:telemetry"]) => {
@@ -86,7 +95,10 @@ export function useDashboardTelemetryBridge({
       void flushQueue();
     };
 
-    window.addEventListener("dashboard:telemetry", onTelemetry as EventListener);
+    window.addEventListener(
+      "dashboard:telemetry",
+      onTelemetry as EventListener,
+    );
     window.addEventListener("pagehide", onPageHide);
     window.addEventListener("beforeunload", onPageHide);
 

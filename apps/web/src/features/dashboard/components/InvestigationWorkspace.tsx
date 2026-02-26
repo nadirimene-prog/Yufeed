@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import {
   Clock3,
@@ -127,38 +127,61 @@ export function InvestigationWorkspace({
   const [snoozeReason, setSnoozeReason] = useState("");
   const [narrativeDirty, setNarrativeDirty] = useState(false);
   const [notesDirty, setNotesDirty] = useState(false);
+  const hasLocalDraftForCurrentItemRef = useRef(false);
   const workspaceUsersQuery = useWorkspaceUsers();
+  const selectedItemId = selectedItem?.item_id ?? null;
+  const selectedItemOwner = selectedItem?.owner ?? "";
+  const detailOwner = detail?.work_item.owner ?? "";
+  const detailNarrative = detail?.narrative ?? "";
 
   useEffect(() => {
-    setNotes("");
-    setSubmittedBy("");
-    setReviewNotes("");
-    setActiveTab("overview");
-    setProposedAction("close");
-    setSnoozeHours(24);
-    setSnoozeReason("");
-    setAssignee(selectedItem?.owner ?? "");
-    const persistedDraft = readDashboardLocalDraft(selectedItem?.item_id);
-    setNarrativeDraft(persistedDraft?.narrative ?? "");
-    setNotes(persistedDraft?.notes ?? "");
-    setNarrativeDirty(Boolean(persistedDraft));
-    setNotesDirty(Boolean(persistedDraft));
-  }, [selectedItem?.item_id]);
+    const persistedDraft = readDashboardLocalDraft(selectedItemId);
+    hasLocalDraftForCurrentItemRef.current = Boolean(persistedDraft);
+    let cancelled = false;
 
-  useEffect(() => {
-    if (!selectedItem) return;
-    if (!detail) return;
-    setAssignee(detail.work_item.owner ?? selectedItem.owner ?? "");
-    setNarrativeDraft((current) => {
-      if (narrativeDirty) return current;
-      if (current.trim().length > 0) return current;
-      return detail.narrative ?? "";
+    queueMicrotask(() => {
+      if (cancelled) return;
+      setSubmittedBy("");
+      setReviewNotes("");
+      setActiveTab("overview");
+      setProposedAction("close");
+      setSnoozeHours(24);
+      setSnoozeReason("");
+      setAssignee(selectedItemOwner);
+      setNarrativeDraft(persistedDraft?.narrative ?? "");
+      setNotes(persistedDraft?.notes ?? "");
+      setNarrativeDirty(Boolean(persistedDraft));
+      setNotesDirty(Boolean(persistedDraft));
     });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [selectedItemId, selectedItemOwner]);
+
+  useEffect(() => {
+    if (!selectedItemId || !detail) return;
+
+    let cancelled = false;
+    queueMicrotask(() => {
+      if (cancelled) return;
+      setAssignee(detailOwner || selectedItemOwner);
+      setNarrativeDraft((current) => {
+        if (hasLocalDraftForCurrentItemRef.current) return current;
+        if (narrativeDirty) return current;
+        return detailNarrative;
+      });
+    });
+
+    return () => {
+      cancelled = true;
+    };
   }, [
-    detail?.narrative,
-    detail?.work_item.owner,
-    selectedItem?.item_id,
-    selectedItem?.owner,
+    detail,
+    detailNarrative,
+    detailOwner,
+    selectedItemId,
+    selectedItemOwner,
     narrativeDirty,
   ]);
 
@@ -223,7 +246,11 @@ export function InvestigationWorkspace({
           </p>
         </div>
         <div className="flex items-center gap-2">
-          <DataFreshnessBadge freshness={detail?.freshness ?? null} label="Detail" compact />
+          <DataFreshnessBadge
+            freshness={detail?.freshness ?? null}
+            label="Detail"
+            compact
+          />
           {mobileOpen && onCloseMobile ? (
             <Button variant="outline" size="sm" onClick={onCloseMobile}>
               Close
@@ -368,6 +395,7 @@ export function InvestigationWorkspace({
                       <textarea
                         value={narrativeDraft}
                         onChange={(event) => {
+                          hasLocalDraftForCurrentItemRef.current = true;
                           setNarrativeDirty(true);
                           setNarrativeDraft(event.target.value);
                         }}
@@ -402,7 +430,10 @@ export function InvestigationWorkspace({
                     </div>
 
                     <div className="mt-3 border-t border-border pt-3">
-                      <DecisionTraceCard trace={detail?.decision_trace ?? null} compact />
+                      <DecisionTraceCard
+                        trace={detail?.decision_trace ?? null}
+                        compact
+                      />
                     </div>
                   </div>
                 ),
@@ -533,6 +564,7 @@ export function InvestigationWorkspace({
                             id="notes-input"
                             value={notes}
                             onChange={(event) => {
+                              hasLocalDraftForCurrentItemRef.current = true;
                               setNotesDirty(true);
                               setNotes(event.target.value);
                             }}
@@ -546,16 +578,21 @@ export function InvestigationWorkspace({
                         {actionButtons.map((entry) => {
                           const disabled =
                             actionPending ||
-                            (entry.key === "assign" && assignee.trim().length === 0);
+                            (entry.key === "assign" &&
+                              assignee.trim().length === 0);
                           const payload = {
                             action: entry.key,
-                            assignee: entry.key === "assign" ? assignee : undefined,
+                            assignee:
+                              entry.key === "assign" ? assignee : undefined,
                             notes,
                             sar_required: selectedItem.sar_required,
                           } satisfies WorkItemActionRequest;
 
                           return (
-                            <div key={entry.key} className="flex items-center gap-2">
+                            <div
+                              key={entry.key}
+                              className="flex items-center gap-2"
+                            >
                               <Button
                                 variant="outline"
                                 size="sm"

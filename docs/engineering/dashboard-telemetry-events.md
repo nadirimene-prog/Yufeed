@@ -16,6 +16,10 @@ Emitted when queue filters/pagination are applied.
 Typical payload:
 - `source`: `"queue_controls" | "critical_tile" | "pagination"`
 - `keys`: `string[]` changed filter keys
+- `phase`: `"submitted" | "queue_loaded" | "queue_load_error"` (completion phase emitted after queue query resolves)
+- `success`: boolean (completion phase only)
+- `latency_ms`: number (completion phase only)
+- `page` / `page_size` / `total` / `visible_count` (completion phase only)
 
 ### `dashboard_row_select`
 Emitted when a user selects a queue item.
@@ -25,6 +29,9 @@ Typical payload:
 - `kind`: work item kind
 - `severity`: work item severity
 - `review_required`: boolean
+- `phase`: `"selected" | "detail_loaded" | "detail_load_error"`
+- `success`: boolean (detail load phases only)
+- `latency_ms`: number (detail load phases only)
 
 ### `dashboard_action_submit`
 Emitted for single, review, and bulk actions after success/failure.
@@ -36,6 +43,7 @@ Typical payload:
 - `count` (bulk)
 - `success`: boolean
 - `advance_to_next`: boolean (single/review only)
+- `latency_ms`: number (roundtrip timing)
 
 ### `dashboard_action_next`
 Emitted when an `+ Next` flow is attempted.

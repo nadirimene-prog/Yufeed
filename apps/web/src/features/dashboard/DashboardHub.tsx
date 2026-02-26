@@ -1,6 +1,13 @@
 "use client";
 
-import { startTransition, useEffect, useId, useMemo, useState } from "react";
+import {
+  startTransition,
+  useEffect,
+  useId,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
 import axios from "axios";
 import Link from "next/link";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
@@ -182,6 +189,44 @@ function isPaginationOnlyPatch(patch: Partial<DashboardWorkQueueParams>) {
   return keys.every((key) => key === "page" || key === "pageSize");
 }
 
+function getTelemetryNow() {
+  if (
+    typeof performance !== "undefined" &&
+    Number.isFinite(performance.now())
+  ) {
+    return performance.now();
+  }
+  return Date.now();
+}
+
+function useWallClockNow(intervalMs: number = 30_000) {
+  const [nowMs, setNowMs] = useState<number | null>(null);
+
+  useEffect(() => {
+    const updateNow = () => setNowMs(Date.now());
+    updateNow();
+    const timer = window.setInterval(updateNow, intervalMs);
+    return () => window.clearInterval(timer);
+  }, [intervalMs]);
+
+  return nowMs;
+}
+
+interface PendingQueueFilterTelemetry {
+  source: "queue_controls" | "critical_tile" | "pagination";
+  keys: string[];
+  startedAt: number;
+}
+
+interface PendingRowSelectTelemetry {
+  source: "desktop_queue" | "mobile_queue";
+  kind: DashboardWorkQueueItem["kind"];
+  severity: DashboardWorkQueueItem["severity"];
+  reviewRequired: boolean;
+  itemId: string;
+  startedAt: number;
+}
+
 export function DashboardHub() {
   const router = useRouter();
   const pathname = usePathname();
@@ -201,7 +246,13 @@ export function DashboardHub() {
     if (typeof window === "undefined") return false;
     return window.localStorage.getItem(INSIGHTS_PREF_KEY) === "1";
   });
+  const pendingQueueFilterTelemetryRef =
+    useRef<PendingQueueFilterTelemetry | null>(null);
+  const pendingRowSelectTelemetryRef = useRef<PendingRowSelectTelemetry | null>(
+    null,
+  );
   const dashboardTabsId = useId();
+  const wallClockNowMs = useWallClockNow();
 
   const view = resolveDashboardView(searchParams.get("view"));
   const range = resolveDashboardTimeRange(searchParams.get("range"));
@@ -248,14 +299,80 @@ export function DashboardHub() {
       selectedItem?.record_id ?? null,
     );
 
+  useEffect(() => {
+    const pending = pendingQueueFilterTelemetryRef.current;
+    if (!pending) return;
+    if (queueQuery.isFetching) return;
+
+    pendingQueueFilterTelemetryRef.current = null;
+    trackDashboardEvent("dashboard_filter_apply", {
+      source: pending.source,
+      keys: pending.keys,
+      phase: queueQuery.isError ? "queue_load_error" : "queue_loaded",
+      success: !queueQuery.isError,
+      latency_ms: Math.max(
+        0,
+        Math.round(getTelemetryNow() - pending.startedAt),
+      ),
+      page: queueQuery.data?.page ?? null,
+      page_size: queueQuery.data?.page_size ?? null,
+      total: queueQuery.data?.total ?? null,
+      visible_count: queueQuery.data?.items?.length ?? null,
+    });
+  }, [
+    queueQuery.isFetching,
+    queueQuery.isError,
+    queueQuery.data?.page,
+    queueQuery.data?.page_size,
+    queueQuery.data?.total,
+    queueQuery.data?.items?.length,
+  ]);
+
+  useEffect(() => {
+    const pending = pendingRowSelectTelemetryRef.current;
+    if (!pending) return;
+    if (detailQuery.isFetching) return;
+
+    const selectedId = selectedItem?.item_id ?? null;
+    if (selectedId !== pending.itemId) return;
+
+    const detailItemId = detailQuery.data?.work_item.item_id ?? null;
+    if (detailItemId && detailItemId !== pending.itemId) return;
+
+    pendingRowSelectTelemetryRef.current = null;
+    trackDashboardEvent("dashboard_row_select", {
+      source: pending.source,
+      kind: pending.kind,
+      severity: pending.severity,
+      review_required: pending.reviewRequired,
+      phase: detailQuery.isError ? "detail_load_error" : "detail_loaded",
+      success: !detailQuery.isError,
+      latency_ms: Math.max(
+        0,
+        Math.round(getTelemetryNow() - pending.startedAt),
+      ),
+      detail_has_freshness: Boolean(detailQuery.data?.freshness),
+    });
+  }, [
+    selectedItem?.item_id,
+    detailQuery.isFetching,
+    detailQuery.isError,
+    detailQuery.data?.work_item.item_id,
+    detailQuery.data?.freshness,
+  ]);
+
   const activeViewPanelId = `dashboard-view-panel-${dashboardTabsId}-${view}`;
   const overviewFreshness = overviewQuery.data?.freshness ?? null;
   const overviewIsStale = (() => {
     if (!overviewFreshness?.generated_at) return false;
     const generatedAt = new Date(overviewFreshness.generated_at);
     if (Number.isNaN(generatedAt.valueOf())) return false;
-    const staleAfter = Math.max(1, overviewFreshness.stale_after_seconds ?? 120);
-    return Date.now() - generatedAt.getTime() > staleAfter * 1000;
+    const staleAfter = Math.max(
+      1,
+      overviewFreshness.stale_after_seconds ?? 120,
+    );
+    const referenceNow = wallClockNowMs ?? generatedAt.getTime();
+    return referenceNow - generatedAt.getTime() > staleAfter * 1000;
   })();
 
   const updateSearch = (patch: Partial<DashboardWorkQueueParams>) => {
@@ -294,11 +411,21 @@ export function DashboardHub() {
 
   const applyQueueFilterPatch = (
     patch: Partial<DashboardWorkQueueParams>,
-    source: "queue_controls" | "critical_tile" | "pagination" = "queue_controls",
+    source:
+      | "queue_controls"
+      | "critical_tile"
+      | "pagination" = "queue_controls",
   ) => {
+    const keys = Object.keys(patch).sort();
+    pendingQueueFilterTelemetryRef.current = {
+      source,
+      keys,
+      startedAt: getTelemetryNow(),
+    };
     trackDashboardEvent("dashboard_filter_apply", {
       source,
-      keys: Object.keys(patch).sort(),
+      keys,
+      phase: "submitted",
     });
     updateSearch(patch);
   };
@@ -306,12 +433,13 @@ export function DashboardHub() {
   const applyCriticalFilter = (patch: CriticalTileFilter) => {
     applyQueueFilterPatch(
       {
-      page: 1,
-      queue: (patch.queue ?? filters.queue) as DashboardQueueFilter,
-      severity: (patch.severity ?? filters.severity) as DashboardSeverityFilter,
-      sla: (patch.sla ?? filters.sla) as DashboardSlaFilter,
-      savedView: (patch.savedView ?? filters.savedView) as DashboardSavedView,
-      search: patch.search ?? filters.search,
+        page: 1,
+        queue: (patch.queue ?? filters.queue) as DashboardQueueFilter,
+        severity: (patch.severity ??
+          filters.severity) as DashboardSeverityFilter,
+        sla: (patch.sla ?? filters.sla) as DashboardSlaFilter,
+        savedView: (patch.savedView ?? filters.savedView) as DashboardSavedView,
+        search: patch.search ?? filters.search,
       },
       "critical_tile",
     );
@@ -403,6 +531,28 @@ export function DashboardHub() {
     return true;
   };
 
+  const handleQueueItemSelect = (
+    item: DashboardWorkQueueItem,
+    source: "desktop_queue" | "mobile_queue",
+  ) => {
+    pendingRowSelectTelemetryRef.current = {
+      source,
+      kind: item.kind,
+      severity: item.severity,
+      reviewRequired: item.review_requirement?.required ?? false,
+      itemId: item.item_id,
+      startedAt: getTelemetryNow(),
+    };
+    trackDashboardEvent("dashboard_row_select", {
+      source,
+      kind: item.kind,
+      severity: item.severity,
+      review_required: item.review_requirement?.required ?? false,
+      phase: "selected",
+    });
+    setSelectedItemId(item.item_id);
+  };
+
   const executeAction = async (
     payload: {
       action:
@@ -418,6 +568,7 @@ export function DashboardHub() {
     options?: { advanceToNext?: boolean },
   ) => {
     setWorkspaceMessage(null);
+    const startedAt = getTelemetryNow();
     try {
       const result = await performAction.mutateAsync(payload);
       const movedToNext = options?.advanceToNext
@@ -429,6 +580,7 @@ export function DashboardHub() {
         action: payload.action,
         success: true,
         advance_to_next: Boolean(options?.advanceToNext),
+        latency_ms: Math.max(0, Math.round(getTelemetryNow() - startedAt)),
       });
       if (options?.advanceToNext) {
         trackDashboardEvent("dashboard_action_next", {
@@ -456,6 +608,7 @@ export function DashboardHub() {
         action: payload.action,
         success: false,
         advance_to_next: Boolean(options?.advanceToNext),
+        latency_ms: Math.max(0, Math.round(getTelemetryNow() - startedAt)),
       });
       if (options?.advanceToNext) {
         trackDashboardEvent("dashboard_action_next", {
@@ -511,6 +664,7 @@ export function DashboardHub() {
     options?: { advanceToNext?: boolean },
   ) => {
     setWorkspaceMessage(null);
+    const startedAt = getTelemetryNow();
     try {
       const result = await reviewAction.mutateAsync(payload);
       const movedToNext = options?.advanceToNext
@@ -523,6 +677,7 @@ export function DashboardHub() {
         proposed_action: payload.proposed_action,
         success: true,
         advance_to_next: Boolean(options?.advanceToNext),
+        latency_ms: Math.max(0, Math.round(getTelemetryNow() - startedAt)),
       });
       if (options?.advanceToNext) {
         trackDashboardEvent("dashboard_action_next", {
@@ -544,6 +699,7 @@ export function DashboardHub() {
         proposed_action: payload.proposed_action,
         success: false,
         advance_to_next: Boolean(options?.advanceToNext),
+        latency_ms: Math.max(0, Math.round(getTelemetryNow() - startedAt)),
       });
       if (options?.advanceToNext) {
         trackDashboardEvent("dashboard_action_next", {
@@ -586,6 +742,7 @@ export function DashboardHub() {
     assignee?: string,
   ) => {
     if (items.length === 0) return;
+    const startedAt = getTelemetryNow();
 
     const fallbackAssignee =
       assignee ?? profile?.userId ?? selectedItem?.owner ?? "";
@@ -604,6 +761,7 @@ export function DashboardHub() {
         action,
         count: items.length,
         success: true,
+        latency_ms: Math.max(0, Math.round(getTelemetryNow() - startedAt)),
       });
       setWorkspaceMessage({
         text: `${items.length} item(s) updated.`,
@@ -615,6 +773,7 @@ export function DashboardHub() {
         action,
         count: items.length,
         success: false,
+        latency_ms: Math.max(0, Math.round(getTelemetryNow() - startedAt)),
       });
       setWorkspaceMessage({
         text: parseErrorMessage(error, "Bulk action failed"),
@@ -623,10 +782,13 @@ export function DashboardHub() {
     }
   };
 
-  const runSaveDraft = async (payload: {
-    narrative: string;
-    notes: string;
-  }, options?: { silent?: boolean; source?: "manual" | "autosave" }) => {
+  const runSaveDraft = async (
+    payload: {
+      narrative: string;
+      notes: string;
+    },
+    options?: { silent?: boolean; source?: "manual" | "autosave" },
+  ) => {
     if (!selectedItem) return;
     try {
       await saveDraft.mutateAsync(payload);
@@ -681,60 +843,57 @@ export function DashboardHub() {
     onActionNext: clickActionNext,
   });
 
-  const commandPaletteActions = useMemo<DashboardCommandAction[]>(
-    () => [
-      {
-        id: "focus-queue-search",
-        label: "Focus queue search",
-        shortcut: "g q",
-        group: "Navigation",
-        onSelect: focusQueueSearchInput,
-      },
-      {
-        id: "focus-workspace",
-        label: "Focus workspace panel",
-        shortcut: "g d",
-        group: "Navigation",
-        onSelect: focusWorkspacePanel,
-      },
-      {
-        id: "toggle-insights",
-        label: insightsOpen ? "Hide insights rail" : "Show insights rail",
-        shortcut: "i",
-        group: "Layout",
-        onSelect: () => setInsightsOpen((current) => !current),
-      },
-      {
-        id: "focus-assignee",
-        label: "Focus assignee field",
-        shortcut: "a",
-        group: "Actions",
-        onSelect: focusWorkspaceAssignee,
-      },
-      {
-        id: "escalate",
-        label: "Run escalate action",
-        shortcut: "e",
-        group: "Actions",
-        onSelect: () => clickWorkspaceAction("escalate"),
-      },
-      {
-        id: "action-next",
-        label: "Run first available + Next action",
-        shortcut: "n",
-        group: "Actions",
-        onSelect: clickActionNext,
-      },
-      {
-        id: "open-shortcuts-help",
-        label: "Open keyboard shortcuts",
-        shortcut: "?",
-        group: "Help",
-        onSelect: () => setShortcutHelpOpen(true),
-      },
-    ],
-    [insightsOpen],
-  );
+  const commandPaletteActions: DashboardCommandAction[] = [
+    {
+      id: "focus-queue-search",
+      label: "Focus queue search",
+      shortcut: "g q",
+      group: "Navigation",
+      onSelect: focusQueueSearchInput,
+    },
+    {
+      id: "focus-workspace",
+      label: "Focus workspace panel",
+      shortcut: "g d",
+      group: "Navigation",
+      onSelect: focusWorkspacePanel,
+    },
+    {
+      id: "toggle-insights",
+      label: insightsOpen ? "Hide insights rail" : "Show insights rail",
+      shortcut: "i",
+      group: "Layout",
+      onSelect: () => setInsightsOpen((current) => !current),
+    },
+    {
+      id: "focus-assignee",
+      label: "Focus assignee field",
+      shortcut: "a",
+      group: "Actions",
+      onSelect: focusWorkspaceAssignee,
+    },
+    {
+      id: "escalate",
+      label: "Run escalate action",
+      shortcut: "e",
+      group: "Actions",
+      onSelect: () => clickWorkspaceAction("escalate"),
+    },
+    {
+      id: "action-next",
+      label: "Run first available + Next action",
+      shortcut: "n",
+      group: "Actions",
+      onSelect: clickActionNext,
+    },
+    {
+      id: "open-shortcuts-help",
+      label: "Open keyboard shortcuts",
+      shortcut: "?",
+      group: "Help",
+      onSelect: () => setShortcutHelpOpen(true),
+    },
+  ];
 
   if (!hasToken) {
     return (
@@ -874,7 +1033,8 @@ export function DashboardHub() {
         </div>
         {overviewIsStale ? (
           <div className="mt-2 rounded-lg border border-orange-200 bg-orange-50 px-2 py-1 text-[11px] text-orange-900">
-            Overview metrics may be stale. Queue and detail panels may have newer data.
+            Overview metrics may be stale. Queue and detail panels may have
+            newer data.
           </div>
         ) : null}
       </section>
@@ -912,15 +1072,9 @@ export function DashboardHub() {
                 : null
             }
             selectedItemId={selectedItem?.item_id ?? null}
-            onSelectItem={(item) => {
-              trackDashboardEvent("dashboard_row_select", {
-                source: "desktop_queue",
-                kind: item.kind,
-                severity: item.severity,
-                review_required: item.review_requirement?.required ?? false,
-              });
-              setSelectedItemId(item.item_id);
-            }}
+            onSelectItem={(item) =>
+              handleQueueItemSelect(item, "desktop_queue")
+            }
             onFiltersChange={(patch) =>
               applyQueueFilterPatch(
                 patch,
@@ -991,19 +1145,15 @@ export function DashboardHub() {
                 }
                 selectedItemId={selectedItem?.item_id ?? null}
                 onSelectItem={(item) => {
-                  trackDashboardEvent("dashboard_row_select", {
-                    source: "mobile_queue",
-                    kind: item.kind,
-                    severity: item.severity,
-                    review_required: item.review_requirement?.required ?? false,
-                  });
-                  setSelectedItemId(item.item_id);
+                  handleQueueItemSelect(item, "mobile_queue");
                   setMobileWorkspaceOpen(true);
                 }}
                 onFiltersChange={(patch) =>
                   applyQueueFilterPatch(
                     patch,
-                    isPaginationOnlyPatch(patch) ? "pagination" : "queue_controls",
+                    isPaginationOnlyPatch(patch)
+                      ? "pagination"
+                      : "queue_controls",
                   )
                 }
                 onRefresh={() => {

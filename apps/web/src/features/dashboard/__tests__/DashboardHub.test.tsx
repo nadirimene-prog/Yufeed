@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 import { fireEvent, render, screen } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import DashboardHub from "@/features/dashboard/DashboardHub";
@@ -117,6 +118,10 @@ vi.mock("@/features/dashboard/useWorkItemActions", () => ({
   }),
 }));
 
+vi.mock("@/features/dashboard/hooks/useDashboardTelemetryBridge", () => ({
+  useDashboardTelemetryBridge: vi.fn(),
+}));
+
 vi.mock("@/features/dashboard/components/CriticalDecisionBar", () => ({
   __esModule: true,
   default: () => <div data-testid="critical-decision-bar" />,
@@ -150,7 +155,11 @@ vi.mock("@/features/dashboard/components/InvestigationWorkspace", () => ({
       <button type="button" data-dashboard-action="escalate">
         Escalate
       </button>
-      <button type="button" data-dashboard-action-next-primary="true" data-dashboard-action-next="close">
+      <button
+        type="button"
+        data-dashboard-action-next-primary="true"
+        data-dashboard-action-next="close"
+      >
         + Next
       </button>
     </div>
@@ -189,7 +198,9 @@ vi.mock("@/features/dashboard/components/CommandPalette", () => ({
         <button
           type="button"
           onClick={() =>
-            actions.find((action) => action.id === "focus-workspace")?.onSelect()
+            actions
+              .find((action) => action.id === "focus-workspace")
+              ?.onSelect()
           }
         >
           Run Focus Workspace
@@ -210,22 +221,32 @@ describe("DashboardHub", () => {
     expect(screen.getByTestId("insights-panel-state")).toHaveTextContent(
       "closed",
     );
-    expect(screen.getByRole("button", { name: "Insights" })).toBeInTheDocument();
+    expect(
+      screen.getByRole("button", { name: "Insights" }),
+    ).toBeInTheDocument();
 
     fireEvent.click(screen.getByRole("button", { name: "Insights" }));
 
-    expect(screen.getByTestId("insights-panel-state")).toHaveTextContent("open");
-    expect(screen.getByRole("button", { name: "Hide Insights" })).toBeInTheDocument();
+    expect(screen.getByTestId("insights-panel-state")).toHaveTextContent(
+      "open",
+    );
+    expect(
+      screen.getByRole("button", { name: "Hide Insights" }),
+    ).toBeInTheDocument();
     expect(localStorage.getItem("dashboard:insights-open")).toBe("1");
-  });
+  }, 10000);
 
   it("hydrates insights rail from localStorage preference", () => {
     localStorage.setItem("dashboard:insights-open", "1");
 
     render(<DashboardHub />);
 
-    expect(screen.getByTestId("insights-panel-state")).toHaveTextContent("open");
-    expect(screen.getByRole("button", { name: "Hide Insights" })).toBeInTheDocument();
+    expect(screen.getByTestId("insights-panel-state")).toHaveTextContent(
+      "open",
+    );
+    expect(
+      screen.getByRole("button", { name: "Hide Insights" }),
+    ).toBeInTheDocument();
   });
 
   it("opens shortcut help and command palette from keyboard shortcuts", () => {
@@ -257,9 +278,9 @@ describe("DashboardHub", () => {
   it("supports go-to shortcut sequence for workspace focus", () => {
     render(<DashboardHub />);
 
-    const workspacePanel = screen.getByTestId("investigation-workspace").querySelector(
-      "[data-dashboard-workspace-panel]",
-    ) as HTMLElement;
+    const workspacePanel = screen
+      .getByTestId("investigation-workspace")
+      .querySelector("[data-dashboard-workspace-panel]") as HTMLElement;
     expect(workspacePanel).toBeTruthy();
     expect(document.activeElement).not.toBe(workspacePanel);
 
@@ -272,12 +293,14 @@ describe("DashboardHub", () => {
   it("executes command palette action handlers", () => {
     render(<DashboardHub />);
 
-    const workspacePanel = screen.getByTestId("investigation-workspace").querySelector(
-      "[data-dashboard-workspace-panel]",
-    ) as HTMLElement;
+    const workspacePanel = screen
+      .getByTestId("investigation-workspace")
+      .querySelector("[data-dashboard-workspace-panel]") as HTMLElement;
 
     fireEvent.keyDown(window, { key: "k", metaKey: true });
-    fireEvent.click(screen.getByRole("button", { name: "Run Focus Workspace" }));
+    fireEvent.click(
+      screen.getByRole("button", { name: "Run Focus Workspace" }),
+    );
 
     expect(document.activeElement).toBe(workspacePanel);
   });

@@ -47,7 +47,8 @@ const articleBucketLabel = (obligation: Obligation) => {
 };
 
 const articleBucketSortKey = (label: string) => {
-  if (label === "No article ref") return { bucket: 2, number: Number.MAX_SAFE_INTEGER };
+  if (label === "No article ref")
+    return { bucket: 2, number: Number.MAX_SAFE_INTEGER };
   const match = label.match(/(?:Article|Art\.?)\s*(\d+)/i);
   if (match) return { bucket: 0, number: Number(match[1]) };
   return { bucket: 1, number: Number.MAX_SAFE_INTEGER };
@@ -72,7 +73,9 @@ const groupObligationsByArticle = (obligations: Obligation[]) => {
     .map(([label, items]) => ({ label, items }));
 };
 
-const coverageRatio = (coverage?: RegulationObligationCoverageSummary | null) => {
+const coverageRatio = (
+  coverage?: RegulationObligationCoverageSummary | null,
+) => {
   if (!coverage) return null;
   return `${coverage.covered_signal_article_count}/${coverage.articles_with_obligation_signal}`;
 };
@@ -163,9 +166,10 @@ export default function ObligationsPage() {
 
   const total =
     viewMode === "regulation"
-      ? groupedObligationsQuery.data?.total_regulations ?? 0
-      : obligationsQuery.data?.total ?? 0;
-  const groupedTotalObligations = groupedObligationsQuery.data?.total_obligations ?? 0;
+      ? (groupedObligationsQuery.data?.total_regulations ?? 0)
+      : (obligationsQuery.data?.total ?? 0);
+  const groupedTotalObligations =
+    groupedObligationsQuery.data?.total_obligations ?? 0;
 
   const pageItemIds = useMemo(() => {
     if (viewMode === "regulation") {
@@ -229,7 +233,9 @@ export default function ObligationsPage() {
     }
   };
 
-  const handleReanalyzeRegulation = async (group: ObligationsByRegulationGroup) => {
+  const handleReanalyzeRegulation = async (
+    group: ObligationsByRegulationGroup,
+  ) => {
     const docId = group.document.id;
     const celex = group.document.celex?.trim();
     if (!celex) {
@@ -237,7 +243,8 @@ export default function ObligationsPage() {
         ...prev,
         [docId]: {
           kind: "error",
-          message: "Cannot re-analyze this regulation because the CELEX identifier is missing.",
+          message:
+            "Cannot re-analyze this regulation because the CELEX identifier is missing.",
         },
       }));
       return;
@@ -276,7 +283,9 @@ export default function ObligationsPage() {
         }
       }
 
-      const extractedCandidates = Array.isArray(response?.results?.obligations_json)
+      const extractedCandidates = Array.isArray(
+        response?.results?.obligations_json,
+      )
         ? response.results.obligations_json.length
         : null;
       if (typeof extractedCandidates === "number") {
@@ -288,7 +297,9 @@ export default function ObligationsPage() {
         [docId]: { kind: "success", message },
       }));
 
-      await queryClient.invalidateQueries({ queryKey: complianceKeys.obligations() });
+      await queryClient.invalidateQueries({
+        queryKey: complianceKeys.obligations(),
+      });
     } catch (err) {
       handleApiError(err, { context: `Re-analyze regulation ${celex}` });
       setReanalyzeFeedbackByDoc((prev) => ({
@@ -567,14 +578,19 @@ export default function ObligationsPage() {
             )
           ) : regulationGroups.length ? (
             regulationGroups.map((group) => {
-              const articleBuckets = groupObligationsByArticle(group.obligations);
+              const articleBuckets = groupObligationsByArticle(
+                group.obligations,
+              );
               const pendingCount =
                 (group.obligation_counts.draft ?? 0) +
                 (group.obligation_counts.in_review ?? 0);
               const totalCount = group.obligation_counts.total ?? 0;
               const coverage = group.coverage;
-              const isReanalyzing = reanalyzingDocIds.includes(group.document.id);
-              const reanalyzeFeedback = reanalyzeFeedbackByDoc[group.document.id];
+              const isReanalyzing = reanalyzingDocIds.includes(
+                group.document.id,
+              );
+              const reanalyzeFeedback =
+                reanalyzeFeedbackByDoc[group.document.id];
               return (
                 <details
                   key={group.document.id}
@@ -641,7 +657,10 @@ export default function ObligationsPage() {
                       </div>
                       <div className="flex flex-col items-start gap-2 text-[11px] text-slate-400 lg:items-end">
                         <div>
-                          Updated {formatDate(group.document.last_obligation_updated_at)}
+                          Updated{" "}
+                          {formatDate(
+                            group.document.last_obligation_updated_at,
+                          )}
                         </div>
                         {isAdminUser && group.document.celex ? (
                           <button
@@ -654,7 +673,9 @@ export default function ObligationsPage() {
                             disabled={isReanalyzing}
                             className="rounded-full border border-blue-200 bg-blue-50 px-3 py-1 text-[11px] font-semibold text-blue-700 hover:border-blue-300 disabled:cursor-not-allowed disabled:opacity-60"
                           >
-                            {isReanalyzing ? "Re-analyzing..." : "Re-analyze regulation"}
+                            {isReanalyzing
+                              ? "Re-analyzing..."
+                              : "Re-analyze regulation"}
                           </button>
                         ) : null}
                       </div>
@@ -720,7 +741,9 @@ export default function ObligationsPage() {
             Previous
           </button>
           <button
-            onClick={() => setPage((prev) => Math.min(totalPages - 1, prev + 1))}
+            onClick={() =>
+              setPage((prev) => Math.min(totalPages - 1, prev + 1))
+            }
             disabled={page + 1 >= totalPages}
             className="rounded-full border border-slate-200 bg-white px-4 py-2 text-xs font-medium text-slate-600 disabled:opacity-50"
           >

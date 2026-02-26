@@ -104,10 +104,7 @@ export function useDashboardDraftAutosave({
     dirty: boolean;
   } | null>(null);
 
-  const payload = useMemo(
-    () => ({ narrative, notes }),
-    [narrative, notes],
-  );
+  const payload = useMemo(() => ({ narrative, notes }), [narrative, notes]);
 
   latestPayloadRef.current = payload;
 
@@ -250,13 +247,16 @@ export function useDashboardDraftAutosave({
           result: "retrying",
         });
         setStatus("retrying");
-        retryTimerRef.current = window.setTimeout(async () => {
-          retryTimerRef.current = null;
-          await runSave(itemId, latestPayloadRef.current, {
-            silent: true,
-            source: "autosave",
-          });
-        }, Math.max(1500, debounceMs));
+        retryTimerRef.current = window.setTimeout(
+          async () => {
+            retryTimerRef.current = null;
+            await runSave(itemId, latestPayloadRef.current, {
+              silent: true,
+              source: "autosave",
+            });
+          },
+          Math.max(1500, debounceMs),
+        );
       }
     }, debounceMs);
 

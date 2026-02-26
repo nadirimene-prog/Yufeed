@@ -69,7 +69,9 @@ export default function DocPage({
       const response = await analyzeDocument(document.celex, true);
       await loadDocument();
 
-      const extractedCandidates = Array.isArray(response?.results?.obligations_json)
+      const extractedCandidates = Array.isArray(
+        response?.results?.obligations_json,
+      )
         ? response.results.obligations_json.length
         : null;
       setReanalyzeFeedback({

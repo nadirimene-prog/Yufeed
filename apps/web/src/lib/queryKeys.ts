@@ -8,7 +8,11 @@ export const complianceKeys = {
   obligationDetail: (id: number) =>
     [...complianceKeys.obligations(), "detail", id] as const,
   obligationRegulationCoverage: (documentId: number) =>
-    [...complianceKeys.obligations(), "regulation-coverage", documentId] as const,
+    [
+      ...complianceKeys.obligations(),
+      "regulation-coverage",
+      documentId,
+    ] as const,
   obligationInternalRules: (id: number) =>
     [...complianceKeys.obligationDetail(id), "internal_rules"] as const,
   policies: () => [...complianceKeys.all, "policies"] as const,

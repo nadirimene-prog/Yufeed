@@ -1,5 +1,6 @@
 "use client";
 
+import { useEffect, useState } from "react";
 import { Clock3, Database } from "lucide-react";
 import { DashboardFreshnessMeta } from "@/features/dashboard/types";
 import { cn } from "@/lib/utils";
@@ -18,8 +19,12 @@ function parseDate(value?: string | null) {
   return parsed;
 }
 
-function formatRelativeShort(value: Date) {
-  const diffSeconds = Math.max(0, Math.round((Date.now() - value.getTime()) / 1000));
+function formatRelativeShort(value: Date, nowMs: number | null) {
+  const referenceNow = nowMs ?? value.getTime();
+  const diffSeconds = Math.max(
+    0,
+    Math.round((referenceNow - value.getTime()) / 1000),
+  );
   if (diffSeconds < 60) return `${diffSeconds}s ago`;
   const minutes = Math.floor(diffSeconds / 60);
   if (minutes < 60) return `${minutes}m ago`;
@@ -35,6 +40,15 @@ export function DataFreshnessBadge({
   className,
   compact = false,
 }: DataFreshnessBadgeProps) {
+  const [nowMs, setNowMs] = useState<number | null>(null);
+
+  useEffect(() => {
+    const updateNow = () => setNowMs(Date.now());
+    updateNow();
+    const timer = window.setInterval(updateNow, 30_000);
+    return () => window.clearInterval(timer);
+  }, []);
+
   if (!freshness) {
     return (
       <div
@@ -53,9 +67,13 @@ export function DataFreshnessBadge({
   const sourceWatermark = parseDate(freshness.source_watermark_at ?? null);
   const staleAfter = Math.max(1, freshness.stale_after_seconds ?? 60);
   const isStale = generatedAt
-    ? Date.now() - generatedAt.getTime() > staleAfter * 1000
+    ? (nowMs ?? generatedAt.getTime()) - generatedAt.getTime() >
+      staleAfter * 1000
     : false;
-  const sourceLag = typeof freshness.source_lag_seconds === "number" ? freshness.source_lag_seconds : null;
+  const sourceLag =
+    typeof freshness.source_lag_seconds === "number"
+      ? freshness.source_lag_seconds
+      : null;
 
   return (
     <div
@@ -73,7 +91,7 @@ export function DataFreshnessBadge({
       }
       aria-label={
         generatedAt
-          ? `${label} ${formatRelativeShort(generatedAt)}${isStale ? ", stale" : ""}`
+          ? `${label} ${formatRelativeShort(generatedAt, nowMs)}${isStale ? ", stale" : ""}`
           : `${label} unavailable`
       }
     >
@@ -83,20 +101,27 @@ export function DataFreshnessBadge({
       </span>
       {generatedAt ? (
         <span className={cn(compact && "hidden sm:inline")}>
-          {formatRelativeShort(generatedAt)}
+          {formatRelativeShort(generatedAt, nowMs)}
         </span>
       ) : (
         <span className={cn(compact && "hidden sm:inline")}>unknown</span>
       )}
       {sourceLag !== null ? (
-        <span className={cn("inline-flex items-center gap-1", compact && "hidden lg:inline-flex")}>
+        <span
+          className={cn(
+            "inline-flex items-center gap-1",
+            compact && "hidden lg:inline-flex",
+          )}
+        >
           <Database className="h-3 w-3" />
           lag {Math.round(sourceLag / 60)}m
         </span>
       ) : null}
       {sourceWatermark ? (
-        <span className={cn("text-foreground/60", compact && "hidden xl:inline")}>
-          src {formatRelativeShort(sourceWatermark)}
+        <span
+          className={cn("text-foreground/60", compact && "hidden xl:inline")}
+        >
+          src {formatRelativeShort(sourceWatermark, nowMs)}
         </span>
       ) : null}
     </div>

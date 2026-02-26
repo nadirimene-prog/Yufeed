@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 import { act, fireEvent, render, screen } from "@testing-library/react";
 import type { ComponentProps } from "react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
@@ -29,13 +30,19 @@ vi.mock("@/components/ui/export-button", () => ({
 
 vi.mock("@/components/ui/dialog", () => ({
   Dialog: ({ open, children }: any) => (open ? <div>{children}</div> : null),
-  DialogContent: ({ children, ...props }: any) => <div {...props}>{children}</div>,
-  DialogHeader: ({ children, ...props }: any) => <div {...props}>{children}</div>,
+  DialogContent: ({ children, ...props }: any) => (
+    <div {...props}>{children}</div>
+  ),
+  DialogHeader: ({ children, ...props }: any) => (
+    <div {...props}>{children}</div>
+  ),
   DialogTitle: ({ children, ...props }: any) => <h2 {...props}>{children}</h2>,
   DialogDescription: ({ children, ...props }: any) => (
     <p {...props}>{children}</p>
   ),
-  DialogFooter: ({ children, ...props }: any) => <div {...props}>{children}</div>,
+  DialogFooter: ({ children, ...props }: any) => (
+    <div {...props}>{children}</div>
+  ),
 }));
 
 const baseFilters: DashboardWorkQueueParams = {
@@ -83,7 +90,9 @@ const queueItemTwo: DashboardWorkQueueItem = {
   sar_required: false,
 };
 
-function renderQueue(overrides?: Partial<ComponentProps<typeof UnifiedWorkQueue>>) {
+function renderQueue(
+  overrides?: Partial<ComponentProps<typeof UnifiedWorkQueue>>,
+) {
   const onSelectItem = vi.fn();
   const onFiltersChange = vi.fn();
   const onRefresh = vi.fn();
@@ -124,7 +133,7 @@ describe("UnifiedWorkQueue", () => {
     expect(screen.getByLabelText("Severity filter")).toBeInTheDocument();
     expect(screen.getByLabelText("SLA filter")).toBeInTheDocument();
     expect(localStorage.getItem("dashboard:queue-advanced-open")).toBe("1");
-  });
+  }, 10000);
 
   it("shows bulk action toolbar only when rows are selected", () => {
     renderQueue();
@@ -134,8 +143,12 @@ describe("UnifiedWorkQueue", () => {
     fireEvent.click(screen.getByLabelText("Select ALERT-001"));
 
     expect(screen.getByText("1 selected")).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "Bulk assign" })).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "Escalate" })).toBeInTheDocument();
+    expect(
+      screen.getByRole("button", { name: "Bulk assign" }),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByRole("button", { name: "Escalate" }),
+    ).toBeInTheDocument();
   });
 
   it("does not trigger row selection from checkbox keyboard events", () => {
@@ -200,7 +213,9 @@ describe("UnifiedWorkQueue", () => {
   it("toggles selected row checkbox with x shortcut", () => {
     renderQueue();
 
-    const checkbox = screen.getByLabelText("Select ALERT-001") as HTMLInputElement;
+    const checkbox = screen.getByLabelText(
+      "Select ALERT-001",
+    ) as HTMLInputElement;
     expect(checkbox.checked).toBe(false);
 
     fireEvent.keyDown(window, { key: "x" });

@@ -106,18 +106,21 @@ export function useObligation(id: number | null) {
   });
 }
 
-export function useObligationsList(params: {
-  status?: string;
-  jurisdiction?: string;
-  source_system?: string;
-  scope?: string;
-  q?: string;
-  include_status_counts?: boolean;
-  skip?: number;
-  limit?: number;
-}, options?: {
-  enabled?: boolean;
-}): {
+export function useObligationsList(
+  params: {
+    status?: string;
+    jurisdiction?: string;
+    source_system?: string;
+    scope?: string;
+    q?: string;
+    include_status_counts?: boolean;
+    skip?: number;
+    limit?: number;
+  },
+  options?: {
+    enabled?: boolean;
+  },
+): {
   data: ObligationsListResponse | undefined;
   isLoading: boolean;
   isError: boolean;
@@ -137,19 +140,22 @@ export function useObligationsList(params: {
   };
 }
 
-export function useObligationsByRegulationList(params: {
-  status?: string;
-  jurisdiction?: string;
-  source_system?: string;
-  scope?: string;
-  q?: string;
-  include_status_counts?: boolean;
-  include_coverage?: boolean;
-  skip?: number;
-  limit?: number;
-}, options?: {
-  enabled?: boolean;
-}): {
+export function useObligationsByRegulationList(
+  params: {
+    status?: string;
+    jurisdiction?: string;
+    source_system?: string;
+    scope?: string;
+    q?: string;
+    include_status_counts?: boolean;
+    include_coverage?: boolean;
+    skip?: number;
+    limit?: number;
+  },
+  options?: {
+    enabled?: boolean;
+  },
+): {
   data: ObligationsByRegulationResponse | undefined;
   isLoading: boolean;
   isError: boolean;

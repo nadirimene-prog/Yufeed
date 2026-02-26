@@ -36,7 +36,6 @@ export function trackDashboardEvent(
   window.dispatchEvent(new CustomEvent("dashboard:telemetry", { detail }));
 
   if (process.env.NODE_ENV === "development") {
-    // eslint-disable-next-line no-console
     console.debug("[dashboard-telemetry]", detail);
   }
 }

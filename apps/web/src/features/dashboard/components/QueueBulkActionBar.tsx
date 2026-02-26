@@ -77,7 +77,9 @@ export function QueueBulkActionBar({
         <Button
           variant="outline"
           size="sm"
-          onClick={() => onRunBulkAction("mark_in_progress", "Mark In Progress")}
+          onClick={() =>
+            onRunBulkAction("mark_in_progress", "Mark In Progress")
+          }
           disabled={!canBulkAction}
         >
           In Progress

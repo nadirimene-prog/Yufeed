@@ -37,7 +37,9 @@ export function DecisionTraceCard({
               <Brain className="h-3.5 w-3.5" />
               AI recommendation
             </p>
-            <p className="text-foreground">{trace.ai_summary || "Unavailable"}</p>
+            <p className="text-foreground">
+              {trace.ai_summary || "Unavailable"}
+            </p>
             {typeof trace.ai_confidence === "number" ? (
               <p className="text-muted-foreground">
                 Confidence: {Math.round(trace.ai_confidence * 100)}%
@@ -50,7 +52,9 @@ export function DecisionTraceCard({
               <FileText className="h-3.5 w-3.5" />
               Human decision
             </p>
-            <p className="text-foreground">{trace.human_decision || "Unavailable"}</p>
+            <p className="text-foreground">
+              {trace.human_decision || "Unavailable"}
+            </p>
             {trace.override_reason ? (
               <p className="mt-1 text-muted-foreground">
                 Override reason: {trace.override_reason}
@@ -76,12 +80,16 @@ export function DecisionTraceCard({
                 <p className="mb-1 text-muted-foreground">Policy triggers</p>
                 {(trace.policy_rules_triggered ?? []).length > 0 ? (
                   <ul className="space-y-1 text-foreground">
-                    {(trace.policy_rules_triggered ?? []).slice(0, 6).map((rule) => (
-                      <li key={rule}>• {rule.replaceAll("_", " ")}</li>
-                    ))}
+                    {(trace.policy_rules_triggered ?? [])
+                      .slice(0, 6)
+                      .map((rule) => (
+                        <li key={rule}>• {rule.replaceAll("_", " ")}</li>
+                      ))}
                   </ul>
                 ) : (
-                  <p className="text-muted-foreground">No policy triggers recorded</p>
+                  <p className="text-muted-foreground">
+                    No policy triggers recorded
+                  </p>
                 )}
               </div>
             </div>
