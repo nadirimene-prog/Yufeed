@@ -28,9 +28,7 @@ def _parse_deadline(value: Optional[str]) -> Optional[datetime]:
 
 def normalize_obligations(raw: Any, fallback_title: str) -> List[dict]:
     if raw is None:
-        return [
-            {"obligation_text": f"Review obligations for {fallback_title}", "article_ref": None}
-        ]
+        return []
 
     items: List[Any]
     if isinstance(raw, list):
@@ -65,9 +63,13 @@ def normalize_obligations(raw: Any, fallback_title: str) -> List[dict]:
             deadline = None
             source_excerpt = None
 
+        normalized_text = (text or "").strip() if isinstance(text, str) else str(text or "").strip()
+        if not normalized_text:
+            continue
+
         normalized.append(
             {
-                "obligation_text": text or f"Review obligations for {fallback_title}",
+                "obligation_text": normalized_text,
                 "article_ref": article,
                 "applicability": applicability,
                 "deadline": deadline,
@@ -76,9 +78,7 @@ def normalize_obligations(raw: Any, fallback_title: str) -> List[dict]:
         )
 
     if not normalized:
-        return [
-            {"obligation_text": f"Review obligations for {fallback_title}", "article_ref": None}
-        ]
+        return []
 
     return normalized
 
@@ -142,6 +142,12 @@ def seed_obligations_for_doc(
         db.add(doc)
 
     items = normalize_obligations(doc.obligations_json, doc.title or "Untitled document")
+    if not items:
+        logger.info(
+            "No obligations extracted; skipping obligation seeding for doc_id=%s celex=%s",
+            doc.id,
+            getattr(doc, "celex", None),
+        )
     created = 0
 
     for item in items:

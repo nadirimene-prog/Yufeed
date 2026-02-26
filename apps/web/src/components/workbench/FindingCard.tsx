@@ -71,7 +71,7 @@ const statusConfig: Record<
   string,
   { label: string; color: string; bg: string }
 > = {
-  new: { label: "New", color: "text-cyan-400", bg: "bg-cyan-400/10" },
+  new: { label: "New", color: "text-sky-400", bg: "bg-sky-400/10" },
   open: { label: "Open", color: "text-amber-400", bg: "bg-amber-400/10" },
   triaged: { label: "Triaged", color: "text-blue-400", bg: "bg-blue-400/10" },
   escalated: {

@@ -9,10 +9,41 @@ import logging
 from typing import Optional, Dict, List, Tuple
 from dataclasses import dataclass
 from urllib.parse import quote
+import xml.etree.ElementTree as ET
 import requests
 from bs4 import BeautifulSoup
 
 logger = logging.getLogger(__name__)
+
+RDF_ABOUT_ATTR = "{http://www.w3.org/1999/02/22-rdf-syntax-ns#}about"
+RDF_RESOURCE_ATTR = "{http://www.w3.org/1999/02/22-rdf-syntax-ns#}resource"
+
+LANGUAGE_CODE_MAP = {
+    "BG": "BUL",
+    "CS": "CES",
+    "DA": "DAN",
+    "DE": "DEU",
+    "EL": "ELL",
+    "EN": "ENG",
+    "ES": "SPA",
+    "ET": "EST",
+    "FI": "FIN",
+    "FR": "FRA",
+    "GA": "GLE",
+    "HR": "HRV",
+    "HU": "HUN",
+    "IT": "ITA",
+    "LT": "LIT",
+    "LV": "LAV",
+    "MT": "MLT",
+    "NL": "NLD",
+    "PL": "POL",
+    "PT": "POR",
+    "RO": "RON",
+    "SK": "SLK",
+    "SL": "SLV",
+    "SV": "SWE",
+}
 
 
 @dataclass
@@ -93,6 +124,7 @@ class ContentExtractorV2:
         self, celex: str, title: str = "", language: str = "EN"
     ) -> Optional[ExtractionResult]:
         """Extract content with all strategies and CELEX variants."""
+        language = (language or "EN").upper()
         normalized_celex, celex_variants = self.celex_utils.normalize(celex, title)
         logger.info(f"Extracting {celex} - trying variants: {celex_variants}")
 
@@ -139,37 +171,156 @@ class ContentExtractorV2:
         logger.error(f"All strategies failed for {celex}")
         return None
 
-    def _extract_cellar_xhtml(self, celex: str, language: str) -> Optional[Dict]:
-        """Extract from CELLAR XHTML endpoint."""
-        url = f"https://publications.europa.eu/resource/celex/{celex}?language={language}"
+    def _looks_like_rdf(self, response: requests.Response) -> bool:
+        ctype = (response.headers.get("content-type") or "").lower()
+        if "rdf+xml" in ctype:
+            return True
+        text = (response.text or "").lstrip()
+        return text.startswith("<rdf:RDF")
 
-        resp = self.session.get(url, timeout=30)
+    def _parse_rdf(self, xml_text: str) -> ET.Element:
+        try:
+            return ET.fromstring(xml_text)
+        except ET.ParseError as exc:
+            raise Exception(f"Invalid RDF XML: {exc}") from exc
+
+    def _fetch_rdf_root(self, url: str, timeout: int = 30) -> ET.Element:
+        resp = self.session.get(url, timeout=timeout)
         resp.raise_for_status()
+        if not self._looks_like_rdf(resp):
+            raise Exception(f"Expected RDF response from {url}")
+        return self._parse_rdf(resp.text)
 
-        soup = BeautifulSoup(resp.text, "html.parser")
+    def _language_codes(self, language: str) -> List[str]:
+        normalized = (language or "EN").upper()
+        variants = [normalized]
+        if len(normalized) == 2:
+            variants.append(LANGUAGE_CODE_MAP.get(normalized, normalized))
+        elif len(normalized) == 3:
+            # Prefer canonical 3-letter code but also try the first 2 letters.
+            variants.append(normalized[:2])
+        return list(dict.fromkeys([v for v in variants if v]))
 
-        title = None
-        title_elem = soup.find("p", class_="oj-doc-ti") or soup.find("title")
+    def _resolve_publications_office_xhtml_item(self, celex: str, language: str) -> str:
+        work_root = self._fetch_rdf_root(f"https://publications.europa.eu/resource/celex/{celex}")
+        lang_suffixes = tuple(f".{code}" for code in self._language_codes(language))
+
+        expression_uri: Optional[str] = None
+        for desc in work_root:
+            for child in desc:
+                if not child.tag.endswith("work_has_expression"):
+                    continue
+                candidate = child.attrib.get(RDF_RESOURCE_ATTR, "")
+                if candidate and candidate.endswith(lang_suffixes):
+                    expression_uri = candidate
+                    break
+            if expression_uri:
+                break
+
+        if not expression_uri:
+            raise Exception(f"No language expression found for CELEX {celex} ({language})")
+
+        expression_root = self._fetch_rdf_root(expression_uri)
+        xhtml_manifestation_uri: Optional[str] = None
+        fallback_manifestation_uri: Optional[str] = None
+        for desc in expression_root:
+            for child in desc:
+                if not child.tag.endswith("expression_manifested_by_manifestation"):
+                    continue
+                candidate = child.attrib.get(RDF_RESOURCE_ATTR, "")
+                if not candidate:
+                    continue
+                if candidate.endswith(".xhtml"):
+                    xhtml_manifestation_uri = candidate
+                    break
+                fallback_manifestation_uri = fallback_manifestation_uri or candidate
+            if xhtml_manifestation_uri:
+                break
+
+        manifestation_uri = xhtml_manifestation_uri or fallback_manifestation_uri
+        if not manifestation_uri:
+            raise Exception(f"No manifestation found for CELEX {celex} ({expression_uri})")
+        if not manifestation_uri.endswith(".xhtml"):
+            raise Exception(
+                f"No XHTML manifestation found for CELEX {celex}; got {manifestation_uri}"
+            )
+
+        manifestation_root = self._fetch_rdf_root(manifestation_uri)
+        item_url: Optional[str] = None
+        for desc in manifestation_root:
+            about = desc.attrib.get(RDF_ABOUT_ATTR, "")
+            if about.endswith("/DOC_1"):
+                item_url = about
+                break
+        if not item_url:
+            raise Exception(f"No DOC_1 item found for CELEX {celex} ({manifestation_uri})")
+        return item_url
+
+    def _extract_title_from_xhtml(self, soup: BeautifulSoup) -> Optional[str]:
+        candidates: List[str] = []
+        for elem in soup.select("p.oj-doc-ti"):
+            text = elem.get_text(" ", strip=True)
+            if text:
+                candidates.append(text)
+        if candidates:
+            # Prefer the longest title-like line (usually the full act title in OJ XHTML).
+            candidates = [c for c in candidates if len(c) >= 20]
+            if candidates:
+                return max(candidates, key=len)
+
+        title_elem = soup.find("title")
         if title_elem:
-            title = title_elem.get_text(strip=True)
+            text = title_elem.get_text(" ", strip=True)
+            if text:
+                return text
+        return None
 
-        articles = {}
-        article_divs = soup.find_all("div", class_=re.compile("art.*", re.I))
+    def _parse_articles_from_text(self, celex: str, full_text: str) -> Dict[str, str]:
+        if not full_text:
+            return {}
 
-        for art_div in article_divs:
-            num_elem = art_div.find("p", class_=re.compile("art-ti.*", re.I))
-            if num_elem:
-                art_num = num_elem.get_text(strip=True)
-                art_text = art_div.get_text(separator="\n", strip=True)
-                articles[art_num] = art_text
+        operative_text = full_text
+        start_match = re.search(
+            r"HAVE\s+ADOPTED\s+THIS\s+(REGULATION|DIRECTIVE|DECISION)\s*:?\s*",
+            full_text,
+            flags=re.IGNORECASE,
+        )
+        if start_match:
+            operative_text = full_text[start_match.start() :]
 
-        full_text_parts = []
-        if title:
-            full_text_parts.append(f"TITLE: {title}\n\n")
-        for num, text in sorted(articles.items()):
-            full_text_parts.append(f"ARTICLE {num}\n{text}\n\n")
+        try:
+            from src.services.article_chunker import ArticleChunker
 
-        full_text = "".join(full_text_parts)
+            chunks = ArticleChunker()._parse_from_text(
+                doc_id=0, celex=celex, full_text=operative_text
+            )
+        except Exception:
+            chunks = []
+
+        articles: Dict[str, str] = {}
+        for chunk in chunks:
+            article_num = str(getattr(chunk, "article_number", "") or "")
+            if not article_num or article_num == "FULL":
+                continue
+            content = str(getattr(chunk, "content", "") or "").strip()
+            if not content:
+                continue
+            if article_num not in articles:
+                articles[article_num] = content
+        return articles
+
+    def _parse_xhtml_document(self, celex: str, xhtml_text: str) -> Dict:
+        soup = BeautifulSoup(xhtml_text, "html.parser")
+        for elem in soup(["script", "style"]):
+            elem.decompose()
+
+        title = self._extract_title_from_xhtml(soup)
+        full_text = soup.get_text(separator="\n", strip=True)
+        full_text = (full_text or "").replace("\xa0", " ")
+        full_text = re.sub(r"[ \t]+\n", "\n", full_text)
+        full_text = re.sub(r"\n{3,}", "\n\n", full_text).strip()
+
+        articles = self._parse_articles_from_text(celex, full_text)
 
         return {
             "title": title,
@@ -178,12 +329,33 @@ class ContentExtractorV2:
             "word_count": len(full_text.split()),
         }
 
-    def _extract_eurlex_html(self, celex: str, language: str) -> Optional[Dict]:
-        """Extract from EUR-Lex HTML document page."""
-        url = f"https://eur-lex.europa.eu/legal-content/{language}/TXT/HTML/?uri=CELEX:{celex}"
+    def _extract_cellar_xhtml(self, celex: str, language: str) -> Optional[Dict]:
+        """Extract from CELLAR XHTML endpoint."""
+        url = f"https://publications.europa.eu/resource/celex/{celex}?language={quote(language)}"
 
         resp = self.session.get(url, timeout=30)
         resp.raise_for_status()
+
+        if self._looks_like_rdf(resp):
+            logger.info(
+                "CELLAR CELEX endpoint returned RDF for %s; resolving XHTML manifestation via RDF graph",
+                celex,
+            )
+            item_url = self._resolve_publications_office_xhtml_item(celex, language)
+            item_resp = self.session.get(item_url, timeout=60)
+            item_resp.raise_for_status()
+            return self._parse_xhtml_document(celex, item_resp.text)
+
+        return self._parse_xhtml_document(celex, resp.text)
+
+    def _extract_eurlex_html(self, celex: str, language: str) -> Optional[Dict]:
+        """Extract from EUR-Lex HTML document page."""
+        url = f"https://eur-lex.europa.eu/legal-content/{language.upper()}/TXT/HTML/?uri=CELEX:{celex}"
+
+        resp = self.session.get(url, timeout=30)
+        resp.raise_for_status()
+        if resp.status_code == 202:
+            raise Exception("EUR-Lex HTML endpoint returned 202 placeholder")
 
         soup = BeautifulSoup(resp.text, "html.parser")
 
@@ -210,10 +382,12 @@ class ContentExtractorV2:
 
     def _extract_eurlex_summary(self, celex: str, language: str) -> Optional[Dict]:
         """Extract summary/metadata from EUR-Lex."""
-        url = f"https://eur-lex.europa.eu/legal-content/{language}/SUM/?uri=CELEX:{celex}"
+        url = f"https://eur-lex.europa.eu/legal-content/{language.upper()}/SUM/?uri=CELEX:{celex}"
 
         resp = self.session.get(url, timeout=30)
         resp.raise_for_status()
+        if resp.status_code == 202:
+            raise Exception("EUR-Lex summary endpoint returned 202 placeholder")
 
         soup = BeautifulSoup(resp.text, "html.parser")
         full_text = soup.get_text(separator="\n", strip=True)
@@ -233,10 +407,16 @@ class ContentExtractor(ContentExtractorV2):
     def extract_content(self, celex: str, language: str = "EN") -> Optional[Dict]:
         result = self.extract(celex, language=language)
         if result:
+            article_breakdown = [
+                {"number": str(article_num), "content": article_text}
+                for article_num, article_text in (result.articles or {}).items()
+            ]
             return {
                 "title": result.title,
                 "articles": result.articles,
+                "article_breakdown": article_breakdown,
                 "full_text": result.full_text,
                 "word_count": result.word_count,
+                "extraction_method": result.strategy,
             }
         return None

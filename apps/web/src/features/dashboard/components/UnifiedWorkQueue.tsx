@@ -1,17 +1,21 @@
 "use client";
 
-import { useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
-import { ChevronDown, FileWarning, ListFilter, RefreshCw } from "lucide-react";
+import { FileWarning } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { ExportButton } from "@/components/ui/export-button";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { cn } from "@/lib/utils";
 import { useWorkspaceUsers } from "@/hooks/queries/useSpecializedData";
 import {
-  DashboardQueueFilter,
-  DashboardSavedView,
-  DashboardSeverityFilter,
-  DashboardSlaFilter,
+  DashboardFreshnessMeta,
   DashboardWorkQueueItem,
   DashboardWorkQueueParams,
   WorkItemActionType,
@@ -21,6 +25,13 @@ import {
   severityBadgeClass,
   slaBadgeClass,
 } from "@/features/dashboard/utils";
+import QueueBulkActionBar from "@/features/dashboard/components/QueueBulkActionBar";
+import QueueFilterBar, {
+  QueueDensity,
+  QueueSort,
+} from "@/features/dashboard/components/QueueFilterBar";
+import { isDashboardShortcutTargetBlocked } from "@/features/dashboard/hooks/useDashboardShortcuts";
+import trackDashboardEvent from "@/features/dashboard/telemetry";
 
 interface UnifiedWorkQueueProps {
   data: {
@@ -28,6 +39,7 @@ interface UnifiedWorkQueueProps {
     page: number;
     page_size: number;
     total: number;
+    freshness?: DashboardFreshnessMeta | null;
   } | null;
   filters: DashboardWorkQueueParams;
   loading?: boolean;
@@ -43,42 +55,27 @@ interface UnifiedWorkQueueProps {
   ) => void;
 }
 
-const QUEUE_OPTIONS: Array<{ value: DashboardQueueFilter; label: string }> = [
-  { value: "all", label: "All" },
-  { value: "alerts", label: "Alerts" },
-  { value: "cases", label: "Cases" },
-  { value: "approvals", label: "Approvals" },
-  { value: "reg_tasks", label: "Reg Tasks" },
-];
-
-const SAVED_VIEW_OPTIONS: Array<{ value: DashboardSavedView; label: string }> =
-  [
-    { value: "all", label: "All" },
-    { value: "my_queue", label: "My Queue" },
-    { value: "team_queue", label: "Team Queue" },
-    { value: "escalations", label: "Escalations" },
-  ];
-
-const SEVERITY_OPTIONS: Array<{
-  value: DashboardSeverityFilter;
+type PendingBulkAction = {
+  action: Exclude<WorkItemActionType, "create_case" | "close">;
   label: string;
-}> = [
-  { value: "all", label: "All severities" },
-  { value: "critical", label: "Critical" },
-  { value: "high", label: "High" },
-  { value: "medium", label: "Medium" },
-  { value: "low", label: "Low" },
-];
+} | null;
 
-const SLA_OPTIONS: Array<{ value: DashboardSlaFilter; label: string }> = [
-  { value: "all", label: "All SLA" },
-  { value: "breached", label: "Breached" },
-  { value: "warning", label: "Warning" },
-  { value: "ok", label: "On track" },
-  { value: "none", label: "No SLA" },
-];
+const QUEUE_ADVANCED_PREF_KEY = "dashboard:queue-advanced-open";
+const QUEUE_DENSITY_PREF_KEY = "dashboard:queue-density";
 
-type QueueSort = "default" | "severity" | "age" | "risk";
+function readBooleanPref(key: string, fallback: boolean) {
+  if (typeof window === "undefined") return fallback;
+  const raw = window.localStorage.getItem(key);
+  if (raw === "1") return true;
+  if (raw === "0") return false;
+  return fallback;
+}
+
+function readDensityPref(fallback: QueueDensity): QueueDensity {
+  if (typeof window === "undefined") return fallback;
+  const raw = window.localStorage.getItem(QUEUE_DENSITY_PREF_KEY);
+  return raw === "compact" || raw === "comfortable" ? raw : fallback;
+}
 
 function severityRank(severity: string) {
   const normalized = severity.toLowerCase();
@@ -109,10 +106,96 @@ export function UnifiedWorkQueue({
   const [selectedRows, setSelectedRows] = useState<Set<string>>(new Set());
   const [sortBy, setSortBy] = useState<QueueSort>("default");
   const [bulkAssignee, setBulkAssignee] = useState("");
+  const [advancedFiltersOpen, setAdvancedFiltersOpen] = useState(false);
+  const [density, setDensity] = useState<QueueDensity>("comfortable");
+  const [searchDraft, setSearchDraft] = useState(filters.search);
+  const [jurisdictionDraft, setJurisdictionDraft] = useState(filters.jurisdiction);
+  const [pendingBulkAction, setPendingBulkAction] = useState<PendingBulkAction>(
+    null,
+  );
   const rowRefs = useRef<Array<HTMLDivElement | null>>([]);
+  const searchDebounceRef = useRef<number | null>(null);
+  const jurisdictionDebounceRef = useRef<number | null>(null);
   const workspaceUsersQuery = useWorkspaceUsers();
 
+  useEffect(() => {
+    setAdvancedFiltersOpen(readBooleanPref(QUEUE_ADVANCED_PREF_KEY, false));
+    setDensity(readDensityPref("comfortable"));
+  }, []);
+
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    window.localStorage.setItem(
+      QUEUE_ADVANCED_PREF_KEY,
+      advancedFiltersOpen ? "1" : "0",
+    );
+  }, [advancedFiltersOpen]);
+
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    window.localStorage.setItem(QUEUE_DENSITY_PREF_KEY, density);
+  }, [density]);
+
+  useEffect(() => {
+    setSearchDraft(filters.search);
+  }, [filters.search]);
+
+  useEffect(() => {
+    setJurisdictionDraft(filters.jurisdiction);
+  }, [filters.jurisdiction]);
+
+  useEffect(() => {
+    if (searchDraft === filters.search) return;
+    if (searchDebounceRef.current) {
+      window.clearTimeout(searchDebounceRef.current);
+    }
+    searchDebounceRef.current = window.setTimeout(() => {
+      onFiltersChange({ search: searchDraft, page: 1 });
+      searchDebounceRef.current = null;
+    }, 300);
+    return () => {
+      if (searchDebounceRef.current) {
+        window.clearTimeout(searchDebounceRef.current);
+        searchDebounceRef.current = null;
+      }
+    };
+  }, [filters.search, onFiltersChange, searchDraft]);
+
+  useEffect(() => {
+    if (jurisdictionDraft === filters.jurisdiction) return;
+    if (jurisdictionDebounceRef.current) {
+      window.clearTimeout(jurisdictionDebounceRef.current);
+    }
+    jurisdictionDebounceRef.current = window.setTimeout(() => {
+      onFiltersChange({ jurisdiction: jurisdictionDraft, page: 1 });
+      jurisdictionDebounceRef.current = null;
+    }, 300);
+    return () => {
+      if (jurisdictionDebounceRef.current) {
+        window.clearTimeout(jurisdictionDebounceRef.current);
+        jurisdictionDebounceRef.current = null;
+      }
+    };
+  }, [filters.jurisdiction, jurisdictionDraft, onFiltersChange]);
+
   const items = useMemo(() => data?.items ?? [], [data?.items]);
+
+  useEffect(() => {
+    setSelectedRows((current) => {
+      if (current.size === 0) return current;
+      const visibleIds = new Set(items.map((item) => item.item_id));
+      let changed = false;
+      const next = new Set<string>();
+      for (const id of current) {
+        if (visibleIds.has(id)) {
+          next.add(id);
+        } else {
+          changed = true;
+        }
+      }
+      return changed ? next : current;
+    });
+  }, [items]);
 
   const sortedItems = useMemo(() => {
     const copy = [...items];
@@ -125,6 +208,73 @@ export function UnifiedWorkQueue({
     }
     return copy;
   }, [items, sortBy]);
+
+  useEffect(() => {
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.metaKey || event.ctrlKey || event.altKey || event.shiftKey) {
+        return;
+      }
+      if (isDashboardShortcutTargetBlocked(event.target)) {
+        return;
+      }
+      if (document.querySelector("[role='dialog']")) {
+        return;
+      }
+      if (sortedItems.length === 0) {
+        return;
+      }
+
+      const lowerKey = event.key.toLowerCase();
+      if (lowerKey !== "j" && lowerKey !== "k" && lowerKey !== "x") {
+        return;
+      }
+
+      const currentIndex = selectedItemId
+        ? sortedItems.findIndex((item) => item.item_id === selectedItemId)
+        : -1;
+
+      if (lowerKey === "j" || lowerKey === "k") {
+        event.preventDefault();
+        trackDashboardEvent("dashboard_shortcut_used", { shortcut: lowerKey });
+        const nextIndex =
+          lowerKey === "j"
+            ? Math.min(
+                sortedItems.length - 1,
+                currentIndex >= 0 ? currentIndex + 1 : 0,
+              )
+            : Math.max(0, currentIndex >= 0 ? currentIndex - 1 : 0);
+        const nextItem = sortedItems[nextIndex];
+        if (!nextItem) return;
+        onSelectItem(nextItem);
+        window.requestAnimationFrame(() => {
+          rowRefs.current[nextIndex]?.focus();
+        });
+        return;
+      }
+
+      const targetItem =
+        (currentIndex >= 0 ? sortedItems[currentIndex] : sortedItems[0]) ?? null;
+      if (!targetItem) return;
+
+      event.preventDefault();
+      trackDashboardEvent("dashboard_shortcut_used", { shortcut: "x" });
+      const isCurrentlySelected = selectedRows.has(targetItem.item_id);
+      toggleSelected(targetItem.item_id, !isCurrentlySelected);
+      window.requestAnimationFrame(() => {
+        const focusIndex = sortedItems.findIndex(
+          (item) => item.item_id === targetItem.item_id,
+        );
+        if (focusIndex >= 0) {
+          rowRefs.current[focusIndex]?.focus();
+        }
+      });
+    };
+
+    window.addEventListener("keydown", onKeyDown);
+    return () => {
+      window.removeEventListener("keydown", onKeyDown);
+    };
+  }, [onSelectItem, selectedItemId, selectedRows, sortedItems]);
 
   const selectedItems = useMemo(
     () => sortedItems.filter((item) => selectedRows.has(item.item_id)),
@@ -168,247 +318,88 @@ export function UnifiedWorkQueue({
     label: string,
   ) => {
     if (!onBulkAction || selectedItems.length === 0) return;
-    const confirmed = window.confirm(
-      `Apply '${label}' to ${selectedItems.length} item(s)?`,
-    );
-    if (!confirmed) return;
-    onBulkAction(selectedItems, action, bulkAssignee || undefined);
+    setPendingBulkAction({ action, label });
   };
+
+  const confirmBulkAction = () => {
+    if (!onBulkAction || selectedItems.length === 0 || !pendingBulkAction) {
+      setPendingBulkAction(null);
+      return;
+    }
+    onBulkAction(
+      selectedItems,
+      pendingBulkAction.action,
+      bulkAssignee || undefined,
+    );
+    setPendingBulkAction(null);
+  };
+
+  const commitSearch = () => {
+    if (searchDebounceRef.current) {
+      window.clearTimeout(searchDebounceRef.current);
+      searchDebounceRef.current = null;
+    }
+    if (searchDraft === filters.search) return;
+    onFiltersChange({ search: searchDraft, page: 1 });
+  };
+
+  const commitJurisdiction = () => {
+    if (jurisdictionDebounceRef.current) {
+      window.clearTimeout(jurisdictionDebounceRef.current);
+      jurisdictionDebounceRef.current = null;
+    }
+    if (jurisdictionDraft === filters.jurisdiction) return;
+    onFiltersChange({ jurisdiction: jurisdictionDraft, page: 1 });
+  };
+
+  const compactRows = density === "compact";
 
   return (
     <section className="flex h-full min-h-0 flex-col rounded-2xl border border-border bg-white p-3 shadow-sm sm:p-4">
-      <div className="mb-3 flex items-center justify-between gap-2">
-        <div>
-          <h2 className="text-sm font-semibold text-foreground">
-            Unified Work Queue
-          </h2>
-          <p className="text-xs text-muted-foreground">
-            Prioritized triage queue grouped for analyst action.
-          </p>
-        </div>
-        <Button
-          variant="outline"
-          size="sm"
-          onClick={onRefresh}
-          disabled={loading}
-        >
-          <RefreshCw
-            className={cn(
-              "mr-1.5 h-3.5 w-3.5 text-muted-foreground",
-              loading && "animate-spin",
-            )}
-          />
-          Refresh
-        </Button>
-      </div>
+      <QueueFilterBar
+        filters={filters}
+        searchDraft={searchDraft}
+        jurisdictionDraft={jurisdictionDraft}
+        density={density}
+        sortBy={sortBy}
+        advancedFiltersOpen={advancedFiltersOpen}
+        loading={loading}
+        freshness={data?.freshness ?? null}
+        total={total}
+        from={from}
+        to={to}
+        sortedItems={sortedItems}
+        onSearchDraftChange={setSearchDraft}
+        onJurisdictionDraftChange={setJurisdictionDraft}
+        onCommitSearch={commitSearch}
+        onCommitJurisdiction={commitJurisdiction}
+        onFiltersChange={onFiltersChange}
+        onDensityChange={setDensity}
+        onToggleAdvancedFilters={() =>
+          setAdvancedFiltersOpen((current) => !current)
+        }
+        onCycleSort={() =>
+          setSortBy((current) => {
+            if (current === "default") return "severity";
+            if (current === "severity") return "age";
+            if (current === "age") return "risk";
+            return "default";
+          })
+        }
+        onRefresh={onRefresh}
+      />
 
-      <div className="mb-2 grid grid-cols-1 gap-2 xl:grid-cols-2">
-        <div className="grid grid-cols-2 gap-2">
-          <select
-            value={filters.queue}
-            onChange={(event) =>
-              onFiltersChange({
-                queue: event.target.value as DashboardQueueFilter,
-                page: 1,
-              })
-            }
-            className="h-9 rounded-lg border border-border bg-slate-50 px-2 text-xs text-foreground focus:outline-none focus:ring-2 focus:ring-primary/20"
-            aria-label="Queue selector"
-          >
-            {QUEUE_OPTIONS.map((option) => (
-              <option key={option.value} value={option.value}>
-                {option.label}
-              </option>
-            ))}
-          </select>
-
-          <select
-            value={filters.savedView}
-            onChange={(event) =>
-              onFiltersChange({
-                savedView: event.target.value as DashboardSavedView,
-                page: 1,
-              })
-            }
-            className="h-9 rounded-lg border border-border bg-slate-50 px-2 text-xs text-foreground focus:outline-none focus:ring-2 focus:ring-primary/20"
-            aria-label="Saved queue view"
-          >
-            {SAVED_VIEW_OPTIONS.map((option) => (
-              <option key={option.value} value={option.value}>
-                {option.label}
-              </option>
-            ))}
-          </select>
-        </div>
-
-        <div className="grid grid-cols-3 gap-2">
-          <select
-            value={filters.severity}
-            onChange={(event) =>
-              onFiltersChange({
-                severity: event.target.value as DashboardSeverityFilter,
-                page: 1,
-              })
-            }
-            className="h-9 rounded-lg border border-border bg-slate-50 px-2 text-xs text-foreground focus:outline-none focus:ring-2 focus:ring-primary/20"
-            aria-label="Severity filter"
-          >
-            {SEVERITY_OPTIONS.map((option) => (
-              <option key={option.value} value={option.value}>
-                {option.label}
-              </option>
-            ))}
-          </select>
-
-          <select
-            value={filters.sla}
-            onChange={(event) =>
-              onFiltersChange({
-                sla: event.target.value as DashboardSlaFilter,
-                page: 1,
-              })
-            }
-            className="h-9 rounded-lg border border-border bg-slate-50 px-2 text-xs text-foreground focus:outline-none focus:ring-2 focus:ring-primary/20"
-            aria-label="SLA filter"
-          >
-            {SLA_OPTIONS.map((option) => (
-              <option key={option.value} value={option.value}>
-                {option.label}
-              </option>
-            ))}
-          </select>
-
-          <button
-            type="button"
-            onClick={() =>
-              setSortBy((current) => {
-                if (current === "default") return "severity";
-                if (current === "severity") return "age";
-                if (current === "age") return "risk";
-                return "default";
-              })
-            }
-            className="inline-flex h-9 items-center justify-center gap-1 rounded-lg border border-border bg-slate-50 px-2 text-[11px] uppercase tracking-wide text-muted-foreground hover:bg-slate-100 transition-colors"
-          >
-            Sort
-            <ChevronDown className="h-3.5 w-3.5" />
-            <span className="text-foreground">{sortBy}</span>
-          </button>
-        </div>
-      </div>
-
-      <div className="mb-3 grid grid-cols-1 gap-2">
-        <input
-          value={filters.search}
-          onChange={(event) =>
-            onFiltersChange({ search: event.target.value, page: 1 })
-          }
-          placeholder="Entity / reference / typology"
-          className="h-9 rounded-lg border border-border bg-white px-2 text-xs text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/20"
-          aria-label="Queue search"
-        />
-        <input
-          value={filters.jurisdiction}
-          onChange={(event) =>
-            onFiltersChange({
-              jurisdiction: event.target.value.toUpperCase(),
-              page: 1,
-            })
-          }
-          placeholder="Jurisdiction (e.g. US, FR, GB)"
-          className="h-9 rounded-lg border border-border bg-white px-2 text-xs text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/20"
-          aria-label="Jurisdiction filter"
-        />
-      </div>
-
-      <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
-        <div
-          className="inline-flex items-center gap-1 rounded-lg border border-border bg-slate-50 p-1 text-[11px] text-muted-foreground"
-          aria-live="polite"
-        >
-          <ListFilter className="h-3.5 w-3.5" />
-          <span>
-            Rows {total ? `${from}-${to}` : "0"} / {total}
-          </span>
-        </div>
-
-        <div className="flex flex-wrap items-center gap-1">
-          <label className="inline-flex items-center gap-1 rounded-lg border border-border bg-slate-50 px-2 py-1 text-[11px] text-muted-foreground">
-            <input
-              type="checkbox"
-              aria-label="Select all items on this page"
-              checked={allSelectedOnPage}
-              onChange={(event) => toggleSelectAllOnPage(event.target.checked)}
-              className="rounded border-border focus:ring-primary text-primary"
-            />
-            Select all
-          </label>
-          <select
-            value={bulkAssignee}
-            onChange={(event) => setBulkAssignee(event.target.value)}
-            className="h-8 min-w-[150px] rounded-lg border border-border bg-slate-50 px-2 text-[11px] text-foreground focus:outline-none focus:ring-2 focus:ring-primary/20"
-            aria-label="Bulk assignment analyst"
-          >
-            <option value="">Assign to...</option>
-            {(workspaceUsersQuery.data ?? []).map((user) => (
-              <option key={user.user_id} value={user.user_id}>
-                {user.user_id}
-              </option>
-            ))}
-          </select>
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => runBulkAction("assign", "Bulk assign")}
-            disabled={!canBulkAction || bulkAssignee.trim().length === 0}
-          >
-            Bulk assign
-          </Button>
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => runBulkAction("escalate", "Escalate")}
-            disabled={!canBulkAction}
-          >
-            Escalate
-          </Button>
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() =>
-              runBulkAction("mark_in_progress", "Mark In Progress")
-            }
-            disabled={!canBulkAction}
-          >
-            In Progress
-          </Button>
-          <Button
-            variant="outline"
-            size="sm"
-            disabled={selectedRows.size === 0}
-            onClick={() => setSelectedRows(new Set())}
-          >
-            Clear
-          </Button>
-          <ExportButton
-            data={sortedItems as unknown as Record<string, unknown>[]}
-            filename="dashboard-work-queue"
-            pdfTitle="Dashboard Work Queue"
-            variant="outline"
-            size="sm"
-            loading={loading}
-            columns={[
-              { key: "ref_id", label: "Reference" },
-              { key: "kind", label: "Kind" },
-              { key: "severity", label: "Severity" },
-              { key: "entity", label: "Entity" },
-              { key: "jurisdiction", label: "Jurisdiction" },
-              { key: "risk_score", label: "Risk Score" },
-              { key: "status", label: "Status" },
-            ]}
-          />
-        </div>
-      </div>
+      <QueueBulkActionBar
+        selectedCount={selectedItems.length}
+        allSelectedOnPage={allSelectedOnPage}
+        bulkAssignee={bulkAssignee}
+        users={workspaceUsersQuery.data ?? []}
+        canBulkAction={canBulkAction}
+        onToggleSelectAllOnPage={toggleSelectAllOnPage}
+        onBulkAssigneeChange={setBulkAssignee}
+        onRunBulkAction={runBulkAction}
+        onClear={() => setSelectedRows(new Set())}
+      />
 
       <div
         className="min-h-0 flex-1 overflow-auto"
@@ -416,7 +407,7 @@ export function UnifiedWorkQueue({
         aria-label="Unified work queue items"
       >
         {loading ? (
-          <div className="rounded-xl border border-border p-6 text-center text-sm text-muted-foreground bg-slate-50">
+          <div className="rounded-xl border border-border bg-slate-50 p-6 text-center text-sm text-muted-foreground">
             Loading queue...
           </div>
         ) : error ? (
@@ -424,13 +415,14 @@ export function UnifiedWorkQueue({
             {error}
           </div>
         ) : sortedItems.length === 0 ? (
-          <div className="rounded-xl border border-border p-6 text-center text-sm text-muted-foreground bg-slate-50">
+          <div className="rounded-xl border border-border bg-slate-50 p-6 text-center text-sm text-muted-foreground">
             No queue items for current filters.
           </div>
         ) : (
-          <div className="space-y-2">
+          <div className={cn("space-y-2", compactRows && "space-y-1")}>
             {sortedItems.map((item, index) => {
               const selected = selectedRows.has(item.item_id);
+              const rowSelected = item.item_id === selectedItemId;
 
               return (
                 <div
@@ -438,10 +430,15 @@ export function UnifiedWorkQueue({
                   ref={(element) => {
                     rowRefs.current[index] = element;
                   }}
+                  data-dashboard-queue-row
+                  data-queue-item-id={item.item_id}
                   tabIndex={0}
                   role="button"
                   onClick={() => onSelectItem(item)}
                   onKeyDown={(event) => {
+                    if (event.target !== event.currentTarget) {
+                      return;
+                    }
                     if (event.key === "Enter" || event.key === " ") {
                       event.preventDefault();
                       onSelectItem(item);
@@ -458,20 +455,30 @@ export function UnifiedWorkQueue({
                     }
                   }}
                   className={cn(
-                    "w-full rounded-xl border p-3 text-left transition",
-                    item.item_id === selectedItemId
+                    "w-full rounded-xl border text-left transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/20",
+                    compactRows ? "px-2.5 py-2" : "p-3",
+                    rowSelected
                       ? "border-primary/50 bg-primary/5 shadow-sm"
-                      : "border-border bg-white hover:border-border/60 hover:shadow-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/20",
+                      : "border-border bg-white hover:border-border/60 hover:shadow-sm",
                   )}
+                  aria-pressed={rowSelected}
                   aria-label={`Queue item ${item.ref_id}`}
                 >
-                  <div className="mb-1 flex items-start justify-between gap-2">
-                    <div className="flex items-center gap-2">
+                  <div
+                    className={cn(
+                      "flex items-start justify-between gap-2",
+                      compactRows ? "mb-1" : "mb-1.5",
+                    )}
+                  >
+                    <div className="flex min-w-0 flex-wrap items-center gap-1.5">
                       <input
                         type="checkbox"
                         checked={selected}
+                        data-dashboard-queue-checkbox
+                        data-queue-item-id={item.item_id}
                         aria-label={`Select ${item.ref_id}`}
                         onClick={(event) => event.stopPropagation()}
+                        onKeyDown={(event) => event.stopPropagation()}
                         onChange={(event) =>
                           toggleSelected(item.item_id, event.target.checked)
                         }
@@ -481,60 +488,81 @@ export function UnifiedWorkQueue({
                         {item.ref_id}
                       </span>
                       {item.sar_required ? (
-                        <span className="inline-flex items-center gap-1 rounded-full bg-red-50 px-2 py-0.5 text-[10px] uppercase text-red-600 border border-red-100">
+                        <span className="inline-flex items-center gap-1 rounded-full border border-red-100 bg-red-50 px-2 py-0.5 text-[10px] uppercase text-red-600">
                           <FileWarning className="h-3 w-3" />
                           SAR Required
                         </span>
                       ) : null}
+                      <span
+                        className={cn(
+                          "rounded-full border border-border/50 px-2 py-0.5 text-[10px] uppercase tracking-wide",
+                          severityBadgeClass(item.severity),
+                          compactRows && "px-1.5",
+                        )}
+                      >
+                        {item.severity}
+                      </span>
+                      <span
+                        className={cn(
+                          "rounded-full border border-border/50 px-2 py-0.5 text-[10px] uppercase tracking-wide",
+                          slaBadgeClass(item.sla_status),
+                          compactRows && "px-1.5 opacity-80",
+                        )}
+                      >
+                        SLA {item.sla_status}
+                      </span>
                     </div>
-                    <span className="text-[11px] text-muted-foreground">
+
+                    <span className="shrink-0 text-[11px] text-muted-foreground">
                       {formatAgeMinutes(item.age_minutes)} ago
                     </span>
                   </div>
 
-                  <div className="mb-1 flex flex-wrap items-center gap-1.5 text-[10px] uppercase tracking-wide text-muted-foreground">
-                    <span className="rounded-full bg-slate-100 px-2 py-0.5 border border-border/50">
+                  <div
+                    className={cn(
+                      "flex flex-wrap items-center gap-x-2 gap-y-1 text-xs",
+                      compactRows && "text-[11px]",
+                      compactRows ? "mb-1" : "mb-1.5",
+                    )}
+                  >
+                    <span
+                      className={cn(
+                        compactRows
+                          ? "text-muted-foreground"
+                          : "rounded-full border border-border/50 bg-slate-100 px-2 py-0.5 text-[10px] uppercase tracking-wide text-muted-foreground",
+                      )}
+                    >
                       {item.type_label}
                     </span>
                     <span
                       className={cn(
-                        "rounded-full px-2 py-0.5 border border-border/50",
-                        severityBadgeClass(item.severity),
+                        compactRows
+                          ? "text-muted-foreground"
+                          : "rounded-full border border-border/50 bg-slate-100 px-2 py-0.5 text-[10px] uppercase tracking-wide text-muted-foreground",
                       )}
                     >
-                      {item.severity}
-                    </span>
-                    <span
-                      className={cn(
-                        "rounded-full px-2 py-0.5 border border-border/50",
-                        slaBadgeClass(item.sla_status),
-                      )}
-                    >
-                      SLA {item.sla_status}
-                    </span>
-                    <span className="rounded-full bg-slate-100 px-2 py-0.5 border border-border/50">
                       {item.jurisdiction}
                     </span>
-                  </div>
-
-                  <p className="mb-1 truncate text-xs text-muted-foreground">
-                    {item.typology} ·{" "}
                     <Link
                       href={`/entities/user/${encodeURIComponent(item.entity)}`}
-                      className="font-medium text-foreground hover:text-primary hover:underline"
+                      className="min-w-0 truncate font-medium text-foreground hover:text-primary hover:underline"
                       onClick={(event) => event.stopPropagation()}
                     >
                       {item.entity}
                     </Link>
-                  </p>
-
-                  <div className="flex items-center justify-between text-xs">
-                    <span className="truncate text-muted-foreground">
+                    <span className="text-muted-foreground">
                       Owner: {item.owner ?? "Unassigned"}
                     </span>
+                  </div>
+
+                  <div className="flex items-center justify-between gap-2 text-xs">
+                    <p className="truncate text-muted-foreground">
+                      {item.typology}
+                    </p>
                     <span
                       className={cn(
-                        "font-mono font-semibold",
+                        "shrink-0 font-mono font-semibold",
+                        compactRows ? "text-[11px]" : "text-xs",
                         riskToneClass(item.risk_score),
                       )}
                     >
@@ -562,14 +590,42 @@ export function UnifiedWorkQueue({
         <Button
           variant="outline"
           size="sm"
-          disabled={
-            !data || data.page * data.page_size >= data.total || loading
-          }
+          disabled={!data || data.page * data.page_size >= data.total || loading}
           onClick={() => onFiltersChange({ page: filters.page + 1 })}
         >
           Next
         </Button>
       </div>
+
+      <Dialog
+        open={Boolean(pendingBulkAction)}
+        onOpenChange={(open) => {
+          if (!open) setPendingBulkAction(null);
+        }}
+      >
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>Confirm Bulk Action</DialogTitle>
+            <DialogDescription>
+              {pendingBulkAction
+                ? `Apply '${pendingBulkAction.label}' to ${selectedItems.length} selected item(s)?`
+                : "Review the bulk action before continuing."}
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter className="gap-2">
+            <Button
+              variant="outline"
+              type="button"
+              onClick={() => setPendingBulkAction(null)}
+            >
+              Cancel
+            </Button>
+            <Button type="button" onClick={confirmBulkAction}>
+              Confirm
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </section>
   );
 }

@@ -6,6 +6,7 @@ Seed RegulatoryObligation rows from existing LegalDocument records.
 
 from __future__ import annotations
 
+import argparse
 from typing import Any, Iterable, List, Optional
 import os
 import sys
@@ -53,19 +54,20 @@ def _article_ref(item: Any) -> Optional[str]:
     return None
 
 
-def seed_obligations() -> None:
+def seed_obligations(*, allow_placeholder: bool = False) -> None:
     db = SessionLocal()
     try:
         documents = db.query(LegalDocument).all()
         created = 0
-        skipped = 0
+        skipped_existing = 0
+        skipped_no_extracted = 0
 
         for doc in documents:
             existing = (
                 db.query(RegulatoryObligation).filter(RegulatoryObligation.doc_id == doc.id).count()
             )
             if existing:
-                skipped += 1
+                skipped_existing += 1
                 continue
 
             doc_scope_tags = doc.scope_tags or infer_scope_tags(
@@ -80,6 +82,9 @@ def seed_obligations() -> None:
 
             obligations = _as_list(getattr(doc, "obligations_json", None))
             if not obligations:
+                if not allow_placeholder:
+                    skipped_no_extracted += 1
+                    continue
                 obligations = [
                     {
                         "obligation": f"Review and implement requirements for {doc.title}",
@@ -112,7 +117,10 @@ def seed_obligations() -> None:
 
         db.commit()
         print(
-            f"✅ Seeded {created} obligations. Skipped {skipped} documents with existing obligations."
+            "✅ Seeded "
+            f"{created} obligations. "
+            f"Skipped {skipped_existing} documents with existing obligations. "
+            f"Skipped {skipped_no_extracted} documents with no extracted obligations."
         )
     except Exception as exc:
         db.rollback()
@@ -122,4 +130,13 @@ def seed_obligations() -> None:
 
 
 if __name__ == "__main__":
-    seed_obligations()
+    parser = argparse.ArgumentParser(
+        description="Seed RegulatoryObligation rows from LegalDocument records"
+    )
+    parser.add_argument(
+        "--allow-placeholder",
+        action="store_true",
+        help="Create placeholder obligations when documents have no extracted obligations_json",
+    )
+    args = parser.parse_args()
+    seed_obligations(allow_placeholder=args.allow_placeholder)

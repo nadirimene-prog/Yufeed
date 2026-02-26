@@ -1,14 +1,15 @@
 "use client";
 
-import { useId, useMemo, useState } from "react";
+import { startTransition, useEffect, useId, useMemo, useState } from "react";
 import axios from "axios";
 import Link from "next/link";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
-import { AlertTriangle, RefreshCw } from "lucide-react";
+import { AlertTriangle, PanelRight, RefreshCw } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { StatusIndicator } from "@/components/ui/status-indicator";
 import { Card, CardContent } from "@/components/ui/card";
 import { getAuthToken, getAuthUserProfile } from "@/lib/auth";
+import { cn } from "@/lib/utils";
 import {
   DashboardQueueFilter,
   DashboardSavedView,
@@ -35,7 +36,16 @@ import CriticalDecisionBar, {
 import UnifiedWorkQueue from "@/features/dashboard/components/UnifiedWorkQueue";
 import InvestigationWorkspace from "@/features/dashboard/components/InvestigationWorkspace";
 import GovernancePanel from "@/features/dashboard/components/GovernancePanel";
+import InsightsPanel from "@/features/dashboard/components/InsightsPanel";
 import TrendStrip from "@/features/dashboard/components/TrendStrip";
+import DataFreshnessBadge from "@/features/dashboard/components/DataFreshnessBadge";
+import CommandPalette, {
+  DashboardCommandAction,
+} from "@/features/dashboard/components/CommandPalette";
+import ShortcutHelpDialog from "@/features/dashboard/components/ShortcutHelpDialog";
+import { useDashboardShortcuts } from "@/features/dashboard/hooks/useDashboardShortcuts";
+import { useDashboardTelemetryBridge } from "@/features/dashboard/hooks/useDashboardTelemetryBridge";
+import trackDashboardEvent from "@/features/dashboard/telemetry";
 
 const VIEW_OPTIONS: Array<{ key: DashboardView; label: string }> = [
   { key: "operations", label: "Operations" },
@@ -46,6 +56,7 @@ const VIEW_OPTIONS: Array<{ key: DashboardView; label: string }> = [
 const RANGE_OPTIONS: DashboardTimeRange[] = ["24h", "7d", "30d"];
 const DASHBOARD_V3_ENABLED =
   process.env.NEXT_PUBLIC_DASHBOARD_AMLCO_V3 !== "false";
+const INSIGHTS_PREF_KEY = "dashboard:insights-open";
 
 const QUEUE_FILTER_OPTIONS: DashboardQueueFilter[] = [
   "all",
@@ -165,6 +176,12 @@ function setParam(
   params.set(key, String(value));
 }
 
+function isPaginationOnlyPatch(patch: Partial<DashboardWorkQueueParams>) {
+  const keys = Object.keys(patch);
+  if (keys.length === 0) return false;
+  return keys.every((key) => key === "page" || key === "pageSize");
+}
+
 export function DashboardHub() {
   const router = useRouter();
   const pathname = usePathname();
@@ -178,6 +195,12 @@ export function DashboardHub() {
   const [mobilePanel, setMobilePanel] = useState<"queue" | "governance">(
     "queue",
   );
+  const [shortcutHelpOpen, setShortcutHelpOpen] = useState(false);
+  const [commandPaletteOpen, setCommandPaletteOpen] = useState(false);
+  const [insightsOpen, setInsightsOpen] = useState<boolean>(() => {
+    if (typeof window === "undefined") return false;
+    return window.localStorage.getItem(INSIGHTS_PREF_KEY) === "1";
+  });
   const dashboardTabsId = useId();
 
   const view = resolveDashboardView(searchParams.get("view"));
@@ -189,6 +212,13 @@ export function DashboardHub() {
 
   const hasToken = Boolean(getAuthToken());
   const dashboardEnabled = hasToken && DASHBOARD_V3_ENABLED;
+
+  useDashboardTelemetryBridge({ enabled: dashboardEnabled });
+
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    window.localStorage.setItem(INSIGHTS_PREF_KEY, insightsOpen ? "1" : "0");
+  }, [insightsOpen]);
 
   const overviewQuery = useDashboardOverview(view, range, {
     enabled: dashboardEnabled,
@@ -219,6 +249,14 @@ export function DashboardHub() {
     );
 
   const activeViewPanelId = `dashboard-view-panel-${dashboardTabsId}-${view}`;
+  const overviewFreshness = overviewQuery.data?.freshness ?? null;
+  const overviewIsStale = (() => {
+    if (!overviewFreshness?.generated_at) return false;
+    const generatedAt = new Date(overviewFreshness.generated_at);
+    if (Number.isNaN(generatedAt.valueOf())) return false;
+    const staleAfter = Math.max(1, overviewFreshness.stale_after_seconds ?? 120);
+    return Date.now() - generatedAt.getTime() > staleAfter * 1000;
+  })();
 
   const updateSearch = (patch: Partial<DashboardWorkQueueParams>) => {
     const defaults = defaultQueueFilters();
@@ -237,7 +275,9 @@ export function DashboardHub() {
     setParam(params, "jurisdiction", next.jurisdiction, defaults.jurisdiction);
     setParam(params, "savedView", next.savedView, defaults.savedView);
 
-    router.replace(`${pathname}?${params.toString()}`);
+    startTransition(() => {
+      router.replace(`${pathname}?${params.toString()}`);
+    });
   };
 
   const updateViewRange = (
@@ -247,22 +287,189 @@ export function DashboardHub() {
     const params = new URLSearchParams(searchParams.toString());
     params.set("view", nextView);
     params.set("range", nextRange);
-    router.replace(`${pathname}?${params.toString()}`);
+    startTransition(() => {
+      router.replace(`${pathname}?${params.toString()}`);
+    });
   };
 
-  const applyQueueFilterPatch = (patch: Partial<DashboardWorkQueueParams>) => {
+  const applyQueueFilterPatch = (
+    patch: Partial<DashboardWorkQueueParams>,
+    source: "queue_controls" | "critical_tile" | "pagination" = "queue_controls",
+  ) => {
+    trackDashboardEvent("dashboard_filter_apply", {
+      source,
+      keys: Object.keys(patch).sort(),
+    });
     updateSearch(patch);
   };
 
   const applyCriticalFilter = (patch: CriticalTileFilter) => {
-    applyQueueFilterPatch({
+    applyQueueFilterPatch(
+      {
       page: 1,
       queue: (patch.queue ?? filters.queue) as DashboardQueueFilter,
       severity: (patch.severity ?? filters.severity) as DashboardSeverityFilter,
       sla: (patch.sla ?? filters.sla) as DashboardSlaFilter,
       savedView: (patch.savedView ?? filters.savedView) as DashboardSavedView,
       search: patch.search ?? filters.search,
+      },
+      "critical_tile",
+    );
+  };
+
+  const openWorkspaceActionsTab = () => {
+    if (typeof document === "undefined") return;
+    const actionTab = Array.from(
+      document.querySelectorAll<HTMLElement>("[role='tab']"),
+    ).find((node) => node.textContent?.trim() === "Actions");
+    actionTab?.click();
+  };
+
+  const focusQueueSearchInput = () => {
+    if (typeof document === "undefined") return;
+    const input = document.querySelector<HTMLInputElement>(
+      "[data-dashboard-queue-search-input]",
+    );
+    if (!input) return;
+    input.focus();
+    input.select();
+  };
+
+  const focusWorkspacePanel = () => {
+    if (typeof document === "undefined") return;
+    const panel = document.querySelector<HTMLElement>(
+      "[data-dashboard-workspace-panel]",
+    );
+    panel?.focus();
+  };
+
+  const focusWorkspaceAssignee = () => {
+    openWorkspaceActionsTab();
+    window.requestAnimationFrame(() => {
+      const input = document.querySelector<HTMLInputElement>(
+        "[data-dashboard-assignee-input]",
+      );
+      input?.focus();
+      input?.select();
     });
+  };
+
+  const clickWorkspaceAction = (action: string) => {
+    openWorkspaceActionsTab();
+    window.requestAnimationFrame(() => {
+      const button = document.querySelector<HTMLButtonElement>(
+        `[data-dashboard-action="${action}"]:not([disabled])`,
+      );
+      button?.click();
+    });
+  };
+
+  const clickActionNext = () => {
+    openWorkspaceActionsTab();
+    window.requestAnimationFrame(() => {
+      const primary = document.querySelector<HTMLButtonElement>(
+        "[data-dashboard-action-next-primary='true']:not([disabled])",
+      );
+      if (primary) {
+        primary.click();
+        return;
+      }
+      const fallback = document.querySelector<HTMLButtonElement>(
+        "[data-dashboard-action-next]:not([disabled])",
+      );
+      fallback?.click();
+    });
+  };
+
+  const selectNextQueueItem = (preferredItemId?: string | null) => {
+    const items = queueQuery.data?.items ?? [];
+    if (items.length === 0 || !selectedItem) return false;
+
+    if (preferredItemId) {
+      const preferred = items.find((item) => item.item_id === preferredItemId);
+      if (preferred && preferred.item_id !== selectedItem.item_id) {
+        setSelectedItemId(preferred.item_id);
+        return true;
+      }
+    }
+
+    const currentIndex = items.findIndex(
+      (item) => item.item_id === selectedItem.item_id,
+    );
+    if (currentIndex === -1) return false;
+    const fallback = items[currentIndex + 1] ?? items[currentIndex - 1];
+    if (!fallback || fallback.item_id === selectedItem.item_id) return false;
+    setSelectedItemId(fallback.item_id);
+    return true;
+  };
+
+  const executeAction = async (
+    payload: {
+      action:
+        | "assign"
+        | "escalate"
+        | "mark_in_progress"
+        | "create_case"
+        | "close";
+      assignee?: string;
+      notes?: string;
+      sar_required?: boolean;
+    },
+    options?: { advanceToNext?: boolean },
+  ) => {
+    setWorkspaceMessage(null);
+    try {
+      const result = await performAction.mutateAsync(payload);
+      const movedToNext = options?.advanceToNext
+        ? selectNextQueueItem(result.next_recommended_item_id)
+        : false;
+      trackDashboardEvent("dashboard_action_submit", {
+        mode: "single",
+        kind: selectedItem?.kind ?? null,
+        action: payload.action,
+        success: true,
+        advance_to_next: Boolean(options?.advanceToNext),
+      });
+      if (options?.advanceToNext) {
+        trackDashboardEvent("dashboard_action_next", {
+          initiator: "action",
+          success: true,
+          moved_to_next: movedToNext,
+          used_backend_hint: Boolean(result.next_recommended_item_id),
+        });
+      }
+      if (result.created_case_id) {
+        setWorkspaceMessage({
+          text: `Case created: ${result.created_case_id}${movedToNext ? " • Opened next item." : ""}`,
+          type: "success",
+        });
+      } else {
+        setWorkspaceMessage({
+          text: `${result.message}${movedToNext ? " • Opened next item." : ""}`,
+          type: "success",
+        });
+      }
+    } catch (error) {
+      trackDashboardEvent("dashboard_action_submit", {
+        mode: "single",
+        kind: selectedItem?.kind ?? null,
+        action: payload.action,
+        success: false,
+        advance_to_next: Boolean(options?.advanceToNext),
+      });
+      if (options?.advanceToNext) {
+        trackDashboardEvent("dashboard_action_next", {
+          initiator: "action",
+          success: false,
+          moved_to_next: false,
+          used_backend_hint: false,
+        });
+      }
+      setWorkspaceMessage({
+        text: parseErrorMessage(error, "Failed to execute action"),
+        type: "error",
+      });
+    }
   };
 
   const runAction = async (payload: {
@@ -276,20 +483,78 @@ export function DashboardHub() {
     notes?: string;
     sar_required?: boolean;
   }) => {
+    await executeAction(payload, { advanceToNext: false });
+  };
+
+  const runActionAndNext = async (payload: {
+    action:
+      | "assign"
+      | "escalate"
+      | "mark_in_progress"
+      | "create_case"
+      | "close";
+    assignee?: string;
+    notes?: string;
+    sar_required?: boolean;
+  }) => {
+    await executeAction(payload, { advanceToNext: true });
+  };
+
+  const executeReview = async (
+    payload: {
+      proposed_action: "close" | "approve";
+      decision: "approve" | "return";
+      submitted_by: string;
+      review_notes?: string;
+      sar_required?: boolean;
+    },
+    options?: { advanceToNext?: boolean },
+  ) => {
     setWorkspaceMessage(null);
     try {
-      const result = await performAction.mutateAsync(payload);
-      if (result.created_case_id) {
-        setWorkspaceMessage({
-          text: `Case created: ${result.created_case_id}`,
-          type: "success",
+      const result = await reviewAction.mutateAsync(payload);
+      const movedToNext = options?.advanceToNext
+        ? selectNextQueueItem(result.next_recommended_item_id)
+        : false;
+      trackDashboardEvent("dashboard_action_submit", {
+        mode: "review",
+        kind: selectedItem?.kind ?? null,
+        decision: payload.decision,
+        proposed_action: payload.proposed_action,
+        success: true,
+        advance_to_next: Boolean(options?.advanceToNext),
+      });
+      if (options?.advanceToNext) {
+        trackDashboardEvent("dashboard_action_next", {
+          initiator: "review",
+          success: true,
+          moved_to_next: movedToNext,
+          used_backend_hint: Boolean(result.next_recommended_item_id),
         });
-      } else {
-        setWorkspaceMessage({ text: result.message, type: "success" });
       }
-    } catch (error) {
       setWorkspaceMessage({
-        text: parseErrorMessage(error, "Failed to execute action"),
+        text: `${result.message}${movedToNext ? " • Opened next item." : ""}`,
+        type: "success",
+      });
+    } catch (error) {
+      trackDashboardEvent("dashboard_action_submit", {
+        mode: "review",
+        kind: selectedItem?.kind ?? null,
+        decision: payload.decision,
+        proposed_action: payload.proposed_action,
+        success: false,
+        advance_to_next: Boolean(options?.advanceToNext),
+      });
+      if (options?.advanceToNext) {
+        trackDashboardEvent("dashboard_action_next", {
+          initiator: "review",
+          success: false,
+          moved_to_next: false,
+          used_backend_hint: false,
+        });
+      }
+      setWorkspaceMessage({
+        text: parseErrorMessage(error, "Failed to submit review action"),
         type: "error",
       });
     }
@@ -302,16 +567,17 @@ export function DashboardHub() {
     review_notes?: string;
     sar_required?: boolean;
   }) => {
-    setWorkspaceMessage(null);
-    try {
-      const result = await reviewAction.mutateAsync(payload);
-      setWorkspaceMessage({ text: result.message, type: "success" });
-    } catch (error) {
-      setWorkspaceMessage({
-        text: parseErrorMessage(error, "Failed to submit review action"),
-        type: "error",
-      });
-    }
+    await executeReview(payload, { advanceToNext: false });
+  };
+
+  const runReviewAndNext = async (payload: {
+    proposed_action: "close" | "approve";
+    decision: "approve" | "return";
+    submitted_by: string;
+    review_notes?: string;
+    sar_required?: boolean;
+  }) => {
+    await executeReview(payload, { advanceToNext: true });
   };
 
   const runBulkAction = async (
@@ -333,11 +599,23 @@ export function DashboardHub() {
         action,
         assignee: fallbackAssignee,
       });
+      trackDashboardEvent("dashboard_action_submit", {
+        mode: "bulk",
+        action,
+        count: items.length,
+        success: true,
+      });
       setWorkspaceMessage({
         text: `${items.length} item(s) updated.`,
         type: "success",
       });
     } catch (error) {
+      trackDashboardEvent("dashboard_action_submit", {
+        mode: "bulk",
+        action,
+        count: items.length,
+        success: false,
+      });
       setWorkspaceMessage({
         text: parseErrorMessage(error, "Bulk action failed"),
         type: "error",
@@ -348,16 +626,21 @@ export function DashboardHub() {
   const runSaveDraft = async (payload: {
     narrative: string;
     notes: string;
-  }) => {
+  }, options?: { silent?: boolean; source?: "manual" | "autosave" }) => {
     if (!selectedItem) return;
     try {
       await saveDraft.mutateAsync(payload);
-      setWorkspaceMessage({ text: "Draft saved.", type: "success" });
+      if (!options?.silent) {
+        setWorkspaceMessage({ text: "Draft saved.", type: "success" });
+      }
     } catch (error) {
-      setWorkspaceMessage({
-        text: parseErrorMessage(error, "Failed to save draft"),
-        type: "error",
-      });
+      if (!options?.silent) {
+        setWorkspaceMessage({
+          text: parseErrorMessage(error, "Failed to save draft"),
+          type: "error",
+        });
+      }
+      throw error;
     }
   };
 
@@ -385,6 +668,73 @@ export function DashboardHub() {
       });
     }
   };
+
+  useDashboardShortcuts({
+    enabled: dashboardEnabled,
+    onOpenShortcutHelp: () => setShortcutHelpOpen(true),
+    onOpenCommandPalette: () => setCommandPaletteOpen(true),
+    onFocusQueueSearch: focusQueueSearchInput,
+    onFocusWorkspacePanel: focusWorkspacePanel,
+    onToggleInsights: () => setInsightsOpen((current) => !current),
+    onFocusAssign: focusWorkspaceAssignee,
+    onEscalate: () => clickWorkspaceAction("escalate"),
+    onActionNext: clickActionNext,
+  });
+
+  const commandPaletteActions = useMemo<DashboardCommandAction[]>(
+    () => [
+      {
+        id: "focus-queue-search",
+        label: "Focus queue search",
+        shortcut: "g q",
+        group: "Navigation",
+        onSelect: focusQueueSearchInput,
+      },
+      {
+        id: "focus-workspace",
+        label: "Focus workspace panel",
+        shortcut: "g d",
+        group: "Navigation",
+        onSelect: focusWorkspacePanel,
+      },
+      {
+        id: "toggle-insights",
+        label: insightsOpen ? "Hide insights rail" : "Show insights rail",
+        shortcut: "i",
+        group: "Layout",
+        onSelect: () => setInsightsOpen((current) => !current),
+      },
+      {
+        id: "focus-assignee",
+        label: "Focus assignee field",
+        shortcut: "a",
+        group: "Actions",
+        onSelect: focusWorkspaceAssignee,
+      },
+      {
+        id: "escalate",
+        label: "Run escalate action",
+        shortcut: "e",
+        group: "Actions",
+        onSelect: () => clickWorkspaceAction("escalate"),
+      },
+      {
+        id: "action-next",
+        label: "Run first available + Next action",
+        shortcut: "n",
+        group: "Actions",
+        onSelect: clickActionNext,
+      },
+      {
+        id: "open-shortcuts-help",
+        label: "Open keyboard shortcuts",
+        shortcut: "?",
+        group: "Help",
+        onSelect: () => setShortcutHelpOpen(true),
+      },
+    ],
+    [insightsOpen],
+  );
 
   if (!hasToken) {
     return (
@@ -433,7 +783,10 @@ export function DashboardHub() {
   }
 
   return (
-    <div className="flex h-[calc(100vh-3.5rem)] flex-col gap-3">
+    <div
+      data-testid="dashboard-hub-root"
+      className="flex h-[calc(100vh-3.5rem)] flex-col gap-3"
+    >
       <section className="sticky top-0 z-20 rounded-2xl border border-border bg-white p-3 shadow-sm">
         <div className="grid grid-cols-1 gap-2 lg:grid-cols-[1fr_auto_auto] lg:items-center">
           <div>
@@ -498,9 +851,32 @@ export function DashboardHub() {
               <RefreshCw className="h-3.5 w-3.5 mr-1" />
               Refresh
             </Button>
+            <Button
+              className="hidden lg:inline-flex"
+              variant="outline"
+              size="sm"
+              onClick={() => setInsightsOpen((current) => !current)}
+              aria-expanded={insightsOpen}
+              aria-controls="dashboard-insights-panel"
+            >
+              <PanelRight className="h-3.5 w-3.5" />
+              {insightsOpen ? "Hide Insights" : "Insights"}
+            </Button>
+            <div className="hidden xl:block">
+              <DataFreshnessBadge
+                freshness={overviewFreshness}
+                label="Overview"
+                compact
+              />
+            </div>
             <StatusIndicator status="live" label="AI Active" size="sm" />
           </div>
         </div>
+        {overviewIsStale ? (
+          <div className="mt-2 rounded-lg border border-orange-200 bg-orange-50 px-2 py-1 text-[11px] text-orange-900">
+            Overview metrics may be stale. Queue and detail panels may have newer data.
+          </div>
+        ) : null}
       </section>
 
       <CriticalDecisionBar
@@ -515,7 +891,14 @@ export function DashboardHub() {
         aria-labelledby={`dashboard-view-tab-${dashboardTabsId}-${view}`}
         className="min-h-0 flex-1 overflow-hidden"
       >
-        <div className="hidden h-full gap-3 lg:grid lg:grid-cols-[420px_minmax(0,1fr)_280px]">
+        <div
+          className={cn(
+            "hidden h-full gap-3 lg:grid",
+            insightsOpen
+              ? "lg:grid-cols-[420px_minmax(0,1fr)_320px]"
+              : "lg:grid-cols-[420px_minmax(0,1fr)_52px]",
+          )}
+        >
           <UnifiedWorkQueue
             data={queueQuery.data ?? null}
             filters={filters}
@@ -530,9 +913,20 @@ export function DashboardHub() {
             }
             selectedItemId={selectedItem?.item_id ?? null}
             onSelectItem={(item) => {
+              trackDashboardEvent("dashboard_row_select", {
+                source: "desktop_queue",
+                kind: item.kind,
+                severity: item.severity,
+                review_required: item.review_requirement?.required ?? false,
+              });
               setSelectedItemId(item.item_id);
             }}
-            onFiltersChange={applyQueueFilterPatch}
+            onFiltersChange={(patch) =>
+              applyQueueFilterPatch(
+                patch,
+                isPaginationOnlyPatch(patch) ? "pagination" : "queue_controls",
+              )
+            }
             onRefresh={() => {
               queueQuery.refetch();
               overviewQuery.refetch();
@@ -559,27 +953,25 @@ export function DashboardHub() {
             draftPending={saveDraft.isPending}
             currentUserId={profile?.userId}
             onAction={runAction}
+            onActionAndNext={runActionAndNext}
             onReview={runReview}
+            onReviewAndNext={runReviewAndNext}
             onSaveDraft={runSaveDraft}
             onSnoozeAlert={runSnoozeAlert}
           />
 
-          <div className="min-h-0 space-y-3 overflow-auto">
-            <GovernancePanel
-              governance={overviewQuery.data?.governance}
-              queueSummary={overviewQuery.data?.queue_summary}
-              health={overviewQuery.data?.system_health}
-              loading={overviewQuery.isLoading}
-            />
-
-            <TrendStrip
-              queueSummary={overviewQuery.data?.queue_summary}
-              throughput={overviewQuery.data?.throughput}
-              criticalBar={overviewQuery.data?.critical_bar}
-              timeRange={range}
-              loading={overviewQuery.isLoading}
-            />
-          </div>
+          <InsightsPanel
+            open={insightsOpen}
+            onToggle={() => setInsightsOpen((current) => !current)}
+            governance={overviewQuery.data?.governance}
+            queueSummary={overviewQuery.data?.queue_summary}
+            health={overviewQuery.data?.system_health}
+            throughput={overviewQuery.data?.throughput}
+            criticalBar={overviewQuery.data?.critical_bar}
+            timeRange={range}
+            freshness={overviewFreshness}
+            loading={overviewQuery.isLoading}
+          />
         </div>
 
         <div className="flex h-full flex-col gap-3 lg:hidden">
@@ -599,10 +991,21 @@ export function DashboardHub() {
                 }
                 selectedItemId={selectedItem?.item_id ?? null}
                 onSelectItem={(item) => {
+                  trackDashboardEvent("dashboard_row_select", {
+                    source: "mobile_queue",
+                    kind: item.kind,
+                    severity: item.severity,
+                    review_required: item.review_requirement?.required ?? false,
+                  });
                   setSelectedItemId(item.item_id);
                   setMobileWorkspaceOpen(true);
                 }}
-                onFiltersChange={applyQueueFilterPatch}
+                onFiltersChange={(patch) =>
+                  applyQueueFilterPatch(
+                    patch,
+                    isPaginationOnlyPatch(patch) ? "pagination" : "queue_controls",
+                  )
+                }
                 onRefresh={() => {
                   queueQuery.refetch();
                   overviewQuery.refetch();
@@ -615,6 +1018,7 @@ export function DashboardHub() {
                   governance={overviewQuery.data?.governance}
                   queueSummary={overviewQuery.data?.queue_summary}
                   health={overviewQuery.data?.system_health}
+                  freshness={overviewFreshness}
                   loading={overviewQuery.isLoading}
                 />
                 <TrendStrip
@@ -622,6 +1026,7 @@ export function DashboardHub() {
                   throughput={overviewQuery.data?.throughput}
                   criticalBar={overviewQuery.data?.critical_bar}
                   timeRange={range}
+                  freshness={overviewFreshness}
                   loading={overviewQuery.isLoading}
                 />
               </div>
@@ -677,11 +1082,23 @@ export function DashboardHub() {
           mobileOpen
           onCloseMobile={() => setMobileWorkspaceOpen(false)}
           onAction={runAction}
+          onActionAndNext={runActionAndNext}
           onReview={runReview}
+          onReviewAndNext={runReviewAndNext}
           onSaveDraft={runSaveDraft}
           onSnoozeAlert={runSnoozeAlert}
         />
       ) : null}
+
+      <ShortcutHelpDialog
+        open={shortcutHelpOpen}
+        onOpenChange={setShortcutHelpOpen}
+      />
+      <CommandPalette
+        open={commandPaletteOpen}
+        onOpenChange={setCommandPaletteOpen}
+        actions={commandPaletteActions}
+      />
     </div>
   );
 }

@@ -191,7 +191,7 @@ export default function FindingDetailPage() {
             {Object.keys(finding.explainability).length > 0 && (
               <div className="rounded-xl border border-slate-200  bg-white  p-5">
                 <div className="flex items-center gap-2 mb-3">
-                  <Brain className="h-4 w-4 text-violet-500" />
+                  <Brain className="h-4 w-4 text-indigo-500" />
                   <h2 className="text-sm font-semibold text-slate-900 ">
                     AI Explainability
                   </h2>

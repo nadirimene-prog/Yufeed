@@ -25,7 +25,7 @@ export function ActivityHeatmap() {
     <div className="flex flex-col gap-4">
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-2">
-          <Globe size={14} className="text-cyan-400" />
+          <Globe size={14} className="text-sky-400" />
           <h3 className="text-xs font-bold uppercase tracking-widest text-white/80">
             Regional Pulse
           </h3>
@@ -114,7 +114,7 @@ export function ActivityHeatmap() {
               <span className="text-[10px] text-white/50 font-medium">
                 {region.name}
               </span>
-              <span className="text-[9px] font-mono text-cyan-400">
+              <span className="text-[9px] font-mono text-sky-400">
                 +{region.findings}
               </span>
             </div>

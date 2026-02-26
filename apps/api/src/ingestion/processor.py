@@ -26,7 +26,7 @@ from src.services.obligation_service import (
     seed_obligations_for_doc,
     mark_related_obligations_for_review,
 )
-from src.compliance.scope import infer_scope_tags, normalize_scopes, scope_keywords
+from src.compliance.scope import infer_scope_tags, match_scope_filter
 from src.config import settings
 from src.ingestion.title import derive_title_from_text, is_placeholder_title
 
@@ -40,6 +40,7 @@ class IngestionProcessor:
         self.content_extractor = ContentExtractor()
         self.confidence_scorer = ConfidenceScorer()
         self._rag_indexer: Optional[RAGIndexer] = None
+        self._scope_filter_logged = False
 
     def _get_rag_indexer(self) -> Optional[RAGIndexer]:
         if not settings.RAG_INDEX_ENABLED:
@@ -502,23 +503,28 @@ class IngestionProcessor:
         return None, None
 
     def _matches_scope(self, title: str, entry: dict) -> bool:
-        scope_filter = (settings.REGULATORY_SCOPE_FILTER or "").strip()
-        scopes = normalize_scopes(scope_filter)
-        if not scope_filter or not scopes:
-            return True
-        keywords = scope_keywords(scopes)
-        if not keywords:
-            return True
-        haystack = " ".join(
-            [
-                title or "",
-                entry.get("summary") or "",
-                entry.get("description") or "",
-            ]
-        ).lower()
-        if not haystack.strip():
-            return True
-        return any(keyword in haystack for keyword in keywords)
+        scope_filter = settings.REGULATORY_SCOPE_FILTER
+        matched, parsed = match_scope_filter(
+            scope_filter,
+            title,
+            entry.get("summary"),
+            entry.get("description"),
+            entry.get("topics"),
+            fail_closed_on_invalid=True,
+        )
+        if not self._scope_filter_logged:
+            log_fn = logger.error if parsed.invalid_tokens else logger.info
+            log_fn(
+                "Parsed REGULATORY_SCOPE_FILTER raw=%r scopes=%s invalid=%s explicit_all=%s",
+                scope_filter,
+                parsed.scopes,
+                parsed.invalid_tokens,
+                parsed.explicit_all,
+            )
+            self._scope_filter_logged = True
+        if parsed.invalid_tokens:
+            return False
+        return matched
 
     def _maybe_analyze_doc(self, doc: LegalDocument, force: bool = False) -> bool:
         if doc.analyzed_at and not force:

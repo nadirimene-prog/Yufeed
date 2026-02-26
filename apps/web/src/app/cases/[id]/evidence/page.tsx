@@ -46,7 +46,7 @@ export default function CaseEvidencePage() {
         <div className="flex items-center justify-between">
           <div>
             <h1 className="text-2xl font-bold text-slate-900  tracking-tight flex items-center gap-2">
-              <Archive className="h-5 w-5 text-violet-500" />
+              <Archive className="h-5 w-5 text-indigo-500" />
               Evidence Packs
             </h1>
             <p className="text-sm text-slate-500  mt-1">
@@ -57,7 +57,7 @@ export default function CaseEvidencePage() {
           <button
             onClick={() => createMutation.mutate("json")}
             disabled={createMutation.isPending}
-            className="text-sm px-4 py-2 rounded-xl bg-violet-600 text-white hover:bg-violet-700 disabled:opacity-50 transition flex items-center gap-1.5"
+            className="text-sm px-4 py-2 rounded-xl bg-indigo-600 text-white hover:bg-indigo-700 disabled:opacity-50 transition flex items-center gap-1.5"
           >
             <Plus className="h-4 w-4" />
             {createMutation.isPending ? "Generating…" : "Generate Pack"}

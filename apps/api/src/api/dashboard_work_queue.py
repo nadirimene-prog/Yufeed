@@ -18,11 +18,14 @@ from src.models.transaction_models import Alert, Case, Transaction
 from src.schemas.dashboard_v3 import (
     ActionHistoryItem,
     AiRecommendation,
+    DecisionTrace,
     DashboardWorkQueueItem,
     DashboardWorkQueueResponse,
     EvidenceChecklistItem,
+    FreshnessMeta,
     ReviewActionRequest,
     ReviewActionResponse,
+    ReviewProvenance,
     ReviewRequirement,
     WorkItemDraftUpdateRequest,
     WorkItemDraftUpdateResponse,
@@ -65,6 +68,25 @@ def _tenant_filter(query, model, current_user: CurrentUser):
     if current_user.tenant_id and hasattr(model, "tenant_id"):
         return query.filter(model.tenant_id == current_user.tenant_id)
     return query
+
+
+def _freshness_meta(
+    *,
+    generated_at: datetime,
+    stale_after_seconds: int,
+    source_watermark_at: datetime | None = None,
+) -> FreshnessMeta:
+    source_lag_seconds = (
+        max(0, int((generated_at - source_watermark_at).total_seconds()))
+        if source_watermark_at is not None
+        else None
+    )
+    return FreshnessMeta(
+        generated_at=generated_at,
+        stale_after_seconds=stale_after_seconds,
+        source_watermark_at=source_watermark_at,
+        source_lag_seconds=source_lag_seconds,
+    )
 
 
 def _severity_from_case_priority(priority: str | None) -> str:
@@ -283,6 +305,114 @@ def _sort_items(items: list[DashboardWorkQueueItem]) -> list[DashboardWorkQueueI
     return sorted(items, key=key, reverse=True)
 
 
+def _next_recommended_item_id(
+    *,
+    kind: WorkItemKind,
+    item_id: str,
+    db: Session,
+    current_user: CurrentUser,
+    now: datetime,
+) -> str | None:
+    try:
+        if kind == "alert":
+            query = (
+                db.query(Alert)
+                .options(joinedload(Alert.transaction))
+                .filter(Alert.status.in_(["pending", "in_review"]))
+            )
+            query = _tenant_filter(query, Alert, current_user)
+            candidates = [
+                _alert_queue_item(alert, now)
+                for alert in query.all()
+                if f"alert:{alert.id}" != f"alert:{item_id}" and str(alert.id) != str(item_id)
+            ]
+        elif kind in {"case", "reg_task"}:
+            query = db.query(Case).filter(Case.status.in_(["open", "in_progress"]))
+            query = _tenant_filter(query, Case, current_user)
+            cases = query.all()
+            transaction_ids: set[int] = set()
+            for case in cases:
+                for txn_id in case.related_transaction_ids or []:
+                    if isinstance(txn_id, int):
+                        transaction_ids.add(txn_id)
+            txn_lookup: dict[int, Transaction] = {}
+            if transaction_ids:
+                txn_query = db.query(Transaction).filter(Transaction.id.in_(transaction_ids))
+                txn_query = _tenant_filter(txn_query, Transaction, current_user)
+                txn_lookup = {row.id: row for row in txn_query.all()}
+            candidates = [
+                _case_queue_item(case, now, txn_lookup)
+                for case in cases
+                if f"case:{case.id}" != f"{kind}:{item_id}" and str(case.id) != str(item_id)
+            ]
+        elif kind == "approval":
+            decision_query = db.query(CaseDecision).filter(CaseDecision.status == "submitted")
+            decision_query = _tenant_filter(decision_query, CaseDecision, current_user)
+            decisions = decision_query.all()
+            case_ids = [decision.case_id for decision in decisions]
+            case_lookup: dict[int, Case] = {}
+            if case_ids:
+                case_query = db.query(Case).filter(Case.id.in_(case_ids))
+                case_query = _tenant_filter(case_query, Case, current_user)
+                case_lookup = {case.id: case for case in case_query.all()}
+            candidates = [
+                _approval_queue_item(decision, case_lookup, now)
+                for decision in decisions
+                if str(decision.id) != str(item_id)
+            ]
+        else:
+            return None
+        sorted_candidates = _sort_items(candidates)
+        return sorted_candidates[0].item_id if sorted_candidates else None
+    except Exception:
+        # Non-blocking hint only.
+        return None
+
+
+def _build_review_provenance_from_decision(
+    decision: CaseDecision | None,
+) -> ReviewProvenance | None:
+    if not decision:
+        return None
+    status = (decision.status or "").lower()
+    if status == "approved":
+        outcome = "approved"
+    elif status == "rejected":
+        outcome = "returned"
+    else:
+        outcome = None
+    return ReviewProvenance(
+        submitted_by=decision.created_by,
+        submitted_at=_as_utc(decision.submitted_at),
+        reviewed_by=decision.approver_id,
+        reviewed_at=_as_utc(decision.approved_at),
+        review_outcome=outcome,
+        return_reason=decision.rejection_reason,
+    )
+
+
+def _build_decision_trace(
+    *,
+    queue_item: DashboardWorkQueueItem,
+    ai_recommendation: AiRecommendation,
+    human_decision: str | None = None,
+    override_reason: str | None = None,
+) -> DecisionTrace:
+    return DecisionTrace(
+        facts_used=[
+            f"severity={queue_item.severity}",
+            f"sla_status={queue_item.sla_status}",
+            f"risk_score={queue_item.risk_score:.0f}",
+            f"jurisdiction={queue_item.jurisdiction}",
+        ],
+        policy_rules_triggered=list(queue_item.review_requirement.reasons),
+        ai_summary=ai_recommendation.summary,
+        ai_confidence=ai_recommendation.confidence,
+        human_decision=human_decision,
+        override_reason=override_reason,
+    )
+
+
 def _resolve_alert(item_id: str, db: Session, current_user: CurrentUser) -> Alert:
     query = db.query(Alert).options(joinedload(Alert.transaction))
     query = _tenant_filter(query, Alert, current_user)
@@ -439,11 +569,31 @@ def get_dashboard_work_queue(
     end = start + page_size
     page_items = items[start:end]
 
+    source_watermarks: list[datetime] = []
+    for alert in alerts:
+        candidate = _as_utc(alert.updated_at) or _as_utc(alert.created_at)
+        if candidate:
+            source_watermarks.append(candidate)
+    for case in cases:
+        candidate = _as_utc(case.updated_at) or _as_utc(case.opened_at)
+        if candidate:
+            source_watermarks.append(candidate)
+    for decision in decisions:
+        candidate = _as_utc(decision.updated_at) or _as_utc(decision.created_at)
+        if candidate:
+            source_watermarks.append(candidate)
+    latest_source = max(source_watermarks) if source_watermarks else None
+
     return DashboardWorkQueueResponse(
         page=page,
         page_size=page_size,
         total=total,
         items=page_items,
+        freshness=_freshness_meta(
+            generated_at=now,
+            stale_after_seconds=60,
+            source_watermark_at=latest_source,
+        ),
     )
 
 
@@ -531,6 +681,7 @@ def get_work_item_detail(
     if kind == "alert":
         alert = _resolve_alert(item_id, db, current_user)
         queue_item = _alert_queue_item(alert, now)
+        ai_recommendation = _build_ai_recommendation(queue_item)
         timeline = [
             WorkItemTimelineEvent(
                 at=_as_utc(alert.created_at) or now,
@@ -579,18 +730,42 @@ def get_work_item_detail(
                 notes=alert.status,
             )
         ]
+        freshness = _freshness_meta(
+            generated_at=now,
+            stale_after_seconds=30,
+            source_watermark_at=_as_utc(alert.updated_at) or _as_utc(alert.created_at),
+        )
 
         return WorkItemDetailResponse(
             work_item=queue_item,
             context_timeline=sorted(timeline, key=lambda item: item.at),
             linked_entities=linked_entities,
             linked_transactions=linked_transactions,
-            ai_recommendation=_build_ai_recommendation(queue_item),
+            ai_recommendation=ai_recommendation,
             narrative=alert.description or "",
             evidence_checklist=evidence,
             action_history=actions,
             review_requirement=queue_item.review_requirement,
             allowed_actions=["assign", "escalate", "mark_in_progress", "create_case", "close"],
+            freshness=freshness,
+            review_provenance=ReviewProvenance(
+                submitted_by=alert.assigned_to,
+                submitted_at=_as_utc(alert.updated_at),
+                reviewed_by=alert.resolved_by,
+                reviewed_at=_as_utc(alert.resolved_at),
+                review_outcome=(
+                    "approved"
+                    if (alert.resolution_status or "").lower() == "review_approved"
+                    else None
+                ),
+                return_reason=None,
+            ),
+            decision_trace=_build_decision_trace(
+                queue_item=queue_item,
+                ai_recommendation=ai_recommendation,
+                human_decision=alert.resolution_status or alert.status,
+                override_reason=alert.resolution_notes,
+            ),
         )
 
     if kind == "case":
@@ -605,6 +780,13 @@ def get_work_item_detail(
             transaction_lookup = {row.id: row for row in query.all()}
 
         queue_item = _case_queue_item(case, now, transaction_lookup)
+        ai_recommendation = _build_ai_recommendation(queue_item)
+        latest_decision = (
+            db.query(CaseDecision)
+            .filter(CaseDecision.case_id == case.id)
+            .order_by(CaseDecision.updated_at.desc(), CaseDecision.created_at.desc())
+            .first()
+        )
 
         timeline = [
             WorkItemTimelineEvent(
@@ -657,24 +839,42 @@ def get_work_item_detail(
                 notes=case.status,
             )
         ]
+        freshness = _freshness_meta(
+            generated_at=now,
+            stale_after_seconds=30,
+            source_watermark_at=_as_utc(case.updated_at) or _as_utc(case.opened_at),
+        )
 
         return WorkItemDetailResponse(
             work_item=queue_item,
             context_timeline=sorted(timeline, key=lambda item: item.at),
             linked_entities=list(dict.fromkeys(linked_entities)),
             linked_transactions=linked_transactions,
-            ai_recommendation=_build_ai_recommendation(queue_item),
+            ai_recommendation=ai_recommendation,
             narrative=case.summary or case.description or "",
             evidence_checklist=evidence,
             action_history=actions,
             review_requirement=queue_item.review_requirement,
             allowed_actions=["assign", "escalate", "mark_in_progress", "close"],
+            freshness=freshness,
+            review_provenance=_build_review_provenance_from_decision(latest_decision),
+            decision_trace=_build_decision_trace(
+                queue_item=queue_item,
+                ai_recommendation=ai_recommendation,
+                human_decision=case.outcome or case.status,
+                override_reason=case.outcome_notes,
+            ),
         )
 
     if kind == "approval":
         decision = _resolve_approval(item_id, db, current_user)
         parent_case = _resolve_case(str(decision.case_id), db, current_user)
         queue_item = _approval_queue_item(decision, {parent_case.id: parent_case}, now)
+        ai_recommendation = AiRecommendation(
+            summary="Validate rationale and enforce 4-eyes policy before approval.",
+            confidence=0.88,
+            rationale=["approval_queue", "maker_checker_required"],
+        )
         return WorkItemDetailResponse(
             work_item=queue_item,
             context_timeline=[
@@ -691,11 +891,7 @@ def get_work_item_detail(
             ],
             linked_entities=[decision.created_by],
             linked_transactions=[],
-            ai_recommendation=AiRecommendation(
-                summary="Validate rationale and enforce 4-eyes policy before approval.",
-                confidence=0.88,
-                rationale=["approval_queue", "maker_checker_required"],
-            ),
+            ai_recommendation=ai_recommendation,
             narrative=decision.rationale or "",
             evidence_checklist=[
                 EvidenceChecklistItem(
@@ -712,10 +908,35 @@ def get_work_item_detail(
             action_history=[],
             review_requirement=ReviewRequirement(required=True, reasons=["pending_approval"]),
             allowed_actions=["close"],
+            freshness=_freshness_meta(
+                generated_at=now,
+                stale_after_seconds=30,
+                source_watermark_at=_as_utc(decision.updated_at) or _as_utc(decision.created_at),
+            ),
+            review_provenance=_build_review_provenance_from_decision(decision),
+            decision_trace=DecisionTrace(
+                facts_used=["approval_queue", f"disposition={decision.disposition}"],
+                policy_rules_triggered=["maker_checker_required"],
+                ai_summary=ai_recommendation.summary,
+                ai_confidence=ai_recommendation.confidence,
+                human_decision=decision.status,
+                override_reason=decision.rejection_reason,
+            ),
         )
 
     case = _resolve_case(item_id, db, current_user)
     queue_item = _reg_task_queue_item(case, now)
+    ai_recommendation = AiRecommendation(
+        summary="Prepare SAR packet and route for compliance review.",
+        confidence=0.84,
+        rationale=["regulatory_deadline", "sar_required"],
+    )
+    latest_decision = (
+        db.query(CaseDecision)
+        .filter(CaseDecision.case_id == case.id)
+        .order_by(CaseDecision.updated_at.desc(), CaseDecision.created_at.desc())
+        .first()
+    )
     return WorkItemDetailResponse(
         work_item=queue_item,
         context_timeline=[
@@ -727,11 +948,7 @@ def get_work_item_detail(
         ],
         linked_entities=[case.subject_id] if case.subject_id else [],
         linked_transactions=[],
-        ai_recommendation=AiRecommendation(
-            summary="Prepare SAR packet and route for compliance review.",
-            confidence=0.84,
-            rationale=["regulatory_deadline", "sar_required"],
-        ),
+        ai_recommendation=ai_recommendation,
         narrative=case.summary or case.description or "",
         evidence_checklist=[
             EvidenceChecklistItem(
@@ -744,6 +961,18 @@ def get_work_item_detail(
         action_history=[],
         review_requirement=queue_item.review_requirement,
         allowed_actions=["mark_in_progress", "close"],
+        freshness=_freshness_meta(
+            generated_at=now,
+            stale_after_seconds=30,
+            source_watermark_at=_as_utc(case.updated_at) or _as_utc(case.opened_at),
+        ),
+        review_provenance=_build_review_provenance_from_decision(latest_decision),
+        decision_trace=_build_decision_trace(
+            queue_item=queue_item,
+            ai_recommendation=ai_recommendation,
+            human_decision=case.outcome or case.status,
+            override_reason=case.outcome_notes,
+        ),
     )
 
 
@@ -830,7 +1059,12 @@ def perform_work_item_action(
             alert.status = "in_review"
             db.commit()
             return WorkItemActionResponse(
-                success=True, message="Alert assigned", updated_status=alert.status
+                success=True,
+                message="Alert assigned",
+                updated_status=alert.status,
+                next_recommended_item_id=_next_recommended_item_id(
+                    kind=kind, item_id=item_id, db=db, current_user=current_user, now=now
+                ),
             )
 
         if payload.action == "escalate":
@@ -838,14 +1072,24 @@ def perform_work_item_action(
             alert.status = "in_review"
             db.commit()
             return WorkItemActionResponse(
-                success=True, message="Alert escalated", updated_status=alert.status
+                success=True,
+                message="Alert escalated",
+                updated_status=alert.status,
+                next_recommended_item_id=_next_recommended_item_id(
+                    kind=kind, item_id=item_id, db=db, current_user=current_user, now=now
+                ),
             )
 
         if payload.action == "mark_in_progress":
             alert.status = "in_review"
             db.commit()
             return WorkItemActionResponse(
-                success=True, message="Alert moved to in review", updated_status=alert.status
+                success=True,
+                message="Alert moved to in review",
+                updated_status=alert.status,
+                next_recommended_item_id=_next_recommended_item_id(
+                    kind=kind, item_id=item_id, db=db, current_user=current_user, now=now
+                ),
             )
 
         if payload.action == "create_case":
@@ -875,6 +1119,9 @@ def perform_work_item_action(
                 message="Case created from alert",
                 updated_status=alert.status,
                 created_case_id=case.case_id,
+                next_recommended_item_id=_next_recommended_item_id(
+                    kind=kind, item_id=item_id, db=db, current_user=current_user, now=now
+                ),
             )
 
         if payload.action == "close":
@@ -897,7 +1144,12 @@ def perform_work_item_action(
                 alert.sar_filed_at = now
             db.commit()
             return WorkItemActionResponse(
-                success=True, message="Alert closed", updated_status=alert.status
+                success=True,
+                message="Alert closed",
+                updated_status=alert.status,
+                next_recommended_item_id=_next_recommended_item_id(
+                    kind=kind, item_id=item_id, db=db, current_user=current_user, now=now
+                ),
             )
 
         raise HTTPException(status_code=400, detail="Unsupported action for alert")
@@ -915,7 +1167,12 @@ def perform_work_item_action(
             case.updated_at = now
             db.commit()
             return WorkItemActionResponse(
-                success=True, message="Case assigned", updated_status=case.status
+                success=True,
+                message="Case assigned",
+                updated_status=case.status,
+                next_recommended_item_id=_next_recommended_item_id(
+                    kind=kind, item_id=item_id, db=db, current_user=current_user, now=now
+                ),
             )
 
         if payload.action == "escalate":
@@ -924,7 +1181,12 @@ def perform_work_item_action(
             case.updated_at = now
             db.commit()
             return WorkItemActionResponse(
-                success=True, message="Case escalated", updated_status=case.status
+                success=True,
+                message="Case escalated",
+                updated_status=case.status,
+                next_recommended_item_id=_next_recommended_item_id(
+                    kind=kind, item_id=item_id, db=db, current_user=current_user, now=now
+                ),
             )
 
         if payload.action == "mark_in_progress":
@@ -932,7 +1194,12 @@ def perform_work_item_action(
             case.updated_at = now
             db.commit()
             return WorkItemActionResponse(
-                success=True, message="Case in progress", updated_status=case.status
+                success=True,
+                message="Case in progress",
+                updated_status=case.status,
+                next_recommended_item_id=_next_recommended_item_id(
+                    kind=kind, item_id=item_id, db=db, current_user=current_user, now=now
+                ),
             )
 
         if payload.action == "close":
@@ -960,7 +1227,12 @@ def perform_work_item_action(
             case.updated_at = now
             db.commit()
             return WorkItemActionResponse(
-                success=True, message="Case closed", updated_status=case.status
+                success=True,
+                message="Case closed",
+                updated_status=case.status,
+                next_recommended_item_id=_next_recommended_item_id(
+                    kind=kind, item_id=item_id, db=db, current_user=current_user, now=now
+                ),
             )
 
         if payload.action == "create_case":
@@ -986,7 +1258,12 @@ def perform_work_item_action(
         decision.approved_at = now
         db.commit()
         return WorkItemActionResponse(
-            success=True, message="Approval completed", updated_status=decision.status
+            success=True,
+            message="Approval completed",
+            updated_status=decision.status,
+            next_recommended_item_id=_next_recommended_item_id(
+                kind=kind, item_id=item_id, db=db, current_user=current_user, now=now
+            ),
         )
 
     raise HTTPException(status_code=400, detail="Unsupported work item kind")
@@ -1031,6 +1308,9 @@ def review_work_item(
                 review_status="approved",
                 updated_status=alert.status,
                 message="Alert closure approved",
+                next_recommended_item_id=_next_recommended_item_id(
+                    kind=kind, item_id=item_id, db=db, current_user=current_user, now=now
+                ),
             )
 
         alert.status = "in_review"
@@ -1041,6 +1321,9 @@ def review_work_item(
             review_status="returned",
             updated_status=alert.status,
             message="Alert returned for additional investigation",
+            next_recommended_item_id=_next_recommended_item_id(
+                kind=kind, item_id=item_id, db=db, current_user=current_user, now=now
+            ),
         )
 
     if kind in {"case", "reg_task"}:
@@ -1057,6 +1340,9 @@ def review_work_item(
                 review_status="approved",
                 updated_status=case.status,
                 message="Case closure approved",
+                next_recommended_item_id=_next_recommended_item_id(
+                    kind=kind, item_id=item_id, db=db, current_user=current_user, now=now
+                ),
             )
 
         case.status = "in_progress"
@@ -1068,6 +1354,9 @@ def review_work_item(
             review_status="returned",
             updated_status=case.status,
             message="Case returned to analyst",
+            next_recommended_item_id=_next_recommended_item_id(
+                kind=kind, item_id=item_id, db=db, current_user=current_user, now=now
+            ),
         )
 
     if kind == "approval":
@@ -1082,6 +1371,9 @@ def review_work_item(
                 review_status="approved",
                 updated_status=decision.status,
                 message="Decision approved",
+                next_recommended_item_id=_next_recommended_item_id(
+                    kind=kind, item_id=item_id, db=db, current_user=current_user, now=now
+                ),
             )
 
         decision.status = "rejected"
@@ -1094,6 +1386,9 @@ def review_work_item(
             review_status="returned",
             updated_status=decision.status,
             message="Decision returned to submitter",
+            next_recommended_item_id=_next_recommended_item_id(
+                kind=kind, item_id=item_id, db=db, current_user=current_user, now=now
+            ),
         )
 
     raise HTTPException(status_code=400, detail="Unsupported work item kind")

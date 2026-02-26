@@ -167,3 +167,167 @@ async def test_obligation_workflow_endpoints(db_session, monkeypatch):
 
     internal_rules = obligations_api.get_obligation_internal_rules(obligation.id, db_session, None)
     assert len(internal_rules["items"]) >= 1
+
+
+@pytest.mark.unit
+def test_list_obligations_scope_validation_and_psan_alias(db_session):
+    now = datetime.now(timezone.utc)
+    doc = LegalDocument(
+        celex="32024R9999",
+        title="MiCA obligations for crypto-asset service providers",
+        jurisdiction="EU",
+        source_system="eur-lex",
+        publication_date=now,
+        scope_tags=["vasp"],
+    )
+    db_session.add(doc)
+    db_session.commit()
+
+    obligation = RegulatoryObligation(
+        obligation_id="OBL-PSAN-1",
+        doc_id=doc.id,
+        celex=doc.celex,
+        obligation_text="Crypto-asset service providers must maintain controls.",
+        status="draft",
+        scope_tags=["vasp"],
+        updated_at=now,
+    )
+    db_session.add(obligation)
+    db_session.commit()
+
+    with pytest.raises(HTTPException) as exc_info:
+        obligations_api.list_obligations(
+            status=None,
+            jurisdiction=None,
+            source_system=None,
+            scope="aml",
+            q=None,
+            include_status_counts=False,
+            tenant_id=None,
+            skip=0,
+            limit=20,
+            db=db_session,
+            _=None,
+        )
+    assert exc_info.value.status_code == 422
+
+    listing = obligations_api.list_obligations(
+        status="draft",
+        jurisdiction="EU",
+        source_system="eur-lex",
+        scope="psan",
+        q="crypto-asset",
+        include_status_counts=False,
+        tenant_id=None,
+        skip=0,
+        limit=20,
+        db=db_session,
+        _=None,
+    )
+    assert listing["total"] >= 1
+
+
+@pytest.mark.unit
+def test_obligations_grouped_by_regulation_and_coverage_endpoint(db_session):
+    now = datetime.now(timezone.utc)
+    doc = LegalDocument(
+        celex="32024R1234",
+        title="Markets in crypto-assets regulation",
+        jurisdiction="EU",
+        source_system="eur-lex",
+        publication_date=now,
+        scope_tags=["vasp"],
+        article_breakdown=[
+            {
+                "number": "1",
+                "title": "General obligations",
+                "content": "Crypto-asset service providers shall maintain governance arrangements.",
+            },
+            {
+                "number": "2",
+                "title": "Notifications",
+                "content": "Crypto-asset service providers must notify competent authorities.",
+            },
+            {
+                "number": "3",
+                "title": "Definitions",
+                "content": "This Article defines terms used in this Regulation.",
+            },
+        ],
+    )
+    db_session.add(doc)
+    db_session.commit()
+
+    db_session.add_all(
+        [
+            RegulatoryObligation(
+                obligation_id="OBL-MICA-1",
+                doc_id=doc.id,
+                celex=doc.celex,
+                obligation_text="CASPs shall maintain governance arrangements.",
+                article_ref="Article 1",
+                status="draft",
+                scope_tags=["vasp"],
+                updated_at=now,
+            ),
+            RegulatoryObligation(
+                obligation_id="OBL-MICA-2",
+                doc_id=doc.id,
+                celex=doc.celex,
+                obligation_text="CASPs must notify competent authorities without delay.",
+                article_ref="Article 2",
+                status="in_review",
+                scope_tags=["vasp"],
+                updated_at=now,
+            ),
+            RegulatoryObligation(
+                obligation_id="OBL-MICA-X",
+                doc_id=doc.id,
+                celex=doc.celex,
+                obligation_text="CASPs shall document internal rationale.",
+                article_ref=None,
+                status="rejected",
+                scope_tags=["vasp"],
+                updated_at=now,
+            ),
+        ]
+    )
+    db_session.commit()
+
+    grouped = obligations_api.list_obligations_by_regulation(
+        status=None,
+        jurisdiction="EU",
+        source_system="eur-lex",
+        scope="psan",
+        q="CASP",
+        include_status_counts=True,
+        include_coverage=True,
+        tenant_id=None,
+        skip=0,
+        limit=20,
+        db=db_session,
+        _=None,
+    )
+
+    assert grouped["total_regulations"] >= 1
+    assert grouped["total_obligations"] >= 3
+    assert grouped["status_counts"]["draft"] >= 1
+    item = grouped["items"][0]
+    assert item["document"]["id"] == doc.id
+    assert item["filtered_obligation_count"] == 3
+    assert item["obligation_counts"]["total"] == 3
+    assert item["coverage"]["article_count"] == 3
+    assert item["coverage"]["articles_with_obligation_signal"] == 2
+    assert item["coverage"]["covered_signal_article_count"] == 2
+    assert item["coverage"]["obligations_without_article_ref"] == 1
+
+    coverage = obligations_api.get_regulation_obligation_coverage(
+        document_id=doc.id,
+        tenant_id=None,
+        db=db_session,
+        current_user=None,
+    )
+    assert coverage["document"]["celex"] == doc.celex
+    assert coverage["obligation_counts"]["total"] == 3
+    assert coverage["coverage"]["article_count"] == 3
+    assert coverage["coverage"]["uncovered_signal_article_count"] == 0

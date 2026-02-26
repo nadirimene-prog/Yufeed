@@ -137,6 +137,8 @@ def test_work_queue_filtering_pagination_and_sorting(db_session):
 
     assert page_one.total >= 4
     assert len(page_one.items) == 2
+    assert page_one.freshness is not None
+    assert page_one.freshness.stale_after_seconds == 60
     assert page_one.items[0].severity in {"critical", "high"}
     assert page_one.items[0].sla_status in {"breached", "warning"}
     assert {item.item_id for item in page_one.items}.isdisjoint(
@@ -187,6 +189,17 @@ def test_work_queue_filtering_pagination_and_sorting(db_session):
     )
     assert search_results.total >= 1
     assert any("alert_q_critical" in item.ref_id for item in search_results.items)
+
+    detail = queue_api.get_work_item_detail(
+        kind="alert",
+        item_id=str(alert_critical.id),
+        db=db_session,
+        current_user=current_user,
+    )
+    assert detail.freshness is not None
+    assert detail.freshness.stale_after_seconds == 30
+    assert detail.decision_trace is not None
+    assert detail.review_provenance is not None
 
 
 @pytest.mark.unit

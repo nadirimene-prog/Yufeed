@@ -12,15 +12,18 @@ import {
 import { Sparkline } from "@/components/ui/sparkline";
 import { StatusIndicator } from "@/components/ui/status-indicator";
 import {
+  DashboardFreshnessMeta,
   DashboardGovernanceSnapshot,
   DashboardQueueSummary,
   SystemHealthSnapshot,
 } from "@/features/dashboard/types";
+import DataFreshnessBadge from "@/features/dashboard/components/DataFreshnessBadge";
 
 interface GovernancePanelProps {
   governance: DashboardGovernanceSnapshot | undefined;
   queueSummary: DashboardQueueSummary | undefined;
   health: SystemHealthSnapshot | undefined;
+  freshness?: DashboardFreshnessMeta | null;
   loading?: boolean;
 }
 
@@ -60,10 +63,9 @@ function toneClass(tone: "critical" | "warning" | "ok") {
   return "text-risk-clear";
 }
 
-function toHistory(value: number) {
-  return [0.9, 0.95, 0.85, 1.05, 1, 1.1, 1].map((factor) => ({
-    value: Math.max(0, value * factor),
-  }));
+function toSparklineData(history?: number[] | null) {
+  if (!history || history.length < 2) return null;
+  return history.map((value) => ({ value: Math.max(0, value) }));
 }
 
 function healthStatusToIndicator(status?: string) {
@@ -77,6 +79,7 @@ export function GovernancePanel({
   governance,
   queueSummary,
   health,
+  freshness = null,
   loading = false,
 }: GovernancePanelProps) {
   const safeGovernance: DashboardGovernanceSnapshot =
@@ -103,7 +106,7 @@ export function GovernancePanel({
     value: string;
     tone: "critical" | "warning" | "ok";
     href: string;
-    sparklineValue: number;
+    history?: { value: number }[] | null;
   }> = [
     {
       title: "Rule Drift",
@@ -111,7 +114,7 @@ export function GovernancePanel({
       value: `${safeGovernance.rule_drift_score.toFixed(1)}%`,
       tone: riskTone(safeGovernance.rule_drift_score / 100),
       href: "/transaction-monitoring/rules",
-      sparklineValue: safeGovernance.rule_drift_score,
+      history: toSparklineData(safeGovernance.rule_drift_score_history),
     },
     {
       title: "Alert→Case Conversion",
@@ -119,7 +122,7 @@ export function GovernancePanel({
       value: percent(safeGovernance.alert_to_case_rate),
       tone: highIsGoodTone(safeGovernance.alert_to_case_rate, 0.2, 0.1),
       href: "/cases",
-      sparklineValue: safeGovernance.alert_to_case_rate * 100,
+      history: toSparklineData(safeGovernance.alert_to_case_rate_history),
     },
     {
       title: "False Positive Proxy",
@@ -127,7 +130,7 @@ export function GovernancePanel({
       value: percent(safeGovernance.fp_proxy_rate),
       tone: lowIsGoodTone(safeGovernance.fp_proxy_rate, 0.2, 0.35),
       href: "/transaction-alerts",
-      sparklineValue: safeGovernance.fp_proxy_rate * 100,
+      history: toSparklineData(safeGovernance.fp_proxy_rate_history),
     },
     {
       title: "Audit Completeness",
@@ -135,7 +138,7 @@ export function GovernancePanel({
       value: percent(safeGovernance.audit_completeness_rate),
       tone: highIsGoodTone(safeGovernance.audit_completeness_rate, 0.9, 0.75),
       href: "/audit",
-      sparklineValue: safeGovernance.audit_completeness_rate * 100,
+      history: toSparklineData(safeGovernance.audit_completeness_rate_history),
     },
     {
       title: "Pending Approvals",
@@ -143,7 +146,7 @@ export function GovernancePanel({
       value: String(safeSummary.approvals_pending),
       tone: lowIsGoodTone(safeSummary.approvals_pending, 1, 10),
       href: "/cases",
-      sparklineValue: safeSummary.approvals_pending,
+      history: null,
     },
     {
       title: "Reg Tasks Due",
@@ -151,7 +154,7 @@ export function GovernancePanel({
       value: String(safeSummary.reg_tasks_due),
       tone: lowIsGoodTone(safeSummary.reg_tasks_due, 1, 5),
       href: "/compliance",
-      sparklineValue: safeSummary.reg_tasks_due,
+      history: null,
     },
   ];
 
@@ -161,10 +164,12 @@ export function GovernancePanel({
       role="region"
       aria-label="Governance metrics"
     >
-      <h2 className="mb-3 text-sm font-semibold text-foreground">
-        Governance & Controls
-      </h2>
-
+      <div className="mb-3 flex items-center justify-between gap-2">
+        <h2 className="text-sm font-semibold text-foreground">
+          Governance & Controls
+        </h2>
+        <DataFreshnessBadge freshness={freshness} label="Updated" compact />
+      </div>
       <div className="space-y-2">
         {loading
           ? Array.from({ length: 6 }).map((_, index) => (
@@ -188,14 +193,20 @@ export function GovernancePanel({
                     <widget.icon className="h-3.5 w-3.5" aria-hidden="true" />
                     {widget.title}
                   </span>
-                  <Sparkline
-                    data={toHistory(widget.sparklineValue)}
-                    width={56}
-                    height={18}
-                    color="primary"
-                    ariaLabel={`${widget.title} trend`}
-                    className="opacity-80"
-                  />
+                  {widget.history ? (
+                    <Sparkline
+                      data={widget.history}
+                      width={56}
+                      height={18}
+                      color="primary"
+                      ariaLabel={`${widget.title} trend`}
+                      className="opacity-80"
+                    />
+                  ) : (
+                    <span className="text-[10px] font-medium text-foreground/60">
+                      No trend
+                    </span>
+                  )}
                 </p>
                 <p
                   className={`text-sm font-semibold ${toneClass(widget.tone)}`}

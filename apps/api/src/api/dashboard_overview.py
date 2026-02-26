@@ -59,6 +59,94 @@ def _median(values: list[float]) -> float:
     return round(float(median(values)), 2)
 
 
+def _bucket_ranges(
+    start: datetime, end: datetime, points: int = 7
+) -> list[tuple[datetime, datetime]]:
+    if points <= 0 or end <= start:
+        return []
+    total_seconds = max(1, int((end - start).total_seconds()))
+    bucket_seconds = max(1, total_seconds // points)
+    buckets: list[tuple[datetime, datetime]] = []
+    cursor = start
+    for index in range(points):
+        bucket_end = (
+            end if index == points - 1 else min(end, cursor + timedelta(seconds=bucket_seconds))
+        )
+        buckets.append((cursor, bucket_end))
+        cursor = bucket_end
+    return buckets
+
+
+def _throughput_window_metrics(db: Session, start: datetime, end: datetime) -> dict[str, float]:
+    actionable_alerts = (
+        db.query(Alert)
+        .filter(
+            and_(
+                Alert.created_at >= start,
+                Alert.created_at < end,
+                Alert.updated_at.isnot(None),
+            )
+        )
+        .all()
+    )
+    first_action_latencies: list[float] = []
+    for alert in actionable_alerts:
+        created_at = _as_utc(alert.created_at)
+        updated_at = _as_utc(alert.updated_at)
+        if not created_at or not updated_at:
+            continue
+        delta = (updated_at - created_at).total_seconds() / 60
+        if delta >= 0:
+            first_action_latencies.append(delta)
+
+    closed_cases = (
+        db.query(Case)
+        .filter(
+            and_(
+                Case.status == "closed",
+                Case.closed_at.isnot(None),
+                Case.opened_at.isnot(None),
+                Case.closed_at >= start,
+                Case.closed_at < end,
+            )
+        )
+        .all()
+    )
+    case_resolution_hours: list[float] = []
+    for case in closed_cases:
+        opened_at = _as_utc(case.opened_at)
+        closed_at = _as_utc(case.closed_at)
+        if not opened_at or not closed_at:
+            continue
+        delta = (closed_at - opened_at).total_seconds() / 3600
+        if delta >= 0:
+            case_resolution_hours.append(delta)
+
+    return {
+        "median_time_to_first_action_minutes": _median(first_action_latencies),
+        "median_case_resolution_hours": _median(case_resolution_hours),
+    }
+
+
+def _freshness_meta(
+    *,
+    generated_at: datetime,
+    stale_after_seconds: int,
+    source_watermark_at: datetime | None = None,
+) -> dict[str, object]:
+    source_lag_seconds = (
+        max(0, int((generated_at - source_watermark_at).total_seconds()))
+        if source_watermark_at is not None
+        else None
+    )
+    return {
+        "generated_at": generated_at.isoformat(),
+        "stale_after_seconds": stale_after_seconds,
+        "source_watermark_at": source_watermark_at.isoformat() if source_watermark_at else None,
+        "source_lag_seconds": source_lag_seconds,
+    }
+
+
 @router.get("/overview")
 def get_dashboard_overview(
     view: DashboardView = Query("operations"),
@@ -74,7 +162,9 @@ def get_dashboard_overview(
         raise HTTPException(status_code=503, detail="Dashboard v2 is currently disabled")
 
     now = utc_now()
-    start = now - _parse_time_range(time_range)
+    window_delta = _parse_time_range(time_range)
+    start = now - window_delta
+    previous_start = start - window_delta
 
     # KPI aggregates
     pending_alerts = db.query(func.count(Alert.id)).filter(Alert.status == "pending").scalar() or 0
@@ -158,6 +248,9 @@ def get_dashboard_overview(
     else:
         health_status = "healthy"
 
+    latest_transaction_ts = db.query(func.max(Transaction.timestamp)).scalar()
+    latest_transaction_ts = _as_utc(latest_transaction_ts)
+
     critical_bar = {
         "p1_sla_breaches": 0,
         "p2_sla_breaches": 0,
@@ -181,6 +274,10 @@ def get_dashboard_overview(
     throughput = {
         "median_time_to_first_action_minutes": 0.0,
         "median_case_resolution_hours": 0.0,
+        "median_time_to_first_action_delta_minutes": None,
+        "median_case_resolution_delta_hours": None,
+        "median_time_to_first_action_history": None,
+        "median_case_resolution_history": None,
     }
 
     if settings.DASHBOARD_AMLCO_V3_ENABLED:
@@ -249,8 +346,6 @@ def get_dashboard_overview(
             .scalar()
             or 0
         )
-        latest_transaction_ts = db.query(func.max(Transaction.timestamp)).scalar()
-        latest_transaction_ts = _as_utc(latest_transaction_ts)
         critical_bar["ingestion_lag_minutes"] = (
             max(0, int((now - latest_transaction_ts).total_seconds() // 60))
             if latest_transaction_ts
@@ -327,38 +422,49 @@ def get_dashboard_overview(
             len(audit_complete) / max(len(closed_cases), 1), 4
         )
 
-        actionable_alerts = (
-            db.query(Alert)
-            .filter(and_(Alert.created_at >= start, Alert.updated_at.isnot(None)))
-            .all()
+        current_throughput = _throughput_window_metrics(db, start, now)
+        previous_throughput = _throughput_window_metrics(db, previous_start, start)
+        throughput["median_time_to_first_action_minutes"] = current_throughput[
+            "median_time_to_first_action_minutes"
+        ]
+        throughput["median_case_resolution_hours"] = current_throughput[
+            "median_case_resolution_hours"
+        ]
+        throughput["median_time_to_first_action_delta_minutes"] = round(
+            current_throughput["median_time_to_first_action_minutes"]
+            - previous_throughput["median_time_to_first_action_minutes"],
+            2,
         )
-        first_action_latencies: list[float] = []
-        for alert in actionable_alerts:
-            created_at = _as_utc(alert.created_at)
-            updated_at = _as_utc(alert.updated_at)
-            if not created_at or not updated_at:
-                continue
-            delta = (updated_at - created_at).total_seconds() / 60
-            if delta >= 0:
-                first_action_latencies.append(delta)
+        throughput["median_case_resolution_delta_hours"] = round(
+            current_throughput["median_case_resolution_hours"]
+            - previous_throughput["median_case_resolution_hours"],
+            2,
+        )
 
-        case_resolution_hours: list[float] = []
-        for case in closed_cases:
-            opened_at = _as_utc(case.opened_at)
-            closed_at = _as_utc(case.closed_at)
-            if not opened_at or not closed_at:
-                continue
-            delta = (closed_at - opened_at).total_seconds() / 3600
-            if delta >= 0:
-                case_resolution_hours.append(delta)
-
-        throughput["median_time_to_first_action_minutes"] = _median(first_action_latencies)
-        throughput["median_case_resolution_hours"] = _median(case_resolution_hours)
+        buckets = _bucket_ranges(start, now, 7)
+        if buckets:
+            throughput["median_time_to_first_action_history"] = [
+                _throughput_window_metrics(db, bucket_start, bucket_end)[
+                    "median_time_to_first_action_minutes"
+                ]
+                for bucket_start, bucket_end in buckets
+            ]
+            throughput["median_case_resolution_history"] = [
+                _throughput_window_metrics(db, bucket_start, bucket_end)[
+                    "median_case_resolution_hours"
+                ]
+                for bucket_start, bucket_end in buckets
+            ]
 
     return {
         "view": view,
         "time_range": time_range,
         "generated_at": now.isoformat(),
+        "freshness": _freshness_meta(
+            generated_at=now,
+            stale_after_seconds=120,
+            source_watermark_at=latest_transaction_ts,
+        ),
         "kpis": {
             "pending_alerts": pending_alerts,
             "critical_alerts": critical_alerts,
@@ -382,6 +488,8 @@ def get_dashboard_overview(
         },
         "critical_bar": critical_bar,
         "queue_summary": queue_summary,
+        "queue_summary_previous": None,
+        "critical_bar_previous": None,
         "governance": governance,
         "throughput": throughput,
     }

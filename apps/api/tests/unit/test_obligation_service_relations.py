@@ -3,6 +3,8 @@ import pytest
 from src.models.models import LegalDocument, LegalRelation
 from src.models.compliance_workflow import RegulatoryObligation
 from src.services.obligation_service import (
+    normalize_obligations,
+    seed_obligations_for_doc,
     mark_related_obligations_for_review,
     get_obligations_needing_review_due_to_relations,
 )
@@ -67,3 +69,29 @@ def test_get_obligations_needing_review_due_to_relations_uses_to_doc_id(db_sessi
     assert len(affected) == 1
     assert affected[0]["relation_type"] == "repeals"
     assert affected[0]["source_celex"] == target_doc.celex
+
+
+@pytest.mark.unit
+def test_normalize_obligations_empty_payloads_do_not_create_placeholders():
+    assert normalize_obligations(None, "Doc") == []
+    assert normalize_obligations([], "Doc") == []
+    assert normalize_obligations([{}], "Doc") == []
+
+
+@pytest.mark.unit
+def test_seed_obligations_for_doc_skips_empty_extractions(db_session):
+    doc = LegalDocument(
+        celex="32024R0101",
+        title="Unrelated administrative notice",
+        obligations_json=[],
+    )
+    db_session.add(doc)
+    db_session.commit()
+
+    created = seed_obligations_for_doc(db_session, doc, allow_existing=True)
+
+    assert created == 0
+    assert (
+        db_session.query(RegulatoryObligation).filter(RegulatoryObligation.doc_id == doc.id).count()
+        == 0
+    )

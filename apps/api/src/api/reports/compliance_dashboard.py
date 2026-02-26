@@ -3,7 +3,7 @@ Compliance Dashboard API
 Comprehensive compliance reporting dashboards and analytics.
 """
 
-from fastapi import APIRouter, Depends, Query
+from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.orm import Session
 from sqlalchemy import func, and_, or_, select
 import sqlalchemy as sa
@@ -23,7 +23,7 @@ from src.models.compliance_workflow import (
 )
 from src.audit.models import EventRecord, DecisionRecord
 from src.auth.dependencies import require_any_role, CurrentUser
-from src.compliance.scope import normalize_scopes, scope_keywords
+from src.compliance.scope import normalize_scopes, parse_scopes, scope_keywords
 from sqlalchemy.dialects import postgresql
 
 
@@ -33,6 +33,20 @@ def utc_now() -> datetime:
 
 
 router = APIRouter(prefix="/reporting", tags=["compliance-dashboard"])
+
+
+def _validate_scope_query_or_422(scope: Optional[str]) -> None:
+    parsed = parse_scopes(scope)
+    if not parsed.invalid_tokens:
+        return
+    supported = "psp, eme/emi, vasp/casp/psan, or all"
+    raise HTTPException(
+        status_code=422,
+        detail=(
+            "Invalid scope value(s): "
+            f"{', '.join(parsed.invalid_tokens)}. Supported values are {supported}."
+        ),
+    )
 
 
 def _apply_scope_filter_to_docs(query, scopes: list[str], db: Session):
@@ -266,6 +280,7 @@ def compliance_home_dashboard(
     last_24h = now - timedelta(hours=24)
     last_30d = now - timedelta(days=30)
 
+    _validate_scope_query_or_422(scope)
     scopes = normalize_scopes(scope)
     docs_query = db.query(LegalDocument)
     docs_query = _apply_scope_filter_to_docs(docs_query, scopes, db)

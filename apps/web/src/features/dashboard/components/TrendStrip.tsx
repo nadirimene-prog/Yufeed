@@ -4,16 +4,19 @@ import { AlertTriangle, BarChart3, Clock, FileWarning } from "lucide-react";
 import { Sparkline } from "@/components/ui/sparkline";
 import {
   CriticalDecisionBar,
+  DashboardFreshnessMeta,
   DashboardQueueSummary,
   DashboardThroughputSnapshot,
 } from "@/features/dashboard/types";
 import { formatRangeLabel } from "@/features/dashboard/utils";
+import DataFreshnessBadge from "@/features/dashboard/components/DataFreshnessBadge";
 
 interface TrendStripProps {
   queueSummary: DashboardQueueSummary | undefined;
   throughput: DashboardThroughputSnapshot | undefined;
   criticalBar: CriticalDecisionBar | undefined;
   timeRange: "24h" | "7d" | "30d";
+  freshness?: DashboardFreshnessMeta | null;
   loading?: boolean;
 }
 
@@ -27,10 +30,16 @@ function toneClass(
   return "text-risk-clear";
 }
 
-function toHistory(value: number) {
-  return [0.92, 1.05, 1.1, 0.98, 1.02, 1.08, 1].map((factor) => ({
-    value: Math.max(0, value * factor),
-  }));
+function toSparklineData(history?: number[] | null) {
+  if (!history || history.length < 2) return null;
+  return history.map((value) => ({ value: Math.max(0, value) }));
+}
+
+function formatDelta(value?: number | null, suffix = "") {
+  if (typeof value !== "number" || Number.isNaN(value)) return null;
+  const rounded = Math.round(value);
+  const sign = rounded > 0 ? "+" : "";
+  return `${sign}${rounded}${suffix}`;
 }
 
 export function TrendStrip({
@@ -38,6 +47,7 @@ export function TrendStrip({
   throughput,
   criticalBar,
   timeRange,
+  freshness = null,
   loading = false,
 }: TrendStripProps) {
   const q =
@@ -72,50 +82,66 @@ export function TrendStrip({
       id: "backlog",
       label: "Backlog",
       value: q.alerts_open + q.cases_open,
-      helper: "vs last period",
-      delta: "+0",
+      valueSuffix: "",
+      helper: "No comparison data",
+      delta: null,
       icon: BarChart3,
       tone: toneClass(q.alerts_open + q.cases_open, 50, 100),
+      history: null,
     },
     {
       id: "sla",
       label: "SLA Breaches",
       value: c.p1_sla_breaches + c.p2_sla_breaches,
-      helper: "vs last period",
-      delta: `${c.p1_sla_breaches + c.p2_sla_breaches > 0 ? "+" : ""}${c.p1_sla_breaches + c.p2_sla_breaches}`,
+      valueSuffix: "",
+      helper: "No comparison data",
+      delta: null,
       icon: AlertTriangle,
       tone: toneClass(c.p1_sla_breaches + c.p2_sla_breaches, 1, 1),
+      history: null,
     },
     {
       id: "sar",
       label: "SAR Pressure",
       value: q.reg_tasks_due + c.sar_due_24h,
-      helper: "vs last period",
-      delta: `${q.reg_tasks_due + c.sar_due_24h > 0 ? "+" : ""}${q.reg_tasks_due + c.sar_due_24h}`,
+      valueSuffix: "",
+      helper: "No comparison data",
+      delta: null,
       icon: FileWarning,
       tone: toneClass(q.reg_tasks_due + c.sar_due_24h, 1, 2),
+      history: null,
     },
     {
       id: "first_action",
       label: "Median First Action",
       value: Math.round(t.median_time_to_first_action_minutes),
-      helper: "minutes",
-      delta: "0m",
+      valueSuffix: "m",
+      helper:
+        typeof t.median_time_to_first_action_delta_minutes === "number"
+          ? "vs last period"
+          : "No comparison data",
+      delta: formatDelta(t.median_time_to_first_action_delta_minutes, "m"),
       icon: Clock,
       tone: toneClass(
         Math.round(t.median_time_to_first_action_minutes),
         45,
         90,
       ),
+      history: toSparklineData(t.median_time_to_first_action_history),
     },
     {
       id: "resolution",
       label: "Median Resolution",
       value: Math.round(t.median_case_resolution_hours),
-      helper: "hours",
-      delta: "0h",
+      valueSuffix: "h",
+      helper:
+        typeof t.median_case_resolution_delta_hours === "number"
+          ? "vs last period"
+          : "No comparison data",
+      delta: formatDelta(t.median_case_resolution_delta_hours, "h"),
       icon: Clock,
       tone: toneClass(Math.round(t.median_case_resolution_hours), 24, 48),
+      history: toSparklineData(t.median_case_resolution_history),
     },
   ];
 
@@ -126,12 +152,15 @@ export function TrendStrip({
       aria-label="Throughput metrics"
     >
       <div className="mb-3 flex items-center justify-between">
-        <h2 className="text-sm font-semibold text-foreground">
-          Trend & Throughput
-        </h2>
-        <p className="text-xs text-muted-foreground">
-          Window: {formatRangeLabel(timeRange)}
-        </p>
+        <div>
+          <h2 className="text-sm font-semibold text-foreground">
+            Trend & Throughput
+          </h2>
+          <p className="text-xs text-muted-foreground">
+            Window: {formatRangeLabel(timeRange)}
+          </p>
+        </div>
+        <DataFreshnessBadge freshness={freshness} label="Updated" compact />
       </div>
 
       <div className="grid grid-cols-1 gap-2">
@@ -150,25 +179,34 @@ export function TrendStrip({
                 key={card.id}
                 className="rounded-xl border border-border bg-slate-50 p-3"
               >
-                <p className="mb-1 flex items-center gap-1.5 text-[10px] uppercase tracking-wide text-white/50">
+                <p className="mb-1 flex items-center gap-1.5 text-[10px] uppercase tracking-wide text-muted-foreground">
                   <card.icon className="h-3.5 w-3.5" aria-hidden="true" />
                   {card.label}
                 </p>
                 <div className="flex items-center justify-between gap-2">
                   <p className={`text-lg font-semibold ${card.tone}`}>
                     {card.value}
+                    {card.valueSuffix ? (
+                      <span className="ml-0.5 text-base font-medium text-foreground/70">
+                        {card.valueSuffix}
+                      </span>
+                    ) : null}
                   </p>
-                  <Sparkline
-                    data={toHistory(Number(card.value))}
-                    width={70}
-                    height={20}
-                    color="aurora"
-                    ariaLabel={`${card.label} trend`}
-                    className="opacity-80"
-                  />
+                  {card.history ? (
+                    <Sparkline
+                      data={card.history}
+                      width={70}
+                      height={20}
+                      color="gray"
+                      ariaLabel={`${card.label} trend`}
+                      className="opacity-80"
+                    />
+                  ) : (
+                    <div className="h-5 w-[70px]" aria-hidden="true" />
+                  )}
                 </div>
-                <p className="text-[11px] text-white/60">
-                  {card.delta} {card.helper}
+                <p className="text-[11px] text-foreground/70">
+                  {card.delta ? `${card.delta} ${card.helper}` : card.helper}
                 </p>
               </div>
             ))}

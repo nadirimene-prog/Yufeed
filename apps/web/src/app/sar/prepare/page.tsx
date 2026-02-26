@@ -382,7 +382,7 @@ function SARPrepareContent() {
           </div>
 
           {/* Regulatory Basis (YUFEED INNOVATION) */}
-          <div className="bg-gradient-to-br from-blue-50 to-purple-50   rounded-lg shadow p-6 border border-blue-200 ">
+          <div className="bg-gradient-to-br from-blue-50 to-blue-50   rounded-lg shadow p-6 border border-blue-200 ">
             <h2 className="text-xl font-semibold text-slate-900  mb-4">
               Regulatory Basis
               <span className="ml-2 text-sm font-normal text-blue-600 ">

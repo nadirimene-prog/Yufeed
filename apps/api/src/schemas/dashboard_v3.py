@@ -31,11 +31,26 @@ class GovernanceSnapshot(BaseModel):
     alert_to_case_rate: float = 0.0
     fp_proxy_rate: float = 0.0
     audit_completeness_rate: float = 0.0
+    rule_drift_score_history: list[float] | None = None
+    alert_to_case_rate_history: list[float] | None = None
+    fp_proxy_rate_history: list[float] | None = None
+    audit_completeness_rate_history: list[float] | None = None
 
 
 class ThroughputSnapshot(BaseModel):
     median_time_to_first_action_minutes: float = 0.0
     median_case_resolution_hours: float = 0.0
+    median_time_to_first_action_delta_minutes: float | None = None
+    median_case_resolution_delta_hours: float | None = None
+    median_time_to_first_action_history: list[float] | None = None
+    median_case_resolution_history: list[float] | None = None
+
+
+class FreshnessMeta(BaseModel):
+    generated_at: datetime
+    stale_after_seconds: int
+    source_watermark_at: datetime | None = None
+    source_lag_seconds: int | None = None
 
 
 class ReviewRequirement(BaseModel):
@@ -69,6 +84,7 @@ class DashboardWorkQueueResponse(BaseModel):
     page_size: int
     total: int
     items: list[DashboardWorkQueueItem]
+    freshness: FreshnessMeta | None = None
 
 
 class WorkItemTimelineEvent(BaseModel):
@@ -96,6 +112,24 @@ class ActionHistoryItem(BaseModel):
     notes: str | None = None
 
 
+class ReviewProvenance(BaseModel):
+    submitted_by: str | None = None
+    submitted_at: datetime | None = None
+    reviewed_by: str | None = None
+    reviewed_at: datetime | None = None
+    review_outcome: Literal["approved", "returned"] | None = None
+    return_reason: str | None = None
+
+
+class DecisionTrace(BaseModel):
+    facts_used: list[str] = Field(default_factory=list)
+    policy_rules_triggered: list[str] = Field(default_factory=list)
+    ai_summary: str | None = None
+    ai_confidence: float | None = None
+    human_decision: str | None = None
+    override_reason: str | None = None
+
+
 class WorkItemDetailResponse(BaseModel):
     work_item: DashboardWorkQueueItem
     context_timeline: list[WorkItemTimelineEvent] = Field(default_factory=list)
@@ -107,6 +141,9 @@ class WorkItemDetailResponse(BaseModel):
     action_history: list[ActionHistoryItem] = Field(default_factory=list)
     review_requirement: ReviewRequirement = Field(default_factory=ReviewRequirement)
     allowed_actions: list[str] = Field(default_factory=list)
+    freshness: FreshnessMeta | None = None
+    review_provenance: ReviewProvenance | None = None
+    decision_trace: DecisionTrace | None = None
 
 
 class WorkItemActionRequest(BaseModel):
@@ -128,6 +165,7 @@ class WorkItemActionResponse(BaseModel):
     message: str
     updated_status: str
     created_case_id: str | None = None
+    next_recommended_item_id: str | None = None
 
 
 class ReviewActionRequest(BaseModel):
@@ -143,6 +181,7 @@ class ReviewActionResponse(BaseModel):
     review_status: Literal["approved", "returned"]
     updated_status: str
     message: str
+    next_recommended_item_id: str | None = None
 
 
 class WorkItemDraftUpdateRequest(BaseModel):

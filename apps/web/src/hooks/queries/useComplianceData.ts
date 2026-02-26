@@ -5,7 +5,9 @@ import {
   approveObligation,
   getObligation,
   getObligations,
+  getObligationsByRegulation,
   getPolicies,
+  getRegulationObligationCoverage,
   getRiskMap,
   updateObligationStatus,
 } from "@/lib/compliance-api";
@@ -13,7 +15,11 @@ import { complianceKeys, dashboardKeys } from "@/lib/queryKeys";
 import type { ObligationsListResponse } from "@/lib/compliance-api";
 import type { DashboardOverviewResponse } from "@/features/dashboard/types";
 import apiClient from "@/lib/http";
-import type { ComplianceProfile } from "@/types/compliance";
+import type {
+  ComplianceProfile,
+  ObligationsByRegulationResponse,
+  RegulationObligationCoverageResponse,
+} from "@/types/compliance";
 
 const DASHBOARD_OBLIGATIONS_PARAMS = {
   limit: 10,
@@ -109,6 +115,8 @@ export function useObligationsList(params: {
   include_status_counts?: boolean;
   skip?: number;
   limit?: number;
+}, options?: {
+  enabled?: boolean;
 }): {
   data: ObligationsListResponse | undefined;
   isLoading: boolean;
@@ -118,6 +126,7 @@ export function useObligationsList(params: {
   const query = useQuery({
     queryKey: complianceKeys.obligationsList(params),
     queryFn: () => getObligations(params),
+    enabled: options?.enabled ?? true,
   });
 
   return {
@@ -125,6 +134,59 @@ export function useObligationsList(params: {
     isLoading: query.isLoading,
     isError: query.isError,
     error: (query.error as Error | null) ?? null,
+  };
+}
+
+export function useObligationsByRegulationList(params: {
+  status?: string;
+  jurisdiction?: string;
+  source_system?: string;
+  scope?: string;
+  q?: string;
+  include_status_counts?: boolean;
+  include_coverage?: boolean;
+  skip?: number;
+  limit?: number;
+}, options?: {
+  enabled?: boolean;
+}): {
+  data: ObligationsByRegulationResponse | undefined;
+  isLoading: boolean;
+  isError: boolean;
+  error: Error | null;
+} {
+  const query = useQuery({
+    queryKey: complianceKeys.obligationsByRegulationList(params),
+    queryFn: () => getObligationsByRegulation(params),
+    enabled: options?.enabled ?? true,
+  });
+
+  return {
+    data: query.data,
+    isLoading: query.isLoading,
+    isError: query.isError,
+    error: (query.error as Error | null) ?? null,
+  };
+}
+
+export function useRegulationObligationCoverage(documentId: number | null) {
+  return useQuery({
+    queryKey:
+      typeof documentId === "number"
+        ? complianceKeys.obligationRegulationCoverage(documentId)
+        : [...complianceKeys.obligations(), "regulation-coverage", "disabled"],
+    queryFn: () => {
+      if (typeof documentId !== "number") {
+        throw new Error("Document id is required");
+      }
+      return getRegulationObligationCoverage(documentId);
+    },
+    enabled: typeof documentId === "number",
+  }) as {
+    data: RegulationObligationCoverageResponse | undefined;
+    isLoading: boolean;
+    isError: boolean;
+    error: Error | null;
   };
 }
 

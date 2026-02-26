@@ -3,7 +3,7 @@ AML Scope Analysis API
 AML scope coverage analysis and regulatory coverage reporting.
 """
 
-from fastapi import APIRouter, Depends, Query
+from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.orm import Session
 from sqlalchemy import func, and_, or_, case, select
 import sqlalchemy as sa
@@ -15,7 +15,7 @@ from src.models.transaction_models import MonitoringRule
 from src.models.models import LegalDocument
 from src.models.compliance_workflow import RegulatoryObligation, InternalRule
 from src.auth.dependencies import require_any_role, CurrentUser
-from src.compliance.scope import normalize_scopes, scope_keywords
+from src.compliance.scope import normalize_scopes, parse_scopes, scope_keywords
 from sqlalchemy.dialects import postgresql
 
 
@@ -25,6 +25,20 @@ def utc_now() -> datetime:
 
 
 router = APIRouter(prefix="/reporting", tags=["scope-analysis"])
+
+
+def _validate_scope_query_or_422(scope: Optional[str]) -> None:
+    parsed = parse_scopes(scope)
+    if not parsed.invalid_tokens:
+        return
+    supported = "psp, eme/emi, vasp/casp/psan, or all"
+    raise HTTPException(
+        status_code=422,
+        detail=(
+            "Invalid scope value(s): "
+            f"{', '.join(parsed.invalid_tokens)}. Supported values are {supported}."
+        ),
+    )
 
 
 def _apply_scope_filter_to_docs(query, scopes: list[str], db: Session):
@@ -91,6 +105,7 @@ def aml_scope_review(
     """
     AML scope coverage summary for obligations and controls.
     """
+    _validate_scope_query_or_422(scope)
     scopes = normalize_scopes(scope)
     base_query = db.query(RegulatoryObligation, LegalDocument).join(
         LegalDocument, RegulatoryObligation.doc_id == LegalDocument.id

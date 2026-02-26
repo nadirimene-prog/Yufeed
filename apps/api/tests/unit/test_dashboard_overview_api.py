@@ -64,11 +64,16 @@ def test_dashboard_overview_returns_expected_contract(db_session):
     assert "queue_summary" in payload
     assert "governance" in payload
     assert "throughput" in payload
+    assert "freshness" in payload
     assert isinstance(payload["queues"]["alerts"], list)
     assert isinstance(payload["queues"]["cases"], list)
     assert payload["kpis"]["pending_alerts"] >= 1
     assert isinstance(payload["critical_bar"]["p1_sla_breaches"], int)
     assert isinstance(payload["governance"]["alert_to_case_rate"], float)
+    assert isinstance(payload["freshness"]["generated_at"], str)
+    assert payload["freshness"]["stale_after_seconds"] == 120
+    assert "median_time_to_first_action_delta_minutes" in payload["throughput"]
+    assert "median_case_resolution_history" in payload["throughput"]
 
 
 @pytest.mark.unit

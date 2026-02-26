@@ -57,6 +57,13 @@ export interface SystemHealthSnapshot {
   unprocessed_transactions: number;
 }
 
+export interface DashboardFreshnessMeta {
+  generated_at: string;
+  stale_after_seconds: number;
+  source_watermark_at?: string | null;
+  source_lag_seconds?: number | null;
+}
+
 export interface CriticalDecisionBar {
   p1_sla_breaches: number;
   p2_sla_breaches: number;
@@ -78,11 +85,19 @@ export interface DashboardGovernanceSnapshot {
   alert_to_case_rate: number;
   fp_proxy_rate: number;
   audit_completeness_rate: number;
+  rule_drift_score_history?: number[] | null;
+  alert_to_case_rate_history?: number[] | null;
+  fp_proxy_rate_history?: number[] | null;
+  audit_completeness_rate_history?: number[] | null;
 }
 
 export interface DashboardThroughputSnapshot {
   median_time_to_first_action_minutes: number;
   median_case_resolution_hours: number;
+  median_time_to_first_action_delta_minutes?: number | null;
+  median_case_resolution_delta_hours?: number | null;
+  median_time_to_first_action_history?: number[] | null;
+  median_case_resolution_history?: number[] | null;
 }
 
 export interface DashboardOverviewResponse {
@@ -104,6 +119,9 @@ export interface DashboardOverviewResponse {
   queue_summary: DashboardQueueSummary;
   governance: DashboardGovernanceSnapshot;
   throughput: DashboardThroughputSnapshot;
+  queue_summary_previous?: DashboardQueueSummary | null;
+  critical_bar_previous?: CriticalDecisionBar | null;
+  freshness?: DashboardFreshnessMeta | null;
 }
 
 export type WorkItemSlaStatus = "breached" | "warning" | "ok" | "none";
@@ -139,6 +157,7 @@ export interface DashboardWorkQueueResponse {
   page_size: number;
   total: number;
   items: DashboardWorkQueueItem[];
+  freshness?: DashboardFreshnessMeta | null;
 }
 
 export interface WorkItemTimelineEvent {
@@ -166,6 +185,24 @@ export interface WorkItemActionHistoryItem {
   notes: string | null;
 }
 
+export interface ReviewProvenance {
+  submitted_by?: string | null;
+  submitted_at?: string | null;
+  reviewed_by?: string | null;
+  reviewed_at?: string | null;
+  review_outcome?: "approved" | "returned" | null;
+  return_reason?: string | null;
+}
+
+export interface DecisionTrace {
+  facts_used?: string[];
+  policy_rules_triggered?: string[];
+  ai_summary?: string | null;
+  ai_confidence?: number | null;
+  human_decision?: string | null;
+  override_reason?: string | null;
+}
+
 export interface WorkItemDetailResponse {
   work_item: DashboardWorkQueueItem;
   context_timeline: WorkItemTimelineEvent[];
@@ -177,6 +214,9 @@ export interface WorkItemDetailResponse {
   action_history: WorkItemActionHistoryItem[];
   review_requirement: ReviewRequirement;
   allowed_actions: WorkItemActionType[];
+  freshness?: DashboardFreshnessMeta | null;
+  review_provenance?: ReviewProvenance | null;
+  decision_trace?: DecisionTrace | null;
 }
 
 export type WorkItemActionType =
@@ -199,6 +239,7 @@ export interface WorkItemActionResponse {
   message: string;
   updated_status: string;
   created_case_id?: string | null;
+  next_recommended_item_id?: string | null;
 }
 
 export interface ReviewActionRequest {
@@ -214,6 +255,7 @@ export interface ReviewActionResponse {
   review_status: "approved" | "returned";
   updated_status: string;
   message: string;
+  next_recommended_item_id?: string | null;
 }
 
 export interface DashboardWorkQueueParams {

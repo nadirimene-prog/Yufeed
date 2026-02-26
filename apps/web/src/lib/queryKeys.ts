@@ -3,8 +3,12 @@ export const complianceKeys = {
   obligations: () => [...complianceKeys.all, "obligations"] as const,
   obligationsList: (params: Record<string, unknown>) =>
     [...complianceKeys.obligations(), "list", params] as const,
+  obligationsByRegulationList: (params: Record<string, unknown>) =>
+    [...complianceKeys.obligations(), "by-regulation", params] as const,
   obligationDetail: (id: number) =>
     [...complianceKeys.obligations(), "detail", id] as const,
+  obligationRegulationCoverage: (documentId: number) =>
+    [...complianceKeys.obligations(), "regulation-coverage", documentId] as const,
   obligationInternalRules: (id: number) =>
     [...complianceKeys.obligationDetail(id), "internal_rules"] as const,
   policies: () => [...complianceKeys.all, "policies"] as const,

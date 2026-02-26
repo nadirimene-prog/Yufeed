@@ -191,8 +191,8 @@ export default function InvestigationsPage() {
               <ArrowLeft className="w-5 h-5 text-slate-600" />
             </Link>
             <div className="flex items-center space-x-3">
-              <div className="p-2 bg-purple-100 rounded-lg">
-                <Search className="w-6 h-6 text-purple-600" />
+              <div className="p-2 bg-blue-100 rounded-lg">
+                <Search className="w-6 h-6 text-blue-600" />
               </div>
               <div>
                 <h1 className="text-lg font-semibold text-slate-900">

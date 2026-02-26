@@ -145,6 +145,8 @@ import type {
   BulkObligationApprovalRequest,
   BulkObligationApprovalResponse,
   ObligationCoverageStats,
+  ObligationsByRegulationResponse,
+  RegulationObligationCoverageResponse,
 } from "@/types/compliance";
 import type {
   InternalRule,
@@ -479,6 +481,33 @@ export const getObligations = async (params?: {
   const response = await apiClient.get<ObligationsListResponse>(
     "/api/obligations",
     { params },
+  );
+  return response.data;
+};
+
+export const getObligationsByRegulation = async (params?: {
+  status?: string;
+  jurisdiction?: string;
+  source_system?: string;
+  scope?: string;
+  q?: string;
+  include_status_counts?: boolean;
+  include_coverage?: boolean;
+  skip?: number;
+  limit?: number;
+}): Promise<ObligationsByRegulationResponse> => {
+  const response = await apiClient.get<ObligationsByRegulationResponse>(
+    "/api/obligations/by-regulation",
+    { params },
+  );
+  return response.data;
+};
+
+export const getRegulationObligationCoverage = async (
+  documentId: number,
+): Promise<RegulationObligationCoverageResponse> => {
+  const response = await apiClient.get<RegulationObligationCoverageResponse>(
+    `/api/obligations/regulations/${documentId}/coverage`,
   );
   return response.data;
 };

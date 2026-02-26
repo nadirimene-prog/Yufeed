@@ -1,5 +1,6 @@
 from datetime import datetime, timezone
 import uuid
+import re
 
 
 def utc_now() -> datetime:
@@ -36,7 +37,7 @@ from src.schemas.obligation_schemas import (
     ObligationApproval,
     TenantObligationApplicabilityUpdate,
 )
-from src.compliance.scope import normalize_scopes, scope_keywords
+from src.compliance.scope import normalize_scopes, parse_scopes, scope_keywords
 from src.websocket.manager import ws_manager
 from src.websocket.events import EventType, NotificationEvent
 from src.services.policy_library import ensure_master_policy_for_template
@@ -220,6 +221,221 @@ def _apply_scope_filter(query, scope: Optional[str], db: Session):
         conditions.append(LegalDocument.title.ilike(like))
         conditions.append(RegulatoryObligation.obligation_text.ilike(like))
     return query.filter(or_(*conditions))
+
+
+def _validate_scope_query_or_422(scope: Optional[str]) -> None:
+    parsed = parse_scopes(scope)
+    if not parsed.invalid_tokens:
+        return
+    supported = "psp, eme/emi, vasp/casp/psan, or all"
+    raise HTTPException(
+        status_code=422,
+        detail=(
+            "Invalid scope value(s): "
+            f"{', '.join(parsed.invalid_tokens)}. Supported values are {supported}."
+        ),
+    )
+
+
+def _apply_obligation_list_filters(
+    query,
+    *,
+    db: Session,
+    statuses: Optional[List[str]] = None,
+    jurisdiction: Optional[str] = None,
+    source_system: Optional[str] = None,
+    scope: Optional[str] = None,
+    q: Optional[str] = None,
+    effective_tenant_id: Optional[str] = None,
+):
+    if statuses:
+        query = query.filter(RegulatoryObligation.status.in_(statuses))
+    if jurisdiction:
+        query = query.filter(LegalDocument.jurisdiction == jurisdiction)
+    if source_system:
+        query = query.filter(LegalDocument.source_system == source_system)
+    if scope:
+        _validate_scope_query_or_422(scope)
+        query = _apply_scope_filter(query, scope, db)
+    if q:
+        like = f"%{q}%"
+        query = query.filter(
+            or_(
+                RegulatoryObligation.obligation_text.ilike(like),
+                RegulatoryObligation.article_ref.ilike(like),
+                LegalDocument.title.ilike(like),
+                LegalDocument.celex.ilike(like),
+            )
+        )
+
+    if effective_tenant_id:
+        query = query.outerjoin(
+            TenantObligationApplicability,
+            sa.and_(
+                TenantObligationApplicability.obligation_id == RegulatoryObligation.id,
+                TenantObligationApplicability.tenant_id == effective_tenant_id,
+            ),
+        ).filter(
+            or_(
+                TenantObligationApplicability.id.is_(None),
+                TenantObligationApplicability.applicability.in_(
+                    ["applicable", "partially_applicable"]
+                ),
+            )
+        )
+
+    return query
+
+
+def _status_count_dict(obligations: List[RegulatoryObligation]) -> dict:
+    counts = {"total": len(obligations)}
+    for status in ("draft", "in_review", "approved", "rejected", "deprecated"):
+        counts[status] = 0
+    for obligation in obligations:
+        status = (obligation.status or "draft").lower()
+        counts[status] = counts.get(status, 0) + 1
+    return counts
+
+
+def _article_ref_key(value: Optional[str]) -> Optional[str]:
+    if value is None:
+        return None
+    text = str(value).strip()
+    if not text:
+        return None
+    m = re.search(r"(?:article|art\.?)\s*(\d+[A-Za-z]?)", text, flags=re.IGNORECASE)
+    if m:
+        return m.group(1).lower()
+    m = re.search(r"^(\d+[A-Za-z]?)$", text)
+    if m:
+        return m.group(1).lower()
+    return None
+
+
+def _split_sentences_for_coverage(text: str) -> List[str]:
+    if not text:
+        return []
+    return [part.strip() for part in re.split(r"(?<=[.!?])\s+", text) if part.strip()]
+
+
+def _contains_obligation_signal_for_coverage(text: str) -> bool:
+    if not text:
+        return False
+    haystack = text.lower()
+    keywords = [
+        "shall",
+        "must",
+        "required to",
+        "is required to",
+        "shall not",
+        "must not",
+        "may not",
+        "may only",
+        "prohibited",
+        "is prohibited",
+    ]
+    return any(keyword in haystack for keyword in keywords)
+
+
+def _article_signal_score_for_coverage(text: str) -> int:
+    if not text:
+        return 0
+    return sum(
+        1
+        for sentence in _split_sentences_for_coverage(text)
+        if _contains_obligation_signal_for_coverage(sentence)
+    )
+
+
+def _doc_article_list_for_coverage(doc: LegalDocument) -> List[dict]:
+    raw = doc.article_breakdown
+    if isinstance(raw, dict):
+        raw = raw.get("articles")
+    if not isinstance(raw, list):
+        return []
+    articles: List[dict] = []
+    for article in raw:
+        if not isinstance(article, dict):
+            continue
+        content = str(article.get("content") or article.get("text") or "").strip()
+        if not content:
+            continue
+        number_raw = article.get("number") or article.get("article")
+        number = str(number_raw).strip() if number_raw is not None else None
+        articles.append(
+            {
+                "number": number,
+                "key": _article_ref_key(number),
+                "title": article.get("title"),
+                "signal_score": _article_signal_score_for_coverage(content),
+            }
+        )
+    return articles
+
+
+def _document_coverage_summary(
+    doc: LegalDocument,
+    obligations: List[RegulatoryObligation],
+) -> Optional[dict]:
+    articles = _doc_article_list_for_coverage(doc)
+    if not articles:
+        return None
+
+    signal_articles = [a for a in articles if int(a.get("signal_score") or 0) > 0]
+    signal_keys = {str(a["key"]) for a in signal_articles if a.get("key")}
+    obligation_keys = {
+        key
+        for key in (
+            _article_ref_key(getattr(obligation, "article_ref", None)) for obligation in obligations
+        )
+        if key
+    }
+    covered_signal_keys = signal_keys & obligation_keys
+    uncovered_signal_articles = [
+        {
+            "article": f"Article {article['number']}" if article.get("number") else None,
+            "signal_score": int(article.get("signal_score") or 0),
+        }
+        for article in signal_articles
+        if article.get("key") not in obligation_keys
+    ]
+    return {
+        "article_count": len(articles),
+        "articles_with_obligation_signal": len(signal_articles),
+        "referenced_article_count": len(obligation_keys),
+        "covered_signal_article_count": len(covered_signal_keys),
+        "uncovered_signal_article_count": len(uncovered_signal_articles),
+        "uncovered_signal_articles_sample": uncovered_signal_articles[:20],
+        "obligations_without_article_ref": sum(
+            1 for obligation in obligations if not _article_ref_key(obligation.article_ref)
+        ),
+    }
+
+
+def _document_summary_dict(
+    doc: LegalDocument,
+    *,
+    article_count: Optional[int] = None,
+    last_obligation_updated_at: Optional[datetime] = None,
+) -> dict:
+    if article_count is None:
+        article_count = len(_doc_article_list_for_coverage(doc))
+    return {
+        "id": doc.id,
+        "celex": doc.celex,
+        "title": doc.title or doc.celex or doc.source_reference or "Untitled document",
+        "jurisdiction": doc.jurisdiction,
+        "source_system": doc.source_system,
+        "publication_date": doc.publication_date.isoformat() if doc.publication_date else None,
+        "scope_tags": doc.scope_tags,
+        "analyzed_at": doc.analyzed_at.isoformat() if doc.analyzed_at else None,
+        "word_count": doc.word_count,
+        "article_count": article_count,
+        "content_extraction_method": doc.content_extraction_method,
+        "last_obligation_updated_at": (
+            last_obligation_updated_at.isoformat() if last_obligation_updated_at else None
+        ),
+    }
 
 
 def _template_score(template: PolicyTemplate, text: str) -> int:
@@ -464,41 +680,16 @@ def list_obligations(
     query = db.query(RegulatoryObligation, LegalDocument).join(
         LegalDocument, RegulatoryObligation.doc_id == LegalDocument.id
     )
-
-    if statuses:
-        query = query.filter(RegulatoryObligation.status.in_(statuses))
-    if jurisdiction:
-        query = query.filter(LegalDocument.jurisdiction == jurisdiction)
-    if source_system:
-        query = query.filter(LegalDocument.source_system == source_system)
-    if scope:
-        query = _apply_scope_filter(query, scope, db)
-    if q:
-        like = f"%{q}%"
-        query = query.filter(
-            or_(
-                RegulatoryObligation.obligation_text.ilike(like),
-                RegulatoryObligation.article_ref.ilike(like),
-                LegalDocument.title.ilike(like),
-                LegalDocument.celex.ilike(like),
-            )
-        )
-
-    if effective_tenant_id:
-        query = query.outerjoin(
-            TenantObligationApplicability,
-            sa.and_(
-                TenantObligationApplicability.obligation_id == RegulatoryObligation.id,
-                TenantObligationApplicability.tenant_id == effective_tenant_id,
-            ),
-        ).filter(
-            or_(
-                TenantObligationApplicability.id.is_(None),
-                TenantObligationApplicability.applicability.in_(
-                    ["applicable", "partially_applicable"]
-                ),
-            )
-        )
+    query = _apply_obligation_list_filters(
+        query,
+        db=db,
+        statuses=statuses,
+        jurisdiction=jurisdiction,
+        source_system=source_system,
+        scope=scope,
+        q=q,
+        effective_tenant_id=effective_tenant_id,
+    )
 
     total = query.count()
     status_counts = None
@@ -526,6 +717,227 @@ def list_obligations(
         response["status_counts"] = status_counts
 
     return response
+
+
+@router.get("/by-regulation")
+def list_obligations_by_regulation(
+    status: Optional[str] = Query(None, description="Comma-separated statuses"),
+    jurisdiction: Optional[str] = Query(None),
+    source_system: Optional[str] = Query(None),
+    scope: Optional[str] = Query(None, description="Comma-separated scope tags: psp,eme,vasp"),
+    q: Optional[str] = Query(None, description="Search text"),
+    include_status_counts: bool = Query(
+        False, description="Include counts of filtered obligations by status"
+    ),
+    include_coverage: bool = Query(True, description="Include document/article coverage summary"),
+    tenant_id: Optional[str] = Query(
+        None,
+        description="Filter by tenant applicability (defaults to current user tenant)",
+    ),
+    skip: int = Query(0, ge=0, description="Group offset (by regulation)"),
+    limit: int = Query(20, ge=1, le=100, description="Group page size (by regulation)"),
+    db: Session = Depends(get_db),
+    _: CurrentUser = Depends(
+        require_any_role(["admin", "compliance", "aml_officer", "auditor", "user"])
+    ),
+):
+    current_user = _
+    effective_tenant_id = _effective_tenant_id(current_user, tenant_id)
+    statuses = _normalize_statuses(status)
+
+    base_query = db.query(RegulatoryObligation, LegalDocument).join(
+        LegalDocument, RegulatoryObligation.doc_id == LegalDocument.id
+    )
+    filtered_query = _apply_obligation_list_filters(
+        base_query,
+        db=db,
+        statuses=statuses,
+        jurisdiction=jurisdiction,
+        source_system=source_system,
+        scope=scope,
+        q=q,
+        effective_tenant_id=effective_tenant_id,
+    )
+
+    total_obligations = filtered_query.count()
+    status_counts = None
+    if include_status_counts:
+        counts = (
+            filtered_query.with_entities(
+                RegulatoryObligation.status,
+                sa.func.count(RegulatoryObligation.id),
+            )
+            .group_by(RegulatoryObligation.status)
+            .all()
+        )
+        status_counts = {status: count for status, count in counts}
+
+    grouped_query = filtered_query.with_entities(
+        LegalDocument.id.label("doc_id"),
+        sa.func.max(RegulatoryObligation.updated_at).label("last_obligation_updated_at"),
+    ).group_by(LegalDocument.id)
+    grouped_subquery = grouped_query.subquery()
+    total_regulations = db.query(sa.func.count()).select_from(grouped_subquery).scalar() or 0
+
+    page_groups = (
+        grouped_query.order_by(
+            sa.func.max(RegulatoryObligation.updated_at).desc(),
+            LegalDocument.id.desc(),
+        )
+        .offset(skip)
+        .limit(limit)
+        .all()
+    )
+    page_doc_ids = [int(row.doc_id) for row in page_groups]
+    if not page_doc_ids:
+        response = {
+            "total_regulations": total_regulations,
+            "total_obligations": total_obligations,
+            "items": [],
+        }
+        if status_counts is not None:
+            response["status_counts"] = status_counts
+        return response
+
+    order_index = {doc_id: idx for idx, doc_id in enumerate(page_doc_ids)}
+    last_updated_by_doc = {
+        int(row.doc_id): getattr(row, "last_obligation_updated_at", None) for row in page_groups
+    }
+
+    filtered_rows = (
+        filtered_query.filter(LegalDocument.id.in_(page_doc_ids))
+        .order_by(
+            LegalDocument.id.asc(),
+            sa.case(
+                (RegulatoryObligation.article_ref.is_(None), 1),
+                else_=0,
+            ).asc(),
+            RegulatoryObligation.article_ref.asc(),
+            RegulatoryObligation.updated_at.desc(),
+            RegulatoryObligation.id.desc(),
+        )
+        .all()
+    )
+
+    filtered_by_doc: dict[int, dict] = {}
+    for obligation, doc in filtered_rows:
+        bucket = filtered_by_doc.setdefault(
+            int(doc.id),
+            {
+                "doc": doc,
+                "obligations": [],
+            },
+        )
+        bucket["obligations"].append(obligation)
+
+    visible_all_by_doc: dict[int, List[RegulatoryObligation]] = {
+        doc_id: [] for doc_id in page_doc_ids
+    }
+    if include_coverage:
+        all_visible_query = db.query(RegulatoryObligation).filter(
+            RegulatoryObligation.doc_id.in_(page_doc_ids)
+        )
+        if effective_tenant_id:
+            all_visible_query = all_visible_query.outerjoin(
+                TenantObligationApplicability,
+                sa.and_(
+                    TenantObligationApplicability.obligation_id == RegulatoryObligation.id,
+                    TenantObligationApplicability.tenant_id == effective_tenant_id,
+                ),
+            ).filter(
+                or_(
+                    TenantObligationApplicability.id.is_(None),
+                    TenantObligationApplicability.applicability.in_(
+                        ["applicable", "partially_applicable"]
+                    ),
+                )
+            )
+        all_visible_rows = all_visible_query.all()
+        for obligation in all_visible_rows:
+            visible_all_by_doc.setdefault(int(obligation.doc_id), []).append(obligation)
+
+    items: List[dict] = []
+    for doc_id in page_doc_ids:
+        bucket = filtered_by_doc.get(doc_id)
+        if not bucket:
+            continue
+        doc = bucket["doc"]
+        filtered_obligations = bucket["obligations"]
+        all_visible_obligations = visible_all_by_doc.get(doc_id) or filtered_obligations
+        coverage = (
+            _document_coverage_summary(doc, all_visible_obligations) if include_coverage else None
+        )
+
+        items.append(
+            {
+                "document": _document_summary_dict(
+                    doc,
+                    last_obligation_updated_at=last_updated_by_doc.get(doc_id),
+                ),
+                "filtered_obligation_count": len(filtered_obligations),
+                "obligation_counts": _status_count_dict(all_visible_obligations),
+                "coverage": coverage,
+                "obligations": [
+                    _obligation_to_dict(obligation, doc, db, tenant_id=effective_tenant_id)
+                    for obligation in filtered_obligations
+                ],
+            }
+        )
+
+    items.sort(key=lambda item: order_index.get(int(item["document"]["id"]), 10**9))
+    response = {
+        "total_regulations": total_regulations,
+        "total_obligations": total_obligations,
+        "items": items,
+    }
+    if status_counts is not None:
+        response["status_counts"] = status_counts
+    return response
+
+
+@router.get("/regulations/{document_id}/coverage")
+def get_regulation_obligation_coverage(
+    document_id: int,
+    tenant_id: Optional[str] = Query(
+        None,
+        description="Filter by tenant applicability (defaults to current user tenant)",
+    ),
+    db: Session = Depends(get_db),
+    current_user: CurrentUser = Depends(
+        require_any_role(["admin", "compliance", "aml_officer", "auditor", "user"])
+    ),
+):
+    effective_tenant_id = _effective_tenant_id(current_user, tenant_id)
+    doc = db.query(LegalDocument).filter(LegalDocument.id == document_id).first()
+    if not doc:
+        raise HTTPException(status_code=404, detail="Regulation document not found")
+
+    obligations_query = db.query(RegulatoryObligation).filter(
+        RegulatoryObligation.doc_id == document_id
+    )
+    if effective_tenant_id:
+        obligations_query = obligations_query.outerjoin(
+            TenantObligationApplicability,
+            sa.and_(
+                TenantObligationApplicability.obligation_id == RegulatoryObligation.id,
+                TenantObligationApplicability.tenant_id == effective_tenant_id,
+            ),
+        ).filter(
+            or_(
+                TenantObligationApplicability.id.is_(None),
+                TenantObligationApplicability.applicability.in_(
+                    ["applicable", "partially_applicable"]
+                ),
+            )
+        )
+    obligations = obligations_query.order_by(RegulatoryObligation.updated_at.desc()).all()
+    last_updated = max((obl.updated_at for obl in obligations if obl.updated_at), default=None)
+
+    return {
+        "document": _document_summary_dict(doc, last_obligation_updated_at=last_updated),
+        "obligation_counts": _status_count_dict(obligations),
+        "coverage": _document_coverage_summary(doc, obligations),
+    }
 
 
 @router.get("/{obligation_id}")

@@ -96,7 +96,7 @@ const statusConfig: Record<string, StatusConfig> = {
     label: "Investigating",
   },
   sar_filed: {
-    color: "bg-violet-50 text-violet-800",
+    color: "bg-indigo-50 text-indigo-800",
     label: "SAR Filed",
   },
   no_action: {

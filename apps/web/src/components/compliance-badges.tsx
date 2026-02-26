@@ -32,7 +32,7 @@ export function ComplianceDomainBadge({
     cft: "bg-red-100 text-red-800  ",
     sanctions: "bg-orange-100 text-orange-800  ",
     kyc: "bg-blue-100 text-blue-800  ",
-    cdd: "bg-cyan-100 text-cyan-800  ",
+    cdd: "bg-sky-100 text-sky-800  ",
     payments: "bg-green-100 text-green-800  ",
     crypto: "bg-indigo-100 text-indigo-800  ",
     gdpr: "bg-pink-100 text-pink-800  ",

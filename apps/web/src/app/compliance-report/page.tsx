@@ -415,7 +415,7 @@ export default function ComplianceReportPage() {
               </span>
             </h2>
 
-            <div className="bg-gradient-to-br from-blue-50 to-purple-50   rounded-lg shadow p-6 border border-blue-200 ">
+            <div className="bg-gradient-to-br from-blue-50 to-blue-50   rounded-lg shadow p-6 border border-blue-200 ">
               <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
                 <div className="text-center">
                   <p className="text-3xl font-bold text-blue-600 mb-2">
@@ -430,7 +430,7 @@ export default function ComplianceReportPage() {
                   <p className="text-sm text-slate-600 ">Active Rules</p>
                 </div>
                 <div className="text-center">
-                  <p className="text-3xl font-bold text-purple-600 mb-2">
+                  <p className="text-3xl font-bold text-blue-600 mb-2">
                     {metrics.regulatory_coverage.rules_with_regulations}
                   </p>
                   <p className="text-sm text-slate-600 ">
@@ -517,7 +517,7 @@ function MetricCard({
     orange: "text-orange-600 bg-orange-50 ",
     red: "text-red-600 bg-red-50 ",
     green: "text-green-600 bg-green-50 ",
-    purple: "text-purple-600 bg-purple-50 ",
+    purple: "text-blue-600 bg-blue-50 ",
   };
 
   return (

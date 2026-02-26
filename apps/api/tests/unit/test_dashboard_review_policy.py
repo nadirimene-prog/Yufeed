@@ -163,3 +163,4 @@ def test_review_endpoint_allows_independent_reviewer(db_session):
     assert response.success is True
     assert response.review_status == "approved"
     assert response.updated_status == "resolved"
+    assert hasattr(response, "next_recommended_item_id")

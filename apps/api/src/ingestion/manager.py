@@ -139,6 +139,15 @@ class IngestionManager:
             Tuple of (is_new: bool, obligations_created: int).
             ``(False, 0)`` when the entry is deduplicated.
         """
+        if not self.processor._matches_scope(entry.get("title") or "", entry):
+            logger.info(
+                "Skipping supervisory entry due to scope filter: source=%s link=%s title=%r",
+                source_system,
+                entry.get("link"),
+                entry.get("title"),
+            )
+            return False, 0
+
         dedup_key = self._build_supervisory_dedup_key(source_system, entry)
         alert = SupervisoryAlert(
             dedup_key=dedup_key,

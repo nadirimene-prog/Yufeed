@@ -2,6 +2,7 @@ import pytest
 from datetime import datetime, timezone
 
 from src.ingestion.processor import IngestionProcessor
+import src.ingestion.processor as processor_module
 from src import models
 
 
@@ -94,3 +95,32 @@ def test_ingestion_processor_new_and_existing(monkeypatch, db_session):
     # Parse date helper
     assert processor._parse_date("2024-01-01T00:00:00") is not None
     assert processor._parse_date((2024, 1, 1, 0, 0, 0)) is not None
+
+
+@pytest.mark.unit
+def test_ingestion_processor_scope_filter_invalid_config_fails_closed(monkeypatch, db_session):
+    processor = IngestionProcessor(db_session)
+    monkeypatch.setattr(processor_module.settings, "REGULATORY_SCOPE_FILTER", "aml,kyc")
+
+    assert (
+        processor._matches_scope(
+            "Payment services compliance update",
+            {"description": "PSD2 requirements for PSPs"},
+        )
+        is False
+    )
+
+
+@pytest.mark.unit
+def test_ingestion_processor_scope_filter_accepts_psan_alias(monkeypatch, db_session):
+    processor = IngestionProcessor(db_session)
+    monkeypatch.setattr(processor_module.settings, "REGULATORY_SCOPE_FILTER", "psan")
+
+    assert (
+        processor._matches_scope(
+            "Markets in Crypto-Assets regulation",
+            {"description": "Obligations for crypto-asset service providers", "topics": ["MiCA"]},
+        )
+        is True
+    )
+    assert processor._matches_scope("Public procurement notice", {"description": "roads"}) is False

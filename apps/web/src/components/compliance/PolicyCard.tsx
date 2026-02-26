@@ -186,7 +186,7 @@ export default function PolicyCard({
                 window.open(policy.source_url, "_blank");
               }
             }}
-            className="flex items-center justify-center gap-2 px-3 py-2 text-sm font-medium text-[#00d4ff] rounded-lg bg-[#00d4ff]/10 hover:bg-[#00d4ff]/20 transition-colors"
+            className="flex items-center justify-center gap-2 px-3 py-2 text-sm font-medium text-sky-500 rounded-lg bg-sky-500/10 hover:bg-sky-500/20 transition-colors"
           >
             <ExternalLink className="h-4 w-4" />
             External

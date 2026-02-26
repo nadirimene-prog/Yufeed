@@ -98,9 +98,9 @@ function TreeNode({
         {/* Icon */}
         {hasChildren ? (
           isExpanded ? (
-            <FolderOpen className="h-4 w-4 text-[#00d4ff]" />
+            <FolderOpen className="h-4 w-4 text-sky-500" />
           ) : (
-            <Folder className="h-4 w-4 text-[#00d4ff]" />
+            <Folder className="h-4 w-4 text-sky-500" />
           )
         ) : (
           <AlertTriangle

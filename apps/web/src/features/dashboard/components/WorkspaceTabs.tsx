@@ -10,6 +10,15 @@ export interface WorkspaceTab {
   content: ReactNode;
 }
 
+const PREFERRED_TAB_ORDER = [
+  "overview",
+  "actions",
+  "timeline",
+  "evidence",
+  "ai",
+  "comments",
+] as const;
+
 interface WorkspaceTabsProps {
   tabs: WorkspaceTab[];
   activeTab: string;
@@ -24,7 +33,15 @@ export function WorkspaceTabs({
   className,
 }: WorkspaceTabsProps) {
   const tabsId = useId();
-  const currentTab = tabs.find((tab) => tab.id === activeTab) ?? tabs[0];
+  const preferredIndex = (tabId: string) => {
+    const index = PREFERRED_TAB_ORDER.findIndex((value) => value === tabId);
+    return index === -1 ? Number.MAX_SAFE_INTEGER : index;
+  };
+  const orderedTabs = [...tabs].sort((a, b) => {
+    return preferredIndex(a.id) - preferredIndex(b.id);
+  });
+  const currentTab =
+    orderedTabs.find((tab) => tab.id === activeTab) ?? orderedTabs[0];
   const currentPanelId = `workspace-tabpanel-${tabsId}-${currentTab.id}`;
 
   return (
@@ -34,7 +51,7 @@ export function WorkspaceTabs({
         role="tablist"
         aria-label="Investigation workspace sections"
       >
-        {tabs.map((tab) => (
+        {orderedTabs.map((tab) => (
           <button
             key={tab.id}
             type="button"
@@ -45,10 +62,10 @@ export function WorkspaceTabs({
             tabIndex={activeTab === tab.id ? 0 : -1}
             onClick={() => onTabChange(tab.id)}
             className={cn(
-              "rounded-lg px-3 py-1.5 text-xs font-semibold uppercase tracking-wide transition",
+              "rounded-lg border px-3 py-1.5 text-xs font-semibold uppercase tracking-wide transition",
               activeTab === tab.id
-                ? "bg-primary/20 text-primary"
-                : "bg-white/5 text-white/60 hover:bg-white/10 hover:text-white",
+                ? "border-primary/30 bg-primary/10 text-primary"
+                : "border-border bg-slate-50 text-muted-foreground hover:bg-slate-100 hover:text-foreground",
             )}
           >
             {tab.label}

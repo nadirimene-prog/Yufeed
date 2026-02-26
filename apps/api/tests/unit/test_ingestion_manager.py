@@ -4,7 +4,7 @@ from datetime import datetime
 from src.ingestion.manager import IngestionManager
 import src.ingestion.manager as manager_module
 from src.ingestion.alerts import IngestionReport
-from src.models.compliance_workflow import RegulatorySource
+from src.models.compliance_workflow import RegulatorySource, SupervisoryAlert
 
 
 class DummyProcessor:
@@ -121,3 +121,29 @@ def test_process_source_advances_watermark_on_success(db_session, monkeypatch):
     assert report.status == "completed"
     assert source.last_ingested_at is not None
     assert source.last_ingested_at > previous_watermark
+
+
+@pytest.mark.unit
+def test_supervisory_entry_skipped_before_persist_when_out_of_scope(db_session, monkeypatch):
+    manager = IngestionManager(db_session)
+    monkeypatch.setattr(manager.processor, "_matches_scope", lambda *args, **kwargs: False)
+    monkeypatch.setattr(
+        manager_module,
+        "extract_obligations_from_alert",
+        lambda *args, **kwargs: (_ for _ in ()).throw(AssertionError("should not be called")),
+    )
+
+    is_new, created = manager._persist_supervisory_entry(
+        "tracfin",
+        {
+            "title": "Unrelated notice",
+            "description": "General administrative announcement",
+            "link": "https://example.test/note",
+            "published": None,
+            "jurisdiction": "FR",
+            "language": "fr",
+        },
+    )
+
+    assert (is_new, created) == (False, 0)
+    assert db_session.query(SupervisoryAlert).count() == 0

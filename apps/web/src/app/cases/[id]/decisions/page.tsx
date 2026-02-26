@@ -87,7 +87,7 @@ export default function CaseDecisionsPage() {
           <div className="flex items-center justify-between">
             <div>
               <h1 className="text-2xl font-bold text-slate-900  tracking-tight flex items-center gap-2">
-                <Gavel className="h-5 w-5 text-violet-500" />
+                <Gavel className="h-5 w-5 text-indigo-500" />
                 Decisions
               </h1>
               <p className="text-sm text-slate-500  mt-1">
@@ -97,7 +97,7 @@ export default function CaseDecisionsPage() {
 
             <button
               onClick={() => setShowCreate(true)}
-              className="text-sm px-4 py-2 rounded-xl bg-violet-600 text-white hover:bg-violet-700 transition flex items-center gap-1.5"
+              className="text-sm px-4 py-2 rounded-xl bg-indigo-600 text-white hover:bg-indigo-700 transition flex items-center gap-1.5"
             >
               <Plus className="h-4 w-4" />
               New Decision
@@ -158,7 +158,7 @@ export default function CaseDecisionsPage() {
                   <select
                     value={newDisposition}
                     onChange={(e) => setNewDisposition(e.target.value)}
-                    className="w-full rounded-xl border border-slate-200  bg-slate-50  px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-violet-500/30 text-slate-900 "
+                    className="w-full rounded-xl border border-slate-200  bg-slate-50  px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/30 text-slate-900 "
                   >
                     <option value="escalate">Escalate</option>
                     <option value="close_no_action">Close — No Action</option>
@@ -175,7 +175,7 @@ export default function CaseDecisionsPage() {
                     value={newRationale}
                     onChange={(e) => setNewRationale(e.target.value)}
                     rows={4}
-                    className="w-full rounded-xl border border-slate-200  bg-slate-50  px-3 py-2 text-sm text-slate-900  placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-violet-500/30"
+                    className="w-full rounded-xl border border-slate-200  bg-slate-50  px-3 py-2 text-sm text-slate-900  placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-indigo-500/30"
                     placeholder="Explain the rationale for this decision…"
                   />
                 </div>
@@ -194,7 +194,7 @@ export default function CaseDecisionsPage() {
                   className={cn(
                     "flex-1 text-sm px-4 py-2 rounded-xl text-white transition",
                     newRationale.trim()
-                      ? "bg-violet-600 hover:bg-violet-700"
+                      ? "bg-indigo-600 hover:bg-indigo-700"
                       : "bg-slate-300  cursor-not-allowed",
                   )}
                 >

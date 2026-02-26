@@ -337,7 +337,7 @@ export default function RuleBuilderPage() {
                   <Eye className="h-3.5 w-3.5" />
                   Payload Preview
                 </p>
-                <pre className="overflow-auto font-mono text-xs text-cyan-200">
+                <pre className="overflow-auto font-mono text-xs text-sky-200">
                   {JSON.stringify(previewPayload, null, 2)}
                 </pre>
               </div>

@@ -11,7 +11,7 @@ import {
   Search,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { SentinelHUD } from "./SentinelHUD";
+import { HorizonHUD } from "./SentinelHUD";
 
 interface WorkbenchLayoutProps {
   discoveryRail?: React.ReactNode;
@@ -70,7 +70,7 @@ export function WorkbenchLayout({
   return (
     <div className="relative flex flex-col min-h-[calc(100vh-theme(spacing.24))] w-full gap-2 p-2 md:p-4">
       {/* Global HUD */}
-      <SentinelHUD />
+      <HorizonHUD />
 
       <div
         className={cn(
@@ -174,7 +174,7 @@ export function WorkbenchLayout({
                   }}
                   className="absolute"
                 >
-                  <div className="h-1.5 w-1.5 rounded-full bg-cyan-400 shadow-[0_0_12px_rgba(34,211,238,0.8)]" />
+                  <div className="h-1.5 w-1.5 rounded-full bg-sky-400 shadow-[0_0_12px_rgba(56,189,248,0.8)]" />
                 </motion.div>
               ))}
             </div>
@@ -195,7 +195,7 @@ export function WorkbenchLayout({
                 animate={
                   isFlowing ? { scale: [1, 1.5, 1], rotate: [0, 180, 360] } : {}
                 }
-                className="h-1.5 w-1.5 rounded-full bg-cyan-500 shadow-[0_0_8px_rgba(0,212,255,0.6)]"
+                className="h-1.5 w-1.5 rounded-full bg-sky-500 shadow-[0_0_8px_rgba(14,165,233,0.6)]"
               />
             </div>
             <div className="flex items-center gap-2">

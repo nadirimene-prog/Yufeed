@@ -969,7 +969,7 @@ def retry_failed_ai_analysis(limit: int = 10):
     from src.models import LegalDocument
     from src.ai.analyzer import analyze_document
     from src.services.obligation_service import seed_obligations_for_doc
-    from src.compliance.scope import infer_scope_tags
+    from src.compliance.scope import infer_scope_tags, match_scope_filter
     from src.utils.time import utc_now
 
     logger.info(f"Starting AI analysis retry task, limit={limit}")
@@ -996,6 +996,7 @@ def retry_failed_ai_analysis(limit: int = 10):
         retried = 0
         succeeded = 0
         failed = 0
+        scope_filter_logged = False
 
         for item in items:
             retried += 1
@@ -1062,8 +1063,39 @@ def retry_failed_ai_analysis(limit: int = 10):
 
                 db.commit()
 
-                # Seed obligations
-                seed_obligations_for_doc(db, doc, allow_existing=True)
+                matched, parsed = match_scope_filter(
+                    settings.REGULATORY_SCOPE_FILTER,
+                    doc.title,
+                    doc.full_text,
+                    doc.ai_summary,
+                    doc.scope_tags,
+                    fail_closed_on_invalid=True,
+                )
+                if not scope_filter_logged:
+                    log_fn = logger.error if parsed.invalid_tokens else logger.info
+                    log_fn(
+                        "Parsed REGULATORY_SCOPE_FILTER raw=%r scopes=%s invalid=%s explicit_all=%s",
+                        settings.REGULATORY_SCOPE_FILTER,
+                        parsed.scopes,
+                        parsed.invalid_tokens,
+                        parsed.explicit_all,
+                    )
+                    scope_filter_logged = True
+
+                # Seed obligations only when scope matches and config is valid
+                if parsed.invalid_tokens:
+                    logger.warning(
+                        "Skipping obligation seeding during AI retry due to invalid scope filter: doc=%s invalid=%s",
+                        doc.celex,
+                        parsed.invalid_tokens,
+                    )
+                elif not matched:
+                    logger.info(
+                        "Skipping obligation seeding during AI retry due to scope filter: doc=%s",
+                        doc.celex,
+                    )
+                else:
+                    seed_obligations_for_doc(db, doc, allow_existing=True)
 
                 # Mark as resolved
                 item.status = "resolved"

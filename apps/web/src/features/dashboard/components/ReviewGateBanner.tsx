@@ -15,6 +15,8 @@ interface ReviewGateBannerProps {
   onReviewNotesChange: (value: string) => void;
   onApprove: () => void;
   onReturn: () => void;
+  onApproveAndNext?: () => void;
+  onReturnAndNext?: () => void;
 }
 
 export function ReviewGateBanner({
@@ -28,6 +30,8 @@ export function ReviewGateBanner({
   onReviewNotesChange,
   onApprove,
   onReturn,
+  onApproveAndNext,
+  onReturnAndNext,
 }: ReviewGateBannerProps) {
   if (!requirement?.required) {
     return null;
@@ -87,7 +91,7 @@ export function ReviewGateBanner({
         />
       </div>
 
-      <div className="mt-3 flex items-center gap-2">
+      <div className="mt-3 flex flex-wrap items-center gap-2">
         <Button
           variant="outline"
           size="sm"
@@ -97,6 +101,19 @@ export function ReviewGateBanner({
         >
           Approve review
         </Button>
+        {onApproveAndNext ? (
+          <Button
+            variant="outline"
+            size="sm"
+            data-dashboard-action-next="review-approve"
+            data-dashboard-action-next-primary="true"
+            className="border-orange-200 hover:bg-orange-100 hover:text-orange-900"
+            onClick={onApproveAndNext}
+            disabled={pending || hasValidationError}
+          >
+            Approve + Next
+          </Button>
+        ) : null}
         <Button
           variant="outline"
           size="sm"
@@ -106,6 +123,18 @@ export function ReviewGateBanner({
         >
           Return to analyst
         </Button>
+        {onReturnAndNext ? (
+          <Button
+            variant="outline"
+            size="sm"
+            data-dashboard-action-next="review-return"
+            className="border-orange-200 hover:bg-orange-100 hover:text-orange-900"
+            onClick={onReturnAndNext}
+            disabled={pending || hasValidationError}
+          >
+            Return + Next
+          </Button>
+        ) : null}
       </div>
     </section>
   );

@@ -31,8 +31,8 @@ export function SpotlightExplorer({
     <div className="flex flex-col gap-6 rounded-2xl border border-white/10 bg-void-950/20 p-6">
       <div className="flex items-center justify-between border-b border-white/5 pb-4">
         <div className="flex items-center gap-3">
-          <div className="rounded-lg bg-cyan-500/10 p-2 border border-cyan-500/20">
-            <FileText size={18} className="text-cyan-400" />
+          <div className="rounded-lg bg-sky-500/10 p-2 border border-sky-500/20">
+            <FileText size={18} className="text-sky-400" />
           </div>
           <div>
             <h3 className="text-sm font-semibold text-white/90">
@@ -100,9 +100,9 @@ export function SpotlightExplorer({
 
               {section.isObligation && (
                 <div className="flex items-center gap-2">
-                  <div className="flex items-center gap-1 rounded-md bg-cyan-400/10 px-1.5 py-0.5 border border-cyan-400/20">
-                    <Sparkles size={8} className="text-cyan-400" />
-                    <span className="text-[8px] font-bold text-cyan-400 uppercase">
+                  <div className="flex items-center gap-1 rounded-md bg-sky-400/10 px-1.5 py-0.5 border border-sky-400/20">
+                    <Sparkles size={8} className="text-sky-400" />
+                    <span className="text-[8px] font-bold text-sky-400 uppercase">
                       AI Detected
                     </span>
                   </div>

@@ -135,7 +135,7 @@ services:
       LEGIFRANCE_API_TOKEN: ${LEGIFRANCE_API_TOKEN:-}
       # Other
       RSS_USER_AGENT: Yufeed/1.0
-      REGULATORY_SCOPE_FILTER: all
+      REGULATORY_SCOPE_FILTER: ${REGULATORY_SCOPE_FILTER:-psp,eme,vasp}
     healthcheck:
       test: ["CMD-SHELL", "curl -f http://localhost:8000/healthz || exit 1"]
       interval: 30s
@@ -204,7 +204,7 @@ services:
       EMAILS_FROM_EMAIL: info@yufeed.eu
       # Other
       RSS_USER_AGENT: Yufeed/1.0
-      REGULATORY_SCOPE_FILTER: all
+      REGULATORY_SCOPE_FILTER: ${REGULATORY_SCOPE_FILTER:-psp,eme,vasp}
     volumes:
       - ./apps/api:/app
     networks:
@@ -264,7 +264,7 @@ services:
       EMAILS_FROM_EMAIL: info@yufeed.eu
       # Other
       RSS_USER_AGENT: Yufeed/1.0
-      REGULATORY_SCOPE_FILTER: all
+      REGULATORY_SCOPE_FILTER: ${REGULATORY_SCOPE_FILTER:-psp,eme,vasp}
     volumes:
       - ./apps/api:/app
     networks:

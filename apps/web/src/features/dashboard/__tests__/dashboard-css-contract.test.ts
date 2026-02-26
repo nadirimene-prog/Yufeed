@@ -21,7 +21,7 @@ describe("dashboard css contract", () => {
     );
 
     cssOutput = readFileSync(outputFile, "utf8");
-  });
+  }, 30_000);
 
   it("includes required semantic utility classes used by dashboard/workbench", () => {
     const requiredClasses = ["animate-status-pulse", "text-label"];

@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import {
   Clock3,
@@ -25,8 +25,15 @@ import {
   slaBadgeClass,
 } from "@/features/dashboard/utils";
 import AiRecommendationCard from "@/features/dashboard/components/AiRecommendationCard";
+import DataFreshnessBadge from "@/features/dashboard/components/DataFreshnessBadge";
+import DecisionTraceCard from "@/features/dashboard/components/DecisionTraceCard";
 import ReviewGateBanner from "@/features/dashboard/components/ReviewGateBanner";
+import ReviewProvenanceCard from "@/features/dashboard/components/ReviewProvenanceCard";
 import WorkspaceTabs from "@/features/dashboard/components/WorkspaceTabs";
+import {
+  readDashboardLocalDraft,
+  useDashboardDraftAutosave,
+} from "@/features/dashboard/hooks/useDashboardDraftAutosave";
 import { cn } from "@/lib/utils";
 import { useWorkspaceUsers } from "@/hooks/queries/useSpecializedData";
 import CaseComments from "@/components/workbench/CaseComments";
@@ -45,7 +52,12 @@ interface InvestigationWorkspaceProps {
   currentUserId?: string | null;
   onAction: (payload: WorkItemActionRequest) => void;
   onReview: (payload: ReviewActionRequest) => void;
-  onSaveDraft: (payload: { narrative: string; notes: string }) => void;
+  onActionAndNext?: (payload: WorkItemActionRequest) => void;
+  onReviewAndNext?: (payload: ReviewActionRequest) => void;
+  onSaveDraft: (
+    payload: { narrative: string; notes: string },
+    options?: { silent?: boolean; source?: "manual" | "autosave" },
+  ) => Promise<void>;
   onSnoozeAlert?: (payload: { durationHours: number; reason?: string }) => void;
 }
 
@@ -67,6 +79,22 @@ function relativeTime(value: string) {
   return `${Math.floor(hours / 24)}d ago`;
 }
 
+function formatAutosaveStatusLabel(
+  status: "idle" | "saved" | "saving" | "retrying" | "error",
+  lastSavedAt: string | null,
+) {
+  if (status === "saving") return "Saving…";
+  if (status === "retrying") return "Retrying autosave…";
+  if (status === "error") return "Autosave failed";
+  if (status === "saved") {
+    if (!lastSavedAt) return "Saved";
+    const parsed = new Date(lastSavedAt);
+    if (Number.isNaN(parsed.valueOf())) return "Saved";
+    return `Saved ${parsed.toLocaleTimeString([], { hour: "numeric", minute: "2-digit" })}`;
+  }
+  return "Draft changes are local";
+}
+
 export function InvestigationWorkspace({
   selectedItem,
   detail,
@@ -81,6 +109,8 @@ export function InvestigationWorkspace({
   currentUserId,
   onAction,
   onReview,
+  onActionAndNext,
+  onReviewAndNext,
   onSaveDraft,
   onSnoozeAlert,
 }: InvestigationWorkspaceProps) {
@@ -95,7 +125,70 @@ export function InvestigationWorkspace({
   );
   const [snoozeHours, setSnoozeHours] = useState(24);
   const [snoozeReason, setSnoozeReason] = useState("");
+  const [narrativeDirty, setNarrativeDirty] = useState(false);
+  const [notesDirty, setNotesDirty] = useState(false);
   const workspaceUsersQuery = useWorkspaceUsers();
+
+  useEffect(() => {
+    setNotes("");
+    setSubmittedBy("");
+    setReviewNotes("");
+    setActiveTab("overview");
+    setProposedAction("close");
+    setSnoozeHours(24);
+    setSnoozeReason("");
+    setAssignee(selectedItem?.owner ?? "");
+    const persistedDraft = readDashboardLocalDraft(selectedItem?.item_id);
+    setNarrativeDraft(persistedDraft?.narrative ?? "");
+    setNotes(persistedDraft?.notes ?? "");
+    setNarrativeDirty(Boolean(persistedDraft));
+    setNotesDirty(Boolean(persistedDraft));
+  }, [selectedItem?.item_id]);
+
+  useEffect(() => {
+    if (!selectedItem) return;
+    if (!detail) return;
+    setAssignee(detail.work_item.owner ?? selectedItem.owner ?? "");
+    setNarrativeDraft((current) => {
+      if (narrativeDirty) return current;
+      if (current.trim().length > 0) return current;
+      return detail.narrative ?? "";
+    });
+  }, [
+    detail?.narrative,
+    detail?.work_item.owner,
+    selectedItem?.item_id,
+    selectedItem?.owner,
+    narrativeDirty,
+  ]);
+
+  const draftAutosave = useDashboardDraftAutosave({
+    itemId: selectedItem?.item_id ?? null,
+    narrative: narrativeDraft,
+    notes,
+    enabled: Boolean(selectedItem),
+    dirty: narrativeDirty || notesDirty,
+    onSaveDraft,
+    onSaved: () => {
+      setNarrativeDirty(false);
+      setNotesDirty(false);
+    },
+  });
+
+  const autosaveStatusLabel = formatAutosaveStatusLabel(
+    draftAutosave.status,
+    draftAutosave.lastSavedAt,
+  );
+
+  const handleTabChange = (nextTab: string) => {
+    if ((narrativeDirty || notesDirty) && selectedItem) {
+      void draftAutosave.saveNow({
+        silent: true,
+        source: "autosave",
+      });
+    }
+    setActiveTab(nextTab);
+  };
 
   const allowedActions = useMemo(
     () => detail?.allowed_actions ?? [],
@@ -115,8 +208,12 @@ export function InvestigationWorkspace({
   );
 
   const content = (
-    <section className="flex h-full min-h-0 flex-col rounded-2xl border border-border bg-white p-3 shadow-sm sm:p-4">
-      <div className="mb-3 flex items-center justify-between">
+    <section
+      data-dashboard-workspace-panel
+      tabIndex={-1}
+      className="flex h-full min-h-0 flex-col rounded-2xl border border-border bg-white p-3 shadow-sm sm:p-4 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/20"
+    >
+      <div className="mb-3 flex items-center justify-between gap-2">
         <div>
           <h2 className="text-sm font-semibold text-foreground">
             Investigation Workspace
@@ -125,11 +222,14 @@ export function InvestigationWorkspace({
             Decision-ready context and controlled actions.
           </p>
         </div>
-        {mobileOpen && onCloseMobile ? (
-          <Button variant="outline" size="sm" onClick={onCloseMobile}>
-            Close
-          </Button>
-        ) : null}
+        <div className="flex items-center gap-2">
+          <DataFreshnessBadge freshness={detail?.freshness ?? null} label="Detail" compact />
+          {mobileOpen && onCloseMobile ? (
+            <Button variant="outline" size="sm" onClick={onCloseMobile}>
+              Close
+            </Button>
+          ) : null}
+        </div>
       </div>
 
       {!selectedItem ? (
@@ -207,15 +307,15 @@ export function InvestigationWorkspace({
 
           <WorkspaceTabs
             activeTab={activeTab}
-            onTabChange={setActiveTab}
+            onTabChange={handleTabChange}
             tabs={[
               {
                 id: "overview",
                 label: "Overview",
                 content: (
-                  <div className="space-y-3">
-                    <div className="grid grid-cols-1 gap-2 md:grid-cols-2">
-                      <div className="rounded-xl border border-border bg-slate-50 p-3">
+                  <div className="rounded-xl border border-border bg-slate-50 p-3">
+                    <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
+                      <section>
                         <h3 className="mb-2 flex items-center gap-2 text-xs font-semibold uppercase tracking-wide text-foreground">
                           <Link2 className="h-4 w-4 text-muted-foreground" />
                           Linked Entities
@@ -237,9 +337,9 @@ export function InvestigationWorkspace({
                             </p>
                           )}
                         </div>
-                      </div>
+                      </section>
 
-                      <div className="rounded-xl border border-border bg-slate-50 p-3">
+                      <section className="md:border-l md:border-border md:pl-3">
                         <h3 className="mb-2 flex items-center gap-2 text-xs font-semibold uppercase tracking-wide text-foreground">
                           <ExternalLink className="h-4 w-4 text-muted-foreground" />
                           Linked Transactions
@@ -257,34 +357,52 @@ export function InvestigationWorkspace({
                             </p>
                           )}
                         </div>
-                      </div>
+                      </section>
                     </div>
 
-                    <div className="rounded-xl border border-border bg-slate-50 p-3">
+                    <div className="mt-3 border-t border-border pt-3">
                       <h3 className="mb-2 flex items-center gap-2 text-xs font-semibold uppercase tracking-wide text-foreground">
                         <NotebookPen className="h-4 w-4 text-muted-foreground" />
                         Narrative Draft
                       </h3>
                       <textarea
                         value={narrativeDraft}
-                        onChange={(event) =>
-                          setNarrativeDraft(event.target.value)
-                        }
+                        onChange={(event) => {
+                          setNarrativeDirty(true);
+                          setNarrativeDraft(event.target.value);
+                        }}
                         className="h-28 w-full rounded-lg border border-border bg-white p-2 text-xs text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/20"
                         placeholder="Editable rationale for case notes / SAR narrative"
                       />
-                      <div className="mt-2 flex justify-end">
+                      <div className="mt-2 flex flex-wrap items-center justify-between gap-2">
+                        <p
+                          className={cn(
+                            "text-[11px]",
+                            draftAutosave.status === "error"
+                              ? "text-red-600"
+                              : "text-muted-foreground",
+                          )}
+                          aria-live="polite"
+                        >
+                          {autosaveStatusLabel}
+                        </p>
                         <Button
                           variant="outline"
                           size="sm"
                           disabled={draftPending}
-                          onClick={() =>
-                            onSaveDraft({ narrative: narrativeDraft, notes })
-                          }
+                          onClick={() => {
+                            void draftAutosave.saveNow({
+                              source: "manual",
+                            });
+                          }}
                         >
                           {draftPending ? "Saving..." : "Save Draft"}
                         </Button>
                       </div>
+                    </div>
+
+                    <div className="mt-3 border-t border-border pt-3">
+                      <DecisionTraceCard trace={detail?.decision_trace ?? null} compact />
                     </div>
                   </div>
                 ),
@@ -387,6 +505,7 @@ export function InvestigationWorkspace({
                           </label>
                           <input
                             id="assignee-input"
+                            data-dashboard-assignee-input
                             value={assignee}
                             onChange={(event) =>
                               setAssignee(event.target.value)
@@ -413,7 +532,10 @@ export function InvestigationWorkspace({
                           <input
                             id="notes-input"
                             value={notes}
-                            onChange={(event) => setNotes(event.target.value)}
+                            onChange={(event) => {
+                              setNotesDirty(true);
+                              setNotes(event.target.value);
+                            }}
                             placeholder="Action notes"
                             className="h-9 w-full rounded-lg border border-border bg-white px-2 text-xs text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/20"
                           />
@@ -421,33 +543,60 @@ export function InvestigationWorkspace({
                       </div>
 
                       <div className="flex flex-wrap gap-2">
-                        {actionButtons.map((entry) => (
-                          <Button
-                            key={entry.key}
-                            variant="outline"
-                            size="sm"
-                            disabled={
-                              actionPending ||
-                              (entry.key === "assign" &&
-                                assignee.trim().length === 0)
-                            }
-                            onClick={() => {
-                              if (entry.key === "close")
-                                setProposedAction("close");
-                              if (entry.key === "create_case")
-                                setProposedAction("approve");
-                              onAction({
-                                action: entry.key,
-                                assignee:
-                                  entry.key === "assign" ? assignee : undefined,
-                                notes,
-                                sar_required: selectedItem.sar_required,
-                              });
-                            }}
-                          >
-                            {entry.label}
-                          </Button>
-                        ))}
+                        {actionButtons.map((entry) => {
+                          const disabled =
+                            actionPending ||
+                            (entry.key === "assign" && assignee.trim().length === 0);
+                          const payload = {
+                            action: entry.key,
+                            assignee: entry.key === "assign" ? assignee : undefined,
+                            notes,
+                            sar_required: selectedItem.sar_required,
+                          } satisfies WorkItemActionRequest;
+
+                          return (
+                            <div key={entry.key} className="flex items-center gap-2">
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                data-dashboard-action={entry.key}
+                                disabled={disabled}
+                                onClick={() => {
+                                  if (entry.key === "close")
+                                    setProposedAction("close");
+                                  if (entry.key === "create_case")
+                                    setProposedAction("approve");
+                                  onAction(payload);
+                                }}
+                              >
+                                {entry.label}
+                              </Button>
+                              {onActionAndNext ? (
+                                <Button
+                                  variant="outline"
+                                  size="sm"
+                                  data-dashboard-action-next={entry.key}
+                                  data-dashboard-action-next-primary={
+                                    entry.key === "close" ||
+                                    entry.key === "create_case"
+                                      ? "true"
+                                      : undefined
+                                  }
+                                  disabled={disabled}
+                                  onClick={() => {
+                                    if (entry.key === "close")
+                                      setProposedAction("close");
+                                    if (entry.key === "create_case")
+                                      setProposedAction("approve");
+                                    onActionAndNext(payload);
+                                  }}
+                                >
+                                  + Next
+                                </Button>
+                              ) : null}
+                            </div>
+                          );
+                        })}
                       </div>
 
                       {selectedItem.kind === "alert" && onSnoozeAlert ? (
@@ -494,6 +643,12 @@ export function InvestigationWorkspace({
                       ) : null}
                     </div>
 
+                    <ReviewProvenanceCard
+                      provenance={detail?.review_provenance ?? null}
+                    />
+
+                    <DecisionTraceCard trace={detail?.decision_trace ?? null} />
+
                     <ReviewGateBanner
                       requirement={detail?.review_requirement ?? null}
                       submittedBy={submittedBy}
@@ -512,6 +667,18 @@ export function InvestigationWorkspace({
                           sar_required: selectedItem.sar_required,
                         })
                       }
+                      onApproveAndNext={
+                        onReviewAndNext
+                          ? () =>
+                              onReviewAndNext({
+                                proposed_action: proposedAction,
+                                decision: "approve",
+                                submitted_by: submittedBy,
+                                review_notes: reviewNotes,
+                                sar_required: selectedItem.sar_required,
+                              })
+                          : undefined
+                      }
                       onReturn={() =>
                         onReview({
                           proposed_action: proposedAction,
@@ -520,6 +687,18 @@ export function InvestigationWorkspace({
                           review_notes: reviewNotes,
                           sar_required: selectedItem.sar_required,
                         })
+                      }
+                      onReturnAndNext={
+                        onReviewAndNext
+                          ? () =>
+                              onReviewAndNext({
+                                proposed_action: proposedAction,
+                                decision: "return",
+                                submitted_by: submittedBy,
+                                review_notes: reviewNotes,
+                                sar_required: selectedItem.sar_required,
+                              })
+                          : undefined
                       }
                     />
 

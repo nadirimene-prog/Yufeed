@@ -12,19 +12,19 @@ import {
 } from "lucide-react";
 import { getAuthUserProfile } from "@/lib/auth";
 
-interface SentinelHUDProps {
+interface HorizonHUDProps {
   latencyMs?: number | null;
   signalsPerSecond?: number | null;
   complianceBadge?: string;
   animateStatus?: boolean;
 }
 
-export function SentinelHUD({
+export function HorizonHUD({
   latencyMs = null,
   signalsPerSecond = null,
   complianceBadge = "SOC2 Verified",
   animateStatus = false,
-}: SentinelHUDProps) {
+}: HorizonHUDProps) {
   const [pulseScale, setPulseScale] = useState(1);
   const profile = React.useMemo(() => getAuthUserProfile(), []);
 
@@ -134,4 +134,4 @@ export function SentinelHUD({
   );
 }
 
-export default SentinelHUD;
+export default HorizonHUD;

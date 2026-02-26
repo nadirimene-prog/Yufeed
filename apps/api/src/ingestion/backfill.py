@@ -14,6 +14,8 @@ from typing import Optional
 
 from sqlalchemy.orm import Session
 from sqlalchemy import or_
+import sqlalchemy as sa
+from sqlalchemy.dialects import postgresql
 
 from src.models import LegalDocument, LegalDocumentText
 from src.ingestion.content_extractor import ContentExtractor
@@ -23,7 +25,7 @@ from src.ai.analyzer import analyze_document
 from src.ai.cost_tracker import log_usage_from_analysis
 from src.ai.rag_indexer import RAGIndexer
 from src.services.obligation_service import seed_obligations_for_doc
-from src.compliance.scope import infer_scope_tags
+from src.compliance.scope import infer_scope_tags, match_scope_filter, parse_scopes
 from src.config import settings
 from src.utils.time import utc_now
 
@@ -42,6 +44,30 @@ class ContentBackfillService:
         self.db = db
         self.extractor = ContentExtractor()
         self.rag_indexer = RAGIndexer(db) if settings.RAG_INDEX_ENABLED else None
+        self._scope_filter_logged = False
+
+    def _log_scope_filter_config_once(self, parsed) -> None:
+        if self._scope_filter_logged:
+            return
+        raw = settings.REGULATORY_SCOPE_FILTER
+        log_fn = logger.error if parsed.invalid_tokens else logger.info
+        log_fn(
+            "Parsed REGULATORY_SCOPE_FILTER raw=%r scopes=%s invalid=%s explicit_all=%s",
+            raw,
+            parsed.scopes,
+            parsed.invalid_tokens,
+            parsed.explicit_all,
+        )
+        self._scope_filter_logged = True
+
+    def _matches_runtime_scope(self, *values) -> bool:
+        matched, parsed = match_scope_filter(
+            settings.REGULATORY_SCOPE_FILTER,
+            *values,
+            fail_closed_on_invalid=True,
+        )
+        self._log_scope_filter_config_once(parsed)
+        return matched and not parsed.invalid_tokens
 
     def find_candidates(
         self,
@@ -72,6 +98,27 @@ class ContentBackfillService:
                 LegalDocument.full_text == "",
             ),
         )
+
+        parsed = parse_scopes(settings.REGULATORY_SCOPE_FILTER)
+        self._log_scope_filter_config_once(parsed)
+        if parsed.invalid_tokens:
+            logger.error(
+                "Invalid REGULATORY_SCOPE_FILTER for content backfill; failing closed invalid=%s",
+                parsed.invalid_tokens,
+            )
+            return []
+
+        if parsed.scopes and not parsed.explicit_all:
+            dialect = self.db.get_bind().dialect.name if self.db.get_bind() else ""
+            if dialect == "postgresql":
+                tag_conditions = [
+                    sa.cast(LegalDocument.scope_tags, postgresql.JSONB).op("@>")(
+                        sa.func.jsonb_build_array(scope_key)
+                    )
+                    for scope_key in parsed.scopes
+                ]
+                if tag_conditions:
+                    query = query.filter(or_(LegalDocument.scope_tags.is_(None), *tag_conditions))
 
         if language:
             # Prefer documents in the specified language
@@ -170,10 +217,22 @@ class ContentBackfillService:
 
             # Run AI analysis if requested
             if analyze:
-                try:
-                    self._analyze_document(doc)
-                except Exception as ai_err:
-                    logger.warning(f"AI analysis failed for {celex}: {ai_err}")
+                if not self._matches_runtime_scope(
+                    doc.title,
+                    doc.full_text,
+                    doc.ai_summary,
+                    doc.scope_tags,
+                ):
+                    logger.info(
+                        "Skipping backfill AI analysis due to scope filter: celex=%s title=%r",
+                        celex,
+                        doc.title,
+                    )
+                else:
+                    try:
+                        self._analyze_document(doc)
+                    except Exception as ai_err:
+                        logger.warning(f"AI analysis failed for {celex}: {ai_err}")
 
             return True
 

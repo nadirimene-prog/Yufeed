@@ -101,7 +101,7 @@ export default function SearchPage() {
 
       <div className="grid gap-8 lg:grid-cols-4">
         <div className="lg:col-span-1">
-          <div className="sticky top-24 rounded-xl border border-slate-200 bg-white p-6 shadow-sm   backdrop-blur-sm">
+          <div className="sticky top-24 rounded-xl border border-slate-200 bg-white p-6 shadow-sm">
             <Filters filters={filters} onChange={setFilters} />
           </div>
         </div>

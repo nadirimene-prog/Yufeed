@@ -29,7 +29,7 @@ export default function QueryPage() {
               description="Uses Claude Sonnet 4 for accurate, context-aware answers"
             />
             <FeatureCard
-              icon={<Zap className="h-5 w-5 text-purple-600" />}
+              icon={<Zap className="h-5 w-5 text-blue-600" />}
               title="RAG Technology"
               description="Retrieves relevant documents and generates precise answers"
             />

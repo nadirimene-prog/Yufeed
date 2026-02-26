@@ -345,6 +345,55 @@ export interface Obligation {
   };
 }
 
+export interface RegulationObligationCoverageSummary {
+  article_count: number;
+  articles_with_obligation_signal: number;
+  referenced_article_count: number;
+  covered_signal_article_count: number;
+  uncovered_signal_article_count: number;
+  uncovered_signal_articles_sample?: Array<{
+    article?: string | null;
+    signal_score: number;
+  }>;
+  obligations_without_article_ref: number;
+}
+
+export interface RegulationDocumentSummary {
+  id: number;
+  celex?: string;
+  title: string;
+  jurisdiction?: string;
+  source_system?: string;
+  publication_date?: string;
+  scope_tags?: string[];
+  analyzed_at?: string;
+  word_count?: number;
+  article_count?: number;
+  content_extraction_method?: string;
+  last_obligation_updated_at?: string;
+}
+
+export interface ObligationsByRegulationGroup {
+  document: RegulationDocumentSummary;
+  filtered_obligation_count: number;
+  obligation_counts: Record<string, number>;
+  coverage?: RegulationObligationCoverageSummary | null;
+  obligations: Obligation[];
+}
+
+export interface ObligationsByRegulationResponse {
+  total_regulations: number;
+  total_obligations: number;
+  status_counts?: Record<string, number>;
+  items: ObligationsByRegulationGroup[];
+}
+
+export interface RegulationObligationCoverageResponse {
+  document: RegulationDocumentSummary;
+  obligation_counts: Record<string, number>;
+  coverage?: RegulationObligationCoverageSummary | null;
+}
+
 export interface ObligationApprovalData {
   status: ObligationStatus;
   note?: string;

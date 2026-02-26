@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from typing import Any, Iterable, List, Optional
+from typing import Any, Iterable, List, NamedTuple, Optional
 
 SCOPE_KEYWORDS = {
     "psp": [
@@ -53,26 +53,76 @@ SCOPE_ALIASES = {
     "e-money": "eme",
     "emoney": "eme",
     "e_money": "eme",
+    "psan": "vasp",
     "psp": "psp",
     "vasp": "vasp",
     "casp": "vasp",
 }
 
+SCOPE_ALL_TOKENS = {"all", "*", "any"}
+
+
+class ScopeParseResult(NamedTuple):
+    scopes: List[str]
+    invalid_tokens: List[str]
+    explicit_all: bool
+    tokens: List[str]
+
+
+def _tokenize_scope_input(scope: Optional[Any]) -> List[str]:
+    if scope is None:
+        return []
+    if isinstance(scope, str):
+        raw_tokens = scope.split(",")
+    elif isinstance(scope, (list, tuple, set)):
+        raw_tokens = []
+        for item in scope:
+            if item is None:
+                continue
+            raw_tokens.extend(str(item).split(","))
+    else:
+        raw_tokens = str(scope).split(",")
+    return [item.strip().lower() for item in raw_tokens if str(item).strip()]
+
+
+def parse_scopes(scope: Optional[Any]) -> ScopeParseResult:
+    tokens = _tokenize_scope_input(scope)
+    if not tokens:
+        return ScopeParseResult(scopes=[], invalid_tokens=[], explicit_all=False, tokens=[])
+
+    explicit_all = any(token in SCOPE_ALL_TOKENS for token in tokens)
+    normalized: List[str] = []
+    invalid_tokens: List[str] = []
+
+    for token in tokens:
+        if token in SCOPE_ALL_TOKENS:
+            continue
+        canonical = SCOPE_ALIASES.get(token, token)
+        if canonical in SCOPE_KEYWORDS:
+            if canonical not in normalized:
+                normalized.append(canonical)
+            continue
+        if token not in invalid_tokens:
+            invalid_tokens.append(token)
+
+    return ScopeParseResult(
+        scopes=normalized,
+        invalid_tokens=invalid_tokens,
+        explicit_all=explicit_all,
+        tokens=tokens,
+    )
+
 
 def normalize_scopes(scope: Optional[str]) -> List[str]:
-    if not scope:
+    parsed = parse_scopes(scope)
+    if parsed.explicit_all:
         return []
-    tokens = [item.strip().lower() for item in scope.split(",") if item.strip()]
-    if not tokens:
-        return []
-    if any(token in {"all", "*", "any"} for token in tokens):
-        return []
-    normalized: List[str] = []
-    for token in tokens:
-        canonical = SCOPE_ALIASES.get(token, token)
-        if canonical in SCOPE_KEYWORDS and canonical not in normalized:
-            normalized.append(canonical)
-    return normalized
+    return parsed.scopes
+
+
+def normalize_scope_tags(values: Optional[Any]) -> List[str]:
+    parsed = parse_scopes(values)
+    return parsed.scopes
 
 
 def scope_keywords(scopes: Iterable[str]) -> List[str]:
@@ -87,6 +137,25 @@ def scope_keywords(scopes: Iterable[str]) -> List[str]:
         seen.add(keyword)
         deduped.append(keyword)
     return deduped
+
+
+def match_scope_filter(
+    scope_filter: Optional[Any],
+    *values: Any,
+    fail_closed_on_invalid: bool = False,
+) -> tuple[bool, ScopeParseResult]:
+    parsed = parse_scopes(scope_filter)
+    if parsed.invalid_tokens:
+        return (False if fail_closed_on_invalid else True), parsed
+    if parsed.explicit_all or not parsed.scopes:
+        return True, parsed
+    keywords = scope_keywords(parsed.scopes)
+    if not keywords:
+        return True, parsed
+    haystack = _build_scope_haystack(values)
+    if not haystack:
+        return True, parsed
+    return any(keyword in haystack for keyword in keywords), parsed
 
 
 def infer_scope_tags(*values: Any) -> List[str]:
