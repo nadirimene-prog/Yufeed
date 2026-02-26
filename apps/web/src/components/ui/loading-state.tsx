@@ -18,7 +18,7 @@ export const LoadingState = React.forwardRef<HTMLDivElement, LoadingStateProps>(
           role="status"
           aria-live="polite"
           className={cn(
-            "flex min-h-screen items-center justify-center bg-bg-base text-foreground",
+            "flex min-h-screen items-center justify-center bg-background text-foreground",
             className,
           )}
           {...props}
@@ -78,7 +78,7 @@ export function SkeletonTable({ rows = 5 }: { rows?: number }) {
       {Array.from({ length: rows }).map((_, index) => (
         <div
           key={index}
-          className="h-12 w-full overflow-hidden rounded-lg bg-bg-overlay"
+          className="h-12 w-full overflow-hidden rounded-lg bg-background-overlay"
         >
           <div className="h-full w-full animate-shimmer" />
         </div>
@@ -90,17 +90,17 @@ export function SkeletonTable({ rows = 5 }: { rows?: number }) {
 export function SkeletonCard() {
   return (
     <div
-      className="space-y-4 rounded-lg border border-border-subtle bg-bg-elevated p-6"
+      className="space-y-4 rounded-lg border border-border-subtle bg-background-elevated p-6"
       role="status"
       aria-live="polite"
     >
-      <div className="h-6 w-3/4 overflow-hidden rounded bg-bg-overlay">
+      <div className="h-6 w-3/4 overflow-hidden rounded bg-background-overlay">
         <div className="h-full w-full animate-shimmer" />
       </div>
-      <div className="h-4 w-1/2 overflow-hidden rounded bg-bg-overlay">
+      <div className="h-4 w-1/2 overflow-hidden rounded bg-background-overlay">
         <div className="h-full w-full animate-shimmer" />
       </div>
-      <div className="h-4 w-5/6 overflow-hidden rounded bg-bg-overlay">
+      <div className="h-4 w-5/6 overflow-hidden rounded bg-background-overlay">
         <div className="h-full w-full animate-shimmer" />
       </div>
     </div>

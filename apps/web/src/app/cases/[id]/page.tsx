@@ -164,9 +164,7 @@ export default function CaseDetailPage() {
       <div className="flex items-center justify-center min-h-screen">
         <div className="text-center">
           <Folder className="h-12 w-12 animate-spin mx-auto mb-4 text-blue-600" />
-          <p className="text-lg text-gray-700 dark:text-gray-300">
-            Loading case details...
-          </p>
+          <p className="text-lg text-slate-700 ">Loading case details...</p>
         </div>
       </div>
     );
@@ -177,44 +175,38 @@ export default function CaseDetailPage() {
       <div className="flex items-center justify-center min-h-screen">
         <div className="text-center">
           <Folder className="h-12 w-12 mx-auto mb-4 text-red-600" />
-          <p className="text-lg text-gray-700 dark:text-gray-300">
-            Case not found
-          </p>
+          <p className="text-lg text-slate-700 ">Case not found</p>
         </div>
       </div>
     );
   }
 
   const statusColors = {
-    open: "bg-blue-100 text-blue-800 dark:bg-blue-900/20 dark:text-blue-400",
-    under_investigation:
-      "bg-yellow-100 text-yellow-800 dark:bg-yellow-900/20 dark:text-yellow-400",
-    escalated:
-      "bg-orange-100 text-orange-800 dark:bg-orange-900/20 dark:text-orange-400",
-    closed: "bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-300",
-    sar_filed: "bg-red-100 text-red-800 dark:bg-red-900/20 dark:text-red-400",
+    open: "bg-blue-100 text-blue-800  ",
+    under_investigation: "bg-yellow-100 text-yellow-800  ",
+    escalated: "bg-orange-100 text-orange-800  ",
+    closed: "bg-slate-100 text-slate-800  ",
+    sar_filed: "bg-red-100 text-red-800  ",
   };
 
   const severityColors = {
-    critical:
-      "bg-red-100 text-red-800 dark:bg-red-900/20 dark:text-red-400 border-red-200",
-    high: "bg-orange-100 text-orange-800 dark:bg-orange-900/20 dark:text-orange-400 border-orange-200",
-    medium:
-      "bg-yellow-100 text-yellow-800 dark:bg-yellow-900/20 dark:text-yellow-400 border-yellow-200",
-    low: "bg-blue-100 text-blue-800 dark:bg-blue-900/20 dark:text-blue-400 border-blue-200",
+    critical: "bg-red-100 text-red-800   border-red-200",
+    high: "bg-orange-100 text-orange-800   border-orange-200",
+    medium: "bg-yellow-100 text-yellow-800   border-yellow-200",
+    low: "bg-blue-100 text-blue-800   border-blue-200",
   };
   const evidenceEntries = caseData.evidence
     ? Object.keys(caseData.evidence)
     : [];
 
   return (
-    <div className="min-h-screen bg-gray-50 dark:bg-gray-900 p-6">
+    <div className="min-h-screen bg-slate-50  p-6">
       <div className="max-w-7xl mx-auto">
         {/* Header */}
         <div className="mb-6">
           <button
             onClick={() => router.back()}
-            className="flex items-center gap-2 text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white mb-4"
+            className="flex items-center gap-2 text-slate-600  hover:text-slate-900  mb-4"
           >
             <ArrowLeft className="h-4 w-4" />
             Back to Cases
@@ -223,7 +215,7 @@ export default function CaseDetailPage() {
           <div className="flex items-start justify-between">
             <div>
               <div className="flex items-center gap-3 mb-2">
-                <h1 className="text-3xl font-bold text-gray-900 dark:text-white">
+                <h1 className="text-3xl font-bold text-slate-900 ">
                   {caseData.case_id}
                 </h1>
                 <span
@@ -237,7 +229,7 @@ export default function CaseDetailPage() {
                   {caseData.status.replace(/_/g, " ")}
                 </span>
               </div>
-              <p className="text-lg text-gray-600 dark:text-gray-400">
+              <p className="text-lg text-slate-600 ">
                 {caseData.case_type.replace(/_/g, " ").toUpperCase()}
               </p>
             </div>
@@ -268,20 +260,20 @@ export default function CaseDetailPage() {
         </div>
 
         {/* Tab navigation */}
-        <div className="flex gap-1 p-1 rounded-xl bg-gray-100 dark:bg-gray-800/60 w-fit mb-6">
-          <div className="px-4 py-2 rounded-lg bg-white dark:bg-gray-700 text-sm font-medium text-gray-900 dark:text-white shadow-sm">
+        <div className="flex gap-1 p-1 rounded-xl bg-slate-100  w-fit mb-6">
+          <div className="px-4 py-2 rounded-lg bg-white  text-sm font-medium text-slate-900  shadow-sm">
             Overview
           </div>
           <button
             onClick={() => router.push(`/cases/${caseData.case_id}/decisions`)}
-            className="px-4 py-2 rounded-lg text-sm font-medium text-gray-500 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white hover:bg-white/50 dark:hover:bg-gray-700/50 transition flex items-center gap-1.5"
+            className="px-4 py-2 rounded-lg text-sm font-medium text-slate-500  hover:text-slate-900  hover:bg-white/50  transition flex items-center gap-1.5"
           >
             <Gavel className="h-3.5 w-3.5" />
             Decisions
           </button>
           <button
             onClick={() => router.push(`/cases/${caseData.case_id}/evidence`)}
-            className="px-4 py-2 rounded-lg text-sm font-medium text-gray-500 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white hover:bg-white/50 dark:hover:bg-gray-700/50 transition flex items-center gap-1.5"
+            className="px-4 py-2 rounded-lg text-sm font-medium text-slate-500  hover:text-slate-900  hover:bg-white/50  transition flex items-center gap-1.5"
           >
             <Archive className="h-3.5 w-3.5" />
             Evidence Packs
@@ -292,18 +284,16 @@ export default function CaseDetailPage() {
           {/* Main Content */}
           <div className="lg:col-span-2 space-y-6">
             {/* Case Details */}
-            <div className="bg-white dark:bg-gray-800 rounded-lg shadow p-6">
-              <h2 className="text-xl font-semibold text-gray-900 dark:text-white mb-4">
+            <div className="bg-white  rounded-lg shadow p-6">
+              <h2 className="text-xl font-semibold text-slate-900  mb-4">
                 Case Details
               </h2>
 
               <div className="space-y-4">
                 {(caseData.description || caseData.summary) && (
                   <div>
-                    <p className="text-sm text-gray-600 dark:text-gray-400 mb-1">
-                      Description
-                    </p>
-                    <p className="text-gray-900 dark:text-white">
+                    <p className="text-sm text-slate-600  mb-1">Description</p>
+                    <p className="text-slate-900 ">
                       {caseData.summary ?? caseData.description}
                     </p>
                   </div>
@@ -313,20 +303,20 @@ export default function CaseDetailPage() {
                   {caseData.subject_id && (
                     <>
                       <div>
-                        <p className="text-sm text-gray-600 dark:text-gray-400 mb-1">
+                        <p className="text-sm text-slate-600  mb-1">
                           Subject Type
                         </p>
-                        <p className="text-gray-900 dark:text-white">
+                        <p className="text-slate-900 ">
                           {caseData.subject_type}
                         </p>
                       </div>
                       <div>
-                        <p className="text-sm text-gray-600 dark:text-gray-400 mb-1">
+                        <p className="text-sm text-slate-600  mb-1">
                           Subject ID
                         </p>
                         <Link
                           href={`/entities/user/${caseData.subject_id}`}
-                          className="text-gray-900 dark:text-white font-mono hover:text-blue-500 hover:underline"
+                          className="text-slate-900  font-mono hover:text-blue-500 hover:underline"
                         >
                           {caseData.subject_id}
                         </Link>
@@ -334,49 +324,39 @@ export default function CaseDetailPage() {
                     </>
                   )}
                   <div>
-                    <p className="text-sm text-gray-600 dark:text-gray-400 mb-1">
-                      Opened
-                    </p>
-                    <p className="text-gray-900 dark:text-white">
+                    <p className="text-sm text-slate-600  mb-1">Opened</p>
+                    <p className="text-slate-900 ">
                       {new Date(caseData.opened_at).toLocaleString()}
                     </p>
                   </div>
                   {caseData.closed_at && (
                     <div>
-                      <p className="text-sm text-gray-600 dark:text-gray-400 mb-1">
-                        Closed
-                      </p>
-                      <p className="text-gray-900 dark:text-white">
+                      <p className="text-sm text-slate-600  mb-1">Closed</p>
+                      <p className="text-slate-900 ">
                         {new Date(caseData.closed_at).toLocaleString()}
                       </p>
                     </div>
                   )}
                   {caseData.assigned_to && (
                     <div>
-                      <p className="text-sm text-gray-600 dark:text-gray-400 mb-1">
+                      <p className="text-sm text-slate-600  mb-1">
                         Assigned To
                       </p>
-                      <p className="text-gray-900 dark:text-white">
-                        {caseData.assigned_to}
-                      </p>
+                      <p className="text-slate-900 ">{caseData.assigned_to}</p>
                     </div>
                   )}
                   {caseData.escalated_to && (
                     <div>
-                      <p className="text-sm text-gray-600 dark:text-gray-400 mb-1">
+                      <p className="text-sm text-slate-600  mb-1">
                         Escalated To
                       </p>
-                      <p className="text-gray-900 dark:text-white">
-                        {caseData.escalated_to}
-                      </p>
+                      <p className="text-slate-900 ">{caseData.escalated_to}</p>
                     </div>
                   )}
                   {caseData.outcome && (
                     <div>
-                      <p className="text-sm text-gray-600 dark:text-gray-400 mb-1">
-                        Outcome
-                      </p>
-                      <p className="text-gray-900 dark:text-white font-semibold">
+                      <p className="text-sm text-slate-600  mb-1">Outcome</p>
+                      <p className="text-slate-900  font-semibold">
                         {caseData.outcome}
                       </p>
                     </div>
@@ -386,21 +366,21 @@ export default function CaseDetailPage() {
             </div>
 
             {/* Related Alerts */}
-            <div className="bg-white dark:bg-gray-800 rounded-lg shadow p-6">
-              <h2 className="text-xl font-semibold text-gray-900 dark:text-white mb-4">
+            <div className="bg-white  rounded-lg shadow p-6">
+              <h2 className="text-xl font-semibold text-slate-900  mb-4">
                 Comments
               </h2>
               <CaseComments caseId={caseData.case_id} />
             </div>
 
             {/* Related Alerts */}
-            <div className="bg-white dark:bg-gray-800 rounded-lg shadow p-6">
-              <h2 className="text-xl font-semibold text-gray-900 dark:text-white mb-4">
+            <div className="bg-white  rounded-lg shadow p-6">
+              <h2 className="text-xl font-semibold text-slate-900  mb-4">
                 Related Alerts ({alerts.length})
               </h2>
 
               {alerts.length === 0 ? (
-                <p className="text-gray-500 dark:text-gray-400 text-center py-8">
+                <p className="text-slate-500  text-center py-8">
                   No related alerts
                 </p>
               ) : (
@@ -411,12 +391,12 @@ export default function CaseDetailPage() {
                       onClick={() =>
                         router.push(`/transaction-alerts/${alert.alert_id}`)
                       }
-                      className="p-4 border border-gray-200 dark:border-gray-700 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700/50 cursor-pointer transition"
+                      className="p-4 border border-slate-200  rounded-lg hover:bg-slate-50  cursor-pointer transition"
                     >
                       <div className="flex items-start justify-between">
                         <div>
                           <div className="flex items-center gap-2 mb-1">
-                            <span className="text-sm font-mono text-gray-600 dark:text-gray-400">
+                            <span className="text-sm font-mono text-slate-600 ">
                               {alert.alert_id}
                             </span>
                             <span
@@ -425,13 +405,13 @@ export default function CaseDetailPage() {
                               {alert.severity}
                             </span>
                           </div>
-                          <p className="text-sm font-medium text-gray-900 dark:text-white">
+                          <p className="text-sm font-medium text-slate-900 ">
                             {alert.alert_type.replace(/_/g, " ").toUpperCase()}
                           </p>
                         </div>
-                        <ExternalLink className="h-4 w-4 text-gray-400" />
+                        <ExternalLink className="h-4 w-4 text-slate-400" />
                       </div>
-                      <p className="text-xs text-gray-500 dark:text-gray-400 mt-2">
+                      <p className="text-xs text-slate-500  mt-2">
                         {new Date(alert.created_at).toLocaleString()}
                       </p>
                     </div>
@@ -441,13 +421,13 @@ export default function CaseDetailPage() {
             </div>
 
             {/* Related Transactions */}
-            <div className="bg-white dark:bg-gray-800 rounded-lg shadow p-6">
-              <h2 className="text-xl font-semibold text-gray-900 dark:text-white mb-4">
+            <div className="bg-white  rounded-lg shadow p-6">
+              <h2 className="text-xl font-semibold text-slate-900  mb-4">
                 Related Transactions ({transactions.length})
               </h2>
 
               {transactions.length === 0 ? (
-                <p className="text-gray-500 dark:text-gray-400 text-center py-8">
+                <p className="text-slate-500  text-center py-8">
                   No related transactions
                 </p>
               ) : (
@@ -455,16 +435,16 @@ export default function CaseDetailPage() {
                   {transactions.map((tx) => (
                     <div
                       key={tx.id}
-                      className="p-4 border border-gray-200 dark:border-gray-700 rounded-lg"
+                      className="p-4 border border-slate-200  rounded-lg"
                     >
                       <div className="flex items-start justify-between mb-2">
                         <div>
-                          <span className="text-sm font-mono text-gray-600 dark:text-gray-400">
+                          <span className="text-sm font-mono text-slate-600 ">
                             {tx.transaction_id}
                           </span>
                         </div>
                         <div className="text-right">
-                          <p className="text-lg font-bold text-gray-900 dark:text-white">
+                          <p className="text-lg font-bold text-slate-900 ">
                             {tx.amount.toLocaleString()} {tx.currency}
                           </p>
                           {tx.risk_level && (
@@ -484,10 +464,10 @@ export default function CaseDetailPage() {
                           )}
                         </div>
                       </div>
-                      <p className="text-sm text-gray-600 dark:text-gray-400">
+                      <p className="text-sm text-slate-600 ">
                         {tx.transaction_type.replace(/_/g, " ")}
                       </p>
-                      <p className="text-xs text-gray-500 dark:text-gray-400 mt-2">
+                      <p className="text-xs text-slate-500  mt-2">
                         {new Date(tx.timestamp).toLocaleString()}
                       </p>
                     </div>
@@ -498,11 +478,11 @@ export default function CaseDetailPage() {
 
             {/* Evidence */}
             {evidenceEntries.length > 0 && (
-              <div className="bg-white dark:bg-gray-800 rounded-lg shadow p-6">
-                <h2 className="text-xl font-semibold text-gray-900 dark:text-white mb-4">
+              <div className="bg-white  rounded-lg shadow p-6">
+                <h2 className="text-xl font-semibold text-slate-900  mb-4">
                   Evidence
                 </h2>
-                <pre className="text-sm text-gray-900 dark:text-white bg-gray-50 dark:bg-gray-900 p-4 rounded overflow-x-auto">
+                <pre className="text-sm text-slate-900  bg-slate-50  p-4 rounded overflow-x-auto">
                   {JSON.stringify(caseData.evidence ?? {}, null, 2)}
                 </pre>
               </div>
@@ -514,8 +494,8 @@ export default function CaseDetailPage() {
             {/* Actions */}
             {caseData.status !== "closed" &&
               caseData.status !== "sar_filed" && (
-                <div className="bg-white dark:bg-gray-800 rounded-lg shadow p-6">
-                  <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">
+                <div className="bg-white  rounded-lg shadow p-6">
+                  <h3 className="text-lg font-semibold text-slate-900  mb-4">
                     Actions
                   </h3>
 
@@ -523,7 +503,7 @@ export default function CaseDetailPage() {
                     <select
                       onChange={(e) => handleAssign(e.target.value)}
                       defaultValue={caseData.assigned_to || ""}
-                      className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+                      className="w-full px-3 py-2 border border-slate-300  rounded-lg bg-white  text-slate-900 "
                     >
                       <option value="" disabled>
                         Assign to...
@@ -544,7 +524,7 @@ export default function CaseDetailPage() {
 
                     <button
                       onClick={() => handleClose("false_positive")}
-                      className="w-full px-4 py-2 bg-gray-600 text-white rounded-lg hover:bg-gray-700 transition"
+                      className="w-full px-4 py-2 bg-slate-600 text-white rounded-lg hover:bg-slate-700 transition"
                     >
                       Close - False Positive
                     </button>
@@ -560,21 +540,21 @@ export default function CaseDetailPage() {
               )}
 
             {/* Investigation Timeline */}
-            <div className="bg-white dark:bg-gray-800 rounded-lg shadow p-6">
-              <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">
+            <div className="bg-white  rounded-lg shadow p-6">
+              <h3 className="text-lg font-semibold text-slate-900  mb-4">
                 Timeline
               </h3>
 
               <div className="space-y-4">
                 <div className="flex gap-3">
-                  <div className="flex-shrink-0 w-8 h-8 rounded-full bg-blue-100 dark:bg-blue-900/20 flex items-center justify-center">
+                  <div className="flex-shrink-0 w-8 h-8 rounded-full bg-blue-100  flex items-center justify-center">
                     <Clock className="h-4 w-4 text-blue-600" />
                   </div>
                   <div className="flex-1">
-                    <p className="text-sm font-medium text-gray-900 dark:text-white">
+                    <p className="text-sm font-medium text-slate-900 ">
                       Case Opened
                     </p>
-                    <p className="text-xs text-gray-500 dark:text-gray-400">
+                    <p className="text-xs text-slate-500 ">
                       {new Date(caseData.opened_at).toLocaleString()}
                     </p>
                   </div>
@@ -582,14 +562,14 @@ export default function CaseDetailPage() {
 
                 {caseData.escalated_to && (
                   <div className="flex gap-3">
-                    <div className="flex-shrink-0 w-8 h-8 rounded-full bg-orange-100 dark:bg-orange-900/20 flex items-center justify-center">
+                    <div className="flex-shrink-0 w-8 h-8 rounded-full bg-orange-100  flex items-center justify-center">
                       <TrendingUp className="h-4 w-4 text-orange-600" />
                     </div>
                     <div className="flex-1">
-                      <p className="text-sm font-medium text-gray-900 dark:text-white">
+                      <p className="text-sm font-medium text-slate-900 ">
                         Escalated
                       </p>
-                      <p className="text-xs text-gray-500 dark:text-gray-400">
+                      <p className="text-xs text-slate-500 ">
                         To: {caseData.escalated_to}
                       </p>
                     </div>
@@ -598,18 +578,18 @@ export default function CaseDetailPage() {
 
                 {caseData.closed_at && (
                   <div className="flex gap-3">
-                    <div className="flex-shrink-0 w-8 h-8 rounded-full bg-green-100 dark:bg-green-900/20 flex items-center justify-center">
+                    <div className="flex-shrink-0 w-8 h-8 rounded-full bg-green-100  flex items-center justify-center">
                       <CheckCircle className="h-4 w-4 text-green-600" />
                     </div>
                     <div className="flex-1">
-                      <p className="text-sm font-medium text-gray-900 dark:text-white">
+                      <p className="text-sm font-medium text-slate-900 ">
                         Case Closed
                       </p>
-                      <p className="text-xs text-gray-500 dark:text-gray-400">
+                      <p className="text-xs text-slate-500 ">
                         {new Date(caseData.closed_at).toLocaleString()}
                       </p>
                       {caseData.outcome && (
-                        <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+                        <p className="text-xs text-slate-500  mt-1">
                           Outcome: {caseData.outcome}
                         </p>
                       )}

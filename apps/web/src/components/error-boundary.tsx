@@ -130,11 +130,11 @@ function DefaultErrorFallback({
   const [showDetails, setShowDetails] = React.useState(false);
 
   return (
-    <div className="min-h-screen flex items-center justify-center p-4 bg-bg-base">
+    <div className="min-h-screen flex items-center justify-center p-4 bg-background">
       <Card className="max-w-lg w-full" variant="elevated">
         <CardHeader className="text-center">
-          <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-critical-500/10">
-            <AlertTriangle className="h-8 w-8 text-critical-400" />
+          <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-risk-critical/10">
+            <AlertTriangle className="h-8 w-8 text-risk-critical" />
           </div>
           <CardTitle className="text-xl">Something went wrong</CardTitle>
           <CardDescription>
@@ -144,8 +144,8 @@ function DefaultErrorFallback({
         </CardHeader>
         <CardContent className="space-y-4">
           {/* Error Message */}
-          <div className="rounded-lg bg-critical-500/10 border border-critical-500/20 p-4">
-            <p className="text-sm font-medium text-critical-400">
+          <div className="rounded-lg bg-risk-critical/10 border border-risk-critical/20 p-4">
+            <p className="text-sm font-medium text-risk-critical">
               {error?.name || "Error"}
             </p>
             <p className="mt-1 text-sm text-foreground-secondary">
@@ -165,7 +165,7 @@ function DefaultErrorFallback({
               </button>
 
               {showDetails && (
-                <pre className="mt-2 p-3 rounded-lg bg-bg-overlay text-xs text-foreground-secondary overflow-auto max-h-48">
+                <pre className="mt-2 p-3 rounded-lg bg-background-overlay text-xs text-foreground-secondary overflow-auto max-h-48">
                   {errorInfo.componentStack}
                 </pre>
               )}
@@ -256,11 +256,11 @@ function SectionErrorFallback({
   className?: string;
 }) {
   return (
-    <Card className={cn("border-critical-500/20", className)}>
+    <Card className={cn("border-risk-critical/20", className)}>
       <CardContent className="p-6">
         <div className="flex items-start gap-4">
-          <div className="flex h-10 w-10 items-center justify-center rounded-full bg-critical-500/10 shrink-0">
-            <AlertTriangle className="h-5 w-5 text-critical-400" />
+          <div className="flex h-10 w-10 items-center justify-center rounded-full bg-risk-critical/10 shrink-0">
+            <AlertTriangle className="h-5 w-5 text-risk-critical" />
           </div>
           <div className="flex-1 min-w-0">
             <h3 className="font-medium text-foreground">{title}</h3>

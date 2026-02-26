@@ -136,54 +136,54 @@ export default function RuleLabPage() {
   return (
     <div className="space-y-8 animate-in fade-in duration-500">
       <div className="flex flex-col gap-3">
-        <div className="inline-flex items-center gap-3 text-gray-900 dark:text-gray-100">
+        <div className="inline-flex items-center gap-3 text-slate-900 ">
           <FlaskConical className="h-7 w-7 text-blue-600" />
           <h1 className="text-3xl font-bold tracking-tight">Rule Lab</h1>
         </div>
-        <p className="text-gray-600 dark:text-gray-400 max-w-2xl">
+        <p className="text-slate-600  max-w-2xl">
           Simulate and backtest monitoring rules against payloads or historical
           transactions without creating alerts.
         </p>
       </div>
 
       <div className="grid gap-6 lg:grid-cols-2">
-        <div className="rounded-2xl border border-gray-200 bg-white p-6 shadow-sm dark:border-gray-800 dark:bg-gray-950">
-          <h2 className="text-xl font-semibold text-gray-900 dark:text-white mb-4">
+        <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm  ">
+          <h2 className="text-xl font-semibold text-slate-900  mb-4">
             Rule Simulation
           </h2>
           <div className="space-y-4">
             <div className="grid gap-3 md:grid-cols-2">
               <div>
-                <label className="text-xs font-semibold uppercase text-gray-500">
+                <label className="text-xs font-semibold uppercase text-slate-500">
                   Rule ID
                 </label>
                 <input
                   value={ruleId}
                   onChange={(e) => setRuleId(e.target.value)}
-                  className="mt-1 w-full rounded-lg border border-gray-200 bg-gray-50 px-3 py-2 text-sm dark:border-gray-800 dark:bg-gray-900"
+                  className="mt-1 w-full rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-sm  "
                 />
               </div>
               <div>
-                <label className="text-xs font-semibold uppercase text-gray-500">
+                <label className="text-xs font-semibold uppercase text-slate-500">
                   Transaction ID (optional)
                 </label>
                 <input
                   value={transactionId}
                   onChange={(e) => setTransactionId(e.target.value)}
-                  className="mt-1 w-full rounded-lg border border-gray-200 bg-gray-50 px-3 py-2 text-sm dark:border-gray-800 dark:bg-gray-900"
+                  className="mt-1 w-full rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-sm  "
                   placeholder="Use payload if empty"
                 />
               </div>
             </div>
             <div>
-              <label className="text-xs font-semibold uppercase text-gray-500">
+              <label className="text-xs font-semibold uppercase text-slate-500">
                 Payload JSON
               </label>
               <textarea
                 value={payload}
                 onChange={(e) => setPayload(e.target.value)}
                 rows={8}
-                className="mt-1 w-full rounded-lg border border-gray-200 bg-gray-50 px-3 py-2 text-xs font-mono dark:border-gray-800 dark:bg-gray-900"
+                className="mt-1 w-full rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-xs font-mono  "
               />
             </div>
             <button
@@ -197,63 +197,63 @@ export default function RuleLabPage() {
           </div>
         </div>
 
-        <div className="rounded-2xl border border-gray-200 bg-white p-6 shadow-sm dark:border-gray-800 dark:bg-gray-950">
-          <h2 className="text-xl font-semibold text-gray-900 dark:text-white mb-4">
+        <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm  ">
+          <h2 className="text-xl font-semibold text-slate-900  mb-4">
             Rule Backtest
           </h2>
           <div className="space-y-4">
             <div className="grid gap-3 md:grid-cols-2">
               <div>
-                <label className="text-xs font-semibold uppercase text-gray-500">
+                <label className="text-xs font-semibold uppercase text-slate-500">
                   Start Date
                 </label>
                 <input
                   type="date"
                   value={startDate}
                   onChange={(e) => setStartDate(e.target.value)}
-                  className="mt-1 w-full rounded-lg border border-gray-200 bg-gray-50 px-3 py-2 text-sm dark:border-gray-800 dark:bg-gray-900"
+                  className="mt-1 w-full rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-sm  "
                 />
               </div>
               <div>
-                <label className="text-xs font-semibold uppercase text-gray-500">
+                <label className="text-xs font-semibold uppercase text-slate-500">
                   End Date
                 </label>
                 <input
                   type="date"
                   value={endDate}
                   onChange={(e) => setEndDate(e.target.value)}
-                  className="mt-1 w-full rounded-lg border border-gray-200 bg-gray-50 px-3 py-2 text-sm dark:border-gray-800 dark:bg-gray-900"
+                  className="mt-1 w-full rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-sm  "
                 />
               </div>
             </div>
             <div className="grid gap-3 md:grid-cols-2">
               <div>
-                <label className="text-xs font-semibold uppercase text-gray-500">
+                <label className="text-xs font-semibold uppercase text-slate-500">
                   Limit
                 </label>
                 <input
                   type="number"
                   value={limit}
                   onChange={(e) => setLimit(Number(e.target.value))}
-                  className="mt-1 w-full rounded-lg border border-gray-200 bg-gray-50 px-3 py-2 text-sm dark:border-gray-800 dark:bg-gray-900"
+                  className="mt-1 w-full rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-sm  "
                 />
               </div>
               <div>
-                <label className="text-xs font-semibold uppercase text-gray-500">
+                <label className="text-xs font-semibold uppercase text-slate-500">
                   Sample Size
                 </label>
                 <input
                   type="number"
                   value={sampleSize}
                   onChange={(e) => setSampleSize(Number(e.target.value))}
-                  className="mt-1 w-full rounded-lg border border-gray-200 bg-gray-50 px-3 py-2 text-sm dark:border-gray-800 dark:bg-gray-900"
+                  className="mt-1 w-full rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-sm  "
                 />
               </div>
             </div>
             <button
               onClick={runBacktest}
               disabled={backtestLoading}
-              className="inline-flex items-center gap-2 rounded-lg bg-slate-900 px-4 py-2 text-sm font-medium text-white hover:bg-slate-800 disabled:opacity-50 dark:bg-white dark:text-gray-900 dark:hover:bg-gray-100"
+              className="inline-flex items-center gap-2 rounded-lg bg-slate-900 px-4 py-2 text-sm font-medium text-white hover:bg-slate-800 disabled:opacity-50   "
             >
               <LineChart className="h-4 w-4" />
               {backtestLoading ? "Backtesting..." : "Run Backtest"}
@@ -263,14 +263,14 @@ export default function RuleLabPage() {
       </div>
 
       {error && (
-        <div className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700 dark:border-red-900/50 dark:bg-red-950/20 dark:text-red-300">
+        <div className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700   ">
           {error}
         </div>
       )}
 
       <div className="grid gap-6 lg:grid-cols-2">
-        <div className="rounded-2xl border border-gray-200 bg-white p-6 shadow-sm dark:border-gray-800 dark:bg-gray-950">
-          <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">
+        <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm  ">
+          <h3 className="text-lg font-semibold text-slate-900  mb-4">
             Simulation Results
           </h3>
           {simulationResult ? (
@@ -279,15 +279,15 @@ export default function RuleLabPage() {
                 {simulationResult.would_trigger ? (
                   <CheckCircle2 className="h-4 w-4 text-green-600" />
                 ) : (
-                  <XCircle className="h-4 w-4 text-gray-400" />
+                  <XCircle className="h-4 w-4 text-slate-400" />
                 )}
-                <span className="text-gray-700 dark:text-gray-300">
+                <span className="text-slate-700 ">
                   {simulationResult.would_trigger
                     ? "Rule would trigger"
                     : "Rule would not trigger"}
                 </span>
               </div>
-              <div className="text-xs text-gray-500">
+              <div className="text-xs text-slate-500">
                 Logic: {simulationResult.logic} • Evaluated{" "}
                 {new Date(simulationResult.evaluated_at).toLocaleString()}
               </div>
@@ -295,16 +295,16 @@ export default function RuleLabPage() {
                 {simulationResult.condition_results.map((result, index) => (
                   <div
                     key={index}
-                    className="rounded-lg border border-gray-200 bg-gray-50 px-3 py-2 text-xs dark:border-gray-800 dark:bg-gray-900"
+                    className="rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-xs  "
                   >
                     <div className="flex items-center justify-between">
-                      <span className="text-gray-600 dark:text-gray-300">
+                      <span className="text-slate-600 ">
                         {result.condition.field} {result.condition.operator}{" "}
                         {JSON.stringify(result.condition.value)}
                       </span>
                       <span
                         className={
-                          result.passed ? "text-green-600" : "text-gray-400"
+                          result.passed ? "text-green-600" : "text-slate-400"
                         }
                       >
                         {result.passed ? "pass" : "fail"}
@@ -315,63 +315,65 @@ export default function RuleLabPage() {
               </div>
             </div>
           ) : (
-            <p className="text-sm text-gray-500">
+            <p className="text-sm text-slate-500">
               Run a simulation to see condition-level outcomes.
             </p>
           )}
         </div>
 
-        <div className="rounded-2xl border border-gray-200 bg-white p-6 shadow-sm dark:border-gray-800 dark:bg-gray-950">
-          <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">
+        <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm  ">
+          <h3 className="text-lg font-semibold text-slate-900  mb-4">
             Backtest Summary
           </h3>
           {backtestResult ? (
             <div className="space-y-4">
               <div className="grid gap-3 md:grid-cols-3">
-                <div className="rounded-lg border border-gray-200 bg-gray-50 px-3 py-2 dark:border-gray-800 dark:bg-gray-900">
-                  <div className="text-xs uppercase text-gray-500">
+                <div className="rounded-lg border border-slate-200 bg-slate-50 px-3 py-2  ">
+                  <div className="text-xs uppercase text-slate-500">
                     Transactions
                   </div>
-                  <div className="text-lg font-semibold text-gray-900 dark:text-white">
+                  <div className="text-lg font-semibold text-slate-900 ">
                     {backtestResult.total_transactions}
                   </div>
                 </div>
-                <div className="rounded-lg border border-gray-200 bg-gray-50 px-3 py-2 dark:border-gray-800 dark:bg-gray-900">
-                  <div className="text-xs uppercase text-gray-500">Matches</div>
-                  <div className="text-lg font-semibold text-gray-900 dark:text-white">
+                <div className="rounded-lg border border-slate-200 bg-slate-50 px-3 py-2  ">
+                  <div className="text-xs uppercase text-slate-500">
+                    Matches
+                  </div>
+                  <div className="text-lg font-semibold text-slate-900 ">
                     {backtestResult.matches}
                   </div>
                 </div>
-                <div className="rounded-lg border border-gray-200 bg-gray-50 px-3 py-2 dark:border-gray-800 dark:bg-gray-900">
-                  <div className="text-xs uppercase text-gray-500">
+                <div className="rounded-lg border border-slate-200 bg-slate-50 px-3 py-2  ">
+                  <div className="text-xs uppercase text-slate-500">
                     Match Rate
                   </div>
-                  <div className="text-lg font-semibold text-gray-900 dark:text-white">
+                  <div className="text-lg font-semibold text-slate-900 ">
                     {backtestResult.match_rate}%
                   </div>
                 </div>
               </div>
               <div className="space-y-2">
                 {backtestResult.samples.length === 0 ? (
-                  <p className="text-sm text-gray-500">
+                  <p className="text-sm text-slate-500">
                     No matches found in the sampled range.
                   </p>
                 ) : (
                   backtestResult.samples.map((sample) => (
                     <div
                       key={sample.transaction_id}
-                      className="rounded-lg border border-gray-200 bg-gray-50 px-3 py-2 text-xs dark:border-gray-800 dark:bg-gray-900"
+                      className="rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-xs  "
                     >
                       <div className="flex items-center justify-between">
-                        <span className="text-gray-700 dark:text-gray-300">
+                        <span className="text-slate-700 ">
                           {sample.transaction_id} • {sample.amount}{" "}
                           {sample.currency}
                         </span>
-                        <span className="text-gray-500">
+                        <span className="text-slate-500">
                           {sample.country_code || "N/A"}
                         </span>
                       </div>
-                      <div className="text-gray-400">
+                      <div className="text-slate-400">
                         {new Date(sample.timestamp).toLocaleString()}
                       </div>
                     </div>
@@ -380,7 +382,7 @@ export default function RuleLabPage() {
               </div>
             </div>
           ) : (
-            <p className="text-sm text-gray-500">
+            <p className="text-sm text-slate-500">
               Run a backtest to get rule coverage stats.
             </p>
           )}

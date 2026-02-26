@@ -65,15 +65,15 @@ export default function SearchPage() {
     <div className="space-y-8 animate-in fade-in duration-500">
       <div className="flex items-start justify-between">
         <div className="text-center md:text-left space-y-2">
-          <h1 className="text-3xl font-bold tracking-tight text-gray-900 dark:text-gray-100 sm:text-4xl">
+          <h1 className="text-3xl font-bold tracking-tight text-slate-900  sm:text-4xl">
             Search Legal Documents
           </h1>
-          <p className="text-lg text-gray-600 dark:text-gray-400 max-w-2xl">
+          <p className="text-lg text-slate-600  max-w-2xl">
             Access the latest EU regulations, directives, and decisions with
             real-time updates.
           </p>
           {total > 0 && (
-            <p className="text-sm text-gray-500">
+            <p className="text-sm text-slate-500">
               Found {total} document{total !== 1 ? "s" : ""}
             </p>
           )}
@@ -96,14 +96,12 @@ export default function SearchPage() {
       />
 
       {error && (
-        <div className="rounded-lg bg-red-50 p-4 text-red-800 dark:bg-red-900/20 dark:text-red-400">
-          {error}
-        </div>
+        <div className="rounded-lg bg-red-50 p-4 text-red-800  ">{error}</div>
       )}
 
       <div className="grid gap-8 lg:grid-cols-4">
         <div className="lg:col-span-1">
-          <div className="sticky top-24 rounded-xl border border-gray-200 bg-white p-6 shadow-sm dark:border-gray-800 dark:bg-gray-950/50 backdrop-blur-sm">
+          <div className="sticky top-24 rounded-xl border border-slate-200 bg-white p-6 shadow-sm   backdrop-blur-sm">
             <Filters filters={filters} onChange={setFilters} />
           </div>
         </div>

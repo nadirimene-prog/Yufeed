@@ -6,7 +6,7 @@ import { cn } from "@/lib/utils";
 
 /**
  * ═══════════════════════════════════════════════════════════════════
- * TOOLTIP - Sentinel Design System
+ * TOOLTIP - Horizon Design System
  * Clean tooltips with smooth animations
  * ═══════════════════════════════════════════════════════════════════
  */
@@ -43,8 +43,7 @@ const TooltipContent = React.forwardRef<
     const variantStyles = {
       default:
         "border-border-subtle bg-popover text-popover-foreground shadow-md",
-      glass:
-        "border-background/10 bg-foreground/95 text-background backdrop-blur-sm shadow-md", // Deprecated glass, mapped to solid dark
+      glass: "border-background/10 bg-foreground text-background shadow-md", // Deprecated glass, mapped to solid dark
       dark: "border-background/10 bg-foreground text-background shadow-md",
     };
 

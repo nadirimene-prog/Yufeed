@@ -114,16 +114,16 @@ export default function ComplianceReportPage() {
       isEmpty={!metrics}
       loadingMessage="Loading compliance report..."
     >
-      <div className="min-h-screen bg-gray-50 dark:bg-gray-900 p-6">
+      <div className="min-h-screen bg-slate-50  p-6">
         <div className="max-w-7xl mx-auto">
           {/* Header */}
           <div className="mb-8">
             <div className="flex items-center justify-between mb-4">
               <div>
-                <h1 className="text-3xl font-bold text-gray-900 dark:text-white mb-2">
+                <h1 className="text-3xl font-bold text-slate-900  mb-2">
                   Compliance Reporting Dashboard
                 </h1>
-                <p className="text-gray-600 dark:text-gray-400">
+                <p className="text-slate-600 ">
                   AML/CFT compliance metrics and analytics
                 </p>
               </div>
@@ -138,13 +138,11 @@ export default function ComplianceReportPage() {
             </div>
 
             {/* Date Range Selector */}
-            <div className="bg-white dark:bg-gray-800 rounded-lg shadow p-4">
+            <div className="bg-white  rounded-lg shadow p-4">
               <div className="flex items-center gap-4">
-                <Calendar className="h-5 w-5 text-gray-400" />
+                <Calendar className="h-5 w-5 text-slate-400" />
                 <div className="flex items-center gap-2">
-                  <label className="text-sm text-gray-600 dark:text-gray-400">
-                    From:
-                  </label>
+                  <label className="text-sm text-slate-600 ">From:</label>
                   <input
                     type="date"
                     value={dateRange.from}
@@ -154,20 +152,18 @@ export default function ComplianceReportPage() {
                         from: e.target.value,
                       }))
                     }
-                    className="px-3 py-1 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white text-sm"
+                    className="px-3 py-1 border border-slate-300  rounded-lg bg-white  text-slate-900  text-sm"
                   />
                 </div>
                 <div className="flex items-center gap-2">
-                  <label className="text-sm text-gray-600 dark:text-gray-400">
-                    To:
-                  </label>
+                  <label className="text-sm text-slate-600 ">To:</label>
                   <input
                     type="date"
                     value={dateRange.to}
                     onChange={(e) =>
                       setDateRange((prev) => ({ ...prev, to: e.target.value }))
                     }
-                    className="px-3 py-1 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white text-sm"
+                    className="px-3 py-1 border border-slate-300  rounded-lg bg-white  text-slate-900  text-sm"
                   />
                 </div>
               </div>
@@ -176,7 +172,7 @@ export default function ComplianceReportPage() {
 
           {/* Alert Metrics */}
           <div className="mb-8">
-            <h2 className="text-2xl font-semibold text-gray-900 dark:text-white mb-4">
+            <h2 className="text-2xl font-semibold text-slate-900  mb-4">
               Alert Metrics
             </h2>
 
@@ -214,9 +210,9 @@ export default function ComplianceReportPage() {
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ duration: 0.5 }}
-                className="bg-white dark:bg-gray-800 rounded-lg shadow p-6"
+                className="bg-white  rounded-lg shadow p-6"
               >
-                <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">
+                <h3 className="text-lg font-semibold text-slate-900  mb-4">
                   Alerts by Severity
                 </h3>
                 <ResponsiveContainer width="100%" height={250}>
@@ -265,9 +261,9 @@ export default function ComplianceReportPage() {
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ duration: 0.5, delay: 0.1 }}
-                className="bg-white dark:bg-gray-800 rounded-lg shadow p-6"
+                className="bg-white  rounded-lg shadow p-6"
               >
-                <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">
+                <h3 className="text-lg font-semibold text-slate-900  mb-4">
                   Alerts by Status
                 </h3>
                 <ResponsiveContainer width="100%" height={250}>
@@ -298,7 +294,7 @@ export default function ComplianceReportPage() {
 
           {/* Case Metrics */}
           <div className="mb-8">
-            <h2 className="text-2xl font-semibold text-gray-900 dark:text-white mb-4">
+            <h2 className="text-2xl font-semibold text-slate-900  mb-4">
               Case Metrics
             </h2>
 
@@ -329,29 +325,25 @@ export default function ComplianceReportPage() {
               />
             </div>
 
-            <div className="bg-white dark:bg-gray-800 rounded-lg shadow p-6">
+            <div className="bg-white  rounded-lg shadow p-6">
               <div className="grid grid-cols-3 gap-6">
                 <div className="text-center">
-                  <p className="text-3xl font-bold text-gray-900 dark:text-white mb-2">
+                  <p className="text-3xl font-bold text-slate-900  mb-2">
                     {metrics.case_metrics.open_cases}
                   </p>
-                  <p className="text-sm text-gray-600 dark:text-gray-400">
-                    Open Cases
-                  </p>
+                  <p className="text-sm text-slate-600 ">Open Cases</p>
                 </div>
                 <div className="text-center">
-                  <p className="text-3xl font-bold text-gray-900 dark:text-white mb-2">
+                  <p className="text-3xl font-bold text-slate-900  mb-2">
                     {metrics.case_metrics.closed_cases}
                   </p>
-                  <p className="text-sm text-gray-600 dark:text-gray-400">
-                    Closed Cases
-                  </p>
+                  <p className="text-sm text-slate-600 ">Closed Cases</p>
                 </div>
                 <div className="text-center">
-                  <p className="text-3xl font-bold text-gray-900 dark:text-white mb-2">
+                  <p className="text-3xl font-bold text-slate-900  mb-2">
                     {metrics.case_metrics.avg_investigation_days.toFixed(1)}d
                   </p>
-                  <p className="text-sm text-gray-600 dark:text-gray-400">
+                  <p className="text-sm text-slate-600 ">
                     Avg Investigation Time
                   </p>
                 </div>
@@ -361,7 +353,7 @@ export default function ComplianceReportPage() {
 
           {/* Transaction Metrics */}
           <div className="mb-8">
-            <h2 className="text-2xl font-semibold text-gray-900 dark:text-white mb-4">
+            <h2 className="text-2xl font-semibold text-slate-900  mb-4">
               Transaction Metrics
             </h2>
 
@@ -392,8 +384,8 @@ export default function ComplianceReportPage() {
               />
             </div>
 
-            <div className="bg-white dark:bg-gray-800 rounded-lg shadow p-6">
-              <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">
+            <div className="bg-white  rounded-lg shadow p-6">
+              <h3 className="text-lg font-semibold text-slate-900  mb-4">
                 Total Volume by Currency
               </h3>
               <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
@@ -401,14 +393,12 @@ export default function ComplianceReportPage() {
                   ([currency, amount]) => (
                     <div
                       key={currency}
-                      className="text-center p-4 bg-gray-50 dark:bg-gray-900 rounded-lg"
+                      className="text-center p-4 bg-slate-50  rounded-lg"
                     >
-                      <p className="text-2xl font-bold text-gray-900 dark:text-white mb-1">
+                      <p className="text-2xl font-bold text-slate-900  mb-1">
                         {(amount as number).toLocaleString()}
                       </p>
-                      <p className="text-sm text-gray-600 dark:text-gray-400">
-                        {currency}
-                      </p>
+                      <p className="text-sm text-slate-600 ">{currency}</p>
                     </div>
                   ),
                 )}
@@ -418,36 +408,32 @@ export default function ComplianceReportPage() {
 
           {/* Regulatory Coverage (YUFEED INNOVATION) */}
           <div className="mb-8">
-            <h2 className="text-2xl font-semibold text-gray-900 dark:text-white mb-4">
+            <h2 className="text-2xl font-semibold text-slate-900  mb-4">
               Regulatory Coverage
-              <span className="ml-2 text-sm font-normal text-blue-600 dark:text-blue-400">
+              <span className="ml-2 text-sm font-normal text-blue-600 ">
                 Yufeed Innovation
               </span>
             </h2>
 
-            <div className="bg-gradient-to-br from-blue-50 to-purple-50 dark:from-blue-900/20 dark:to-purple-900/20 rounded-lg shadow p-6 border border-blue-200 dark:border-blue-800">
+            <div className="bg-gradient-to-br from-blue-50 to-purple-50   rounded-lg shadow p-6 border border-blue-200 ">
               <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
                 <div className="text-center">
                   <p className="text-3xl font-bold text-blue-600 mb-2">
                     {metrics.regulatory_coverage.total_rules}
                   </p>
-                  <p className="text-sm text-gray-600 dark:text-gray-400">
-                    Total Rules
-                  </p>
+                  <p className="text-sm text-slate-600 ">Total Rules</p>
                 </div>
                 <div className="text-center">
                   <p className="text-3xl font-bold text-green-600 mb-2">
                     {metrics.regulatory_coverage.active_rules}
                   </p>
-                  <p className="text-sm text-gray-600 dark:text-gray-400">
-                    Active Rules
-                  </p>
+                  <p className="text-sm text-slate-600 ">Active Rules</p>
                 </div>
                 <div className="text-center">
                   <p className="text-3xl font-bold text-purple-600 mb-2">
                     {metrics.regulatory_coverage.rules_with_regulations}
                   </p>
-                  <p className="text-sm text-gray-600 dark:text-gray-400">
+                  <p className="text-sm text-slate-600 ">
                     Linked to Regulations
                   </p>
                 </div>
@@ -458,14 +444,12 @@ export default function ComplianceReportPage() {
                     )}
                     %
                   </p>
-                  <p className="text-sm text-gray-600 dark:text-gray-400">
-                    Coverage Rate
-                  </p>
+                  <p className="text-sm text-slate-600 ">Coverage Rate</p>
                 </div>
               </div>
 
-              <div className="mt-6 p-4 bg-white dark:bg-gray-800 rounded-lg">
-                <p className="text-sm text-gray-700 dark:text-gray-300">
+              <div className="mt-6 p-4 bg-white  rounded-lg">
+                <p className="text-sm text-slate-700 ">
                   Regulatory coverage measures the percentage of monitoring
                   rules that are linked to specific EU regulations. Higher
                   coverage ensures that all alerts include regulatory context
@@ -478,7 +462,7 @@ export default function ComplianceReportPage() {
           {/* AI Metrics */}
           {metrics.ai_metrics && (
             <div>
-              <h2 className="text-2xl font-semibold text-gray-900 dark:text-white mb-4">
+              <h2 className="text-2xl font-semibold text-slate-900  mb-4">
                 AI Agent Performance
               </h2>
 
@@ -528,12 +512,12 @@ function MetricCard({
   color: "blue" | "yellow" | "orange" | "red" | "green" | "purple";
 }) {
   const colorClasses = {
-    blue: "text-blue-600 bg-blue-50 dark:bg-blue-900/20",
-    yellow: "text-yellow-600 bg-yellow-50 dark:bg-yellow-900/20",
-    orange: "text-orange-600 bg-orange-50 dark:bg-orange-900/20",
-    red: "text-red-600 bg-red-50 dark:bg-red-900/20",
-    green: "text-green-600 bg-green-50 dark:bg-green-900/20",
-    purple: "text-purple-600 bg-purple-50 dark:bg-purple-900/20",
+    blue: "text-blue-600 bg-blue-50 ",
+    yellow: "text-yellow-600 bg-yellow-50 ",
+    orange: "text-orange-600 bg-orange-50 ",
+    red: "text-red-600 bg-red-50 ",
+    green: "text-green-600 bg-green-50 ",
+    purple: "text-purple-600 bg-purple-50 ",
   };
 
   return (
@@ -542,18 +526,16 @@ function MetricCard({
       animate={{ opacity: 1, scale: 1 }}
       whileHover={{ scale: 1.02 }}
       transition={{ duration: 0.2 }}
-      className="bg-white dark:bg-gray-800 rounded-lg shadow p-4 cursor-pointer"
+      className="bg-white  rounded-lg shadow p-4 cursor-pointer"
     >
       <div className="flex items-center justify-between">
         <div>
-          <p className="text-sm text-gray-600 dark:text-gray-400 mb-1">
-            {title}
-          </p>
+          <p className="text-sm text-slate-600  mb-1">{title}</p>
           <motion.p
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             transition={{ delay: 0.2 }}
-            className="text-2xl font-bold text-gray-900 dark:text-white"
+            className="text-2xl font-bold text-slate-900 "
           >
             {value}
           </motion.p>

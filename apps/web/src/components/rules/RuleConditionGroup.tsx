@@ -68,8 +68,8 @@ export function RuleConditionGroup({
   return (
     <section
       className={cn(
-        "rounded-xl border border-border-default bg-bg-elevated p-3",
-        depth > 0 && "bg-bg-overlay",
+        "rounded-xl border border-border bg-background-elevated p-3",
+        depth > 0 && "bg-background-overlay",
       )}
     >
       <header className="mb-3 flex flex-wrap items-center justify-between gap-2">
@@ -89,7 +89,7 @@ export function RuleConditionGroup({
                   logic: event.target.value as "AND" | "OR",
                 })
               }
-              className="h-8 rounded-md border border-border-default bg-bg-base px-2 text-xs text-foreground"
+              className="h-8 rounded-md border border-border bg-background px-2 text-xs text-foreground"
             >
               <option value="AND">AND</option>
               <option value="OR">OR</option>

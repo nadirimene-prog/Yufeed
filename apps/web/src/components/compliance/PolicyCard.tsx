@@ -32,7 +32,7 @@ const getStatusColor = (status: PolicyStatus): string => {
     case "in_review":
       return "bg-yellow-500/20 text-yellow-400 border-yellow-500/30";
     case "draft":
-      return "bg-gray-500/20 text-gray-400 border-gray-500/30";
+      return "bg-slate-500/20 text-slate-400 border-slate-500/30";
     case "retired":
       return "bg-red-500/20 text-red-400 border-red-500/30";
   }
@@ -70,8 +70,8 @@ export default function PolicyCard({
           className,
         )}
       >
-        <div className="flex items-center justify-center w-8 h-8 rounded-lg bg-[#6d5acd]/20">
-          <FileText className="h-4 w-4 text-[#6d5acd]" />
+        <div className="flex items-center justify-center w-8 h-8 rounded-lg bg-[#0052ff]/20">
+          <FileText className="h-4 w-4 text-[#0052ff]" />
         </div>
         <div className="flex-1 min-w-0">
           <p className="text-sm font-medium text-white truncate">
@@ -103,8 +103,8 @@ export default function PolicyCard({
       {/* Header */}
       <div className="flex items-start justify-between gap-3 mb-3">
         <div className="flex items-center gap-3">
-          <div className="flex items-center justify-center w-10 h-10 rounded-lg bg-[#6d5acd]/20">
-            <FileText className="h-5 w-5 text-[#6d5acd]" />
+          <div className="flex items-center justify-center w-10 h-10 rounded-lg bg-[#0052ff]/20">
+            <FileText className="h-5 w-5 text-[#0052ff]" />
           </div>
           <div>
             <h3 className="font-medium text-white">{policy.name}</h3>

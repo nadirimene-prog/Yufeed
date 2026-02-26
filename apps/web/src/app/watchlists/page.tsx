@@ -61,10 +61,10 @@ export default function WatchlistsPage() {
     <div className="space-y-8 animate-in fade-in duration-500">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-3xl font-bold tracking-tight text-gray-900 dark:text-gray-100 sm:text-4xl">
+          <h1 className="text-3xl font-bold tracking-tight text-slate-900  sm:text-4xl">
             Watchlists
           </h1>
-          <p className="mt-2 text-lg text-gray-600 dark:text-gray-400">
+          <p className="mt-2 text-lg text-slate-600 ">
             Manage your legal monitoring feeds and alerts.
           </p>
         </div>
@@ -86,11 +86,11 @@ export default function WatchlistsPage() {
       </div>
 
       {isCreating && (
-        <div className="rounded-xl border border-gray-200 bg-white p-6 shadow-lg dark:border-gray-800 dark:bg-gray-950">
+        <div className="rounded-xl border border-slate-200 bg-white p-6 shadow-lg  ">
           <h2 className="text-xl font-semibold mb-6">Create New Watchlist</h2>
           <div className="grid gap-6">
             <div className="space-y-2">
-              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">
+              <label className="block text-sm font-medium text-slate-700 ">
                 Name
               </label>
               <input
@@ -99,12 +99,12 @@ export default function WatchlistsPage() {
                 onChange={(e) =>
                   setNewWatchlist({ ...newWatchlist, name: e.target.value })
                 }
-                className="w-full rounded-md border border-gray-300 px-3 py-2 bg-white dark:bg-gray-900 dark:border-gray-700"
+                className="w-full rounded-md border border-slate-300 px-3 py-2 bg-white  "
                 placeholder="e.g. AML Regulations Tracker"
               />
             </div>
             <div className="space-y-2">
-              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">
+              <label className="block text-sm font-medium text-slate-700 ">
                 RSS URL (Optional)
               </label>
               <input
@@ -116,12 +116,12 @@ export default function WatchlistsPage() {
                     rss_url: e.target.value,
                   })
                 }
-                className="w-full rounded-md border border-gray-300 px-3 py-2 bg-white dark:bg-gray-900 dark:border-gray-700"
+                className="w-full rounded-md border border-slate-300 px-3 py-2 bg-white  "
                 placeholder="https://eur-lex.europa.eu/..."
               />
             </div>
             <div className="space-y-2">
-              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">
+              <label className="block text-sm font-medium text-slate-700 ">
                 Recipients (comma separated)
               </label>
               <input
@@ -135,12 +135,12 @@ export default function WatchlistsPage() {
                       .map((s) => s.trim()),
                   })
                 }
-                className="w-full rounded-md border border-gray-300 px-3 py-2 bg-white dark:bg-gray-900 dark:border-gray-700"
+                className="w-full rounded-md border border-slate-300 px-3 py-2 bg-white  "
                 placeholder="user@example.com, team@example.com"
               />
             </div>
             <div className="space-y-2">
-              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">
+              <label className="block text-sm font-medium text-slate-700 ">
                 Schedule
               </label>
               <select
@@ -151,7 +151,7 @@ export default function WatchlistsPage() {
                     schedule: e.target.value,
                   })
                 }
-                className="w-full rounded-md border border-gray-300 px-3 py-2 bg-white dark:bg-gray-900 dark:border-gray-700"
+                className="w-full rounded-md border border-slate-300 px-3 py-2 bg-white  "
               >
                 <option value="daily">Daily</option>
                 <option value="weekly">Weekly</option>
@@ -161,7 +161,7 @@ export default function WatchlistsPage() {
           <div className="mt-6 flex justify-end gap-3">
             <button
               onClick={() => setIsCreating(false)}
-              className="px-4 py-2 text-sm text-gray-600 hover:text-gray-900"
+              className="px-4 py-2 text-sm text-slate-600 hover:text-slate-900"
             >
               Cancel
             </button>
@@ -178,7 +178,7 @@ export default function WatchlistsPage() {
       <LoadingBoundary loading={isLoading} error={error} minHeight="320px">
         {watchlists.length === 0 ? (
           <div className="text-center py-12">
-            <p className="text-gray-500">
+            <p className="text-slate-500">
               No watchlists yet. Create your first one to get started!
             </p>
           </div>
@@ -187,7 +187,7 @@ export default function WatchlistsPage() {
             {watchlists.map((list) => (
               <div
                 key={list.id}
-                className="group relative rounded-xl border border-gray-200 bg-white p-6 shadow-sm transition-shadow hover:shadow-md dark:border-gray-800 dark:bg-gray-950"
+                className="group relative rounded-xl border border-slate-200 bg-white p-6 shadow-sm transition-shadow hover:shadow-md  "
               >
                 <div className="flex items-center gap-3 mb-4">
                   <div className="rounded-lg p-2 bg-blue-100 text-blue-600">
@@ -197,17 +197,15 @@ export default function WatchlistsPage() {
                       <FileText className="h-5 w-5" />
                     )}
                   </div>
-                  <h3 className="font-semibold text-gray-900 dark:text-gray-100">
-                    {list.name}
-                  </h3>
+                  <h3 className="font-semibold text-slate-900 ">{list.name}</h3>
                 </div>
 
-                <div className="space-y-3 text-sm text-gray-600 dark:text-gray-400">
+                <div className="space-y-3 text-sm text-slate-600 ">
                   <div className="flex items-center gap-2">
                     <Clock className="h-4 w-4" />
                     <span>
                       Schedule:{" "}
-                      <span className="font-medium text-gray-900 dark:text-white capitalize">
+                      <span className="font-medium text-slate-900  capitalize">
                         {list.schedule}
                       </span>
                     </span>
@@ -226,9 +224,9 @@ export default function WatchlistsPage() {
                 </div>
 
                 {list.rss_url && (
-                  <div className="mt-5 pt-4 border-t border-gray-100 dark:border-gray-800">
+                  <div className="mt-5 pt-4 border-t border-slate-100 ">
                     <p
-                      className="truncate text-xs text-gray-400 font-mono"
+                      className="truncate text-xs text-slate-400 font-mono"
                       title={list.rss_url}
                     >
                       {list.rss_url}

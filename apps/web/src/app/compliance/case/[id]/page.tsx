@@ -197,7 +197,7 @@ export default function ComplianceCaseWorkspacePage() {
   };
 
   return (
-    <div className="space-y-6 bg-bg-base text-foreground">
+    <div className="space-y-6 bg-background text-foreground">
       <header className="flex flex-wrap items-start justify-between gap-3">
         <div className="space-y-2">
           <Link
@@ -348,7 +348,7 @@ export default function ComplianceCaseWorkspacePage() {
                         {(profile.documents ?? []).map((document) => (
                           <div
                             key={document.id}
-                            className="rounded-lg border border-border-subtle bg-bg-overlay p-3"
+                            className="rounded-lg border border-border-subtle bg-background-overlay p-3"
                           >
                             <div className="mb-1 flex items-center justify-between gap-2">
                               <p className="text-sm font-medium text-foreground">
@@ -398,7 +398,7 @@ export default function ComplianceCaseWorkspacePage() {
                         {(profile.risk_signals ?? []).map((signal) => (
                           <div
                             key={signal.id}
-                            className="rounded-lg border border-border-subtle bg-bg-overlay p-3"
+                            className="rounded-lg border border-border-subtle bg-background-overlay p-3"
                           >
                             <div className="mb-1 flex items-center justify-between gap-2">
                               <p className="text-sm font-medium text-foreground">
@@ -433,7 +433,7 @@ export default function ComplianceCaseWorkspacePage() {
                             setReviewNote(event.target.value)
                           }
                           rows={4}
-                          className="w-full rounded-lg border border-border-default bg-bg-overlay px-3 py-2 text-sm"
+                          className="w-full rounded-lg border border-border bg-background-overlay px-3 py-2 text-sm"
                         />
                       </label>
 
@@ -461,7 +461,7 @@ export default function ComplianceCaseWorkspacePage() {
                         </Button>
                       </div>
 
-                      <div className="rounded-lg border border-border-subtle bg-bg-overlay p-3">
+                      <div className="rounded-lg border border-border-subtle bg-background-overlay p-3">
                         <p className="mb-2 text-xs uppercase tracking-wide text-foreground-tertiary">
                           Operational Actions
                         </p>
@@ -520,7 +520,7 @@ export default function ComplianceCaseWorkspacePage() {
                     {statusTimeline(profile).map((step) => (
                       <div
                         key={step.key}
-                        className="rounded-lg border border-border-subtle bg-bg-overlay p-2"
+                        className="rounded-lg border border-border-subtle bg-background-overlay p-2"
                       >
                         <div className="flex items-center justify-between gap-2">
                           <p className="text-sm font-medium text-foreground">
@@ -567,7 +567,7 @@ export default function ComplianceCaseWorkspacePage() {
                               | "enhanced",
                           )
                         }
-                        className="h-10 w-full rounded-lg border border-border-default bg-bg-overlay px-3 text-sm"
+                        className="h-10 w-full rounded-lg border border-border bg-background-overlay px-3 text-sm"
                       >
                         <option value="simplified">Simplified</option>
                         <option value="standard">Standard</option>
@@ -581,7 +581,7 @@ export default function ComplianceCaseWorkspacePage() {
                         value={cddReason}
                         onChange={(event) => setCddReason(event.target.value)}
                         rows={3}
-                        className="w-full rounded-lg border border-border-default bg-bg-overlay px-3 py-2 text-sm"
+                        className="w-full rounded-lg border border-border bg-background-overlay px-3 py-2 text-sm"
                       />
                     </label>
 
@@ -607,7 +607,7 @@ export default function ComplianceCaseWorkspacePage() {
                       Update CDD
                     </Button>
 
-                    <div className="rounded-lg border border-border-subtle bg-bg-base p-2 text-xs text-foreground-secondary">
+                    <div className="rounded-lg border border-border-subtle bg-background p-2 text-xs text-foreground-secondary">
                       Current sanctions status:{" "}
                       {profile.sanctions_status || "pending"}
                     </div>
@@ -651,7 +651,7 @@ export default function ComplianceCaseWorkspacePage() {
 
 function InfoField({ label, value }: { label: string; value: string }) {
   return (
-    <div className="rounded-lg border border-border-subtle bg-bg-overlay p-3">
+    <div className="rounded-lg border border-border-subtle bg-background-overlay p-3">
       <p className="text-[11px] uppercase tracking-wide text-foreground-tertiary">
         {label}
       </p>

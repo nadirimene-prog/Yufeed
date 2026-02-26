@@ -111,7 +111,7 @@ export function BentoItem({
       className={cn(
         colSpanClasses[colSpan],
         rowSpanClasses[rowSpan],
-        hover && "hover-lift cursor-pointer",
+        hover && "hover:-translate-y-1 transition-transform cursor-pointer",
         className,
       )}
     >
@@ -159,7 +159,7 @@ export function BentoCard({
       <motion.div
         whileHover={hover ? { y: -4 } : undefined}
         className={cn(
-          "h-full rounded-xl border border-border-subtle bg-card p-5 hover:border-border-default hover:shadow-sm",
+          "h-full rounded-xl border border-border-subtle bg-card p-5 hover:border-border hover:shadow-sm",
           glowClasses[glow],
           "transition-shadow duration-300",
         )}

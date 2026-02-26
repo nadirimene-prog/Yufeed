@@ -28,7 +28,7 @@ const badgeVariants = cva(
         warning:
           "bg-warning-500/10 text-warning-400 border border-warning-500/20",
         critical:
-          "bg-critical-500/10 text-critical-400 border border-critical-500/20",
+          "bg-risk-critical/10 text-risk-critical border border-risk-critical/20",
         info: "bg-info-500/10 text-info-400 border border-info-500/20",
       },
       /* Size variants */
@@ -74,7 +74,7 @@ const badgeVariants = cva(
       {
         variant: "critical",
         mode: "solid",
-        class: "bg-critical-500 text-primary-foreground",
+        class: "bg-risk-critical text-primary-foreground",
       },
       {
         variant: "info",
@@ -99,7 +99,7 @@ const statusDotVariants = cva("h-2 w-2 rounded-full", {
     status: {
       online: "bg-success-500",
       away: "bg-warning-500",
-      busy: "bg-critical-500",
+      busy: "bg-risk-critical",
       offline: "bg-foreground-tertiary",
       new: "bg-primary",
     },
@@ -308,7 +308,7 @@ const CountBadge = React.forwardRef<HTMLSpanElement, CountBadgeProps>(
     const variantClasses = {
       default: "bg-secondary text-foreground-secondary",
       primary: "bg-primary text-primary-foreground",
-      critical: "bg-critical-500 text-primary-foreground",
+      critical: "bg-risk-critical text-primary-foreground",
     }[variant];
 
     return (

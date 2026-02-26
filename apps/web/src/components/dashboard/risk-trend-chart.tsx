@@ -73,10 +73,8 @@ type RiskTrendTooltipProps = {
 function RiskTrendTooltip({ active, payload, label }: RiskTrendTooltipProps) {
   if (active && payload?.length) {
     return (
-      <div className="bg-white dark:bg-slate-800 border border-gray-200 dark:border-slate-700 rounded-lg shadow-lg p-3">
-        <p className="text-sm font-semibold text-gray-900 dark:text-white mb-2">
-          {label}
-        </p>
+      <div className="bg-white  border border-slate-200  rounded-lg shadow-lg p-3">
+        <p className="text-sm font-semibold text-slate-900  mb-2">{label}</p>
         <div className="space-y-1">
           {payload.map((entry, index) => (
             <div
@@ -88,13 +86,9 @@ function RiskTrendTooltip({ active, payload, label }: RiskTrendTooltipProps) {
                   className="w-3 h-3 rounded-full"
                   style={{ backgroundColor: entry.color }}
                 />
-                <span className="text-gray-600 dark:text-gray-400 capitalize">
-                  {entry.name}
-                </span>
+                <span className="text-slate-600  capitalize">{entry.name}</span>
               </div>
-              <span className="font-medium text-gray-900 dark:text-white">
-                {entry.value}
-              </span>
+              <span className="font-medium text-slate-900 ">{entry.value}</span>
             </div>
           ))}
         </div>
@@ -174,23 +168,19 @@ export function RiskTrendChart({
             </linearGradient>
           </defs>
 
-          <CartesianGrid
-            strokeDasharray="3 3"
-            stroke="#e5e7eb"
-            className="dark:stroke-slate-700"
-          />
+          <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" className="" />
 
           <XAxis
             dataKey="date"
             stroke="#6b7280"
-            className="dark:stroke-slate-400"
+            className=""
             style={{ fontSize: "12px" }}
             tickLine={false}
           />
 
           <YAxis
             stroke="#6b7280"
-            className="dark:stroke-slate-400"
+            className=""
             style={{ fontSize: "12px" }}
             tickLine={false}
           />

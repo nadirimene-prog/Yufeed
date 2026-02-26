@@ -45,7 +45,7 @@ export function TimelineView({ celex }: TimelineViewProps) {
 
   if (loading) {
     return (
-      <div className="p-4 text-center text-gray-500 animate-pulse">
+      <div className="p-4 text-center text-slate-500 animate-pulse">
         Loading legislative history...
       </div>
     );
@@ -71,28 +71,28 @@ export function TimelineView({ celex }: TimelineViewProps) {
   const getColor = (type: TimelineEvent["type"]) => {
     switch (type) {
       case "ENTRY_INTO_FORCE":
-        return "text-green-600 bg-green-100 dark:bg-green-900/20 dark:text-green-400 border-green-200 dark:border-green-800";
+        return "text-green-600 bg-green-100   border-green-200 ";
       case "PUBLICATION":
-        return "text-blue-600 bg-blue-100 dark:bg-blue-900/20 dark:text-blue-400 border-blue-200 dark:border-blue-800";
+        return "text-blue-600 bg-blue-100   border-blue-200 ";
       case "AMENDMENT":
-        return "text-purple-600 bg-purple-100 dark:bg-purple-900/20 dark:text-purple-400 border-purple-200 dark:border-purple-800";
+        return "text-blue-600 bg-blue-100   border-blue-200 ";
       case "REPEAL":
-        return "text-red-600 bg-red-100 dark:bg-red-900/20 dark:text-red-400 border-red-200 dark:border-red-800";
+        return "text-red-600 bg-red-100   border-red-200 ";
       default:
-        return "text-gray-600 bg-gray-100 dark:bg-gray-800 dark:text-gray-400 border-gray-200 dark:border-gray-700";
+        return "text-slate-600 bg-slate-100   border-slate-200 ";
     }
   };
 
   return (
-    <div className="bg-white dark:bg-slate-900 rounded-lg border border-gray-200 dark:border-slate-800 shadow-sm p-6">
-      <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-6 flex items-center gap-2">
+    <div className="bg-white  rounded-lg border border-slate-200  shadow-sm p-6">
+      <h3 className="text-lg font-semibold text-slate-900  mb-6 flex items-center gap-2">
         <History className="h-5 w-5" />
         Legislative History
       </h3>
 
-      <div className="relative pl-6 border-l-2 border-gray-200 dark:border-slate-800 space-y-8">
+      <div className="relative pl-6 border-l-2 border-slate-200  space-y-8">
         {events.length === 0 && (
-          <p className="text-sm text-gray-400 dark:text-gray-500 italic">
+          <p className="text-sm text-slate-400  italic">
             No timeline events available for this document.
           </p>
         )}
@@ -105,7 +105,7 @@ export function TimelineView({ celex }: TimelineViewProps) {
               {/* Dot on timeline */}
               <div
                 className={cn(
-                  "absolute -left-[31px] top-1 h-6 w-6 rounded-full border-2 flex items-center justify-center transition-transform group-hover:scale-110 bg-white dark:bg-slate-900",
+                  "absolute -left-[31px] top-1 h-6 w-6 rounded-full border-2 flex items-center justify-center transition-transform group-hover:scale-110 bg-white ",
                   colorClass,
                 )}
               >
@@ -123,15 +123,13 @@ export function TimelineView({ celex }: TimelineViewProps) {
                     >
                       {event.type.replace(/_/g, " ")}
                     </span>
-                    <span className="text-sm text-gray-500 dark:text-gray-400 font-mono">
+                    <span className="text-sm text-slate-500  font-mono">
                       {format(new Date(event.date), "dd MMM yyyy")}
                     </span>
                   </div>
-                  <h4 className="font-medium text-gray-900 dark:text-white">
-                    {event.title}
-                  </h4>
+                  <h4 className="font-medium text-slate-900 ">{event.title}</h4>
                   {event.description && (
-                    <p className="text-sm text-gray-600 dark:text-gray-400 mt-1 max-w-xl">
+                    <p className="text-sm text-slate-600  mt-1 max-w-xl">
                       {event.description}
                     </p>
                   )}
@@ -140,7 +138,7 @@ export function TimelineView({ celex }: TimelineViewProps) {
                 {event.related_doc_celex && (
                   <Link
                     href={`/doc/${event.related_doc_celex}`}
-                    className="shrink-0 text-xs font-medium text-blue-600 hover:text-blue-800 dark:text-blue-400 dark:hover:text-blue-300 border border-blue-200 dark:border-slate-700 rounded px-2 py-1 hover:bg-blue-50 dark:hover:bg-blue-900/30 transition-colors"
+                    className="shrink-0 text-xs font-medium text-blue-600 hover:text-blue-800   border border-blue-200  rounded px-2 py-1 hover:bg-blue-50  transition-colors"
                   >
                     View Doc &rarr;
                   </Link>

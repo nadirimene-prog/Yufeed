@@ -54,10 +54,10 @@ function NewCaseContent() {
 
   if (alertId && loading) {
     return (
-      <div className="flex items-center justify-center min-h-screen bg-gray-50 dark:bg-gray-900">
+      <div className="flex items-center justify-center min-h-screen bg-slate-50 ">
         <div className="text-center">
           <Loader2 className="h-12 w-12 animate-spin mx-auto mb-4 text-blue-600" />
-          <p className="text-lg text-gray-700 dark:text-gray-300">
+          <p className="text-lg text-slate-700 ">
             Creating case from alert #{alertId}...
           </p>
         </div>
@@ -67,16 +67,14 @@ function NewCaseContent() {
 
   if (error) {
     return (
-      <div className="flex items-center justify-center min-h-screen bg-gray-50 dark:bg-gray-900">
+      <div className="flex items-center justify-center min-h-screen bg-slate-50 ">
         <div className="text-center max-w-md">
           <AlertTriangle className="h-12 w-12 mx-auto mb-4 text-red-600" />
-          <p className="text-lg text-gray-700 dark:text-gray-300 mb-4">
-            {error}
-          </p>
+          <p className="text-lg text-slate-700  mb-4">{error}</p>
           <div className="flex gap-3 justify-center">
             <button
               onClick={() => router.back()}
-              className="px-4 py-2 bg-gray-600 text-white rounded-lg hover:bg-gray-700"
+              className="px-4 py-2 bg-slate-600 text-white rounded-lg hover:bg-slate-700"
             >
               Go Back
             </button>
@@ -96,34 +94,34 @@ function NewCaseContent() {
 
   // No alert ID - show manual case creation form
   return (
-    <div className="min-h-screen bg-gray-50 dark:bg-gray-900 p-6">
+    <div className="min-h-screen bg-slate-50  p-6">
       <div className="max-w-2xl mx-auto">
         <div className="mb-6">
           <Link
             href="/cases"
-            className="inline-flex items-center text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white"
+            className="inline-flex items-center text-slate-600  hover:text-slate-900 "
           >
             <ArrowLeft className="w-4 h-4 mr-2" />
             Back to Cases
           </Link>
         </div>
 
-        <div className="bg-white dark:bg-gray-800 rounded-lg shadow p-6">
+        <div className="bg-white  rounded-lg shadow p-6">
           <div className="flex items-center gap-3 mb-6">
-            <div className="p-2 bg-blue-100 dark:bg-blue-900/30 rounded-lg">
-              <Folder className="w-6 h-6 text-blue-600 dark:text-blue-400" />
+            <div className="p-2 bg-blue-100  rounded-lg">
+              <Folder className="w-6 h-6 text-blue-600 " />
             </div>
             <div>
-              <h1 className="text-xl font-semibold text-gray-900 dark:text-white">
+              <h1 className="text-xl font-semibold text-slate-900 ">
                 Create New Case
               </h1>
-              <p className="text-sm text-gray-500 dark:text-gray-400">
+              <p className="text-sm text-slate-500 ">
                 Start a new investigation case
               </p>
             </div>
           </div>
 
-          <p className="text-gray-600 dark:text-gray-400 mb-6">
+          <p className="text-slate-600  mb-6">
             To create a case, you can either escalate a finding or an alert from
             the respective pages. Cases are automatically created with the
             relevant context and evidence attached.
@@ -138,7 +136,7 @@ function NewCaseContent() {
             </Link>
             <Link
               href="/alerts"
-              className="flex-1 px-4 py-3 bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 rounded-lg hover:bg-gray-200 dark:hover:bg-gray-600 transition text-center"
+              className="flex-1 px-4 py-3 bg-slate-100  text-slate-700  rounded-lg hover:bg-slate-200  transition text-center"
             >
               View Alerts
             </Link>
@@ -154,7 +152,7 @@ export default function NewCasePage() {
     <Suspense
       fallback={
         <div className="flex items-center justify-center min-h-screen">
-          <div className="animate-pulse text-gray-500">Loading...</div>
+          <div className="animate-pulse text-slate-500">Loading...</div>
         </div>
       }
     >

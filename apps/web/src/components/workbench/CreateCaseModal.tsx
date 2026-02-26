@@ -48,7 +48,7 @@ export function CreateCaseModal({
     <Dialog.Root open={open} onOpenChange={onOpenChange}>
       <Dialog.Portal>
         <Dialog.Overlay className="fixed inset-0 z-50 bg-black/60" />
-        <Dialog.Content className="fixed left-1/2 top-1/2 z-50 w-[min(560px,92vw)] -translate-x-1/2 -translate-y-1/2 rounded-xl border border-border-subtle bg-bg-elevated p-5 shadow-xl">
+        <Dialog.Content className="fixed left-1/2 top-1/2 z-50 w-[min(560px,92vw)] -translate-x-1/2 -translate-y-1/2 rounded-xl border border-border-subtle bg-background-elevated p-5 shadow-xl">
           <div className="mb-4 flex items-center justify-between">
             <Dialog.Title className="text-lg font-semibold text-foreground">
               Create Case
@@ -56,7 +56,7 @@ export function CreateCaseModal({
             <Dialog.Close asChild>
               <button
                 type="button"
-                className="rounded-md p-1 text-foreground-secondary hover:bg-bg-overlay"
+                className="rounded-md p-1 text-foreground-secondary hover:bg-background-overlay"
                 aria-label="Close"
               >
                 <X className="h-4 w-4" />
@@ -72,7 +72,7 @@ export function CreateCaseModal({
               <input
                 value={caseType}
                 onChange={(event) => setCaseType(event.target.value)}
-                className="h-10 w-full rounded-lg border border-border-default bg-bg-overlay px-3 text-sm"
+                className="h-10 w-full rounded-lg border border-border bg-background-overlay px-3 text-sm"
               />
             </div>
 
@@ -83,7 +83,7 @@ export function CreateCaseModal({
               <select
                 value={severity}
                 onChange={(event) => setSeverity(event.target.value)}
-                className="h-10 w-full rounded-lg border border-border-default bg-bg-overlay px-3 text-sm"
+                className="h-10 w-full rounded-lg border border-border bg-background-overlay px-3 text-sm"
               >
                 <option value="low">Low</option>
                 <option value="medium">Medium</option>
@@ -100,7 +100,7 @@ export function CreateCaseModal({
                 value={description}
                 onChange={(event) => setDescription(event.target.value)}
                 rows={4}
-                className="w-full rounded-lg border border-border-default bg-bg-overlay px-3 py-2 text-sm"
+                className="w-full rounded-lg border border-border bg-background-overlay px-3 py-2 text-sm"
               />
             </div>
 

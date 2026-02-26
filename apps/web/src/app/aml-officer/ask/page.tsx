@@ -128,31 +128,31 @@ export default function ComplianceQAPage() {
       case "low":
         return "text-red-600 bg-red-50";
       default:
-        return "text-gray-600 bg-gray-50";
+        return "text-slate-600 bg-slate-50";
     }
   };
 
   return (
-    <div className="min-h-screen bg-gray-50 flex flex-col">
+    <div className="min-h-screen bg-slate-50 flex flex-col">
       {/* Header */}
-      <div className="bg-white border-b border-gray-200 px-4 py-4">
+      <div className="bg-white border-b border-slate-200 px-4 py-4">
         <div className="max-w-4xl mx-auto flex items-center justify-between">
           <div className="flex items-center space-x-4">
             <Link
               href="/aml-officer"
-              className="p-2 hover:bg-gray-100 rounded-lg transition"
+              className="p-2 hover:bg-slate-100 rounded-lg transition"
             >
-              <ArrowLeft className="w-5 h-5 text-gray-600" />
+              <ArrowLeft className="w-5 h-5 text-slate-600" />
             </Link>
             <div className="flex items-center space-x-3">
               <div className="p-2 bg-indigo-100 rounded-lg">
                 <Brain className="w-6 h-6 text-indigo-600" />
               </div>
               <div>
-                <h1 className="text-lg font-semibold text-gray-900">
+                <h1 className="text-lg font-semibold text-slate-900">
                   Compliance Q&A
                 </h1>
-                <p className="text-sm text-gray-500">
+                <p className="text-sm text-slate-500">
                   Ask questions about EU AML regulations
                 </p>
               </div>
@@ -161,7 +161,7 @@ export default function ComplianceQAPage() {
           {messages.length > 0 && (
             <button
               onClick={clearConversation}
-              className="flex items-center space-x-2 px-3 py-2 text-sm text-gray-600 hover:bg-gray-100 rounded-lg transition"
+              className="flex items-center space-x-2 px-3 py-2 text-sm text-slate-600 hover:bg-slate-100 rounded-lg transition"
             >
               <RefreshCw className="w-4 h-4" />
               <span>Clear</span>
@@ -179,10 +179,10 @@ export default function ComplianceQAPage() {
               <div className="inline-flex p-4 bg-indigo-100 rounded-full mb-6">
                 <Sparkles className="w-12 h-12 text-indigo-600" />
               </div>
-              <h2 className="text-2xl font-semibold text-gray-900 mb-2">
+              <h2 className="text-2xl font-semibold text-slate-900 mb-2">
                 How can I help you today?
               </h2>
-              <p className="text-gray-600 mb-8 max-w-md mx-auto">
+              <p className="text-slate-600 mb-8 max-w-md mx-auto">
                 Ask me any question about EU AML/CFT regulations. I&apos;ll
                 provide answers grounded in official regulatory documents.
               </p>
@@ -192,10 +192,10 @@ export default function ComplianceQAPage() {
                   <button
                     key={index}
                     onClick={() => handleSubmit(question)}
-                    className="p-4 text-left bg-white border border-gray-200 rounded-xl hover:border-indigo-300 hover:shadow-sm transition"
+                    className="p-4 text-left bg-white border border-slate-200 rounded-xl hover:border-indigo-300 hover:shadow-sm transition"
                   >
                     <MessageSquare className="w-5 h-5 text-indigo-500 mb-2" />
-                    <p className="text-sm text-gray-700">{question}</p>
+                    <p className="text-sm text-slate-700">{question}</p>
                   </button>
                 ))}
               </div>
@@ -214,13 +214,13 @@ export default function ComplianceQAPage() {
                     className={`max-w-3xl ${
                       message.role === "user"
                         ? "bg-indigo-600 text-white rounded-2xl rounded-tr-md px-4 py-3"
-                        : "bg-white border border-gray-200 rounded-2xl rounded-tl-md p-4"
+                        : "bg-white border border-slate-200 rounded-2xl rounded-tl-md p-4"
                     }`}
                   >
                     {message.role === "assistant" && (
                       <div className="flex items-center space-x-2 mb-3">
                         <Brain className="w-5 h-5 text-indigo-600" />
-                        <span className="font-medium text-gray-900">
+                        <span className="font-medium text-slate-900">
                           AI AML Officer
                         </span>
                         {message.confidence && (
@@ -237,7 +237,7 @@ export default function ComplianceQAPage() {
 
                     <div
                       className={`${
-                        message.role === "user" ? "" : "text-gray-700"
+                        message.role === "user" ? "" : "text-slate-700"
                       } whitespace-pre-wrap`}
                     >
                       {message.content}
@@ -245,8 +245,8 @@ export default function ComplianceQAPage() {
 
                     {/* Sources */}
                     {message.sources && message.sources.length > 0 && (
-                      <div className="mt-4 pt-4 border-t border-gray-100">
-                        <p className="text-sm font-medium text-gray-700 mb-2">
+                      <div className="mt-4 pt-4 border-t border-slate-100">
+                        <p className="text-sm font-medium text-slate-700 mb-2">
                           Sources:
                         </p>
                         <div className="space-y-2">
@@ -267,8 +267,8 @@ export default function ComplianceQAPage() {
 
                     {/* Follow-up suggestions */}
                     {message.followups && message.followups.length > 0 && (
-                      <div className="mt-4 pt-4 border-t border-gray-100">
-                        <p className="text-sm font-medium text-gray-700 mb-2">
+                      <div className="mt-4 pt-4 border-t border-slate-100">
+                        <p className="text-sm font-medium text-slate-700 mb-2">
                           Related questions:
                         </p>
                         <div className="flex flex-wrap gap-2">
@@ -276,7 +276,7 @@ export default function ComplianceQAPage() {
                             <button
                               key={idx}
                               onClick={() => handleSubmit(followup)}
-                              className="text-sm px-3 py-1.5 bg-gray-100 text-gray-700 rounded-full hover:bg-gray-200 transition"
+                              className="text-sm px-3 py-1.5 bg-slate-100 text-slate-700 rounded-full hover:bg-slate-200 transition"
                             >
                               {followup}
                             </button>
@@ -290,10 +290,10 @@ export default function ComplianceQAPage() {
 
               {loading && (
                 <div className="flex justify-start">
-                  <div className="bg-white border border-gray-200 rounded-2xl rounded-tl-md p-4">
+                  <div className="bg-white border border-slate-200 rounded-2xl rounded-tl-md p-4">
                     <div className="flex items-center space-x-2">
                       <Loader2 className="w-5 h-5 text-indigo-600 animate-spin" />
-                      <span className="text-gray-600">Thinking...</span>
+                      <span className="text-slate-600">Thinking...</span>
                     </div>
                   </div>
                 </div>
@@ -306,7 +306,7 @@ export default function ComplianceQAPage() {
       </div>
 
       {/* Input Area */}
-      <div className="bg-white border-t border-gray-200 px-4 py-4">
+      <div className="bg-white border-t border-slate-200 px-4 py-4">
         <div className="max-w-4xl mx-auto">
           <div className="relative">
             <textarea
@@ -315,7 +315,7 @@ export default function ComplianceQAPage() {
               onKeyDown={handleKeyDown}
               placeholder="Ask a compliance question..."
               rows={1}
-              className="w-full px-4 py-3 pr-12 border border-gray-300 rounded-xl resize-none focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+              className="w-full px-4 py-3 pr-12 border border-slate-300 rounded-xl resize-none focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
               disabled={loading}
             />
             <button
@@ -326,7 +326,7 @@ export default function ComplianceQAPage() {
               <Send className="w-5 h-5" />
             </button>
           </div>
-          <p className="text-xs text-gray-500 mt-2 text-center">
+          <p className="text-xs text-slate-500 mt-2 text-center">
             Answers are generated using AI and should be verified against
             official regulatory sources.
           </p>

@@ -7,8 +7,8 @@ import { springs, transitions } from "@/lib/motion";
 
 /**
  * ═══════════════════════════════════════════════════════════════════
- * PROGRESS - Sentinel Design System
- * Gradient progress bars with glass effects and animations
+ * PROGRESS - Horizon Design System
+ * Gradient progress bars with clean surfaces and animations
  * ═══════════════════════════════════════════════════════════════════
  */
 
@@ -432,7 +432,7 @@ function StepProgress({
                   isCurrent && "border-transparent",
                   !isCompleted &&
                     !isCurrent &&
-                    "border-border-default bg-transparent text-foreground-tertiary",
+                    "border-border bg-transparent text-foreground-tertiary",
                 )}
                 style={{
                   background:

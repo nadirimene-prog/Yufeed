@@ -11,13 +11,13 @@ const StatusChip: React.FC<StatusChipProps> = ({ status }) => {
       case "approved":
         return "bg-blue-50 text-blue-700 border-blue-200"; // Sardine uses blue/clean look
       case "rejected":
-        return "bg-gray-100 text-gray-600 border-gray-200 line-through decoration-gray-400";
+        return "bg-slate-100 text-slate-600 border-slate-200 line-through decoration-slate-400";
       case "manual_review":
-        return "bg-purple-50 text-purple-700 border-purple-200";
+        return "bg-blue-50 text-blue-700 border-blue-200";
       case "pending":
         return "bg-yellow-50 text-yellow-700 border-yellow-200";
       default:
-        return "bg-gray-50 text-gray-600";
+        return "bg-slate-50 text-slate-600";
     }
   };
 

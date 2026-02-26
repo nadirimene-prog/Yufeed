@@ -15,7 +15,7 @@ export default function ProfilePage() {
           Profile
         </h1>
         <p className="mt-2 text-sm text-muted-foreground">
-          Your identity and access context in YuFeed Sentinel.
+          Your identity and access context in YuFeed.
         </p>
       </div>
 

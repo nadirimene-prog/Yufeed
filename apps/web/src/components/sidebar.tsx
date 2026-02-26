@@ -125,7 +125,7 @@ export default function Sidebar({
                 YuFeed
               </span>
               <span className="text-[10px] text-foreground-tertiary uppercase tracking-wider">
-                Sentinel
+                Compliance
               </span>
             </motion.div>
           )}

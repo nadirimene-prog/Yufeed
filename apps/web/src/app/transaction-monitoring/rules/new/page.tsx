@@ -167,7 +167,7 @@ export default function RuleBuilderPage() {
       ) : null}
 
       <div className="grid min-h-0 flex-1 gap-4 lg:grid-cols-[320px_1fr]">
-        <aside className="min-h-0 space-y-4 overflow-auto rounded-2xl border border-border-default bg-bg-elevated p-4">
+        <aside className="min-h-0 space-y-4 overflow-auto rounded-2xl border border-border bg-background-elevated p-4">
           <div className="space-y-3">
             <h2 className="text-sm font-semibold uppercase tracking-wide text-foreground-secondary">
               Rule Metadata
@@ -179,7 +179,7 @@ export default function RuleBuilderPage() {
                 value={name}
                 onChange={(event) => setName(event.target.value)}
                 placeholder="Unusual High Value Transfer"
-                className="h-10 w-full rounded-lg border border-border-default bg-bg-overlay px-3 text-sm"
+                className="h-10 w-full rounded-lg border border-border bg-background-overlay px-3 text-sm"
               />
             </label>
 
@@ -192,7 +192,7 @@ export default function RuleBuilderPage() {
                     event.target.value as (typeof SEVERITY_OPTIONS)[number],
                   )
                 }
-                className="h-10 w-full rounded-lg border border-border-default bg-bg-overlay px-3 text-sm"
+                className="h-10 w-full rounded-lg border border-border bg-background-overlay px-3 text-sm"
               >
                 {SEVERITY_OPTIONS.map((option) => (
                   <option key={option} value={option}>
@@ -208,7 +208,7 @@ export default function RuleBuilderPage() {
                 value={category}
                 onChange={(event) => setCategory(event.target.value)}
                 placeholder="velocity"
-                className="h-10 w-full rounded-lg border border-border-default bg-bg-overlay px-3 text-sm"
+                className="h-10 w-full rounded-lg border border-border bg-background-overlay px-3 text-sm"
               />
             </label>
 
@@ -218,7 +218,7 @@ export default function RuleBuilderPage() {
                 value={description}
                 onChange={(event) => setDescription(event.target.value)}
                 rows={4}
-                className="w-full rounded-lg border border-border-default bg-bg-overlay px-3 py-2 text-sm"
+                className="w-full rounded-lg border border-border bg-background-overlay px-3 py-2 text-sm"
               />
             </label>
 
@@ -232,7 +232,7 @@ export default function RuleBuilderPage() {
             </label>
           </div>
 
-          <div className="space-y-3 rounded-xl border border-border-subtle bg-bg-overlay p-3">
+          <div className="space-y-3 rounded-xl border border-border-subtle bg-background-overlay p-3">
             <h3 className="text-xs font-semibold uppercase tracking-wide text-foreground-secondary">
               Decision Workflow
             </h3>
@@ -246,7 +246,7 @@ export default function RuleBuilderPage() {
                       .value as (typeof DEFAULT_ACTION_OPTIONS)[number],
                   )
                 }
-                className="h-9 w-full rounded-lg border border-border-default bg-bg-base px-2 text-sm"
+                className="h-9 w-full rounded-lg border border-border bg-background px-2 text-sm"
               >
                 {DEFAULT_ACTION_OPTIONS.map((option) => (
                   <option key={option} value={option}>
@@ -266,7 +266,7 @@ export default function RuleBuilderPage() {
                 onChange={(event) =>
                   setVariantAPercent(Number(event.target.value || 0))
                 }
-                className="h-9 w-full rounded-lg border border-border-default bg-bg-base px-2 text-sm"
+                className="h-9 w-full rounded-lg border border-border bg-background px-2 text-sm"
               />
             </label>
             <p className="text-[11px] text-foreground-tertiary">
@@ -282,7 +282,7 @@ export default function RuleBuilderPage() {
               value={thresholds}
               onChange={(event) => setThresholds(event.target.value)}
               rows={5}
-              className="w-full rounded-lg border border-border-default bg-bg-overlay px-3 py-2 font-mono text-xs"
+              className="w-full rounded-lg border border-border bg-background-overlay px-3 py-2 font-mono text-xs"
             />
           </div>
 
@@ -295,7 +295,7 @@ export default function RuleBuilderPage() {
           </div>
         </aside>
 
-        <section className="flex min-h-0 flex-col overflow-hidden rounded-2xl border border-border-default bg-bg-elevated">
+        <section className="flex min-h-0 flex-col overflow-hidden rounded-2xl border border-border bg-background-elevated">
           <div className="flex items-center gap-1 border-b border-border-subtle p-2">
             <button
               type="button"
@@ -304,7 +304,7 @@ export default function RuleBuilderPage() {
                 "inline-flex items-center gap-1 rounded-lg px-3 py-2 text-xs font-semibold uppercase tracking-wide",
                 activeTab === "builder"
                   ? "bg-primary/20 text-primary"
-                  : "text-foreground-secondary hover:bg-bg-overlay",
+                  : "text-foreground-secondary hover:bg-background-overlay",
               )}
             >
               <WandSparkles className="h-3.5 w-3.5" />
@@ -317,7 +317,7 @@ export default function RuleBuilderPage() {
                 "inline-flex items-center gap-1 rounded-lg px-3 py-2 text-xs font-semibold uppercase tracking-wide",
                 activeTab === "preview"
                   ? "bg-primary/20 text-primary"
-                  : "text-foreground-secondary hover:bg-bg-overlay",
+                  : "text-foreground-secondary hover:bg-background-overlay",
               )}
             >
               <Code2 className="h-3.5 w-3.5" />
@@ -346,7 +346,7 @@ export default function RuleBuilderPage() {
         </section>
       </div>
 
-      <footer className="rounded-xl border border-border-subtle bg-bg-elevated px-4 py-3 text-xs text-foreground-tertiary">
+      <footer className="rounded-xl border border-border-subtle bg-background-elevated px-4 py-3 text-xs text-foreground-tertiary">
         <p className="inline-flex items-center gap-1.5">
           <AlertTriangle className="h-3.5 w-3.5 text-risk-high" />
           Rules are tenant-scoped and submitted through the approval workflow

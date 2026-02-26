@@ -31,21 +31,21 @@ export default function Error({ error, reset }: ErrorProps) {
   }, [error]);
 
   return (
-    <div className="flex min-h-screen items-center justify-center bg-gray-50 px-4 dark:bg-gray-900">
+    <div className="flex min-h-screen items-center justify-center bg-slate-50 px-4 ">
       <div className="w-full max-w-md space-y-6 text-center">
         {/* Error Icon */}
         <div className="flex justify-center">
-          <div className="rounded-full bg-red-100 p-3 dark:bg-red-900/20">
-            <AlertTriangle className="h-8 w-8 text-red-600 dark:text-red-400" />
+          <div className="rounded-full bg-red-100 p-3 ">
+            <AlertTriangle className="h-8 w-8 text-red-600 " />
           </div>
         </div>
 
         {/* Error Message */}
         <div className="space-y-2">
-          <h1 className="text-2xl font-bold text-gray-900 dark:text-white">
+          <h1 className="text-2xl font-bold text-slate-900 ">
             Something went wrong
           </h1>
-          <p className="text-gray-600 dark:text-gray-400">
+          <p className="text-slate-600 ">
             We encountered an unexpected error. Please try again or return to
             the home page.
           </p>
@@ -53,15 +53,15 @@ export default function Error({ error, reset }: ErrorProps) {
 
         {/* Error Details (Development Only) */}
         {process.env.NODE_ENV === "development" && (
-          <div className="rounded-lg border border-red-200 bg-red-50 p-4 text-left dark:border-red-800 dark:bg-red-900/10">
-            <h3 className="mb-2 text-sm font-semibold text-red-800 dark:text-red-300">
+          <div className="rounded-lg border border-red-200 bg-red-50 p-4 text-left  ">
+            <h3 className="mb-2 text-sm font-semibold text-red-800 ">
               Error Details (Development Only)
             </h3>
-            <div className="space-y-1 text-xs text-red-700 dark:text-red-400">
+            <div className="space-y-1 text-xs text-red-700 ">
               <p className="font-semibold">{error.name}</p>
               <p className="break-all font-mono">{error.message}</p>
               {error.digest && (
-                <p className="mt-2 font-mono text-red-600 dark:text-red-500">
+                <p className="mt-2 font-mono text-red-600 ">
                   Digest: {error.digest}
                 </p>
               )}
@@ -73,14 +73,14 @@ export default function Error({ error, reset }: ErrorProps) {
         <div className="flex flex-col gap-3 sm:flex-row sm:justify-center">
           <button
             onClick={reset}
-            className="inline-flex items-center justify-center rounded-lg bg-blue-600 px-4 py-2.5 text-sm font-medium text-white transition-colors hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 dark:bg-blue-500 dark:hover:bg-blue-600"
+            className="inline-flex items-center justify-center rounded-lg bg-blue-600 px-4 py-2.5 text-sm font-medium text-white transition-colors hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2  "
           >
             <RefreshCcw className="mr-2 h-4 w-4" />
             Try again
           </button>
           <Link
             href="/"
-            className="inline-flex items-center justify-center rounded-lg border border-gray-300 bg-white px-4 py-2.5 text-sm font-medium text-gray-700 transition-colors hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-gray-500 focus:ring-offset-2 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-300 dark:hover:bg-gray-700"
+            className="inline-flex items-center justify-center rounded-lg border border-slate-300 bg-white px-4 py-2.5 text-sm font-medium text-slate-700 transition-colors hover:bg-slate-50 focus:outline-none focus:ring-2 focus:ring-slate-500 focus:ring-offset-2    "
           >
             <Home className="mr-2 h-4 w-4" />
             Go to home
@@ -88,12 +88,12 @@ export default function Error({ error, reset }: ErrorProps) {
         </div>
 
         {/* Support Information */}
-        <div className="text-xs text-gray-500 dark:text-gray-400">
+        <div className="text-xs text-slate-500 ">
           <p>
             If this problem persists, please contact{" "}
             <a
               href="mailto:support@yufeed.com"
-              className="underline hover:text-gray-700 dark:hover:text-gray-300"
+              className="underline hover:text-slate-700 "
             >
               support
             </a>

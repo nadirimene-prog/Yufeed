@@ -319,7 +319,7 @@ function buildPrintHTML(
       display: flex;
       justify-content: space-between;
       align-items: flex-start;
-      border-bottom: 2px solid #6d5acd;
+      border-bottom: 2px solid #0052ff;
       padding-bottom: 12px;
       margin-bottom: 20px;
     }
@@ -330,7 +330,7 @@ function buildPrintHTML(
     }
     .report-header .brand {
       font-size: 11px;
-      color: #6d5acd;
+      color: #0052ff;
       font-weight: 600;
     }
     .report-header .timestamp {

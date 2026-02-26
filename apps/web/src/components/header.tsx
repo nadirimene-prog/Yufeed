@@ -219,7 +219,7 @@ export default function Header({
   return (
     <header
       className={cn(
-        "sticky top-0 z-30 h-14 border-b border-[#E2E8F0] bg-white/80 backdrop-blur-xl",
+        "sticky top-0 z-30 h-14 border-b border-[#E2E8F0] bg-white",
         className,
       )}
     >

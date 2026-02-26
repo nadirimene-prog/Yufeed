@@ -110,30 +110,30 @@ export default function SanctionsScreeningPage() {
       return { color: "text-orange-600 bg-orange-50", label: "Strong Match" };
     if (score >= 70)
       return { color: "text-yellow-600 bg-yellow-50", label: "Partial Match" };
-    return { color: "text-gray-600 bg-gray-50", label: "Weak Match" };
+    return { color: "text-slate-600 bg-slate-50", label: "Weak Match" };
   };
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen bg-slate-50">
       {/* Header */}
-      <div className="bg-white border-b border-gray-200 px-4 py-4">
+      <div className="bg-white border-b border-slate-200 px-4 py-4">
         <div className="max-w-6xl mx-auto flex items-center justify-between">
           <div className="flex items-center space-x-4">
             <Link
               href="/aml-officer"
-              className="p-2 hover:bg-gray-100 rounded-lg transition"
+              className="p-2 hover:bg-slate-100 rounded-lg transition"
             >
-              <ArrowLeft className="w-5 h-5 text-gray-600" />
+              <ArrowLeft className="w-5 h-5 text-slate-600" />
             </Link>
             <div className="flex items-center space-x-3">
               <div className="p-2 bg-amber-100 rounded-lg">
                 <Shield className="w-6 h-6 text-amber-600" />
               </div>
               <div>
-                <h1 className="text-lg font-semibold text-gray-900">
+                <h1 className="text-lg font-semibold text-slate-900">
                   Sanctions Screening
                 </h1>
-                <p className="text-sm text-gray-500">
+                <p className="text-sm text-slate-500">
                   Screen against EU & OFAC sanctions lists
                 </p>
               </div>
@@ -147,8 +147,8 @@ export default function SanctionsScreeningPage() {
           {/* Input Panel */}
           <div className="space-y-6">
             {/* List Selection */}
-            <div className="bg-white rounded-xl border border-gray-200 p-6">
-              <h2 className="text-sm font-medium text-gray-700 mb-4">
+            <div className="bg-white rounded-xl border border-slate-200 p-6">
+              <h2 className="text-sm font-medium text-slate-700 mb-4">
                 Sanctions Lists
               </h2>
               <div className="flex flex-wrap gap-3">
@@ -176,7 +176,7 @@ export default function SanctionsScreeningPage() {
                     className={`flex items-center space-x-2 px-4 py-2 rounded-lg border transition ${
                       selectedLists.includes(list.id)
                         ? "border-indigo-500 bg-indigo-50 text-indigo-700"
-                        : "border-gray-200 bg-white text-gray-600 hover:bg-gray-50"
+                        : "border-slate-200 bg-white text-slate-600 hover:bg-slate-50"
                     }`}
                   >
                     <list.icon className="w-4 h-4" />
@@ -187,9 +187,9 @@ export default function SanctionsScreeningPage() {
             </div>
 
             {/* Screening Entries */}
-            <div className="bg-white rounded-xl border border-gray-200 p-6">
+            <div className="bg-white rounded-xl border border-slate-200 p-6">
               <div className="flex items-center justify-between mb-4">
-                <h2 className="text-sm font-medium text-gray-700">
+                <h2 className="text-sm font-medium text-slate-700">
                   Names to Screen
                 </h2>
                 <button
@@ -205,16 +205,16 @@ export default function SanctionsScreeningPage() {
                 {entries.map((entry, index) => (
                   <div
                     key={entry.id}
-                    className="p-4 border border-gray-200 rounded-lg"
+                    className="p-4 border border-slate-200 rounded-lg"
                   >
                     <div className="flex items-center justify-between mb-3">
-                      <span className="text-xs font-medium text-gray-500">
+                      <span className="text-xs font-medium text-slate-500">
                         Entry {index + 1}
                       </span>
                       {entries.length > 1 && (
                         <button
                           onClick={() => removeEntry(entry.id)}
-                          className="text-gray-400 hover:text-red-500 transition"
+                          className="text-slate-400 hover:text-red-500 transition"
                         >
                           <Trash2 className="w-4 h-4" />
                         </button>
@@ -229,13 +229,13 @@ export default function SanctionsScreeningPage() {
                         updateEntry(entry.id, { name: e.target.value })
                       }
                       placeholder="Enter name to screen..."
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent mb-3"
+                      className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent mb-3"
                     />
 
                     <div className="grid grid-cols-3 gap-3">
                       {/* Entity Type */}
                       <div>
-                        <label className="block text-xs text-gray-500 mb-1">
+                        <label className="block text-xs text-slate-500 mb-1">
                           Type
                         </label>
                         <select
@@ -247,7 +247,7 @@ export default function SanctionsScreeningPage() {
                                 | "entity",
                             })
                           }
-                          className="w-full px-2 py-1.5 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                          className="w-full px-2 py-1.5 text-sm border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500"
                         >
                           <option value="individual">Individual</option>
                           <option value="entity">Entity</option>
@@ -256,7 +256,7 @@ export default function SanctionsScreeningPage() {
 
                       {/* Nationality */}
                       <div>
-                        <label className="block text-xs text-gray-500 mb-1">
+                        <label className="block text-xs text-slate-500 mb-1">
                           Nationality
                         </label>
                         <input
@@ -268,14 +268,14 @@ export default function SanctionsScreeningPage() {
                             })
                           }
                           placeholder="Optional"
-                          className="w-full px-2 py-1.5 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                          className="w-full px-2 py-1.5 text-sm border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500"
                         />
                       </div>
 
                       {/* Birth Date (for individuals) */}
                       {entry.entityType === "individual" && (
                         <div>
-                          <label className="block text-xs text-gray-500 mb-1">
+                          <label className="block text-xs text-slate-500 mb-1">
                             DOB
                           </label>
                           <input
@@ -286,7 +286,7 @@ export default function SanctionsScreeningPage() {
                                 birthDate: e.target.value,
                               })
                             }
-                            className="w-full px-2 py-1.5 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                            className="w-full px-2 py-1.5 text-sm border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500"
                           />
                         </div>
                       )}
@@ -322,14 +322,14 @@ export default function SanctionsScreeningPage() {
 
           {/* Results Panel */}
           <div className="space-y-6">
-            <div className="bg-white rounded-xl border border-gray-200 p-6">
-              <h2 className="text-sm font-medium text-gray-700 mb-4">
+            <div className="bg-white rounded-xl border border-slate-200 p-6">
+              <h2 className="text-sm font-medium text-slate-700 mb-4">
                 Screening Results
               </h2>
 
               {results.length === 0 ? (
-                <div className="text-center py-12 text-gray-500">
-                  <Shield className="w-12 h-12 mx-auto mb-3 text-gray-300" />
+                <div className="text-center py-12 text-slate-500">
+                  <Shield className="w-12 h-12 mx-auto mb-3 text-slate-300" />
                   <p>Results will appear here after screening</p>
                 </div>
               ) : (
@@ -351,10 +351,10 @@ export default function SanctionsScreeningPage() {
                             <CheckCircle className="w-5 h-5 text-green-600" />
                           )}
                           <div>
-                            <p className="font-medium text-gray-900">
+                            <p className="font-medium text-slate-900">
                               {result.screened_name}
                             </p>
-                            <p className="text-sm text-gray-500">
+                            <p className="text-sm text-slate-500">
                               Screened at{" "}
                               {new Date(result.screened_at).toLocaleString()}
                             </p>
@@ -385,7 +385,7 @@ export default function SanctionsScreeningPage() {
                                   className="bg-white rounded-lg p-3 border border-red-100"
                                 >
                                   <div className="flex items-center justify-between mb-2">
-                                    <span className="font-medium text-gray-900">
+                                    <span className="font-medium text-slate-900">
                                       {match.original_name}
                                     </span>
                                     <span
@@ -396,11 +396,11 @@ export default function SanctionsScreeningPage() {
                                     </span>
                                   </div>
                                   <div className="grid grid-cols-2 gap-2 text-sm">
-                                    <div className="flex items-center space-x-1 text-gray-600">
+                                    <div className="flex items-center space-x-1 text-slate-600">
                                       <Globe className="w-3.5 h-3.5" />
                                       <span>{match.list_type}</span>
                                     </div>
-                                    <div className="flex items-center space-x-1 text-gray-600">
+                                    <div className="flex items-center space-x-1 text-slate-600">
                                       {match.entity_type === "individual" ? (
                                         <User className="w-3.5 h-3.5" />
                                       ) : (
@@ -418,7 +418,7 @@ export default function SanctionsScreeningPage() {
                                           (program, pIndex) => (
                                             <span
                                               key={pIndex}
-                                              className="text-xs px-2 py-0.5 bg-gray-100 text-gray-600 rounded"
+                                              className="text-xs px-2 py-0.5 bg-slate-100 text-slate-600 rounded"
                                             >
                                               {program}
                                             </span>
@@ -428,7 +428,7 @@ export default function SanctionsScreeningPage() {
                                     )}
                                   {match.aliases &&
                                     match.aliases.length > 0 && (
-                                      <div className="mt-2 text-xs text-gray-500">
+                                      <div className="mt-2 text-xs text-slate-500">
                                         <span className="font-medium">
                                           Also known as:{" "}
                                         </span>
@@ -443,12 +443,12 @@ export default function SanctionsScreeningPage() {
                       )}
 
                       {/* Lists Checked */}
-                      <div className="mt-3 flex items-center space-x-2 text-xs text-gray-500">
+                      <div className="mt-3 flex items-center space-x-2 text-xs text-slate-500">
                         <span>Checked:</span>
                         {result.lists_checked?.map((list, lIndex) => (
                           <span
                             key={lIndex}
-                            className="px-2 py-0.5 bg-gray-100 rounded"
+                            className="px-2 py-0.5 bg-slate-100 rounded"
                           >
                             {list}
                           </span>
@@ -465,9 +465,9 @@ export default function SanctionsScreeningPage() {
 
             {/* Export Options */}
             {results.length > 0 && (
-              <div className="bg-white rounded-xl border border-gray-200 p-4">
+              <div className="bg-white rounded-xl border border-slate-200 p-4">
                 <div className="flex items-center justify-between">
-                  <span className="text-sm text-gray-600">
+                  <span className="text-sm text-slate-600">
                     {results.filter((r) => r.is_hit).length} hits out of{" "}
                     {results.length} screened
                   </span>

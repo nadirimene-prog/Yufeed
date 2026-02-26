@@ -92,9 +92,9 @@ export default function ImpactAssessmentComponent({
   if (error === "not_found") {
     return (
       <div className="text-center py-12">
-        <AlertCircle className="h-16 w-16 text-gray-400 mx-auto mb-4" />
+        <AlertCircle className="h-16 w-16 text-slate-400 mx-auto mb-4" />
         <h3 className="text-lg font-semibold mb-2">No Impact Assessment Yet</h3>
-        <p className="text-gray-600 dark:text-gray-400 mb-6">
+        <p className="text-slate-600  mb-6">
           Generate an AI-powered impact assessment to understand how this
           regulation affects your operations.
         </p>
@@ -128,16 +128,15 @@ export default function ImpactAssessmentComponent({
   }
 
   const impactLevelColors = {
-    critical: "bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200",
-    high: "bg-orange-100 text-orange-800 dark:bg-orange-900 dark:text-orange-200",
-    medium:
-      "bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200",
-    low: "bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200",
-    minimal: "bg-gray-100 text-gray-800 dark:bg-gray-900 dark:text-gray-200",
+    critical: "bg-red-100 text-red-800  ",
+    high: "bg-orange-100 text-orange-800  ",
+    medium: "bg-yellow-100 text-yellow-800  ",
+    low: "bg-green-100 text-green-800  ",
+    minimal: "bg-slate-100 text-slate-800  ",
   };
 
   const statusIcons = {
-    not_started: <Circle className="h-4 w-4 text-gray-400" />,
+    not_started: <Circle className="h-4 w-4 text-slate-400" />,
     in_progress: <Play className="h-4 w-4 text-blue-600" />,
     completed: <CheckCircle2 className="h-4 w-4 text-green-600" />,
     blocked: <Ban className="h-4 w-4 text-red-600" />,
@@ -159,7 +158,7 @@ export default function ImpactAssessmentComponent({
   return (
     <div className="space-y-8">
       {/* Executive Summary */}
-      <div className="bg-gradient-to-r from-blue-50 to-indigo-50 dark:from-blue-900/20 dark:to-indigo-900/20 rounded-xl p-6 border border-blue-200 dark:border-blue-800">
+      <div className="bg-gradient-to-r from-blue-50 to-indigo-50   rounded-xl p-6 border border-blue-200 ">
         <div className="flex items-start gap-4">
           <div className="flex-shrink-0">
             <Target className="h-8 w-8 text-blue-600" />
@@ -174,7 +173,7 @@ export default function ImpactAssessmentComponent({
               </span>
             </div>
             {assessment.executive_summary && (
-              <p className="text-gray-700 dark:text-gray-300 text-lg leading-relaxed">
+              <p className="text-slate-700  text-lg leading-relaxed">
                 {assessment.executive_summary}
               </p>
             )}
@@ -243,7 +242,7 @@ export default function ImpactAssessmentComponent({
             {affectedAreas.map((area: string) => (
               <span
                 key={area}
-                className="px-3 py-1 bg-indigo-100 text-indigo-800 dark:bg-indigo-900 dark:text-indigo-200 rounded-full text-sm font-medium capitalize"
+                className="px-3 py-1 bg-indigo-100 text-indigo-800   rounded-full text-sm font-medium capitalize"
               >
                 {area.replace(/_/g, " ")}
               </span>
@@ -260,9 +259,7 @@ export default function ImpactAssessmentComponent({
             {keyChanges.map((change: string, idx: number) => (
               <li key={idx} className="flex items-start gap-2">
                 <AlertCircle className="h-5 w-5 text-orange-600 flex-shrink-0 mt-0.5" />
-                <span className="text-gray-700 dark:text-gray-300">
-                  {change}
-                </span>
+                <span className="text-slate-700 ">{change}</span>
               </li>
             ))}
           </ul>
@@ -276,13 +273,13 @@ export default function ImpactAssessmentComponent({
             Action Plan ({actionStats.total} items)
           </h4>
           <div className="flex gap-2 text-xs">
-            <span className="px-2 py-1 bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200 rounded">
+            <span className="px-2 py-1 bg-green-100 text-green-800   rounded">
               {actionStats.completed} Completed
             </span>
-            <span className="px-2 py-1 bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200 rounded">
+            <span className="px-2 py-1 bg-blue-100 text-blue-800   rounded">
               {actionStats.in_progress} In Progress
             </span>
-            <span className="px-2 py-1 bg-gray-100 text-gray-800 dark:bg-gray-900 dark:text-gray-200 rounded">
+            <span className="px-2 py-1 bg-slate-100 text-slate-800   rounded">
               {actionStats.not_started} Not Started
             </span>
           </div>
@@ -314,10 +311,10 @@ interface MetricCardProps {
 
 function MetricCard({ icon, label, value, color }: MetricCardProps) {
   const colors = {
-    blue: "bg-blue-50 dark:bg-blue-900/20 text-blue-600",
-    purple: "bg-purple-50 dark:bg-purple-900/20 text-purple-600",
-    orange: "bg-orange-50 dark:bg-orange-900/20 text-orange-600",
-    green: "bg-green-50 dark:bg-green-900/20 text-green-600",
+    blue: "bg-blue-50  text-blue-600",
+    purple: "bg-purple-50  text-purple-600",
+    orange: "bg-orange-50  text-orange-600",
+    green: "bg-green-50  text-green-600",
   };
 
   return (
@@ -340,17 +337,17 @@ interface RequirementCardProps {
 function RequirementCard({ icon, label, required }: RequirementCardProps) {
   return (
     <div
-      className={`rounded-lg p-4 border-2 ${required ? "border-orange-300 bg-orange-50 dark:bg-orange-900/20" : "border-gray-200 bg-gray-50 dark:bg-gray-900/20"}`}
+      className={`rounded-lg p-4 border-2 ${required ? "border-orange-300 bg-orange-50 " : "border-slate-200 bg-slate-50 "}`}
     >
       <div className="flex items-center gap-2">
-        <div className={required ? "text-orange-600" : "text-gray-400"}>
+        <div className={required ? "text-orange-600" : "text-slate-400"}>
           {icon}
         </div>
         <span className="font-medium text-sm">{label}</span>
         {required ? (
           <CheckCircle2 className="h-5 w-5 text-orange-600 ml-auto" />
         ) : (
-          <Circle className="h-5 w-5 text-gray-300 ml-auto" />
+          <Circle className="h-5 w-5 text-slate-300 ml-auto" />
         )}
       </div>
     </div>
@@ -384,11 +381,11 @@ interface ActionItemCardProps {
 
 function ActionItemCard({ action, onUpdate, statusIcon }: ActionItemCardProps) {
   const priorityColors = {
-    1: "border-l-red-500 bg-red-50/50 dark:bg-red-900/10",
-    2: "border-l-orange-500 bg-orange-50/50 dark:bg-orange-900/10",
-    3: "border-l-yellow-500 bg-yellow-50/50 dark:bg-yellow-900/10",
-    4: "border-l-blue-500 bg-blue-50/50 dark:bg-blue-900/10",
-    5: "border-l-gray-500 bg-gray-50/50 dark:bg-gray-900/10",
+    1: "border-l-red-500 bg-red-50/50 ",
+    2: "border-l-orange-500 bg-orange-50/50 ",
+    3: "border-l-yellow-500 bg-yellow-50/50 ",
+    4: "border-l-blue-500 bg-blue-50/50 ",
+    5: "border-l-slate-500 bg-slate-50/50 ",
   };
 
   const handleStatusChange = (newStatus: string) => {
@@ -404,16 +401,14 @@ function ActionItemCard({ action, onUpdate, statusIcon }: ActionItemCardProps) {
           <div className="flex items-center gap-2 mb-2">
             {statusIcon}
             <h5 className="font-semibold">{action.title}</h5>
-            <span className="text-xs px-2 py-0.5 bg-gray-200 dark:bg-gray-700 rounded">
+            <span className="text-xs px-2 py-0.5 bg-slate-200  rounded">
               P{action.priority}
             </span>
           </div>
           {action.description && (
-            <p className="text-sm text-gray-600 dark:text-gray-400 mb-2">
-              {action.description}
-            </p>
+            <p className="text-sm text-slate-600  mb-2">{action.description}</p>
           )}
-          <div className="flex items-center gap-4 text-xs text-gray-500">
+          <div className="flex items-center gap-4 text-xs text-slate-500">
             <span className="capitalize">
               {action.business_area.replace(/_/g, " ")}
             </span>
@@ -429,7 +424,7 @@ function ActionItemCard({ action, onUpdate, statusIcon }: ActionItemCardProps) {
           <select
             value={action.status}
             onChange={(e) => handleStatusChange(e.target.value)}
-            className="text-sm border border-gray-300 dark:border-gray-700 rounded px-2 py-1 bg-white dark:bg-gray-900"
+            className="text-sm border border-slate-300  rounded px-2 py-1 bg-white "
           >
             <option value="not_started">Not Started</option>
             <option value="in_progress">In Progress</option>

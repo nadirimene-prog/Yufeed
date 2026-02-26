@@ -171,7 +171,7 @@ export function CriticalDecisionBar({
               onClick={() => onSelectFilter?.(realTile.filter)}
               className={cn(
                 "rounded-xl border p-3 text-left transition",
-                "hover:border-white/30 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-aurora-500/70",
+                "hover:border-white/30 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/70",
                 toneClass(realTile.tone),
                 isCriticalPulse && "animate-pulse-soft",
               )}

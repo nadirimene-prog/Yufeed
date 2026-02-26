@@ -4,7 +4,7 @@
  * AI AML Officer Dashboard
  *
  * The main dashboard for the AI AML Officer system.
- * RESKINNED: Using Sentinel Design System (Glass/Dark Mode)
+ * RESKINNED: Using Horizon Design System
  */
 
 import { useEffect, useState } from "react";
@@ -110,7 +110,7 @@ export default function AMLOfficerDashboard() {
           <div>
             <div className="mb-2 flex items-center gap-2 text-xs uppercase tracking-[0.25em] text-primary">
               <Sparkles className="h-3.5 w-3.5" />
-              AI Sentinel
+              AI Yufeed
             </div>
             <h1 className="text-3xl font-bold tracking-tight text-foreground font-display">
               AML Officer Cockpit

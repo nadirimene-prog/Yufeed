@@ -100,7 +100,7 @@ export default function NetworkGraph({ nodes, edges }: NetworkGraphProps) {
   if (!graphData) {
     return (
       <div className="flex items-center justify-center h-96">
-        <p className="text-gray-500">Loading graph...</p>
+        <p className="text-slate-500">Loading graph...</p>
       </div>
     );
   }
@@ -110,7 +110,7 @@ export default function NetworkGraph({ nodes, edges }: NetworkGraphProps) {
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
       transition={{ duration: 0.5 }}
-      className="w-full h-96 bg-white dark:bg-gray-900 rounded-lg border border-gray-200 dark:border-gray-700 overflow-hidden"
+      className="w-full h-96 bg-white  rounded-lg border border-slate-200  overflow-hidden"
     >
       {/* @ts-expect-error - ForceGraph2D types are incompatible with our custom node/link types */}
       <ForceGraph2D
@@ -188,34 +188,26 @@ export default function NetworkGraph({ nodes, edges }: NetworkGraphProps) {
       />
 
       {/* Legend */}
-      <div className="absolute bottom-4 left-4 bg-white dark:bg-gray-800 p-3 rounded-lg shadow-lg border border-gray-200 dark:border-gray-700">
-        <p className="text-xs font-semibold text-gray-700 dark:text-gray-300 mb-2">
+      <div className="absolute bottom-4 left-4 bg-white  p-3 rounded-lg shadow-lg border border-slate-200 ">
+        <p className="text-xs font-semibold text-slate-700  mb-2">
           Risk Levels
         </p>
         <div className="space-y-1">
           <div className="flex items-center gap-2">
             <div className="w-3 h-3 rounded-full bg-red-600"></div>
-            <span className="text-xs text-gray-600 dark:text-gray-400">
-              High Risk (70+)
-            </span>
+            <span className="text-xs text-slate-600 ">High Risk (70+)</span>
           </div>
           <div className="flex items-center gap-2">
             <div className="w-3 h-3 rounded-full bg-orange-600"></div>
-            <span className="text-xs text-gray-600 dark:text-gray-400">
-              Medium Risk (40-70)
-            </span>
+            <span className="text-xs text-slate-600 ">Medium Risk (40-70)</span>
           </div>
           <div className="flex items-center gap-2">
             <div className="w-3 h-3 rounded-full bg-green-600"></div>
-            <span className="text-xs text-gray-600 dark:text-gray-400">
-              Low Risk (&lt;40)
-            </span>
+            <span className="text-xs text-slate-600 ">Low Risk (&lt;40)</span>
           </div>
           <div className="flex items-center gap-2">
             <div className="w-3 h-3 rounded-full bg-blue-600"></div>
-            <span className="text-xs text-gray-600 dark:text-gray-400">
-              Unknown
-            </span>
+            <span className="text-xs text-slate-600 ">Unknown</span>
           </div>
         </div>
       </div>

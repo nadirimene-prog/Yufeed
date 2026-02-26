@@ -282,7 +282,7 @@ export default function ObligationApprovalModal({
               value={note}
               onChange={(e) => setNote(e.target.value)}
               placeholder="Add a note about this decision..."
-              className="w-full px-3 py-2 rounded-lg bg-white/5 border border-white/10 text-white placeholder-white/40 focus:outline-none focus:ring-2 focus:ring-[#6d5acd]/50 resize-none"
+              className="w-full px-3 py-2 rounded-lg bg-white/5 border border-white/10 text-white placeholder-white/40 focus:outline-none focus:ring-2 focus:ring-[#0052ff]/50 resize-none"
               rows={2}
             />
           </div>
@@ -304,7 +304,7 @@ export default function ObligationApprovalModal({
                   e.target.value ? parseInt(e.target.value) : undefined,
                 )
               }
-              className="w-full px-3 py-2 rounded-lg bg-white/5 border border-white/10 text-white focus:outline-none focus:ring-2 focus:ring-[#6d5acd]/50"
+              className="w-full px-3 py-2 rounded-lg bg-white/5 border border-white/10 text-white focus:outline-none focus:ring-2 focus:ring-[#0052ff]/50"
               disabled={loadingData}
             >
               <option value="">No policy linked</option>
@@ -399,13 +399,13 @@ export default function ObligationApprovalModal({
                   value={internalRuleName}
                   onChange={(e) => setInternalRuleName(e.target.value)}
                   placeholder="Rule name (optional)"
-                  className="w-full px-3 py-2 rounded-lg bg-white/5 border border-white/10 text-white placeholder-white/40 focus:outline-none focus:ring-2 focus:ring-[#6d5acd]/50"
+                  className="w-full px-3 py-2 rounded-lg bg-white/5 border border-white/10 text-white placeholder-white/40 focus:outline-none focus:ring-2 focus:ring-[#0052ff]/50"
                 />
                 <textarea
                   value={internalRuleDescription}
                   onChange={(e) => setInternalRuleDescription(e.target.value)}
                   placeholder="Rule description (optional)"
-                  className="w-full px-3 py-2 rounded-lg bg-white/5 border border-white/10 text-white placeholder-white/40 focus:outline-none focus:ring-2 focus:ring-[#6d5acd]/50 resize-none"
+                  className="w-full px-3 py-2 rounded-lg bg-white/5 border border-white/10 text-white placeholder-white/40 focus:outline-none focus:ring-2 focus:ring-[#0052ff]/50 resize-none"
                   rows={2}
                 />
               </div>
@@ -434,7 +434,7 @@ export default function ObligationApprovalModal({
                     className={cn(
                       "flex items-center gap-2 px-2 py-1.5 rounded cursor-pointer transition-colors",
                       selectedRiskIds.includes(risk.id)
-                        ? "bg-[#6d5acd]/20"
+                        ? "bg-[#0052ff]/20"
                         : "hover:bg-white/5",
                     )}
                   >
@@ -442,7 +442,7 @@ export default function ObligationApprovalModal({
                       type="checkbox"
                       checked={selectedRiskIds.includes(risk.id)}
                       onChange={() => toggleRiskSelection(risk.id)}
-                      className="rounded border-white/30 bg-white/10 text-[#6d5acd] focus:ring-[#6d5acd]/50"
+                      className="rounded border-white/30 bg-white/10 text-[#0052ff] focus:ring-[#0052ff]/50"
                     />
                     <span className="text-sm text-white/80 flex-1 truncate">
                       {risk.name}

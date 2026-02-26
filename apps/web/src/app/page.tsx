@@ -104,7 +104,7 @@ export default function Home() {
             className="space-y-8"
           >
             <div className="space-y-4">
-              <SectionBadge label="YuFeed Sentinel" />
+              <SectionBadge label="YuFeed" />
               <h1 className="text-4xl lg:text-[4.5rem] font-display text-foreground leading-[1.05] tracking-tight">
                 Compliance clarity in minutes,{" "}
                 <span className="text-gradient relative">

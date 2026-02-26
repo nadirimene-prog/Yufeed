@@ -79,7 +79,7 @@ export function ActivityHeatmap() {
                   fill={
                     region.intensity > 0.7
                       ? "var(--color-risk-critical)"
-                      : "var(--color-aurora-500)"
+                      : "var(--color-primary)"
                   }
                   fillOpacity={0.2 * region.intensity}
                   filter="url(#glow)"
@@ -91,7 +91,7 @@ export function ActivityHeatmap() {
                   fill={
                     region.intensity > 0.7
                       ? "var(--color-risk-critical)"
-                      : "var(--color-aurora-500)"
+                      : "var(--color-primary)"
                   }
                 />
               </g>
@@ -108,7 +108,7 @@ export function ActivityHeatmap() {
                   "h-1.5 w-1.5 rounded-full",
                   region.intensity > 0.7
                     ? "bg-risk-critical shadow-[0_0_6px_rgba(255,51,102,0.4)]"
-                    : "bg-aurora-500 shadow-[0_0_6px_rgba(109,90,205,0.4)]",
+                    : "bg-primary shadow-[0_0_6px_rgba(0,82,255,0.4)]",
                 )}
               />
               <span className="text-[10px] text-white/50 font-medium">

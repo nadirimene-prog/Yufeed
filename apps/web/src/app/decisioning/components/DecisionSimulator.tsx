@@ -101,8 +101,8 @@ export default function DecisionSimulator({
 }) {
   return (
     <div className="space-y-6">
-      <div className="rounded-xl border border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-950 p-4 flex items-center justify-between">
-        <div className="text-sm text-gray-600 dark:text-gray-400 flex items-center gap-2">
+      <div className="rounded-xl border border-slate-200  bg-white  p-4 flex items-center justify-between">
+        <div className="text-sm text-slate-600  flex items-center gap-2">
           <Sparkles className="h-4 w-4" />
           Auto-run sample decision on load
         </div>
@@ -118,20 +118,20 @@ export default function DecisionSimulator({
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         <div className="lg:col-span-2 space-y-6">
-          <div className="rounded-xl border border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-950 p-6 shadow-sm space-y-4">
+          <div className="rounded-xl border border-slate-200  bg-white  p-6 shadow-sm space-y-4">
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
-                <label className="text-xs font-medium text-gray-600 dark:text-gray-400">
+                <label className="text-xs font-medium text-slate-600 ">
                   Event Type
                 </label>
                 <input
                   value={eventType}
                   onChange={(event) => onEventTypeChange(event.target.value)}
-                  className="mt-1 w-full rounded-md border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900 px-3 py-2 text-sm"
+                  className="mt-1 w-full rounded-md border border-slate-300  bg-white  px-3 py-2 text-sm"
                 />
               </div>
               <div>
-                <label className="text-xs font-medium text-gray-600 dark:text-gray-400">
+                <label className="text-xs font-medium text-slate-600 ">
                   Transaction ID (optional)
                 </label>
                 <input
@@ -139,69 +139,69 @@ export default function DecisionSimulator({
                   onChange={(event) =>
                     onTransactionIdChange(event.target.value)
                   }
-                  className="mt-1 w-full rounded-md border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900 px-3 py-2 text-sm"
+                  className="mt-1 w-full rounded-md border border-slate-300  bg-white  px-3 py-2 text-sm"
                   placeholder="Numeric ID"
                 />
               </div>
               <div>
-                <label className="text-xs font-medium text-gray-600 dark:text-gray-400">
+                <label className="text-xs font-medium text-slate-600 ">
                   Entity Type
                 </label>
                 <input
                   value={entityType}
                   onChange={(event) => onEntityTypeChange(event.target.value)}
-                  className="mt-1 w-full rounded-md border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900 px-3 py-2 text-sm"
+                  className="mt-1 w-full rounded-md border border-slate-300  bg-white  px-3 py-2 text-sm"
                 />
               </div>
               <div>
-                <label className="text-xs font-medium text-gray-600 dark:text-gray-400">
+                <label className="text-xs font-medium text-slate-600 ">
                   Entity ID
                 </label>
                 <input
                   value={entityId}
                   onChange={(event) => onEntityIdChange(event.target.value)}
-                  className="mt-1 w-full rounded-md border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900 px-3 py-2 text-sm"
+                  className="mt-1 w-full rounded-md border border-slate-300  bg-white  px-3 py-2 text-sm"
                   placeholder="TXN-0001"
                 />
               </div>
               <div>
-                <label className="text-xs font-medium text-gray-600 dark:text-gray-400">
+                <label className="text-xs font-medium text-slate-600 ">
                   Source
                 </label>
                 <input
                   value={source}
                   onChange={(event) => onSourceChange(event.target.value)}
-                  className="mt-1 w-full rounded-md border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900 px-3 py-2 text-sm"
+                  className="mt-1 w-full rounded-md border border-slate-300  bg-white  px-3 py-2 text-sm"
                 />
               </div>
             </div>
 
             <div>
-              <label className="text-xs font-medium text-gray-600 dark:text-gray-400">
+              <label className="text-xs font-medium text-slate-600 ">
                 Payload (JSON)
               </label>
               <textarea
                 value={payload}
                 onChange={(event) => onPayloadChange(event.target.value)}
                 rows={8}
-                className="mt-1 w-full rounded-md border border-gray-300 dark:border-gray-700 bg-gray-950 text-gray-100 font-mono text-xs p-3"
+                className="mt-1 w-full rounded-md border border-slate-300  bg-slate-950 text-slate-100 font-mono text-xs p-3"
               />
             </div>
 
             <div>
-              <label className="text-xs font-medium text-gray-600 dark:text-gray-400">
+              <label className="text-xs font-medium text-slate-600 ">
                 Context (JSON)
               </label>
               <textarea
                 value={context}
                 onChange={(event) => onContextChange(event.target.value)}
                 rows={6}
-                className="mt-1 w-full rounded-md border border-gray-300 dark:border-gray-700 bg-gray-950 text-gray-100 font-mono text-xs p-3"
+                className="mt-1 w-full rounded-md border border-slate-300  bg-slate-950 text-slate-100 font-mono text-xs p-3"
               />
             </div>
 
             {error ? (
-              <div className="rounded-md border border-red-200 bg-red-50 text-red-700 dark:border-red-900/50 dark:bg-red-900/20 dark:text-red-200 px-3 py-2 text-xs flex items-center gap-2">
+              <div className="rounded-md border border-red-200 bg-red-50 text-red-700    px-3 py-2 text-xs flex items-center gap-2">
                 <AlertTriangle className="h-4 w-4" />
                 {error}
               </div>
@@ -211,7 +211,7 @@ export default function DecisionSimulator({
               <button
                 onClick={onIngestEvent}
                 disabled={loading}
-                className="flex items-center gap-2 px-4 py-2 rounded-md bg-white dark:bg-gray-900 border border-gray-300 dark:border-gray-700 text-sm disabled:opacity-60"
+                className="flex items-center gap-2 px-4 py-2 rounded-md bg-white  border border-slate-300  text-sm disabled:opacity-60"
               >
                 <Database className="h-4 w-4" />
                 Ingest Event
@@ -219,7 +219,7 @@ export default function DecisionSimulator({
               <button
                 onClick={onCreateTransaction}
                 disabled={transactionLoading}
-                className="flex items-center gap-2 px-4 py-2 rounded-md bg-white dark:bg-gray-900 border border-gray-300 dark:border-gray-700 text-sm disabled:opacity-60"
+                className="flex items-center gap-2 px-4 py-2 rounded-md bg-white  border border-slate-300  text-sm disabled:opacity-60"
               >
                 <FileJson className="h-4 w-4" />
                 {transactionLoading ? "Creating..." : "Create Transaction"}
@@ -227,7 +227,7 @@ export default function DecisionSimulator({
               <button
                 onClick={onRunDecision}
                 disabled={loading}
-                className="flex items-center gap-2 px-4 py-2 rounded-md bg-gray-900 text-white text-sm hover:bg-gray-800 disabled:opacity-60"
+                className="flex items-center gap-2 px-4 py-2 rounded-md bg-slate-900 text-white text-sm hover:bg-slate-800 disabled:opacity-60"
               >
                 <PlayCircle className="h-4 w-4" />
                 Run Decision
@@ -250,13 +250,13 @@ export default function DecisionSimulator({
         </div>
 
         <div className="space-y-6">
-          <div className="rounded-xl border border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-950 p-6 shadow-sm">
-            <h2 className="text-sm font-semibold text-gray-900 dark:text-gray-100">
+          <div className="rounded-xl border border-slate-200  bg-white  p-6 shadow-sm">
+            <h2 className="text-sm font-semibold text-slate-900 ">
               Event Response
             </h2>
-            <div className="mt-3 text-xs text-gray-600 dark:text-gray-400">
+            <div className="mt-3 text-xs text-slate-600 ">
               {eventResult ? (
-                <pre className="bg-gray-950 text-gray-100 p-3 rounded-md overflow-auto max-h-72">
+                <pre className="bg-slate-950 text-slate-100 p-3 rounded-md overflow-auto max-h-72">
                   {JSON.stringify(eventResult, null, 2)}
                 </pre>
               ) : (
@@ -265,13 +265,13 @@ export default function DecisionSimulator({
             </div>
           </div>
 
-          <div className="rounded-xl border border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-950 p-6 shadow-sm">
-            <h2 className="text-sm font-semibold text-gray-900 dark:text-gray-100">
+          <div className="rounded-xl border border-slate-200  bg-white  p-6 shadow-sm">
+            <h2 className="text-sm font-semibold text-slate-900 ">
               Transaction
             </h2>
-            <div className="mt-3 text-xs text-gray-600 dark:text-gray-400">
+            <div className="mt-3 text-xs text-slate-600 ">
               {transactionResult ? (
-                <pre className="bg-gray-950 text-gray-100 p-3 rounded-md overflow-auto max-h-72">
+                <pre className="bg-slate-950 text-slate-100 p-3 rounded-md overflow-auto max-h-72">
                   {JSON.stringify(transactionResult, null, 2)}
                 </pre>
               ) : (
@@ -280,25 +280,25 @@ export default function DecisionSimulator({
             </div>
           </div>
 
-          <div className="rounded-xl border border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-950 p-6 shadow-sm">
-            <h2 className="text-sm font-semibold text-gray-900 dark:text-gray-100">
+          <div className="rounded-xl border border-slate-200  bg-white  p-6 shadow-sm">
+            <h2 className="text-sm font-semibold text-slate-900 ">
               Decision Result
             </h2>
-            <div className="mt-3 text-xs text-gray-600 dark:text-gray-400">
+            <div className="mt-3 text-xs text-slate-600 ">
               {decisionResult ? (
                 <div className="space-y-3">
-                  <pre className="bg-gray-950 text-gray-100 p-3 rounded-md overflow-auto max-h-72">
+                  <pre className="bg-slate-950 text-slate-100 p-3 rounded-md overflow-auto max-h-72">
                     {JSON.stringify(decisionResult, null, 2)}
                   </pre>
                   {decisionResult.reason_codes?.length ? (
-                    <div className="rounded-md border border-gray-200 dark:border-gray-800 p-3 text-xs text-gray-600 dark:text-gray-300">
+                    <div className="rounded-md border border-slate-200  p-3 text-xs text-slate-600 ">
                       <div className="font-semibold mb-2">Rules Triggered</div>
                       <div className="flex flex-wrap gap-2">
                         {decisionResult.reason_codes.map((code) => (
                           <a
                             key={code}
                             href="/transaction-monitoring/rules"
-                            className="rounded-full bg-gray-100 px-2 py-1 text-xs text-gray-700 dark:bg-gray-800 dark:text-gray-200"
+                            className="rounded-full bg-slate-100 px-2 py-1 text-xs text-slate-700  "
                           >
                             {code}
                           </a>
@@ -307,13 +307,13 @@ export default function DecisionSimulator({
                     </div>
                   ) : null}
                   {decisionResult.alerts?.length ? (
-                    <div className="rounded-md border border-gray-200 dark:border-gray-800 p-3 text-xs text-gray-600 dark:text-gray-300">
+                    <div className="rounded-md border border-slate-200  p-3 text-xs text-slate-600 ">
                       <div className="font-semibold mb-2">Alerts</div>
                       <div className="flex flex-wrap gap-2">
                         {decisionResult.alerts.map((alertId) => (
                           <span
                             key={alertId}
-                            className="rounded-full bg-orange-100 px-2 py-1 text-xs text-orange-700 dark:bg-orange-900/30 dark:text-orange-200"
+                            className="rounded-full bg-orange-100 px-2 py-1 text-xs text-orange-700  "
                           >
                             {alertId}
                           </span>
@@ -334,27 +334,27 @@ export default function DecisionSimulator({
             </div>
           </div>
 
-          <div className="rounded-xl border border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-950 p-6 shadow-sm">
-            <h2 className="text-sm font-semibold text-gray-900 dark:text-gray-100 flex items-center gap-2">
+          <div className="rounded-xl border border-slate-200  bg-white  p-6 shadow-sm">
+            <h2 className="text-sm font-semibold text-slate-900  flex items-center gap-2">
               <History className="h-4 w-4" />
               Decision Timeline
             </h2>
             {auditLoading ? (
-              <div className="text-xs text-gray-500 mt-3">Loading...</div>
+              <div className="text-xs text-slate-500 mt-3">Loading...</div>
             ) : (
-              <div className="mt-3 space-y-3 text-xs text-gray-600 dark:text-gray-400">
+              <div className="mt-3 space-y-3 text-xs text-slate-600 ">
                 {eventRecord ? (
-                  <pre className="bg-gray-950 text-gray-100 p-3 rounded-md overflow-auto max-h-40">
+                  <pre className="bg-slate-950 text-slate-100 p-3 rounded-md overflow-auto max-h-40">
                     {JSON.stringify(eventRecord, null, 2)}
                   </pre>
                 ) : null}
                 {decisionRecord ? (
-                  <pre className="bg-gray-950 text-gray-100 p-3 rounded-md overflow-auto max-h-40">
+                  <pre className="bg-slate-950 text-slate-100 p-3 rounded-md overflow-auto max-h-40">
                     {JSON.stringify(decisionRecord, null, 2)}
                   </pre>
                 ) : null}
                 {auditLogs?.length ? (
-                  <pre className="bg-gray-950 text-gray-100 p-3 rounded-md overflow-auto max-h-40">
+                  <pre className="bg-slate-950 text-slate-100 p-3 rounded-md overflow-auto max-h-40">
                     {JSON.stringify(auditLogs, null, 2)}
                   </pre>
                 ) : (
@@ -364,8 +364,8 @@ export default function DecisionSimulator({
             )}
           </div>
 
-          <div className="rounded-xl border border-dashed border-gray-300 dark:border-gray-700 bg-white/60 dark:bg-gray-950/50 p-5 text-xs text-gray-600 dark:text-gray-400">
-            <div className="flex items-center gap-2 text-gray-700 dark:text-gray-200 font-medium mb-2">
+          <div className="rounded-xl border border-dashed border-slate-300  bg-white/60  p-5 text-xs text-slate-600 ">
+            <div className="flex items-center gap-2 text-slate-700  font-medium mb-2">
               <FileJson className="h-4 w-4" />
               Quick tips
             </div>

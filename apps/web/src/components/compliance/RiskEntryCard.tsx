@@ -46,7 +46,7 @@ const getMitigationStatusColor = (status: MitigationStatus): string => {
     case "in_progress":
       return "bg-yellow-500/20 text-yellow-400";
     case "not_started":
-      return "bg-gray-500/20 text-gray-400";
+      return "bg-slate-500/20 text-slate-400";
   }
 };
 
@@ -218,7 +218,7 @@ export default function RiskEntryCard({
         {onLinkObligations && (
           <button
             onClick={onLinkObligations}
-            className="flex items-center justify-center gap-2 px-3 py-2 text-sm font-medium text-[#6d5acd] rounded-lg bg-[#6d5acd]/10 hover:bg-[#6d5acd]/20 transition-colors"
+            className="flex items-center justify-center gap-2 px-3 py-2 text-sm font-medium text-[#0052ff] rounded-lg bg-[#0052ff]/10 hover:bg-[#0052ff]/20 transition-colors"
           >
             <LinkIcon className="h-4 w-4" />
             Link Obligations

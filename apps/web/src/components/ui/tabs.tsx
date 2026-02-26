@@ -148,7 +148,7 @@ const tabVariants = cva(
         underline:
           "border-b-2 border-transparent text-foreground-secondary hover:text-foreground data-[state=active]:text-foreground data-[state=active]:border-primary",
         cards:
-          "rounded-lg border border-border-subtle bg-background-elevated px-4 py-3 text-foreground-secondary hover:border-border-default hover:text-foreground data-[state=active]:border-primary data-[state=active]:bg-primary/5 data-[state=active]:text-primary",
+          "rounded-lg border border-border-subtle bg-background-elevated px-4 py-3 text-foreground-secondary hover:border-border hover:text-foreground data-[state=active]:border-primary data-[state=active]:bg-primary/5 data-[state=active]:text-primary",
       },
       size: {
         sm: "text-xs py-2 px-3",

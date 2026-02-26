@@ -52,8 +52,8 @@ export function NotificationBell() {
       <button
         onClick={() => setIsOpen(!isOpen)}
         className={cn(
-          "relative p-2 rounded-lg hover:bg-gray-100 transition-colors",
-          isConnected ? "text-gray-700" : "text-gray-400",
+          "relative p-2 rounded-lg hover:bg-slate-100 transition-colors",
+          isConnected ? "text-slate-700" : "text-slate-400",
         )}
         title={isConnected ? "Notifications" : "Disconnected"}
       >
@@ -70,7 +70,7 @@ export function NotificationBell() {
         <span
           className={cn(
             "absolute bottom-0 right-0 block h-2 w-2 rounded-full ring-2 ring-white",
-            isConnected ? "bg-green-500" : "bg-gray-400",
+            isConnected ? "bg-green-500" : "bg-slate-400",
           )}
         />
       </button>
@@ -85,11 +85,11 @@ export function NotificationBell() {
           />
 
           {/* Panel */}
-          <div className="absolute right-0 mt-2 w-96 max-h-[32rem] bg-white rounded-lg shadow-xl border border-gray-200 z-50 overflow-hidden flex flex-col">
+          <div className="absolute right-0 mt-2 w-96 max-h-[32rem] bg-white rounded-lg shadow-xl border border-slate-200 z-50 overflow-hidden flex flex-col">
             {/* Header */}
-            <div className="flex items-center justify-between px-4 py-3 border-b border-gray-200 bg-gray-50">
+            <div className="flex items-center justify-between px-4 py-3 border-b border-slate-200 bg-slate-50">
               <div className="flex items-center gap-2">
-                <h3 className="text-sm font-semibold text-gray-900">
+                <h3 className="text-sm font-semibold text-slate-900">
                   Notifications
                 </h3>
                 {unreadCount > 0 && (
@@ -112,9 +112,9 @@ export function NotificationBell() {
                 )}
                 <button
                   onClick={() => setIsOpen(false)}
-                  className="p-1 hover:bg-gray-200 rounded"
+                  className="p-1 hover:bg-slate-200 rounded"
                 >
-                  <X className="h-4 w-4 text-gray-500" />
+                  <X className="h-4 w-4 text-slate-500" />
                 </button>
               </div>
             </div>
@@ -123,23 +123,23 @@ export function NotificationBell() {
             <div className="overflow-y-auto flex-1">
               {notifications.length === 0 ? (
                 <div className="flex flex-col items-center justify-center py-12 px-4">
-                  <Bell className="h-12 w-12 text-gray-300 mb-3" />
-                  <p className="text-sm text-gray-500 text-center">
+                  <Bell className="h-12 w-12 text-slate-300 mb-3" />
+                  <p className="text-sm text-slate-500 text-center">
                     No notifications yet
                   </p>
-                  <p className="text-xs text-gray-400 text-center mt-1">
+                  <p className="text-xs text-slate-400 text-center mt-1">
                     {isConnected
                       ? "You'll be notified when new events occur"
                       : "Connecting to notification service..."}
                   </p>
                 </div>
               ) : (
-                <ul className="divide-y divide-gray-100">
+                <ul className="divide-y divide-slate-100">
                   {notifications.map((notification, index) => (
                     <li
                       key={index}
                       className={cn(
-                        "px-4 py-3 hover:bg-gray-50 transition-colors border-l-4",
+                        "px-4 py-3 hover:bg-slate-50 transition-colors border-l-4",
                         getPriorityColor(notification.priority),
                       )}
                     >
@@ -149,15 +149,15 @@ export function NotificationBell() {
                         </span>
                         <div className="flex-1 min-w-0">
                           {notification.title && (
-                            <p className="text-sm font-semibold text-gray-900 mb-1">
+                            <p className="text-sm font-semibold text-slate-900 mb-1">
                               {notification.title}
                             </p>
                           )}
-                          <p className="text-sm text-gray-700 mb-1">
+                          <p className="text-sm text-slate-700 mb-1">
                             {notification.message}
                           </p>
                           <div className="flex items-center justify-between mt-2">
-                            <p className="text-xs text-gray-500">
+                            <p className="text-xs text-slate-500">
                               {formatDistanceToNow(
                                 new Date(notification.timestamp),
                                 { addSuffix: true },
@@ -184,8 +184,8 @@ export function NotificationBell() {
 
             {/* Footer */}
             {notifications.length > 0 && (
-              <div className="px-4 py-2 border-t border-gray-200 bg-gray-50">
-                <p className="text-xs text-gray-500 text-center">
+              <div className="px-4 py-2 border-t border-slate-200 bg-slate-50">
+                <p className="text-xs text-slate-500 text-center">
                   Showing last {notifications.length} notification
                   {notifications.length !== 1 ? "s" : ""}
                 </p>

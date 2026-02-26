@@ -80,14 +80,14 @@ const FormLabel = React.forwardRef<HTMLLabelElement, FormLabelProps>(
         htmlFor={id}
         className={cn(
           "flex items-center gap-1.5 text-sm font-medium",
-          error ? "text-critical-400" : "text-foreground",
+          error ? "text-risk-critical" : "text-foreground",
           className,
         )}
         {...props}
       >
         {children}
         {required && (
-          <span className="text-critical-400" aria-hidden="true">
+          <span className="text-risk-critical" aria-hidden="true">
             *
           </span>
         )}
@@ -148,7 +148,7 @@ const FormError = React.forwardRef<HTMLParagraphElement, FormErrorProps>(
         ref={ref}
         id={`${id}-error`}
         className={cn(
-          "flex items-center gap-1.5 text-xs text-critical-400",
+          "flex items-center gap-1.5 text-xs text-risk-critical",
           className,
         )}
         role="alert"
@@ -172,9 +172,9 @@ const inputVariants = cva(
     variants: {
       variant: {
         default:
-          "border-border-default hover:border-border-strong focus:border-primary focus:ring-2 focus:ring-primary/20",
+          "border-border hover:border-border-strong focus:border-primary focus:ring-2 focus:ring-primary/20",
         error:
-          "border-critical-400 focus:border-critical-400 focus:ring-2 focus:ring-critical-400/20",
+          "border-risk-critical focus:border-risk-critical focus:ring-2 focus:ring-risk-critical/20",
         success:
           "border-success-500 focus:border-success-500 focus:ring-2 focus:ring-success-500/20",
       },
@@ -275,9 +275,9 @@ const textareaVariants = cva(
     variants: {
       variant: {
         default:
-          "border-border-default hover:border-border-strong focus:border-primary focus:ring-2 focus:ring-primary/20",
+          "border-border hover:border-border-strong focus:border-primary focus:ring-2 focus:ring-primary/20",
         error:
-          "border-critical-400 focus:border-critical-400 focus:ring-2 focus:ring-critical-400/20",
+          "border-risk-critical focus:border-risk-critical focus:ring-2 focus:ring-risk-critical/20",
       },
     },
     defaultVariants: {
@@ -339,7 +339,7 @@ const Textarea = React.forwardRef<HTMLTextAreaElement, TextareaProps>(
             id={`${id}-count`}
             className={cn(
               "text-xs text-right",
-              isOverLimit ? "text-critical-400" : "text-foreground-tertiary",
+              isOverLimit ? "text-risk-critical" : "text-foreground-tertiary",
             )}
           >
             {currentLength}
@@ -362,9 +362,9 @@ const selectVariants = cva(
     variants: {
       variant: {
         default:
-          "border-border-default hover:border-border-strong focus:border-primary focus:ring-2 focus:ring-primary/20",
+          "border-border hover:border-border-strong focus:border-primary focus:ring-2 focus:ring-primary/20",
         error:
-          "border-critical-400 focus:border-critical-400 focus:ring-2 focus:ring-critical-400/20",
+          "border-risk-critical focus:border-risk-critical focus:ring-2 focus:ring-risk-critical/20",
       },
       selectSize: {
         sm: "h-8 text-xs",
@@ -611,7 +611,7 @@ const SwitchWithLabel = React.forwardRef<
       </div>
       <label className="relative inline-flex items-center cursor-pointer">
         <Switch ref={ref} {...props} />
-        <span className="peer ml-3 h-5 w-9 rounded-full bg-muted peer-focus:outline-none peer-focus:ring-2 peer-focus:ring-primary/20 peer-checked:bg-primary peer-checked:after:translate-x-full peer-checked:after:border-primary-foreground after:absolute after:left-[2px] after:top-[2px] after:h-4 after:w-4 after:rounded-full after:border after:border-border-default after:bg-card after:transition-all after:content-['']" />
+        <span className="peer ml-3 h-5 w-9 rounded-full bg-muted peer-focus:outline-none peer-focus:ring-2 peer-focus:ring-primary/20 peer-checked:bg-primary peer-checked:after:translate-x-full peer-checked:after:border-primary-foreground after:absolute after:left-[2px] after:top-[2px] after:h-4 after:w-4 after:rounded-full after:border after:border-border after:bg-card after:transition-all after:content-['']" />
       </label>
     </div>
   );

@@ -6,7 +6,7 @@ import { statusPulse } from "@/lib/motion";
 
 /**
  * ═══════════════════════════════════════════════════════════════════
- * STATUS INDICATOR - Sentinel Design System
+ * STATUS INDICATOR - Horizon Design System
  * Living status indicators with glow effects
  * ═══════════════════════════════════════════════════════════════════
  */
@@ -38,7 +38,7 @@ interface StatusIndicatorProps {
   className?: string;
 }
 
-// Status configuration with Sentinel colors
+// Status configuration with Horizon colors
 const statusConfig: Record<
   StatusState,
   {

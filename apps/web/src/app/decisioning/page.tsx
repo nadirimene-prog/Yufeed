@@ -49,15 +49,11 @@ const SAMPLE_FEATURES = JSON.stringify(
 );
 
 const decisionBadgeStyles: Record<string, string> = {
-  allow:
-    "bg-emerald-50 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-300",
-  "step-up":
-    "bg-amber-50 text-amber-700 dark:bg-amber-900/30 dark:text-amber-300",
-  step_up:
-    "bg-amber-50 text-amber-700 dark:bg-amber-900/30 dark:text-amber-300",
-  alert:
-    "bg-indigo-50 text-indigo-700 dark:bg-indigo-900/30 dark:text-indigo-300",
-  block: "bg-rose-50 text-rose-700 dark:bg-rose-900/30 dark:text-rose-300",
+  allow: "bg-emerald-50 text-emerald-700  ",
+  "step-up": "bg-amber-50 text-amber-700  ",
+  step_up: "bg-amber-50 text-amber-700  ",
+  alert: "bg-indigo-50 text-indigo-700  ",
+  block: "bg-rose-50 text-rose-700  ",
 };
 
 export default function DecisioningPage() {
@@ -541,27 +537,25 @@ export default function DecisioningPage() {
   );
 
   return (
-    <div className="min-h-screen bg-gray-50 dark:bg-gray-900 p-6">
+    <div className="min-h-screen bg-slate-50  p-6">
       <div className="max-w-6xl mx-auto space-y-6">
         <div>
-          <div className="text-xs uppercase tracking-[0.3em] text-gray-400">
+          <div className="text-xs uppercase tracking-[0.3em] text-slate-400">
             YuFeed Risk OS
           </div>
-          <h1 className="text-3xl font-bold text-gray-900 dark:text-white">
-            Decisioning
-          </h1>
-          <p className="text-sm text-gray-600 dark:text-gray-400">
+          <h1 className="text-3xl font-bold text-slate-900 ">Decisioning</h1>
+          <p className="text-sm text-slate-600 ">
             Monitor decisions, audit trails, and run live simulations.
           </p>
         </div>
 
-        <div className="inline-flex rounded-full border border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-950 p-1">
+        <div className="inline-flex rounded-full border border-slate-200  bg-white  p-1">
           <button
             onClick={() => setActiveTab("log")}
             className={`px-4 py-1.5 text-xs rounded-full ${
               activeTab === "log"
-                ? "bg-gray-900 text-white"
-                : "text-gray-600 dark:text-gray-400"
+                ? "bg-slate-900 text-white"
+                : "text-slate-600 "
             }`}
           >
             Decision Log
@@ -570,8 +564,8 @@ export default function DecisioningPage() {
             onClick={() => setActiveTab("console")}
             className={`px-4 py-1.5 text-xs rounded-full ${
               activeTab === "console"
-                ? "bg-gray-900 text-white"
-                : "text-gray-600 dark:text-gray-400"
+                ? "bg-slate-900 text-white"
+                : "text-slate-600 "
             }`}
           >
             Simulator

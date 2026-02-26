@@ -70,7 +70,7 @@ function TreeNode({
         className={cn(
           "flex items-center gap-2 px-2 py-1.5 rounded-lg cursor-pointer transition-all",
           isSelected
-            ? "bg-[#6d5acd]/20 text-white"
+            ? "bg-[#0052ff]/20 text-white"
             : "text-white/70 hover:bg-white/5 hover:text-white",
         )}
         style={{ paddingLeft: `${level * 12 + 8}px` }}
@@ -171,7 +171,7 @@ export default function RiskCategoryTree({
         className={cn(
           "flex items-center gap-2 px-2 py-1.5 rounded-lg cursor-pointer transition-all",
           !selectedCategoryId
-            ? "bg-[#6d5acd]/20 text-white"
+            ? "bg-[#0052ff]/20 text-white"
             : "text-white/70 hover:bg-white/5 hover:text-white",
         )}
         onClick={() =>
@@ -179,7 +179,7 @@ export default function RiskCategoryTree({
         }
       >
         <span className="w-5" />
-        <FolderOpen className="h-4 w-4 text-[#6d5acd]" />
+        <FolderOpen className="h-4 w-4 text-[#0052ff]" />
         <span className="flex-1 text-sm font-medium">All Categories</span>
       </div>
 

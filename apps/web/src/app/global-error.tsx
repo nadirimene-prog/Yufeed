@@ -28,7 +28,7 @@ export default function GlobalError({ error, reset }: GlobalErrorProps) {
   return (
     <html lang="en">
       <body>
-        <div className="flex min-h-screen items-center justify-center bg-gray-50 px-4">
+        <div className="flex min-h-screen items-center justify-center bg-slate-50 px-4">
           <div className="w-full max-w-md space-y-6 text-center">
             {/* Error Icon */}
             <div className="flex justify-center">
@@ -39,10 +39,10 @@ export default function GlobalError({ error, reset }: GlobalErrorProps) {
 
             {/* Error Message */}
             <div className="space-y-2">
-              <h1 className="text-2xl font-bold text-gray-900">
+              <h1 className="text-2xl font-bold text-slate-900">
                 Application Error
               </h1>
-              <p className="text-gray-600">
+              <p className="text-slate-600">
                 A critical error occurred. Please refresh the page or contact
                 support if this continues.
               </p>
@@ -76,12 +76,12 @@ export default function GlobalError({ error, reset }: GlobalErrorProps) {
             </button>
 
             {/* Support Information */}
-            <div className="text-xs text-gray-500">
+            <div className="text-xs text-slate-500">
               <p>
                 If this problem persists, please contact{" "}
                 <a
                   href="mailto:support@yufeed.com"
-                  className="underline hover:text-gray-700"
+                  className="underline hover:text-slate-700"
                 >
                   support
                 </a>

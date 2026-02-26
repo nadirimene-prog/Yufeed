@@ -240,22 +240,22 @@ export default function ObligationDetailPage() {
   );
 
   if (obligationId === null) {
-    return <div className="text-sm text-gray-500">Invalid obligation id.</div>;
+    return <div className="text-sm text-slate-500">Invalid obligation id.</div>;
   }
 
   if (obligationQuery.isLoading) {
-    return <div className="text-sm text-gray-500">Loading obligation…</div>;
+    return <div className="text-sm text-slate-500">Loading obligation…</div>;
   }
 
   if (obligationQuery.isError) {
     logger.error("Failed to load obligation detail", obligationQuery.error);
     return (
-      <div className="text-sm text-gray-500">Failed to load obligation.</div>
+      <div className="text-sm text-slate-500">Failed to load obligation.</div>
     );
   }
 
   if (!obligation) {
-    return <div className="text-sm text-gray-500">Obligation not found.</div>;
+    return <div className="text-sm text-slate-500">Obligation not found.</div>;
   }
 
   const actions = actionsFor(obligation.status, obligation.created_by);

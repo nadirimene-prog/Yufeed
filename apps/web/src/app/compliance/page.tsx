@@ -152,7 +152,7 @@ export default function ComplianceDashboardPage() {
   );
 
   return (
-    <div className="space-y-6 bg-bg-base text-foreground">
+    <div className="space-y-6 bg-background text-foreground">
       <header className="space-y-1">
         <h1 className="text-3xl font-display font-semibold">
           Compliance Dashboard
@@ -214,7 +214,7 @@ export default function ComplianceDashboardPage() {
                 value={search}
                 onChange={(event) => setSearch(event.target.value)}
                 placeholder="Search by entity, id, email..."
-                className="h-10 min-w-[220px] rounded-lg border border-border-default bg-bg-overlay px-3 text-sm"
+                className="h-10 min-w-[220px] rounded-lg border border-border bg-background-overlay px-3 text-sm"
               />
               <Button variant="secondary">Export Report</Button>
             </div>

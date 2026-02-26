@@ -28,7 +28,7 @@ export function SpotlightExplorer({
   const [activeSection, setActiveSection] = useState<string | null>(null);
 
   return (
-    <div className="flex flex-col gap-6 rounded-2xl border border-white/10 bg-void-950/20 backdrop-blur-sm p-6">
+    <div className="flex flex-col gap-6 rounded-2xl border border-white/10 bg-void-950/20 p-6">
       <div className="flex items-center justify-between border-b border-white/5 pb-4">
         <div className="flex items-center gap-3">
           <div className="rounded-lg bg-cyan-500/10 p-2 border border-cyan-500/20">
@@ -49,7 +49,7 @@ export function SpotlightExplorer({
           className={cn(
             "flex items-center gap-2 rounded-full px-3 py-1.5 transition-all duration-500",
             isFocusMode
-              ? "bg-aurora-500 text-white shadow-[0_0_15px_rgba(109,90,205,0.4)]"
+              ? "bg-primary text-white shadow-[0_0_15px_rgba(0,82,255,0.4)]"
               : "bg-white/5 text-white/40 hover:bg-white/10",
           )}
         >
@@ -72,17 +72,17 @@ export function SpotlightExplorer({
               isFocusMode && !section.isObligation
                 ? "opacity-20 blur-[1px] grayscale"
                 : "opacity-100",
-              section.isObligation && "border-aurora-500/20 bg-aurora-500/5",
+              section.isObligation && "border-primary/20 bg-primary/5",
               !section.isObligation &&
                 "border-white/5 hover:border-white/10 hover:bg-white/[0.02]",
               activeSection === section.id &&
                 section.isObligation &&
-                "shadow-[0_0_20px_rgba(109,90,205,0.1)]",
+                "shadow-[0_0_20px_rgba(0,82,255,0.1)]",
             )}
           >
             {section.isObligation && (
               <div className="absolute -left-2 top-4 flex items-center justify-center">
-                <div className="h-4 w-4 rounded-full bg-aurora-500 shadow-[0_0_10px_rgba(109,90,205,0.8)] flex items-center justify-center">
+                <div className="h-4 w-4 rounded-full bg-primary shadow-[0_0_10px_rgba(0,82,255,0.8)] flex items-center justify-center">
                   <Target size={10} className="text-white" />
                 </div>
               </div>
@@ -92,7 +92,7 @@ export function SpotlightExplorer({
               <h4
                 className={cn(
                   "text-xs font-bold uppercase tracking-tight",
-                  section.isObligation ? "text-aurora-400" : "text-white/40",
+                  section.isObligation ? "text-primary" : "text-white/40",
                 )}
               >
                 {section.title}
@@ -135,7 +135,7 @@ export function SpotlightExplorer({
                   {section.mappings.map((m) => (
                     <span
                       key={m}
-                      className="rounded-md bg-white/5 px-2 py-0.5 text-[9px] text-white/50 border border-white/10 hover:border-aurora-500/30 transition-colors cursor-pointer"
+                      className="rounded-md bg-white/5 px-2 py-0.5 text-[9px] text-white/50 border border-white/10 hover:border-primary/30 transition-colors cursor-pointer"
                     >
                       {m}
                     </span>

@@ -119,153 +119,149 @@ export default function TravelRulePage() {
   };
 
   return (
-    <div className="min-h-screen p-6 bg-gray-50 dark:bg-gray-900">
+    <div className="min-h-screen p-6 bg-slate-50 ">
       <div className="max-w-5xl mx-auto space-y-6">
         <div>
-          <h1 className="text-3xl font-bold text-gray-900 dark:text-white">
-            Travel Rule
-          </h1>
-          <p className="text-sm text-gray-600 dark:text-gray-400">
+          <h1 className="text-3xl font-bold text-slate-900 ">Travel Rule</h1>
+          <p className="text-sm text-slate-600 ">
             Compose and submit Travel Rule payloads for VASP transfers.
           </p>
         </div>
 
         {error && (
-          <div className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700 dark:border-red-900/50 dark:bg-red-950/20 dark:text-red-300">
+          <div className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700   ">
             {error}
           </div>
         )}
 
         <div className="grid gap-6 lg:grid-cols-2">
-          <div className="space-y-4 rounded-2xl border border-gray-200 bg-white p-6 dark:border-gray-800 dark:bg-gray-950">
-            <h2 className="text-sm font-semibold text-gray-900 dark:text-white">
+          <div className="space-y-4 rounded-2xl border border-slate-200 bg-white p-6  ">
+            <h2 className="text-sm font-semibold text-slate-900 ">
               Transfer Details
             </h2>
             <div className="grid gap-3 md:grid-cols-2">
               <div>
-                <label className="text-xs font-semibold uppercase text-gray-500">
+                <label className="text-xs font-semibold uppercase text-slate-500">
                   Transaction ID
                 </label>
                 <input
                   value={transactionId}
                   onChange={(e) => setTransactionId(e.target.value)}
-                  className="mt-1 w-full rounded-lg border border-gray-200 bg-gray-50 px-3 py-2 text-sm dark:border-gray-800 dark:bg-gray-900"
+                  className="mt-1 w-full rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-sm  "
                 />
               </div>
               <div>
-                <label className="text-xs font-semibold uppercase text-gray-500">
+                <label className="text-xs font-semibold uppercase text-slate-500">
                   Amount
                 </label>
                 <input
                   value={amount}
                   onChange={(e) => setAmount(e.target.value)}
-                  className="mt-1 w-full rounded-lg border border-gray-200 bg-gray-50 px-3 py-2 text-sm dark:border-gray-800 dark:bg-gray-900"
+                  className="mt-1 w-full rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-sm  "
                 />
               </div>
               <div>
-                <label className="text-xs font-semibold uppercase text-gray-500">
+                <label className="text-xs font-semibold uppercase text-slate-500">
                   Currency
                 </label>
                 <input
                   value={currency}
                   onChange={(e) => setCurrency(e.target.value)}
-                  className="mt-1 w-full rounded-lg border border-gray-200 bg-gray-50 px-3 py-2 text-sm dark:border-gray-800 dark:bg-gray-900"
+                  className="mt-1 w-full rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-sm  "
                 />
               </div>
               <div>
-                <label className="text-xs font-semibold uppercase text-gray-500">
+                <label className="text-xs font-semibold uppercase text-slate-500">
                   Asset (optional)
                 </label>
                 <input
                   value={asset}
                   onChange={(e) => setAsset(e.target.value)}
-                  className="mt-1 w-full rounded-lg border border-gray-200 bg-gray-50 px-3 py-2 text-sm dark:border-gray-800 dark:bg-gray-900"
+                  className="mt-1 w-full rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-sm  "
                 />
               </div>
             </div>
             <div>
-              <label className="text-xs font-semibold uppercase text-gray-500">
+              <label className="text-xs font-semibold uppercase text-slate-500">
                 Message (optional)
               </label>
               <textarea
                 value={message}
                 onChange={(e) => setMessage(e.target.value)}
                 rows={3}
-                className="mt-1 w-full rounded-lg border border-gray-200 bg-gray-50 px-3 py-2 text-sm dark:border-gray-800 dark:bg-gray-900"
+                className="mt-1 w-full rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-sm  "
               />
             </div>
           </div>
 
-          <div className="space-y-4 rounded-2xl border border-gray-200 bg-white p-6 dark:border-gray-800 dark:bg-gray-950">
-            <h2 className="text-sm font-semibold text-gray-900 dark:text-white">
+          <div className="space-y-4 rounded-2xl border border-slate-200 bg-white p-6  ">
+            <h2 className="text-sm font-semibold text-slate-900 ">
               Originator
             </h2>
             <input
               value={originatorName}
               onChange={(e) => setOriginatorName(e.target.value)}
               placeholder="Name"
-              className="w-full rounded-lg border border-gray-200 bg-gray-50 px-3 py-2 text-sm dark:border-gray-800 dark:bg-gray-900"
+              className="w-full rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-sm  "
             />
             <div className="grid gap-3 md:grid-cols-2">
               <input
                 value={originatorAccount}
                 onChange={(e) => setOriginatorAccount(e.target.value)}
                 placeholder="Account ID"
-                className="w-full rounded-lg border border-gray-200 bg-gray-50 px-3 py-2 text-sm dark:border-gray-800 dark:bg-gray-900"
+                className="w-full rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-sm  "
               />
               <input
                 value={originatorWallet}
                 onChange={(e) => setOriginatorWallet(e.target.value)}
                 placeholder="Wallet Address"
-                className="w-full rounded-lg border border-gray-200 bg-gray-50 px-3 py-2 text-sm dark:border-gray-800 dark:bg-gray-900"
+                className="w-full rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-sm  "
               />
             </div>
             <input
               value={originatorCountry}
               onChange={(e) => setOriginatorCountry(e.target.value)}
               placeholder="Country"
-              className="w-full rounded-lg border border-gray-200 bg-gray-50 px-3 py-2 text-sm dark:border-gray-800 dark:bg-gray-900"
+              className="w-full rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-sm  "
             />
           </div>
         </div>
 
         <div className="grid gap-6 lg:grid-cols-2">
-          <div className="space-y-4 rounded-2xl border border-gray-200 bg-white p-6 dark:border-gray-800 dark:bg-gray-950">
-            <h2 className="text-sm font-semibold text-gray-900 dark:text-white">
+          <div className="space-y-4 rounded-2xl border border-slate-200 bg-white p-6  ">
+            <h2 className="text-sm font-semibold text-slate-900 ">
               Beneficiary
             </h2>
             <input
               value={beneficiaryName}
               onChange={(e) => setBeneficiaryName(e.target.value)}
               placeholder="Name"
-              className="w-full rounded-lg border border-gray-200 bg-gray-50 px-3 py-2 text-sm dark:border-gray-800 dark:bg-gray-900"
+              className="w-full rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-sm  "
             />
             <div className="grid gap-3 md:grid-cols-2">
               <input
                 value={beneficiaryAccount}
                 onChange={(e) => setBeneficiaryAccount(e.target.value)}
                 placeholder="Account ID"
-                className="w-full rounded-lg border border-gray-200 bg-gray-50 px-3 py-2 text-sm dark:border-gray-800 dark:bg-gray-900"
+                className="w-full rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-sm  "
               />
               <input
                 value={beneficiaryWallet}
                 onChange={(e) => setBeneficiaryWallet(e.target.value)}
                 placeholder="Wallet Address"
-                className="w-full rounded-lg border border-gray-200 bg-gray-50 px-3 py-2 text-sm dark:border-gray-800 dark:bg-gray-900"
+                className="w-full rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-sm  "
               />
             </div>
             <input
               value={beneficiaryCountry}
               onChange={(e) => setBeneficiaryCountry(e.target.value)}
               placeholder="Country"
-              className="w-full rounded-lg border border-gray-200 bg-gray-50 px-3 py-2 text-sm dark:border-gray-800 dark:bg-gray-900"
+              className="w-full rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-sm  "
             />
           </div>
 
-          <div className="space-y-4 rounded-2xl border border-gray-200 bg-white p-6 dark:border-gray-800 dark:bg-gray-950">
-            <h2 className="text-sm font-semibold text-gray-900 dark:text-white">
-              Actions
-            </h2>
+          <div className="space-y-4 rounded-2xl border border-slate-200 bg-white p-6  ">
+            <h2 className="text-sm font-semibold text-slate-900 ">Actions</h2>
             <button
               onClick={handleCreate}
               disabled={loading}
@@ -275,58 +271,60 @@ export default function TravelRulePage() {
               {loading ? "Creating..." : "Create Request"}
             </button>
             {result ? (
-              <div className="rounded-lg border border-gray-200 bg-gray-50 p-4 text-xs text-gray-700 dark:border-gray-800 dark:bg-gray-900 dark:text-gray-300">
+              <div className="rounded-lg border border-slate-200 bg-slate-50 p-4 text-xs text-slate-700   ">
                 <div className="flex items-center gap-2 font-semibold text-green-600">
                   <CheckCircle2 className="h-4 w-4" />
                   {result.request_id} • {result.status}
                 </div>
-                <pre className="mt-3 max-h-64 overflow-auto rounded bg-gray-950 p-3 text-gray-100">
+                <pre className="mt-3 max-h-64 overflow-auto rounded bg-slate-950 p-3 text-slate-100">
                   {JSON.stringify(result, null, 2)}
                 </pre>
                 <button
                   onClick={handleSubmit}
                   disabled={submitLoading}
-                  className="mt-3 rounded-lg border border-gray-200 px-3 py-2 text-xs font-semibold text-gray-600 hover:bg-white disabled:opacity-50 dark:border-gray-800 dark:text-gray-200 dark:hover:bg-gray-950"
+                  className="mt-3 rounded-lg border border-slate-200 px-3 py-2 text-xs font-semibold text-slate-600 hover:bg-white disabled:opacity-50   "
                 >
                   {submitLoading ? "Submitting..." : "Submit to Network"}
                 </button>
               </div>
             ) : (
-              <p className="text-xs text-gray-500">
+              <p className="text-xs text-slate-500">
                 Create a Travel Rule request to see the payload.
               </p>
             )}
           </div>
         </div>
 
-        <div className="rounded-2xl border border-gray-200 bg-white p-6 dark:border-gray-800 dark:bg-gray-950">
+        <div className="rounded-2xl border border-slate-200 bg-white p-6  ">
           <div className="flex items-center justify-between">
-            <h2 className="text-sm font-semibold text-gray-900 dark:text-white">
+            <h2 className="text-sm font-semibold text-slate-900 ">
               Travel Rule Inbox
             </h2>
             <button
               onClick={() => refetch()}
-              className="text-xs text-gray-500 hover:text-gray-700"
+              className="text-xs text-slate-500 hover:text-slate-700"
             >
               Refresh
             </button>
           </div>
           <div className="mt-4 space-y-3 text-sm">
             {inboxLoading ? (
-              <div className="text-xs text-gray-500">Loading requests...</div>
+              <div className="text-xs text-slate-500">Loading requests...</div>
             ) : inbox.length ? (
               inbox.map((item: TravelRuleResponse) => (
                 <div
                   key={item.request_id}
-                  className="rounded-lg border border-gray-100 px-3 py-2 dark:border-gray-800"
+                  className="rounded-lg border border-slate-100 px-3 py-2 "
                 >
                   <div className="flex items-center justify-between">
-                    <div className="font-medium text-gray-900 dark:text-white">
+                    <div className="font-medium text-slate-900 ">
                       {item.request_id}
                     </div>
-                    <span className="text-xs text-gray-500">{item.status}</span>
+                    <span className="text-xs text-slate-500">
+                      {item.status}
+                    </span>
                   </div>
-                  <div className="text-xs text-gray-500">
+                  <div className="text-xs text-slate-500">
                     {item.payload?.originator?.name} →{" "}
                     {item.payload?.beneficiary?.name} • {item.payload?.amount}{" "}
                     {item.payload?.currency}
@@ -340,7 +338,7 @@ export default function TravelRulePage() {
                     </a>
                     <a
                       href={`${API_URL}/api/reporting/evidence/travel-rule/${item.request_id}`}
-                      className="text-gray-500 hover:text-gray-700"
+                      className="text-slate-500 hover:text-slate-700"
                     >
                       Evidence JSON
                     </a>
@@ -348,7 +346,7 @@ export default function TravelRulePage() {
                 </div>
               ))
             ) : (
-              <div className="text-xs text-gray-500">No requests yet.</div>
+              <div className="text-xs text-slate-500">No requests yet.</div>
             )}
           </div>
         </div>

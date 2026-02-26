@@ -25,14 +25,14 @@ export default async function EntityLayout({
   return (
     <div className="space-y-4">
       <nav
-        className="flex flex-wrap items-center gap-2 rounded-xl border border-border-subtle bg-bg-overlay p-2"
+        className="flex flex-wrap items-center gap-2 rounded-xl border border-border-subtle bg-background-overlay p-2"
         aria-label="Entity profile tabs"
       >
         {TABS.map((tab) => (
           <Link
             key={tab.key}
             href={`${base}?tab=${tab.key}`}
-            className="rounded-lg px-3 py-1.5 text-xs font-semibold uppercase tracking-wide text-foreground-secondary transition hover:bg-bg-floating hover:text-foreground"
+            className="rounded-lg px-3 py-1.5 text-xs font-semibold uppercase tracking-wide text-foreground-secondary transition hover:bg-background-floating hover:text-foreground"
           >
             {tab.label}
           </Link>

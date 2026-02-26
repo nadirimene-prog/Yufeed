@@ -214,9 +214,7 @@ export default function AlertDetailPage() {
       <div className="flex items-center justify-center min-h-screen">
         <div className="text-center">
           <AlertTriangle className="h-12 w-12 animate-spin mx-auto mb-4 text-blue-600" />
-          <p className="text-lg text-gray-700 dark:text-gray-300">
-            Loading alert details...
-          </p>
+          <p className="text-lg text-slate-700 ">Loading alert details...</p>
         </div>
       </div>
     );
@@ -227,33 +225,29 @@ export default function AlertDetailPage() {
       <div className="flex items-center justify-center min-h-screen">
         <div className="text-center">
           <AlertTriangle className="h-12 w-12 mx-auto mb-4 text-red-600" />
-          <p className="text-lg text-gray-700 dark:text-gray-300">
-            Alert not found
-          </p>
+          <p className="text-lg text-slate-700 ">Alert not found</p>
         </div>
       </div>
     );
   }
 
   const severityColors = {
-    critical:
-      "bg-red-100 text-red-800 dark:bg-red-900/20 dark:text-red-400 border-red-200",
-    high: "bg-orange-100 text-orange-800 dark:bg-orange-900/20 dark:text-orange-400 border-orange-200",
-    medium:
-      "bg-yellow-100 text-yellow-800 dark:bg-yellow-900/20 dark:text-yellow-400 border-yellow-200",
-    low: "bg-blue-100 text-blue-800 dark:bg-blue-900/20 dark:text-blue-400 border-blue-200",
+    critical: "bg-red-100 text-red-800   border-red-200",
+    high: "bg-orange-100 text-orange-800   border-orange-200",
+    medium: "bg-yellow-100 text-yellow-800   border-yellow-200",
+    low: "bg-blue-100 text-blue-800   border-blue-200",
   };
   const riskScore = Number(alert.risk_score);
   const hasRiskScore = Number.isFinite(riskScore);
 
   return (
-    <div className="min-h-screen bg-gray-50 dark:bg-gray-900 p-6">
+    <div className="min-h-screen bg-slate-50  p-6">
       <div className="max-w-7xl mx-auto">
         {/* Header */}
         <div className="mb-6">
           <button
             onClick={() => router.back()}
-            className="flex items-center gap-2 text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white mb-4"
+            className="flex items-center gap-2 text-slate-600  hover:text-slate-900  mb-4"
           >
             <ArrowLeft className="h-4 w-4" />
             Back to Alerts
@@ -262,7 +256,7 @@ export default function AlertDetailPage() {
           <div className="flex items-start justify-between">
             <div>
               <div className="flex items-center gap-3 mb-2">
-                <h1 className="text-3xl font-bold text-gray-900 dark:text-white">
+                <h1 className="text-3xl font-bold text-slate-900 ">
                   {alert.alert_id}
                 </h1>
                 <span
@@ -270,11 +264,11 @@ export default function AlertDetailPage() {
                 >
                   {alert.severity.toUpperCase()}
                 </span>
-                <span className="text-sm px-3 py-1 rounded-full bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-300">
+                <span className="text-sm px-3 py-1 rounded-full bg-slate-100 text-slate-800  ">
                   {alert.status.replace(/_/g, " ")}
                 </span>
               </div>
-              <p className="text-lg text-gray-600 dark:text-gray-400">
+              <p className="text-lg text-slate-600 ">
                 {alert.alert_type.replace(/_/g, " ").toUpperCase()}
               </p>
             </div>
@@ -285,7 +279,7 @@ export default function AlertDetailPage() {
                 <button
                   onClick={handleTriage}
                   disabled={triaging}
-                  className="flex items-center gap-2 px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition disabled:opacity-50"
+                  className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition disabled:opacity-50"
                 >
                   <Sparkles className="h-4 w-4" />
                   {triaging ? "Triaging..." : "AI Triage"}
@@ -311,45 +305,35 @@ export default function AlertDetailPage() {
           {/* Main Content */}
           <div className="lg:col-span-2 space-y-6">
             {/* Alert Details */}
-            <div className="bg-white dark:bg-gray-800 rounded-lg shadow p-6">
-              <h2 className="text-xl font-semibold text-gray-900 dark:text-white mb-4">
+            <div className="bg-white  rounded-lg shadow p-6">
+              <h2 className="text-xl font-semibold text-slate-900  mb-4">
                 Alert Details
               </h2>
 
               <div className="space-y-4">
                 <div>
-                  <p className="text-sm text-gray-600 dark:text-gray-400 mb-1">
-                    Description
-                  </p>
-                  <p className="text-gray-900 dark:text-white">
+                  <p className="text-sm text-slate-600  mb-1">Description</p>
+                  <p className="text-slate-900 ">
                     {alert.description || "No description provided"}
                   </p>
                 </div>
 
                 <div className="grid grid-cols-2 gap-4">
                   <div>
-                    <p className="text-sm text-gray-600 dark:text-gray-400 mb-1">
-                      User ID
-                    </p>
+                    <p className="text-sm text-slate-600  mb-1">User ID</p>
                     <Link
                       href={`/entities/user/${alert.user_id}`}
-                      className="text-gray-900 dark:text-white font-mono hover:text-blue-500 hover:underline"
+                      className="text-slate-900  font-mono hover:text-blue-500 hover:underline"
                     >
                       {alert.user_id}
                     </Link>
                   </div>
                   <div>
-                    <p className="text-sm text-gray-600 dark:text-gray-400 mb-1">
-                      Priority
-                    </p>
-                    <p className="text-gray-900 dark:text-white">
-                      {alert.priority}
-                    </p>
+                    <p className="text-sm text-slate-600  mb-1">Priority</p>
+                    <p className="text-slate-900 ">{alert.priority}</p>
                   </div>
                   <div>
-                    <p className="text-sm text-gray-600 dark:text-gray-400 mb-1">
-                      Risk Score
-                    </p>
+                    <p className="text-sm text-slate-600  mb-1">Risk Score</p>
                     <p
                       className={`text-2xl font-bold ${
                         riskScore >= 70
@@ -363,10 +347,8 @@ export default function AlertDetailPage() {
                     </p>
                   </div>
                   <div>
-                    <p className="text-sm text-gray-600 dark:text-gray-400 mb-1">
-                      Created
-                    </p>
-                    <p className="text-gray-900 dark:text-white text-sm">
+                    <p className="text-sm text-slate-600  mb-1">Created</p>
+                    <p className="text-slate-900  text-sm">
                       {new Date(alert.created_at).toLocaleString()}
                     </p>
                   </div>
@@ -374,12 +356,8 @@ export default function AlertDetailPage() {
 
                 {alert.assigned_to && (
                   <div>
-                    <p className="text-sm text-gray-600 dark:text-gray-400 mb-1">
-                      Assigned To
-                    </p>
-                    <p className="text-gray-900 dark:text-white">
-                      {alert.assigned_to}
-                    </p>
+                    <p className="text-sm text-slate-600  mb-1">Assigned To</p>
+                    <p className="text-slate-900 ">{alert.assigned_to}</p>
                   </div>
                 )}
               </div>
@@ -387,59 +365,51 @@ export default function AlertDetailPage() {
 
             {/* Transaction Details */}
             {transaction && (
-              <div className="bg-white dark:bg-gray-800 rounded-lg shadow p-6">
-                <h2 className="text-xl font-semibold text-gray-900 dark:text-white mb-4">
+              <div className="bg-white  rounded-lg shadow p-6">
+                <h2 className="text-xl font-semibold text-slate-900  mb-4">
                   Transaction Details
                 </h2>
 
                 <div className="space-y-4">
                   <div className="grid grid-cols-2 gap-4">
                     <div>
-                      <p className="text-sm text-gray-600 dark:text-gray-400 mb-1">
+                      <p className="text-sm text-slate-600  mb-1">
                         Transaction ID
                       </p>
-                      <p className="text-gray-900 dark:text-white font-mono text-sm">
+                      <p className="text-slate-900  font-mono text-sm">
                         {transaction.transaction_id}
                       </p>
                     </div>
                     <div>
-                      <p className="text-sm text-gray-600 dark:text-gray-400 mb-1">
-                        Amount
-                      </p>
-                      <p className="text-2xl font-bold text-gray-900 dark:text-white">
+                      <p className="text-sm text-slate-600  mb-1">Amount</p>
+                      <p className="text-2xl font-bold text-slate-900 ">
                         {transaction.amount.toLocaleString()}{" "}
                         {transaction.currency}
                       </p>
                     </div>
                     <div>
-                      <p className="text-sm text-gray-600 dark:text-gray-400 mb-1">
-                        Type
-                      </p>
-                      <p className="text-gray-900 dark:text-white">
+                      <p className="text-sm text-slate-600  mb-1">Type</p>
+                      <p className="text-slate-900 ">
                         {transaction.transaction_type.replace(/_/g, " ")}
                       </p>
                     </div>
                     <div>
-                      <p className="text-sm text-gray-600 dark:text-gray-400 mb-1">
-                        Timestamp
-                      </p>
-                      <p className="text-gray-900 dark:text-white text-sm">
+                      <p className="text-sm text-slate-600  mb-1">Timestamp</p>
+                      <p className="text-slate-900  text-sm">
                         {new Date(transaction.timestamp).toLocaleString()}
                       </p>
                     </div>
                     {transaction.country_code && (
                       <div>
-                        <p className="text-sm text-gray-600 dark:text-gray-400 mb-1">
-                          Country
-                        </p>
-                        <p className="text-gray-900 dark:text-white">
+                        <p className="text-sm text-slate-600  mb-1">Country</p>
+                        <p className="text-slate-900 ">
                           {transaction.country_code}
                         </p>
                       </div>
                     )}
                     {transaction.risk_level && (
                       <div>
-                        <p className="text-sm text-gray-600 dark:text-gray-400 mb-1">
+                        <p className="text-sm text-slate-600  mb-1">
                           Risk Level
                         </p>
                         <p
@@ -464,48 +434,44 @@ export default function AlertDetailPage() {
 
             {/* AI Triage Results */}
             {alert.ai_triage && (
-              <div className="bg-gradient-to-br from-purple-50 to-blue-50 dark:from-purple-900/20 dark:to-blue-900/20 rounded-lg shadow p-6 border border-purple-200 dark:border-purple-800">
+              <div className="bg-gradient-to-br from-blue-50 to-blue-50   rounded-lg shadow p-6 border border-blue-200 ">
                 <div className="flex items-center gap-2 mb-4">
-                  <Sparkles className="h-5 w-5 text-purple-600" />
-                  <h2 className="text-xl font-semibold text-gray-900 dark:text-white">
+                  <Sparkles className="h-5 w-5 text-blue-600" />
+                  <h2 className="text-xl font-semibold text-slate-900 ">
                     AI Triage Analysis
                   </h2>
                 </div>
 
                 <div className="space-y-4">
                   <div>
-                    <p className="text-sm text-gray-600 dark:text-gray-400 mb-1">
+                    <p className="text-sm text-slate-600  mb-1">
                       Recommendation
                     </p>
-                    <p className="text-lg font-semibold text-gray-900 dark:text-white capitalize">
+                    <p className="text-lg font-semibold text-slate-900  capitalize">
                       {alert.ai_triage.recommendation}
                     </p>
                   </div>
 
                   <div className="grid grid-cols-2 gap-4">
                     <div>
-                      <p className="text-sm text-gray-600 dark:text-gray-400 mb-1">
-                        Confidence
-                      </p>
-                      <p className="text-2xl font-bold text-purple-600">
+                      <p className="text-sm text-slate-600  mb-1">Confidence</p>
+                      <p className="text-2xl font-bold text-blue-600">
                         {(alert.ai_triage.confidence * 100).toFixed(0)}%
                       </p>
                     </div>
                     <div>
-                      <p className="text-sm text-gray-600 dark:text-gray-400 mb-1">
+                      <p className="text-sm text-slate-600  mb-1">
                         SAR Likelihood
                       </p>
-                      <p className="text-2xl font-bold text-purple-600">
+                      <p className="text-2xl font-bold text-blue-600">
                         {(alert.ai_triage.sar_likelihood * 100).toFixed(0)}%
                       </p>
                     </div>
                   </div>
 
                   <div>
-                    <p className="text-sm text-gray-600 dark:text-gray-400 mb-2">
-                      Reasoning
-                    </p>
-                    <p className="text-gray-900 dark:text-white text-sm leading-relaxed">
+                    <p className="text-sm text-slate-600  mb-2">Reasoning</p>
+                    <p className="text-slate-900  text-sm leading-relaxed">
                       {alert.ai_triage.reasoning}
                     </p>
                   </div>
@@ -513,16 +479,16 @@ export default function AlertDetailPage() {
                   {alert.ai_triage.next_steps &&
                     alert.ai_triage.next_steps.length > 0 && (
                       <div>
-                        <p className="text-sm text-gray-600 dark:text-gray-400 mb-2">
+                        <p className="text-sm text-slate-600  mb-2">
                           Recommended Actions
                         </p>
                         <ul className="space-y-2">
                           {alert.ai_triage.next_steps.map((step, idx) => (
                             <li
                               key={idx}
-                              className="flex items-start gap-2 text-sm text-gray-900 dark:text-white"
+                              className="flex items-start gap-2 text-sm text-slate-900 "
                             >
-                              <ChevronRight className="h-4 w-4 mt-0.5 text-purple-600 flex-shrink-0" />
+                              <ChevronRight className="h-4 w-4 mt-0.5 text-blue-600 flex-shrink-0" />
                               <span>{step}</span>
                             </li>
                           ))}
@@ -535,12 +501,12 @@ export default function AlertDetailPage() {
 
             {/* Regulatory Context */}
             {alert.regulation_context && (
-              <div className="bg-white dark:bg-gray-800 rounded-lg shadow p-6">
-                <h2 className="text-xl font-semibold text-gray-900 dark:text-white mb-4">
+              <div className="bg-white  rounded-lg shadow p-6">
+                <h2 className="text-xl font-semibold text-slate-900  mb-4">
                   Regulatory Context
                 </h2>
-                <div className="prose dark:prose-invert max-w-none">
-                  <p className="text-gray-900 dark:text-white text-sm leading-relaxed whitespace-pre-wrap">
+                <div className="prose  max-w-none">
+                  <p className="text-slate-900  text-sm leading-relaxed whitespace-pre-wrap">
                     {alert.regulation_context}
                   </p>
                 </div>
@@ -551,8 +517,8 @@ export default function AlertDetailPage() {
           {/* Sidebar */}
           <div className="space-y-6">
             {/* Actions */}
-            <div className="bg-white dark:bg-gray-800 rounded-lg shadow p-6">
-              <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">
+            <div className="bg-white  rounded-lg shadow p-6">
+              <h3 className="text-lg font-semibold text-slate-900  mb-4">
                 Actions
               </h3>
 
@@ -560,7 +526,7 @@ export default function AlertDetailPage() {
                 <select
                   onChange={(e) => handleAssign(e.target.value)}
                   defaultValue={alert.assigned_to || ""}
-                  className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+                  className="w-full px-3 py-2 border border-slate-300  rounded-lg bg-white  text-slate-900 "
                 >
                   <option value="" disabled>
                     Assign to...
@@ -581,7 +547,7 @@ export default function AlertDetailPage() {
 
                 <button
                   onClick={() => handleResolve("false_positive")}
-                  className="w-full px-4 py-2 bg-gray-600 text-white rounded-lg hover:bg-gray-700 transition"
+                  className="w-full px-4 py-2 bg-slate-600 text-white rounded-lg hover:bg-slate-700 transition"
                 >
                   Mark False Positive
                 </button>
@@ -597,8 +563,8 @@ export default function AlertDetailPage() {
 
             {/* Related Regulations */}
             {regulations.length > 0 && (
-              <div className="bg-white dark:bg-gray-800 rounded-lg shadow p-6">
-                <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">
+              <div className="bg-white  rounded-lg shadow p-6">
+                <h3 className="text-lg font-semibold text-slate-900  mb-4">
                   Related Regulations
                 </h3>
 
@@ -608,21 +574,21 @@ export default function AlertDetailPage() {
                       key={reg.id}
                       href={`/doc/${reg.celex}`}
                       target="_blank"
-                      className="block p-3 border border-gray-200 dark:border-gray-700 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700/50 transition"
+                      className="block p-3 border border-slate-200  rounded-lg hover:bg-slate-50  transition"
                     >
                       <div className="flex items-start justify-between gap-2">
                         <div className="flex-1 min-w-0">
-                          <p className="text-xs font-mono text-gray-600 dark:text-gray-400 mb-1">
+                          <p className="text-xs font-mono text-slate-600  mb-1">
                             {reg.celex}
                           </p>
-                          <p className="text-sm text-gray-900 dark:text-white line-clamp-2">
+                          <p className="text-sm text-slate-900  line-clamp-2">
                             {reg.title}
                           </p>
-                          <p className="text-xs text-gray-500 dark:text-gray-500 mt-1">
+                          <p className="text-xs text-slate-500  mt-1">
                             {reg.document_type}
                           </p>
                         </div>
-                        <ExternalLink className="h-4 w-4 text-gray-400 flex-shrink-0" />
+                        <ExternalLink className="h-4 w-4 text-slate-400 flex-shrink-0" />
                       </div>
                     </a>
                   ))}

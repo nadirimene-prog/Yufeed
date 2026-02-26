@@ -43,25 +43,25 @@ export default function AlertsPage() {
     const configs = {
       new_doc: {
         title: "New Document",
-        color: "text-green-600 dark:text-green-400",
-        bgColor: "bg-green-100 dark:bg-green-900/20",
-        borderColor: "border-green-200 dark:border-green-800",
+        color: "text-green-600 ",
+        bgColor: "bg-green-100 ",
+        borderColor: "border-green-200 ",
         status: "success" as const,
         icon: FileText,
       },
       updated_doc: {
         title: "Document Updated",
-        color: "text-blue-600 dark:text-blue-400",
-        bgColor: "bg-blue-100 dark:bg-blue-900/20",
-        borderColor: "border-blue-200 dark:border-blue-800",
+        color: "text-blue-600 ",
+        bgColor: "bg-blue-100 ",
+        borderColor: "border-blue-200 ",
         status: "active" as const,
         icon: Bell,
       },
       new_version: {
         title: "New Version",
-        color: "text-yellow-600 dark:text-yellow-400",
-        bgColor: "bg-yellow-100 dark:bg-yellow-900/20",
-        borderColor: "border-yellow-200 dark:border-yellow-800",
+        color: "text-yellow-600 ",
+        bgColor: "bg-yellow-100 ",
+        borderColor: "border-yellow-200 ",
         status: "warning" as const,
         icon: AlertTriangle,
       },
@@ -139,28 +139,28 @@ export default function AlertsPage() {
         {/* Header */}
         <div className="flex items-center justify-between">
           <div>
-            <h1 className="text-3xl font-bold tracking-tight text-gray-900 dark:text-white">
+            <h1 className="text-3xl font-bold tracking-tight text-slate-900 ">
               Alerts
             </h1>
-            <p className="mt-2 text-gray-600 dark:text-gray-400">
+            <p className="mt-2 text-slate-600 ">
               Recent updates from your watchlists
             </p>
           </div>
-          <div className="flex items-center gap-2 text-sm text-gray-500 dark:text-gray-400">
+          <div className="flex items-center gap-2 text-sm text-slate-500 ">
             <Clock className="h-4 w-4" />
             <span>{alerts.length} total alerts</span>
           </div>
         </div>
 
         {/* Filter Tabs */}
-        <div className="bg-white dark:bg-slate-900 rounded-lg border border-gray-200 dark:border-slate-800 p-1 inline-flex gap-1">
+        <div className="bg-white  rounded-lg border border-slate-200  p-1 inline-flex gap-1">
           <button
             onClick={() => setFilter("all")}
             className={cn(
               "px-4 py-2 text-sm font-medium rounded-md transition-colors",
               filter === "all"
-                ? "bg-gray-100 dark:bg-slate-800 text-gray-900 dark:text-white"
-                : "text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white",
+                ? "bg-slate-100  text-slate-900 "
+                : "text-slate-600  hover:text-slate-900 ",
             )}
           >
             All ({alertStats.total})
@@ -170,8 +170,8 @@ export default function AlertsPage() {
             className={cn(
               "px-4 py-2 text-sm font-medium rounded-md transition-colors",
               filter === "new_doc"
-                ? "bg-green-100 dark:bg-green-900/20 text-green-700 dark:text-green-400"
-                : "text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white",
+                ? "bg-green-100  text-green-700 "
+                : "text-slate-600  hover:text-slate-900 ",
             )}
           >
             New Documents ({alertStats.new_doc})
@@ -181,8 +181,8 @@ export default function AlertsPage() {
             className={cn(
               "px-4 py-2 text-sm font-medium rounded-md transition-colors",
               filter === "updated_doc"
-                ? "bg-blue-100 dark:bg-blue-900/20 text-blue-700 dark:text-blue-400"
-                : "text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white",
+                ? "bg-blue-100  text-blue-700 "
+                : "text-slate-600  hover:text-slate-900 ",
             )}
           >
             Updated ({alertStats.updated_doc})
@@ -192,8 +192,8 @@ export default function AlertsPage() {
             className={cn(
               "px-4 py-2 text-sm font-medium rounded-md transition-colors",
               filter === "new_version"
-                ? "bg-yellow-100 dark:bg-yellow-900/20 text-yellow-700 dark:text-yellow-400"
-                : "text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white",
+                ? "bg-yellow-100  text-yellow-700 "
+                : "text-slate-600  hover:text-slate-900 ",
             )}
           >
             New Versions ({alertStats.new_version})
@@ -202,10 +202,10 @@ export default function AlertsPage() {
 
         {/* Bulk Actions Bar */}
         {selectedAlerts.size > 0 && (
-          <div className="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg p-4 flex items-center justify-between">
+          <div className="bg-blue-50  border border-blue-200  rounded-lg p-4 flex items-center justify-between">
             <div className="flex items-center gap-3">
-              <CheckSquare className="h-5 w-5 text-blue-600 dark:text-blue-400" />
-              <span className="font-medium text-blue-900 dark:text-blue-100">
+              <CheckSquare className="h-5 w-5 text-blue-600 " />
+              <span className="font-medium text-blue-900 ">
                 {selectedAlerts.size} alert
                 {selectedAlerts.size === 1 ? "" : "s"} selected
               </span>
@@ -214,7 +214,7 @@ export default function AlertsPage() {
               <button
                 onClick={handleBulkAcknowledge}
                 disabled={processingBulk}
-                className="px-4 py-2 text-sm font-medium text-blue-700 dark:text-blue-300 hover:bg-blue-100 dark:hover:bg-blue-900/40 rounded-md transition-colors disabled:opacity-50 flex items-center gap-2"
+                className="px-4 py-2 text-sm font-medium text-blue-700  hover:bg-blue-100  rounded-md transition-colors disabled:opacity-50 flex items-center gap-2"
               >
                 <Check className="h-4 w-4" />
                 Acknowledge All
@@ -222,14 +222,14 @@ export default function AlertsPage() {
               <button
                 onClick={handleBulkArchive}
                 disabled={processingBulk}
-                className="px-4 py-2 text-sm font-medium text-blue-700 dark:text-blue-300 hover:bg-blue-100 dark:hover:bg-blue-900/40 rounded-md transition-colors disabled:opacity-50 flex items-center gap-2"
+                className="px-4 py-2 text-sm font-medium text-blue-700  hover:bg-blue-100  rounded-md transition-colors disabled:opacity-50 flex items-center gap-2"
               >
                 <Archive className="h-4 w-4" />
                 Archive
               </button>
               <button
                 onClick={() => setSelectedAlerts(new Set())}
-                className="px-3 py-2 text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-slate-800 rounded-md transition-colors"
+                className="px-3 py-2 text-slate-600  hover:bg-slate-100  rounded-md transition-colors"
               >
                 <X className="h-4 w-4" />
               </button>
@@ -239,13 +239,13 @@ export default function AlertsPage() {
 
         {/* Search Bar */}
         <div className="relative">
-          <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-5 w-5 text-gray-400" />
+          <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-5 w-5 text-slate-400" />
           <input
             type="text"
             placeholder="Search alerts by document title or CELEX..."
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
-            className="w-full pl-10 pr-4 py-3 bg-white dark:bg-slate-900 border border-gray-200 dark:border-slate-800 rounded-lg text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 dark:focus:ring-blue-400"
+            className="w-full pl-10 pr-4 py-3 bg-white  border border-slate-200  rounded-lg text-slate-900  placeholder-slate-500  focus:outline-none focus:ring-2 focus:ring-blue-500 "
           />
         </div>
 
@@ -255,15 +255,15 @@ export default function AlertsPage() {
             <div className="flex items-center gap-3 px-2 py-2">
               <button
                 onClick={toggleSelectAll}
-                className="p-1 hover:bg-gray-100 dark:hover:bg-slate-800 rounded transition-colors"
+                className="p-1 hover:bg-slate-100  rounded transition-colors"
               >
                 {selectedAlerts.size === filteredAlerts.length ? (
-                  <CheckSquare className="h-5 w-5 text-blue-600 dark:text-blue-400" />
+                  <CheckSquare className="h-5 w-5 text-blue-600 " />
                 ) : (
-                  <Square className="h-5 w-5 text-gray-400" />
+                  <Square className="h-5 w-5 text-slate-400" />
                 )}
               </button>
-              <span className="text-sm text-gray-600 dark:text-gray-400">
+              <span className="text-sm text-slate-600 ">
                 {selectedAlerts.size > 0
                   ? `${selectedAlerts.size} selected`
                   : "Select all"}
@@ -292,10 +292,10 @@ export default function AlertsPage() {
                 <div
                   key={alert.id}
                   className={cn(
-                    "group bg-white dark:bg-slate-900 rounded-lg border shadow-sm hover:shadow-md transition-all",
+                    "group bg-white  rounded-lg border shadow-sm hover:shadow-md transition-all",
                     isSelected
-                      ? "border-blue-500 dark:border-blue-400 bg-blue-50/50 dark:bg-blue-900/10"
-                      : "border-gray-200 dark:border-slate-800 hover:border-gray-300 dark:hover:border-slate-700",
+                      ? "border-blue-500  bg-blue-50/50 "
+                      : "border-slate-200  hover:border-slate-300 ",
                   )}
                 >
                   <div className="p-6">
@@ -304,12 +304,12 @@ export default function AlertsPage() {
                       <div className="flex-shrink-0 pt-1">
                         <button
                           onClick={() => toggleSelectAlert(alert.id)}
-                          className="p-1 hover:bg-gray-100 dark:hover:bg-slate-800 rounded transition-colors"
+                          className="p-1 hover:bg-slate-100  rounded transition-colors"
                         >
                           {isSelected ? (
-                            <CheckSquare className="h-5 w-5 text-blue-600 dark:text-blue-400" />
+                            <CheckSquare className="h-5 w-5 text-blue-600 " />
                           ) : (
-                            <Square className="h-5 w-5 text-gray-400" />
+                            <Square className="h-5 w-5 text-slate-400" />
                           )}
                         </button>
                       </div>
@@ -332,12 +332,12 @@ export default function AlertsPage() {
                       <div className="flex-1 min-w-0">
                         <div className="flex items-start justify-between gap-4 mb-2">
                           <div className="flex items-center gap-3">
-                            <h3 className="font-semibold text-gray-900 dark:text-white">
+                            <h3 className="font-semibold text-slate-900 ">
                               {config.title}
                             </h3>
                             <StatusIndicator status={config.status} size="sm" />
                           </div>
-                          <time className="text-sm text-gray-500 dark:text-gray-400 whitespace-nowrap">
+                          <time className="text-sm text-slate-500  whitespace-nowrap">
                             {format(
                               new Date(alert.detected_at),
                               "MMM d, h:mm a",
@@ -347,16 +347,16 @@ export default function AlertsPage() {
 
                         {alert.document && (
                           <>
-                            <p className="text-gray-900 dark:text-white mb-2 line-clamp-2">
+                            <p className="text-slate-900  mb-2 line-clamp-2">
                               {alert.document.title}
                             </p>
                             <div className="flex items-center justify-between">
-                              <p className="text-xs text-gray-500 dark:text-gray-400 font-mono">
+                              <p className="text-xs text-slate-500  font-mono">
                                 {alert.document.celex}
                               </p>
                               <Link
                                 href={`/doc/${alert.document.celex}`}
-                                className="inline-flex items-center gap-1 text-sm font-medium text-blue-600 hover:text-blue-700 dark:text-blue-400 dark:hover:text-blue-300 transition-colors"
+                                className="inline-flex items-center gap-1 text-sm font-medium text-blue-600 hover:text-blue-700   transition-colors"
                               >
                                 View Document
                                 <ExternalLink className="h-3 w-3" />

@@ -17,26 +17,26 @@ export default function ResultsTable({
 }: ResultsTableProps) {
   if (isLoading) {
     return (
-      <div className="p-8 text-center text-gray-500">Loading results...</div>
+      <div className="p-8 text-center text-slate-500">Loading results...</div>
     );
   }
 
   if (results.length === 0) {
     return (
-      <div className="p-8 text-center text-gray-500">No documents found.</div>
+      <div className="p-8 text-center text-slate-500">No documents found.</div>
     );
   }
 
   const getStatusColor = (status: LegalDocument["status"]) => {
     switch (status) {
       case "In Force":
-        return "bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400";
+        return "bg-green-100 text-green-800  ";
       case "No Longer in Force":
-        return "bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-400";
+        return "bg-red-100 text-red-800  ";
       case "Proposal":
-        return "bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-400";
+        return "bg-yellow-100 text-yellow-800  ";
       default:
-        return "bg-gray-100 text-gray-800 dark:bg-gray-800 dark:text-gray-400";
+        return "bg-slate-100 text-slate-800  ";
     }
   };
 
@@ -46,10 +46,10 @@ export default function ResultsTable({
   };
 
   return (
-    <div className="overflow-hidden rounded-lg border border-gray-200 bg-white shadow-sm dark:border-gray-800 dark:bg-gray-950">
+    <div className="overflow-hidden rounded-lg border border-slate-200 bg-white shadow-sm  ">
       <div className="overflow-x-auto">
         <table className="w-full text-left text-sm">
-          <thead className="bg-gray-50 text-gray-600 dark:bg-gray-900 dark:text-gray-400">
+          <thead className="bg-slate-50 text-slate-600  ">
             <tr>
               <th className="px-6 py-4 font-semibold">CELEX</th>
               <th className="px-6 py-4 font-semibold w-1/2">Title</th>
@@ -58,23 +58,23 @@ export default function ResultsTable({
               <th className="px-6 py-4 font-semibold">Status</th>
             </tr>
           </thead>
-          <tbody className="divide-y divide-gray-200 dark:divide-gray-800">
+          <tbody className="divide-y divide-slate-200 ">
             {results.map((doc) => (
               <tr
                 key={doc.celex}
-                className="group hover:bg-gray-50 dark:hover:bg-gray-900/50 transition-colors"
+                className="group hover:bg-slate-50  transition-colors"
               >
-                <td className="px-6 py-4 font-mono text-gray-500 dark:text-gray-400">
+                <td className="px-6 py-4 font-mono text-slate-500 ">
                   <Link
                     href={`/doc/${doc.celex}`}
-                    className="font-medium text-blue-600 hover:text-blue-800 dark:text-blue-400 dark:hover:text-blue-300"
+                    className="font-medium text-blue-600 hover:text-blue-800  "
                   >
                     {doc.celex}
                   </Link>
                 </td>
                 <td className="px-6 py-4">
                   <Link href={`/doc/${doc.celex}`} className="block">
-                    <p className="line-clamp-2 font-medium text-gray-900 dark:text-gray-100 group-hover:text-blue-600 dark:group-hover:text-blue-400">
+                    <p className="line-clamp-2 font-medium text-slate-900  group-hover:text-blue-600 ">
                       {doc.title}
                     </p>
                     {doc.topics.length > 0 && (
@@ -82,7 +82,7 @@ export default function ResultsTable({
                         {doc.topics.map((topic) => (
                           <span
                             key={topic}
-                            className="inline-flex items-center rounded bg-gray-100 px-2 py-0.5 text-xs font-medium text-gray-600 dark:bg-gray-800 dark:text-gray-400"
+                            className="inline-flex items-center rounded bg-slate-100 px-2 py-0.5 text-xs font-medium text-slate-600  "
                           >
                             {topic}
                           </span>
@@ -91,10 +91,10 @@ export default function ResultsTable({
                     )}
                   </Link>
                 </td>
-                <td className="px-6 py-4 text-gray-600 dark:text-gray-400 whitespace-nowrap">
+                <td className="px-6 py-4 text-slate-600  whitespace-nowrap">
                   {format(new Date(doc.date), "dd MMM yyyy")}
                 </td>
-                <td className="px-6 py-4 text-gray-600 dark:text-gray-400">
+                <td className="px-6 py-4 text-slate-600 ">
                   <div className="flex items-center gap-2">
                     {getTypeIcon()}
                     <span>{doc.type}</span>

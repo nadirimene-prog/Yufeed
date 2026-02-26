@@ -26,7 +26,7 @@ export function WorkbenchLayout({
   discoveryRail,
   workspace,
   intelligencePanel,
-  title = "Sentinel Workbench",
+  title = "Yufeed Workbench",
   activeId,
   reduceDecorativeMotion = true,
 }: WorkbenchLayoutProps) {
@@ -89,7 +89,7 @@ export function WorkbenchLayout({
               opacity: 1,
             }}
             className={cn(
-              "order-2 xl:order-1 relative flex flex-col overflow-hidden rounded-2xl border border-white/10 bg-void-925/40 backdrop-blur-xl transition-colors duration-300 hover:border-white/20",
+              "order-2 xl:order-1 relative flex flex-col overflow-hidden rounded-2xl border border-white/10 bg-void-925/40 transition-colors duration-300 hover:border-white/20",
               !isDiscoveryExpanded && "items-center",
             )}
           >
@@ -132,7 +132,7 @@ export function WorkbenchLayout({
                     <input
                       type="text"
                       placeholder="Search signals..."
-                      className="w-full rounded-xl border border-white/5 bg-white/5 py-2 pl-9 pr-4 text-xs text-white placeholder:text-white/20 focus:border-aurora-500 focus:outline-none"
+                      className="w-full rounded-xl border border-white/5 bg-white/5 py-2 pl-9 pr-4 text-xs text-white placeholder:text-white/20 focus:border-primary focus:outline-none"
                     />
                   </div>
                   {/* Placeholder content for visualization */}
@@ -184,7 +184,7 @@ export function WorkbenchLayout({
         {/* Main Workspace (Center) */}
         <main
           className={cn(
-            "order-1 xl:order-2 relative flex flex-1 flex-col rounded-2xl border border-white/10 bg-void-925/20 backdrop-blur-md shadow-2xl",
+            "order-1 xl:order-2 relative flex flex-1 flex-col rounded-2xl border border-white/10 bg-void-925/20 shadow-2xl",
             isDesktop ? "overflow-hidden" : "overflow-visible min-h-[420px]",
           )}
         >
@@ -235,7 +235,7 @@ export function WorkbenchLayout({
               opacity: 1,
             }}
             className={cn(
-              "order-3 relative flex flex-col overflow-hidden rounded-2xl border border-white/10 bg-void-925/40 backdrop-blur-xl transition-colors duration-300 hover:border-white/20",
+              "order-3 relative flex flex-col overflow-hidden rounded-2xl border border-white/10 bg-void-925/40 transition-colors duration-300 hover:border-white/20",
               !isIntelligenceExpanded && "items-center",
             )}
           >
@@ -272,10 +272,10 @@ export function WorkbenchLayout({
             >
               {intelligencePanel || (
                 <div className="space-y-6">
-                  <div className="rounded-xl border border-aurora-500/20 bg-aurora-500/5 p-4 shadow-[0_0_20px_rgba(109,90,205,0.1)]">
+                  <div className="rounded-xl border border-primary/20 bg-primary/5 p-4 shadow-[0_0_20px_rgba(0,82,255,0.1)]">
                     <div className="mb-2 flex items-center gap-2">
-                      <BrainCircuit size={16} className="text-aurora-400" />
-                      <span className="text-xs font-semibold text-aurora-400">
+                      <BrainCircuit size={16} className="text-primary" />
+                      <span className="text-xs font-semibold text-primary">
                         AI Officer Insights
                       </span>
                     </div>

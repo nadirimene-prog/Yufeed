@@ -14,7 +14,7 @@
  * ```tsx
  * <StatusBadge status="pending" />
  * <StatusBadge status="approved" variant="compact" />
- * <StatusBadge status="custom_status" label="Custom Label" color="bg-purple-100 text-purple-800" />
+ * <StatusBadge status="custom_status" label="Custom Label" color="bg-blue-100 text-blue-800" />
  * ```
  */
 

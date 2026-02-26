@@ -83,7 +83,7 @@ export function SARPrepDrawer({
     <Dialog.Root open={open} onOpenChange={onOpenChange}>
       <Dialog.Portal>
         <Dialog.Overlay className="fixed inset-0 z-50 bg-black/60" />
-        <Dialog.Content className="fixed right-0 top-0 z-50 h-screen w-[min(680px,92vw)] border-l border-border-subtle bg-bg-elevated p-5 shadow-xl">
+        <Dialog.Content className="fixed right-0 top-0 z-50 h-screen w-[min(680px,92vw)] border-l border-border-subtle bg-background-elevated p-5 shadow-xl">
           <div className="mb-4 flex items-center justify-between">
             <Dialog.Title className="text-lg font-semibold text-foreground">
               Prepare SAR
@@ -91,7 +91,7 @@ export function SARPrepDrawer({
             <Dialog.Close asChild>
               <button
                 type="button"
-                className="rounded-md p-1 text-foreground-secondary hover:bg-bg-overlay"
+                className="rounded-md p-1 text-foreground-secondary hover:bg-background-overlay"
                 aria-label="Close"
               >
                 <X className="h-4 w-4" />
@@ -112,7 +112,7 @@ export function SARPrepDrawer({
               <input
                 value={regulatoryBasis}
                 onChange={(event) => setRegulatoryBasis(event.target.value)}
-                className="h-10 w-full rounded-lg border border-border-default bg-bg-overlay px-3 text-sm"
+                className="h-10 w-full rounded-lg border border-border bg-background-overlay px-3 text-sm"
               />
             </div>
 
@@ -125,7 +125,7 @@ export function SARPrepDrawer({
                 onChange={(event) =>
                   setJurisdiction(event.target.value.toUpperCase())
                 }
-                className="h-10 w-full rounded-lg border border-border-default bg-bg-overlay px-3 text-sm"
+                className="h-10 w-full rounded-lg border border-border bg-background-overlay px-3 text-sm"
               />
             </div>
 
@@ -136,7 +136,7 @@ export function SARPrepDrawer({
               <textarea
                 value={narrative}
                 onChange={(event) => setNarrative(event.target.value)}
-                className="h-full min-h-[220px] w-full rounded-lg border border-border-default bg-bg-overlay px-3 py-2 text-sm"
+                className="h-full min-h-[220px] w-full rounded-lg border border-border bg-background-overlay px-3 py-2 text-sm"
               />
             </div>
 

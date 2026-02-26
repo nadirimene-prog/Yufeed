@@ -109,7 +109,7 @@ export default function RiskMapPage() {
   if (loading) {
     return (
       <div className="flex items-center justify-center min-h-[60vh]">
-        <Loader2 className="h-8 w-8 animate-spin text-[#6d5acd]" />
+        <Loader2 className="h-8 w-8 animate-spin text-[#0052ff]" />
       </div>
     );
   }
@@ -129,7 +129,7 @@ export default function RiskMapPage() {
         </div>
         <Button
           onClick={() => setShowCreateModal(true)}
-          className="bg-[#6d5acd] hover:bg-[#5d4abd]"
+          className="bg-[#0052ff] hover:bg-[#0047e0]"
         >
           <Plus className="h-4 w-4 mr-2" />
           Add Risk Entry
@@ -143,7 +143,7 @@ export default function RiskMapPage() {
             label="Total Risks"
             value={riskMapSummary.total_entries}
             icon={<AlertTriangle className="h-4 w-4" />}
-            color="bg-[#6d5acd]/20 text-[#6d5acd]"
+            color="bg-[#0052ff]/20 text-[#0052ff]"
           />
           <SummaryCard
             label="Critical"

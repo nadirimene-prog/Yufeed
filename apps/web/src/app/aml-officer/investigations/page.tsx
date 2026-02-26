@@ -148,12 +148,12 @@ export default function InvestigationsPage() {
       case "investigate":
         return { bg: "bg-yellow-100", text: "text-yellow-700", icon: Eye };
       default:
-        return { bg: "bg-gray-100", text: "text-gray-700", icon: Clock };
+        return { bg: "bg-slate-100", text: "text-slate-700", icon: Clock };
     }
   };
 
   const getRiskScoreColor = (score: number | null) => {
-    if (score === null) return "text-gray-400";
+    if (score === null) return "text-slate-400";
     if (score >= 70) return "text-red-600";
     if (score >= 40) return "text-yellow-600";
     return "text-green-600";
@@ -169,36 +169,36 @@ export default function InvestigationsPage() {
 
   if (alertsQuery.isLoading) {
     return (
-      <div className="flex items-center justify-center min-h-screen bg-gray-50">
+      <div className="flex items-center justify-center min-h-screen bg-slate-50">
         <div className="text-center">
           <Loader2 className="w-8 h-8 animate-spin mx-auto mb-3 text-indigo-600" />
-          <p className="text-gray-600">Loading alerts...</p>
+          <p className="text-slate-600">Loading alerts...</p>
         </div>
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen bg-slate-50">
       {/* Header */}
-      <div className="bg-white border-b border-gray-200 px-4 py-4">
+      <div className="bg-white border-b border-slate-200 px-4 py-4">
         <div className="max-w-7xl mx-auto flex items-center justify-between">
           <div className="flex items-center space-x-4">
             <Link
               href="/aml-officer"
-              className="p-2 hover:bg-gray-100 rounded-lg transition"
+              className="p-2 hover:bg-slate-100 rounded-lg transition"
             >
-              <ArrowLeft className="w-5 h-5 text-gray-600" />
+              <ArrowLeft className="w-5 h-5 text-slate-600" />
             </Link>
             <div className="flex items-center space-x-3">
               <div className="p-2 bg-purple-100 rounded-lg">
                 <Search className="w-6 h-6 text-purple-600" />
               </div>
               <div>
-                <h1 className="text-lg font-semibold text-gray-900">
+                <h1 className="text-lg font-semibold text-slate-900">
                   AI Investigations
                 </h1>
-                <p className="text-sm text-gray-500">
+                <p className="text-sm text-slate-500">
                   AI-powered alert investigations and analysis
                 </p>
               </div>
@@ -218,7 +218,7 @@ export default function InvestigationsPage() {
                 className={`px-4 py-2 text-sm rounded-lg transition ${
                   filter === tab.value
                     ? "bg-indigo-100 text-indigo-700 font-medium"
-                    : "text-gray-600 hover:bg-gray-100"
+                    : "text-slate-600 hover:bg-slate-100"
                 }`}
               >
                 {tab.label}
@@ -232,13 +232,13 @@ export default function InvestigationsPage() {
         <div className="grid lg:grid-cols-3 gap-6">
           {/* Alerts List */}
           <div className="lg:col-span-1">
-            <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
-              <div className="p-4 border-b border-gray-100">
-                <h2 className="font-medium text-gray-900">
+            <div className="bg-white rounded-xl border border-slate-200 overflow-hidden">
+              <div className="p-4 border-b border-slate-100">
+                <h2 className="font-medium text-slate-900">
                   Alerts ({filteredAlerts.length})
                 </h2>
               </div>
-              <div className="divide-y divide-gray-100 max-h-[600px] overflow-y-auto">
+              <div className="divide-y divide-slate-100 max-h-[600px] overflow-y-auto">
                 {filteredAlerts.map((alert) => {
                   const investigation = investigations.get(alert.id);
                   const recStyle = investigation
@@ -249,7 +249,7 @@ export default function InvestigationsPage() {
                     <button
                       key={alert.id}
                       onClick={() => setSelectedAlertId(alert.id)}
-                      className={`w-full p-4 text-left hover:bg-gray-50 transition ${
+                      className={`w-full p-4 text-left hover:bg-slate-50 transition ${
                         selectedAlertId === alert.id
                           ? "bg-indigo-50 border-l-4 border-indigo-500"
                           : ""
@@ -257,10 +257,10 @@ export default function InvestigationsPage() {
                     >
                       <div className="flex items-start justify-between mb-2">
                         <div>
-                          <p className="font-medium text-gray-900">
+                          <p className="font-medium text-slate-900">
                             Alert #{alert.id}
                           </p>
-                          <p className="text-sm text-gray-500">
+                          <p className="text-sm text-slate-500">
                             {alert.alert_type}
                           </p>
                         </div>
@@ -279,17 +279,17 @@ export default function InvestigationsPage() {
                             <span>Processing</span>
                           </span>
                         ) : (
-                          <span className="text-xs px-2 py-1 rounded-full bg-gray-100 text-gray-600">
+                          <span className="text-xs px-2 py-1 rounded-full bg-slate-100 text-slate-600">
                             Not investigated
                           </span>
                         )}
                       </div>
 
-                      <p className="text-sm text-gray-600 line-clamp-2 mb-2">
+                      <p className="text-sm text-slate-600 line-clamp-2 mb-2">
                         {alert.description || "No description available"}
                       </p>
 
-                      <div className="flex items-center justify-between text-xs text-gray-500">
+                      <div className="flex items-center justify-between text-xs text-slate-500">
                         <span>
                           {new Date(alert.created_at).toLocaleDateString()}
                         </span>
@@ -299,7 +299,7 @@ export default function InvestigationsPage() {
                               ? "text-red-600"
                               : alert.severity === "high"
                                 ? "text-orange-600"
-                                : "text-gray-600"
+                                : "text-slate-600"
                           }
                         >
                           {alert.severity}
@@ -310,8 +310,8 @@ export default function InvestigationsPage() {
                 })}
 
                 {filteredAlerts.length === 0 && (
-                  <div className="p-8 text-center text-gray-500">
-                    <Search className="w-8 h-8 mx-auto mb-2 text-gray-300" />
+                  <div className="p-8 text-center text-slate-500">
+                    <Search className="w-8 h-8 mx-auto mb-2 text-slate-300" />
                     <p>No alerts found</p>
                   </div>
                 )}
@@ -322,15 +322,15 @@ export default function InvestigationsPage() {
           {/* Investigation Detail */}
           <div className="lg:col-span-2">
             {selectedAlert ? (
-              <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
+              <div className="bg-white rounded-xl border border-slate-200 overflow-hidden">
                 {/* Detail Header */}
-                <div className="p-6 border-b border-gray-100">
+                <div className="p-6 border-b border-slate-100">
                   <div className="flex items-start justify-between mb-4">
                     <div>
-                      <h2 className="text-xl font-semibold text-gray-900">
+                      <h2 className="text-xl font-semibold text-slate-900">
                         Alert #{selectedAlert.id}
                       </h2>
-                      <p className="text-gray-500">
+                      <p className="text-slate-500">
                         {selectedAlert.alert_type} •{" "}
                         {new Date(selectedAlert.created_at).toLocaleString()}
                       </p>
@@ -360,15 +360,15 @@ export default function InvestigationsPage() {
                   {/* Metrics Row */}
                   {selectedInvestigation?.status === "completed" && (
                     <div className="grid grid-cols-3 gap-4">
-                      <div className="bg-gray-50 rounded-lg p-4">
+                      <div className="bg-slate-50 rounded-lg p-4">
                         <div className="flex items-center space-x-2 mb-1">
-                          <Scale className="w-4 h-4 text-gray-500" />
-                          <span className="text-sm text-gray-500">
+                          <Scale className="w-4 h-4 text-slate-500" />
+                          <span className="text-sm text-slate-500">
                             Confidence
                           </span>
                         </div>
                         <div className="flex items-baseline space-x-2">
-                          <span className="text-2xl font-bold text-gray-900">
+                          <span className="text-2xl font-bold text-slate-900">
                             {(selectedInvestigation.confidence * 100).toFixed(
                               0,
                             )}
@@ -390,10 +390,10 @@ export default function InvestigationsPage() {
                         </div>
                       </div>
 
-                      <div className="bg-gray-50 rounded-lg p-4">
+                      <div className="bg-slate-50 rounded-lg p-4">
                         <div className="flex items-center space-x-2 mb-1">
-                          <AlertTriangle className="w-4 h-4 text-gray-500" />
-                          <span className="text-sm text-gray-500">
+                          <AlertTriangle className="w-4 h-4 text-slate-500" />
+                          <span className="text-sm text-slate-500">
                             Risk Score
                           </span>
                         </div>
@@ -405,14 +405,14 @@ export default function InvestigationsPage() {
                           >
                             {selectedInvestigation.risk_score ?? "N/A"}
                           </span>
-                          <span className="text-sm text-gray-500">/ 100</span>
+                          <span className="text-sm text-slate-500">/ 100</span>
                         </div>
                       </div>
 
-                      <div className="bg-gray-50 rounded-lg p-4">
+                      <div className="bg-slate-50 rounded-lg p-4">
                         <div className="flex items-center space-x-2 mb-1">
-                          <Clock className="w-4 h-4 text-gray-500" />
-                          <span className="text-sm text-gray-500">Status</span>
+                          <Clock className="w-4 h-4 text-slate-500" />
+                          <span className="text-sm text-slate-500">Status</span>
                         </div>
                         <div className="flex items-baseline space-x-2">
                           <span className="text-2xl font-bold text-green-600">
@@ -430,11 +430,11 @@ export default function InvestigationsPage() {
                   {selectedInvestigation?.status === "completed" && (
                     <>
                       <div>
-                        <h3 className="text-sm font-medium text-gray-700 mb-2 flex items-center space-x-2">
+                        <h3 className="text-sm font-medium text-slate-700 mb-2 flex items-center space-x-2">
                           <Brain className="w-4 h-4" />
                           <span>AI Analysis Summary</span>
                         </h3>
-                        <p className="text-gray-600 bg-gray-50 rounded-lg p-4">
+                        <p className="text-slate-600 bg-slate-50 rounded-lg p-4">
                           {selectedInvestigation.summary}
                         </p>
                       </div>
@@ -442,7 +442,7 @@ export default function InvestigationsPage() {
                       {/* Red Flags */}
                       {selectedInvestigation.red_flags.length > 0 && (
                         <div>
-                          <h3 className="text-sm font-medium text-gray-700 mb-2 flex items-center space-x-2">
+                          <h3 className="text-sm font-medium text-slate-700 mb-2 flex items-center space-x-2">
                             <Flag className="w-4 h-4 text-red-500" />
                             <span>Red Flags Identified</span>
                           </h3>
@@ -464,7 +464,7 @@ export default function InvestigationsPage() {
                   )}
 
                   {/* Actions */}
-                  <div className="flex items-center space-x-3 pt-4 border-t border-gray-100">
+                  <div className="flex items-center space-x-3 pt-4 border-t border-slate-100">
                     {!selectedInvestigation && (
                       <button
                         onClick={() => handleInvestigate(selectedAlert.id)}
@@ -493,7 +493,7 @@ export default function InvestigationsPage() {
                       <>
                         <Link
                           href={`/transaction-alerts/${selectedAlert.id}`}
-                          className="flex items-center space-x-2 px-4 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition"
+                          className="flex items-center space-x-2 px-4 py-2 bg-slate-100 text-slate-700 rounded-lg hover:bg-slate-200 transition"
                         >
                           <Eye className="w-4 h-4" />
                           <span>View Alert</span>
@@ -510,7 +510,7 @@ export default function InvestigationsPage() {
                           </Link>
                         )}
 
-                        <button className="flex items-center space-x-2 px-4 py-2 border border-gray-200 text-gray-600 rounded-lg hover:bg-gray-50 transition ml-auto">
+                        <button className="flex items-center space-x-2 px-4 py-2 border border-slate-200 text-slate-600 rounded-lg hover:bg-slate-50 transition ml-auto">
                           <Shield className="w-4 h-4" />
                           <span>Run Sanctions Check</span>
                         </button>
@@ -520,12 +520,12 @@ export default function InvestigationsPage() {
                 </div>
               </div>
             ) : (
-              <div className="bg-white rounded-xl border border-gray-200 p-12 text-center">
-                <Brain className="w-12 h-12 text-gray-300 mx-auto mb-4" />
-                <h3 className="text-lg font-medium text-gray-900 mb-2">
+              <div className="bg-white rounded-xl border border-slate-200 p-12 text-center">
+                <Brain className="w-12 h-12 text-slate-300 mx-auto mb-4" />
+                <h3 className="text-lg font-medium text-slate-900 mb-2">
                   Select an Alert to Investigate
                 </h3>
-                <p className="text-gray-500 mb-6">
+                <p className="text-slate-500 mb-6">
                   Choose an alert from the list to run an AI-powered
                   investigation
                 </p>

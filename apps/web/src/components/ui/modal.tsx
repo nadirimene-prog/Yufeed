@@ -159,7 +159,7 @@ export function Modal({
             exit={{ opacity: 0 }}
             transition={{ duration: 0.2 }}
             className={cn(
-              "absolute inset-0 bg-overlay-scrim/60 backdrop-blur-sm",
+              "absolute inset-0 bg-overlay-scrim/60",
               overlayClassName,
             )}
             onClick={handleOverlayClick}
@@ -174,7 +174,7 @@ export function Modal({
             exit={{ opacity: 0, scale: 0.95, y: 20 }}
             transition={{ type: "spring", stiffness: 400, damping: 30 }}
             className={cn(
-              "relative w-full mx-4 rounded-xl border border-border-default bg-background-overlay shadow-2xl",
+              "relative w-full mx-4 rounded-xl border border-border bg-background-overlay shadow-2xl",
               sizeClasses[size],
               className,
             )}
@@ -337,8 +337,8 @@ export function ConfirmModal({
         <div className="flex gap-4">
           {isDanger && (
             <div className="shrink-0">
-              <div className="flex h-10 w-10 items-center justify-center rounded-full bg-critical-500/10">
-                <AlertTriangle className="h-5 w-5 text-critical-400" />
+              <div className="flex h-10 w-10 items-center justify-center rounded-full bg-risk-critical/10">
+                <AlertTriangle className="h-5 w-5 text-risk-critical" />
               </div>
             </div>
           )}
@@ -411,7 +411,7 @@ export function Drawer({
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
             transition={{ duration: 0.2 }}
-            className="absolute inset-0 bg-overlay-scrim/60 backdrop-blur-sm"
+            className="absolute inset-0 bg-overlay-scrim/60"
             onClick={() =>
               modalProps.closeOnOverlayClick && modalProps.onClose()
             }
@@ -424,7 +424,7 @@ export function Drawer({
             exit={animationVariants}
             transition={{ type: "spring", stiffness: 400, damping: 30 }}
             className={cn(
-              "absolute bg-background-overlay border-border-default shadow-2xl",
+              "absolute bg-background-overlay border-border shadow-2xl",
               isHorizontal
                 ? `w-full max-w-md ${placementClasses}`
                 : `h-full max-h-[50vh] ${placementClasses}`,

@@ -50,7 +50,7 @@ export default function DocTabs({ document, celex }: DocTabsProps) {
 
   return (
     <div className="space-y-6">
-      <div className="border-b border-gray-200 dark:border-gray-800">
+      <div className="border-b border-slate-200 ">
         <nav
           className="-mb-px flex space-x-8 overflow-x-auto"
           aria-label="Tabs"
@@ -65,8 +65,8 @@ export default function DocTabs({ document, celex }: DocTabsProps) {
                 className={cn(
                   "group inline-flex items-center border-b-2 px-1 py-4 text-sm font-medium transition-all whitespace-nowrap",
                   isActive
-                    ? "border-blue-500 text-blue-600 dark:border-blue-400 dark:text-blue-400"
-                    : "border-transparent text-gray-500 hover:border-gray-300 hover:text-gray-700 dark:text-gray-400 dark:hover:border-gray-700 dark:hover:text-gray-300",
+                    ? "border-blue-500 text-blue-600  "
+                    : "border-transparent text-slate-500 hover:border-slate-300 hover:text-slate-700   ",
                 )}
               >
                 <Icon
@@ -74,7 +74,7 @@ export default function DocTabs({ document, celex }: DocTabsProps) {
                     "mr-2 h-4 w-4",
                     isActive
                       ? "text-blue-500"
-                      : "text-gray-400 group-hover:text-gray-500",
+                      : "text-slate-400 group-hover:text-slate-500",
                   )}
                 />
                 {tab.label}
@@ -84,41 +84,41 @@ export default function DocTabs({ document, celex }: DocTabsProps) {
         </nav>
       </div>
 
-      <div className="rounded-xl border border-gray-200 bg-white p-6 shadow-sm dark:border-gray-800 dark:bg-gray-950">
+      <div className="rounded-xl border border-slate-200 bg-white p-6 shadow-sm  ">
         {activeTab === "overview" && (
           <div className="space-y-4">
             <h3 className="text-lg font-semibold">Metadata</h3>
             <dl className="grid grid-cols-1 gap-x-4 gap-y-6 sm:grid-cols-2">
               <div>
-                <dt className="text-sm font-medium text-gray-500">CELEX</dt>
-                <dd className="mt-1 text-sm text-gray-900 dark:text-gray-100 font-mono">
+                <dt className="text-sm font-medium text-slate-500">CELEX</dt>
+                <dd className="mt-1 text-sm text-slate-900  font-mono">
                   {document.celex}
                 </dd>
               </div>
               {document.eli && (
                 <div>
-                  <dt className="text-sm font-medium text-gray-500">ELI</dt>
-                  <dd className="mt-1 text-sm text-gray-900 dark:text-gray-100 font-mono">
+                  <dt className="text-sm font-medium text-slate-500">ELI</dt>
+                  <dd className="mt-1 text-sm text-slate-900  font-mono">
                     {document.eli}
                   </dd>
                 </div>
               )}
               {document.publication_date && (
                 <div>
-                  <dt className="text-sm font-medium text-gray-500">
+                  <dt className="text-sm font-medium text-slate-500">
                     Publication Date
                   </dt>
-                  <dd className="mt-1 text-sm text-gray-900 dark:text-gray-100">
+                  <dd className="mt-1 text-sm text-slate-900 ">
                     {new Date(document.publication_date).toLocaleDateString()}
                   </dd>
                 </div>
               )}
               {document.entry_into_force_date && (
                 <div>
-                  <dt className="text-sm font-medium text-gray-500">
+                  <dt className="text-sm font-medium text-slate-500">
                     Entry Into Force
                   </dt>
-                  <dd className="mt-1 text-sm text-gray-900 dark:text-gray-100">
+                  <dd className="mt-1 text-sm text-slate-900 ">
                     {new Date(
                       document.entry_into_force_date,
                     ).toLocaleDateString()}
@@ -126,37 +126,37 @@ export default function DocTabs({ document, celex }: DocTabsProps) {
                 </div>
               )}
               <div>
-                <dt className="text-sm font-medium text-gray-500">Status</dt>
-                <dd className="mt-1 text-sm text-gray-900 dark:text-gray-100">
+                <dt className="text-sm font-medium text-slate-500">Status</dt>
+                <dd className="mt-1 text-sm text-slate-900 ">
                   {document.status || "Active"}
                 </dd>
               </div>
               {document.type && (
                 <div>
-                  <dt className="text-sm font-medium text-gray-500">
+                  <dt className="text-sm font-medium text-slate-500">
                     Document Type
                   </dt>
-                  <dd className="mt-1 text-sm text-gray-900 dark:text-gray-100">
+                  <dd className="mt-1 text-sm text-slate-900 ">
                     {document.type}
                   </dd>
                 </div>
               )}
               {document.jurisdictional_scope && (
                 <div>
-                  <dt className="text-sm font-medium text-gray-500">
+                  <dt className="text-sm font-medium text-slate-500">
                     Jurisdictional Scope
                   </dt>
-                  <dd className="mt-1 text-sm text-gray-900 dark:text-gray-100">
+                  <dd className="mt-1 text-sm text-slate-900 ">
                     {document.jurisdictional_scope}
                   </dd>
                 </div>
               )}
               {document.last_modified && (
                 <div>
-                  <dt className="text-sm font-medium text-gray-500">
+                  <dt className="text-sm font-medium text-slate-500">
                     Last Modified
                   </dt>
-                  <dd className="mt-1 text-sm text-gray-900 dark:text-gray-100">
+                  <dd className="mt-1 text-sm text-slate-900 ">
                     {new Date(document.last_modified).toLocaleDateString()}
                   </dd>
                 </div>
@@ -183,7 +183,7 @@ export default function DocTabs({ document, celex }: DocTabsProps) {
                 {document.ai_summary && (
                   <div>
                     <h4 className="text-sm font-semibold mb-2">AI Summary</h4>
-                    <p className="text-sm text-gray-700 dark:text-gray-300">
+                    <p className="text-sm text-slate-700 ">
                       {document.ai_summary}
                     </p>
                   </div>
@@ -194,7 +194,7 @@ export default function DocTabs({ document, celex }: DocTabsProps) {
                     <h4 className="text-sm font-semibold mb-2">
                       Implementation Deadline
                     </h4>
-                    <p className="text-sm text-gray-700 dark:text-gray-300">
+                    <p className="text-sm text-slate-700 ">
                       {new Date(
                         document.implementation_deadline,
                       ).toLocaleDateString()}
@@ -208,7 +208,7 @@ export default function DocTabs({ document, celex }: DocTabsProps) {
                       <h4 className="text-sm font-semibold mb-2">
                         Key Obligations
                       </h4>
-                      <ul className="list-disc list-inside space-y-1 text-sm text-gray-700 dark:text-gray-300">
+                      <ul className="list-disc list-inside space-y-1 text-sm text-slate-700 ">
                         {Object.entries(document.obligations_json).map(
                           ([key, value]: [string, unknown]) => (
                             <li key={key}>
@@ -222,13 +222,13 @@ export default function DocTabs({ document, celex }: DocTabsProps) {
                     </div>
                   )}
 
-                <p className="text-xs text-gray-500">
+                <p className="text-xs text-slate-500">
                   Analyzed on {new Date(document.analyzed_at).toLocaleString()}
                 </p>
               </>
             ) : (
               <div className="text-center py-8">
-                <p className="text-gray-500 mb-4">
+                <p className="text-slate-500 mb-4">
                   This document hasn&apos;t been analyzed yet.
                 </p>
                 <button className="rounded-md bg-blue-600 px-4 py-2 text-sm font-semibold text-white hover:bg-blue-700">
@@ -242,19 +242,19 @@ export default function DocTabs({ document, celex }: DocTabsProps) {
         {activeTab === "impact" && <ImpactAssessmentComponent celex={celex} />}
 
         {activeTab === "versions" && (
-          <div className="relative border-l border-gray-200 dark:border-gray-800 ml-3 space-y-8 py-2">
+          <div className="relative border-l border-slate-200  ml-3 space-y-8 py-2">
             <div className="mb-2 ml-6">
-              <span className="flex absolute -left-1.5 justify-center items-center w-3 h-3 bg-blue-600 rounded-full ring-4 ring-white dark:ring-gray-900"></span>
-              <h3 className="flex items-center mb-1 text-lg font-semibold text-gray-900 dark:text-white">
+              <span className="flex absolute -left-1.5 justify-center items-center w-3 h-3 bg-blue-600 rounded-full ring-4 ring-white "></span>
+              <h3 className="flex items-center mb-1 text-lg font-semibold text-slate-900 ">
                 Current Version
               </h3>
               {document.publication_date && (
-                <time className="block mb-2 text-sm font-normal leading-none text-gray-400 dark:text-gray-500">
+                <time className="block mb-2 text-sm font-normal leading-none text-slate-400 ">
                   Released on{" "}
                   {new Date(document.publication_date).toLocaleDateString()}
                 </time>
               )}
-              <p className="mb-4 text-base font-normal text-gray-500 dark:text-gray-400">
+              <p className="mb-4 text-base font-normal text-slate-500 ">
                 Initial adoption/entry into force.
               </p>
             </div>
@@ -262,7 +262,7 @@ export default function DocTabs({ document, celex }: DocTabsProps) {
         )}
 
         {activeTab === "relations" && (
-          <p className="text-gray-500">No related documents found.</p>
+          <p className="text-slate-500">No related documents found.</p>
         )}
 
         {activeTab === "downloads" && (
@@ -271,7 +271,7 @@ export default function DocTabs({ document, celex }: DocTabsProps) {
               href={`https://eur-lex.europa.eu/legal-content/EN/TXT/PDF/?uri=CELEX:${celex}`}
               target="_blank"
               rel="noopener noreferrer"
-              className="inline-flex items-center justify-center rounded-md bg-white px-4 py-2 text-sm font-medium text-gray-900 ring-1 ring-inset ring-gray-300 hover:bg-gray-50 dark:bg-gray-900 dark:text-gray-100 dark:ring-gray-700 dark:hover:bg-gray-800"
+              className="inline-flex items-center justify-center rounded-md bg-white px-4 py-2 text-sm font-medium text-slate-900 ring-1 ring-inset ring-slate-300 hover:bg-slate-50    "
             >
               <Download className="mr-2 h-4 w-4" /> Download PDF (EUR-Lex)
             </a>
@@ -279,7 +279,7 @@ export default function DocTabs({ document, celex }: DocTabsProps) {
               href={`https://eur-lex.europa.eu/legal-content/EN/TXT/?uri=CELEX:${celex}`}
               target="_blank"
               rel="noopener noreferrer"
-              className="inline-flex items-center justify-center rounded-md bg-white px-4 py-2 text-sm font-medium text-gray-900 ring-1 ring-inset ring-gray-300 hover:bg-gray-50 dark:bg-gray-900 dark:text-gray-100 dark:ring-gray-700 dark:hover:bg-gray-800"
+              className="inline-flex items-center justify-center rounded-md bg-white px-4 py-2 text-sm font-medium text-slate-900 ring-1 ring-inset ring-slate-300 hover:bg-slate-50    "
             >
               <Eye className="mr-2 h-4 w-4" /> View on EUR-Lex
             </a>

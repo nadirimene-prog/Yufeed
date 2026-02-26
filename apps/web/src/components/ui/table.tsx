@@ -5,7 +5,7 @@ import { cn } from "@/lib/utils";
 
 /**
  * ═══════════════════════════════════════════════════════════════════
- * TABLE - Sentinel Design System
+ * TABLE - Horizon Design System
  * Clean, minimalist data tables
  * ═══════════════════════════════════════════════════════════════════
  */

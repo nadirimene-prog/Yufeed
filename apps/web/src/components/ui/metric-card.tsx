@@ -10,7 +10,7 @@ import { staggerItem, transitions } from "@/lib/motion";
 
 /**
  * ═══════════════════════════════════════════════════════════════════
- * METRIC CARD - Sentinel Design System
+ * METRIC CARD - Horizon Design System
  * Premium dashboard metric display with clean surfaces
  * ═══════════════════════════════════════════════════════════════════
  */

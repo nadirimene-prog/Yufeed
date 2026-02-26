@@ -249,7 +249,7 @@ export default function TransactionAlertsPage() {
       variants={staggerContainer}
       initial="initial"
       animate="animate"
-      className="space-y-6 bg-bg-base text-foreground"
+      className="space-y-6 bg-background text-foreground"
     >
       <motion.div variants={staggerItem} className="space-y-1">
         <h1 className="text-3xl font-display font-semibold">
@@ -310,7 +310,7 @@ export default function TransactionAlertsPage() {
               />
               <div className="grid grid-cols-2 gap-2">
                 <select
-                  className="h-10 rounded-lg border border-border-default bg-bg-overlay px-3 text-sm"
+                  className="h-10 rounded-lg border border-border bg-background-overlay px-3 text-sm"
                   aria-label="Status filter"
                   value={filters.status}
                   onChange={(event) =>
@@ -327,7 +327,7 @@ export default function TransactionAlertsPage() {
                   <option value="escalated">Escalated</option>
                 </select>
                 <select
-                  className="h-10 rounded-lg border border-border-default bg-bg-overlay px-3 text-sm"
+                  className="h-10 rounded-lg border border-border bg-background-overlay px-3 text-sm"
                   aria-label="Severity filter"
                   value={filters.severity}
                   onChange={(event) =>
@@ -386,7 +386,7 @@ export default function TransactionAlertsPage() {
                 AI Triage
               </Button>
               <select
-                className="h-9 min-w-[140px] rounded-lg border border-border-default bg-bg-overlay px-2 text-xs"
+                className="h-9 min-w-[140px] rounded-lg border border-border bg-background-overlay px-2 text-xs"
                 aria-label="Bulk assignee"
                 value={bulkAssignee}
                 onChange={(event) => setBulkAssignee(event.target.value)}
@@ -441,7 +441,7 @@ export default function TransactionAlertsPage() {
                       <div key={group.userId} className="space-y-2">
                         <button
                           type="button"
-                          className="w-full rounded-lg border border-border-subtle bg-bg-overlay px-3 py-2 text-left text-sm"
+                          className="w-full rounded-lg border border-border-subtle bg-background-overlay px-3 py-2 text-left text-sm"
                           onClick={() =>
                             setExpandedGroups((current) => ({
                               ...current,
@@ -578,7 +578,7 @@ export default function TransactionAlertsPage() {
 
                 {selectedAlert.triggered_rule_name &&
                 selectedAlert.triggered_rule_id ? (
-                  <div className="rounded-lg border border-border-subtle bg-bg-overlay p-3 text-sm">
+                  <div className="rounded-lg border border-border-subtle bg-background-overlay p-3 text-sm">
                     Triggered by:{" "}
                     <Link
                       href={`/transaction-monitoring/rules/${selectedAlert.triggered_rule_id}`}
@@ -590,18 +590,18 @@ export default function TransactionAlertsPage() {
                 ) : null}
 
                 {selectedAlert.description ? (
-                  <div className="rounded-lg border border-border-subtle bg-bg-overlay p-3 text-sm text-foreground-secondary">
+                  <div className="rounded-lg border border-border-subtle bg-background-overlay p-3 text-sm text-foreground-secondary">
                     {selectedAlert.description}
                   </div>
                 ) : null}
 
-                <div className="rounded-lg border border-border-subtle bg-bg-overlay p-3">
+                <div className="rounded-lg border border-border-subtle bg-background-overlay p-3">
                   <p className="mb-2 text-xs uppercase tracking-wide text-foreground-tertiary">
                     Alert Cool-off
                   </p>
                   <div className="grid gap-2 md:grid-cols-[140px_1fr_auto]">
                     <select
-                      className="h-10 rounded-lg border border-border-default bg-bg-base px-3 text-sm"
+                      className="h-10 rounded-lg border border-border bg-background px-3 text-sm"
                       value={snoozeHours}
                       onChange={(event) => setSnoozeHours(event.target.value)}
                       aria-label="Snooze duration"
@@ -668,7 +668,7 @@ export default function TransactionAlertsPage() {
 
 function Info({ label, value }: { label: string; value: React.ReactNode }) {
   return (
-    <div className="rounded-lg border border-border-subtle bg-bg-overlay p-3 text-sm">
+    <div className="rounded-lg border border-border-subtle bg-background-overlay p-3 text-sm">
       <p className="mb-1 text-xs uppercase tracking-wide text-foreground-tertiary">
         {label}
       </p>
@@ -705,7 +705,7 @@ function QueueRow({
       className={`w-full rounded-lg border p-3 text-left transition ${
         active
           ? "border-primary/60 bg-primary/10"
-          : "border-border-subtle bg-bg-overlay hover:border-border-default"
+          : "border-border-subtle bg-background-overlay hover:border-border"
       }`}
     >
       <div className="flex items-start gap-3">

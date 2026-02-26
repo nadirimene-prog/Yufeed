@@ -25,7 +25,7 @@ const buttonVariants = cva(
 
         /* Secondary — Subtle fill */
         secondary:
-          "bg-muted text-foreground border border-border-subtle hover:bg-secondary hover:border-border-default active:scale-[0.98]",
+          "bg-muted text-foreground border border-border-subtle hover:bg-secondary hover:border-border active:scale-[0.98]",
 
         /* Tertiary — Minimal */
         tertiary:
@@ -47,11 +47,11 @@ const buttonVariants = cva(
 
         /* Glass — Backward compatibility alias */
         glass:
-          "border border-border-subtle bg-card/80 text-foreground backdrop-blur-sm hover:bg-card",
+          "border border-border-subtle bg-card text-foreground hover:bg-card",
 
         /* Outline — Bordered */
         outline:
-          "bg-transparent border border-border-default text-foreground hover:bg-muted hover:border-primary/30",
+          "bg-transparent border border-border text-foreground hover:bg-muted hover:border-primary/30",
 
         /* Gradient — Same as primary for compat */
         gradient:

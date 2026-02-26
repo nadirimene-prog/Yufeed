@@ -76,8 +76,8 @@ const statusConfig: Record<
   triaged: { label: "Triaged", color: "text-blue-400", bg: "bg-blue-400/10" },
   escalated: {
     label: "Escalated",
-    color: "text-purple-400",
-    bg: "bg-purple-400/10",
+    color: "text-blue-400",
+    bg: "bg-blue-400/10",
   },
   closed: {
     label: "Closed",
@@ -196,7 +196,7 @@ export function FindingCard({
             <Button
               variant="outline"
               size="sm"
-              className="h-7 px-2 text-[10px] bg-aurora-500/10 hover:bg-aurora-500/20 text-aurora-400 border-aurora-500/20"
+              className="h-7 px-2 text-[10px] bg-primary/10 hover:bg-primary/20 text-primary border-primary/20"
               onClick={(e) => {
                 e.stopPropagation();
                 onEscalate?.(finding.id);

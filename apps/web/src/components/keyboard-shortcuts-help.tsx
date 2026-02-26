@@ -63,18 +63,18 @@ export function KeyboardShortcutsHelp() {
 
       {/* Modal */}
       <div className="fixed inset-0 flex items-center justify-center z-50 p-4">
-        <div className="bg-white dark:bg-slate-900 rounded-lg border border-gray-200 dark:border-slate-700 shadow-2xl max-w-lg w-full animate-slide-up">
+        <div className="bg-white  rounded-lg border border-slate-200  shadow-2xl max-w-lg w-full animate-slide-up">
           {/* Header */}
-          <div className="flex items-center justify-between p-6 border-b border-gray-200 dark:border-slate-700">
-            <h2 className="text-xl font-semibold text-gray-900 dark:text-white flex items-center gap-2">
+          <div className="flex items-center justify-between p-6 border-b border-slate-200 ">
+            <h2 className="text-xl font-semibold text-slate-900  flex items-center gap-2">
               <Command className="h-5 w-5" />
               Keyboard Shortcuts
             </h2>
             <button
               onClick={() => setIsOpen(false)}
-              className="p-2 hover:bg-gray-100 dark:hover:bg-slate-800 rounded-md transition-colors"
+              className="p-2 hover:bg-slate-100  rounded-md transition-colors"
             >
-              <X className="h-5 w-5 text-gray-500 dark:text-gray-400" />
+              <X className="h-5 w-5 text-slate-500 " />
             </button>
           </div>
 
@@ -86,20 +86,20 @@ export function KeyboardShortcutsHelp() {
                   key={index}
                   className="flex items-center justify-between py-2"
                 >
-                  <span className="text-sm text-gray-600 dark:text-gray-400">
+                  <span className="text-sm text-slate-600 ">
                     {shortcut.description}
                   </span>
-                  <kbd className="px-3 py-1.5 text-sm font-mono bg-gray-100 dark:bg-slate-800 border border-gray-300 dark:border-slate-600 rounded text-gray-900 dark:text-white">
+                  <kbd className="px-3 py-1.5 text-sm font-mono bg-slate-100  border border-slate-300  rounded text-slate-900 ">
                     {shortcut.key}
                   </kbd>
                 </div>
               ))}
             </div>
 
-            <div className="mt-6 pt-6 border-t border-gray-200 dark:border-slate-700">
-              <p className="text-sm text-gray-500 dark:text-gray-400 text-center">
+            <div className="mt-6 pt-6 border-t border-slate-200 ">
+              <p className="text-sm text-slate-500  text-center">
                 Press{" "}
-                <kbd className="px-2 py-1 text-xs font-mono bg-gray-100 dark:bg-slate-800 border border-gray-300 dark:border-slate-600 rounded">
+                <kbd className="px-2 py-1 text-xs font-mono bg-slate-100  border border-slate-300  rounded">
                   Esc
                 </kbd>{" "}
                 to close

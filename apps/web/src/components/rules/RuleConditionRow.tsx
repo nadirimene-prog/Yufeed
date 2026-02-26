@@ -59,7 +59,7 @@ export function RuleConditionRow({
   return (
     <div
       className={cn(
-        "grid grid-cols-1 gap-2 rounded-xl border border-border-subtle bg-bg-overlay p-3 md:grid-cols-[1fr_1fr_1fr_auto]",
+        "grid grid-cols-1 gap-2 rounded-xl border border-border-subtle bg-background-overlay p-3 md:grid-cols-[1fr_1fr_1fr_auto]",
         className,
       )}
     >
@@ -68,7 +68,7 @@ export function RuleConditionRow({
         <select
           value={condition.field}
           onChange={(event) => onChange({ field: event.target.value })}
-          className="h-9 w-full rounded-lg border border-border-default bg-bg-base px-2 text-sm text-foreground"
+          className="h-9 w-full rounded-lg border border-border bg-background px-2 text-sm text-foreground"
         >
           {availableFields.map((field) => (
             <option key={field} value={field}>
@@ -85,7 +85,7 @@ export function RuleConditionRow({
           onChange={(event) =>
             onChange({ operator: event.target.value as RuleOperator })
           }
-          className="h-9 w-full rounded-lg border border-border-default bg-bg-base px-2 text-sm text-foreground"
+          className="h-9 w-full rounded-lg border border-border bg-background px-2 text-sm text-foreground"
         >
           {OPERATOR_OPTIONS.map((option) => (
             <option key={option.value} value={option.value}>
@@ -105,7 +105,7 @@ export function RuleConditionRow({
               ? "comma,separated,values"
               : "value"
           }
-          className="h-9 w-full rounded-lg border border-border-default bg-bg-base px-2 text-sm text-foreground placeholder:text-foreground-tertiary"
+          className="h-9 w-full rounded-lg border border-border bg-background px-2 text-sm text-foreground placeholder:text-foreground-tertiary"
         />
       </label>
 

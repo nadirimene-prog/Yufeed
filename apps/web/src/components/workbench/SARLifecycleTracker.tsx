@@ -54,7 +54,7 @@ export function SARLifecycleTracker({
   const current = (lifecycle.current_status ?? "draft").toLowerCase();
 
   return (
-    <section className="rounded-lg border border-border-subtle bg-bg-overlay p-3">
+    <section className="rounded-lg border border-border-subtle bg-background-overlay p-3">
       <div className="mb-2 flex items-center justify-between gap-2">
         <p className="text-xs font-semibold uppercase tracking-wide text-foreground-tertiary">
           SAR Lifecycle
@@ -77,7 +77,7 @@ export function SARLifecycleTracker({
                 state === "current" &&
                   "border-primary/40 bg-primary/10 text-primary",
                 state === "pending" &&
-                  "border-border-subtle bg-bg-base text-foreground-secondary",
+                  "border-border-subtle bg-background text-foreground-secondary",
               )}
             >
               <p className="mb-1 flex items-center gap-1.5 font-medium">

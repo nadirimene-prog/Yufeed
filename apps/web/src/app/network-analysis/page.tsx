@@ -130,14 +130,14 @@ export default function NetworkAnalysisPage() {
   };
 
   return (
-    <div className="min-h-screen bg-gray-50 dark:bg-gray-900 p-6">
+    <div className="min-h-screen bg-slate-50  p-6">
       <div className="max-w-7xl mx-auto">
         {/* Header */}
         <div className="mb-8">
-          <h1 className="text-3xl font-bold text-gray-900 dark:text-white mb-2">
+          <h1 className="text-3xl font-bold text-slate-900  mb-2">
             Network Analysis & Fraud Detection
           </h1>
-          <p className="text-gray-600 dark:text-gray-400">
+          <p className="text-slate-600 ">
             Analyze transaction networks and detect fraud rings
           </p>
         </div>
@@ -149,7 +149,7 @@ export default function NetworkAnalysisPage() {
             className={`px-6 py-3 rounded-lg font-medium transition ${
               activeTab === "user"
                 ? "bg-blue-600 text-white"
-                : "bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700"
+                : "bg-white  text-slate-700  hover:bg-slate-100 "
             }`}
           >
             User Network Analysis
@@ -159,7 +159,7 @@ export default function NetworkAnalysisPage() {
             className={`px-6 py-3 rounded-lg font-medium transition ${
               activeTab === "rings"
                 ? "bg-blue-600 text-white"
-                : "bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700"
+                : "bg-white  text-slate-700  hover:bg-slate-100 "
             }`}
           >
             Fraud Ring Detection
@@ -170,14 +170,14 @@ export default function NetworkAnalysisPage() {
         {activeTab === "user" && (
           <div className="space-y-6">
             {/* Search Form */}
-            <div className="bg-white dark:bg-gray-800 rounded-lg shadow p-6">
-              <h2 className="text-xl font-semibold text-gray-900 dark:text-white mb-4">
+            <div className="bg-white  rounded-lg shadow p-6">
+              <h2 className="text-xl font-semibold text-slate-900  mb-4">
                 Analyze User Network
               </h2>
 
               <div className="flex flex-col md:flex-row gap-4">
                 <div className="flex-1">
-                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                  <label className="block text-sm font-medium text-slate-700  mb-2">
                     User ID
                   </label>
                   <input
@@ -185,18 +185,18 @@ export default function NetworkAnalysisPage() {
                     value={userId}
                     onChange={(e) => setUserId(e.target.value)}
                     placeholder="Enter user ID..."
-                    className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+                    className="w-full px-4 py-2 border border-slate-300  rounded-lg bg-white  text-slate-900 "
                   />
                 </div>
 
                 <div className="w-32">
-                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                  <label className="block text-sm font-medium text-slate-700  mb-2">
                     Depth
                   </label>
                   <select
                     value={depth}
                     onChange={(e) => setDepth(Number(e.target.value))}
-                    className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+                    className="w-full px-4 py-2 border border-slate-300  rounded-lg bg-white  text-slate-900 "
                   >
                     <option value={1}>1 hop</option>
                     <option value={2}>2 hops</option>
@@ -205,13 +205,13 @@ export default function NetworkAnalysisPage() {
                 </div>
 
                 <div className="w-32">
-                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                  <label className="block text-sm font-medium text-slate-700  mb-2">
                     Days
                   </label>
                   <select
                     value={days}
                     onChange={(e) => setDays(Number(e.target.value))}
-                    className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+                    className="w-full px-4 py-2 border border-slate-300  rounded-lg bg-white  text-slate-900 "
                   >
                     <option value={30}>30 days</option>
                     <option value={60}>60 days</option>
@@ -238,7 +238,7 @@ export default function NetworkAnalysisPage() {
               <div className="flex items-center justify-center py-12">
                 <div className="text-center">
                   <Network className="h-12 w-12 animate-spin mx-auto mb-4 text-blue-600" />
-                  <p className="text-lg text-gray-700 dark:text-gray-300">
+                  <p className="text-lg text-slate-700 ">
                     Analyzing network...
                   </p>
                 </div>
@@ -282,8 +282,8 @@ export default function NetworkAnalysisPage() {
                 </div>
 
                 {/* Network Graph Visualization */}
-                <div className="bg-white dark:bg-gray-800 rounded-lg shadow p-6">
-                  <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">
+                <div className="bg-white  rounded-lg shadow p-6">
+                  <h3 className="text-lg font-semibold text-slate-900  mb-4">
                     Network Visualization
                   </h3>
                   <NetworkGraph
@@ -314,8 +314,8 @@ export default function NetworkAnalysisPage() {
                   ).length > 0 ||
                   networkData.risk_indicators.suspicious_clusters.length >
                     0) && (
-                  <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg p-6">
-                    <h3 className="text-lg font-semibold text-red-900 dark:text-red-300 mb-4">
+                  <div className="bg-red-50  border border-red-200  rounded-lg p-6">
+                    <h3 className="text-lg font-semibold text-red-900  mb-4">
                       Risk Indicators Detected
                     </h3>
 
@@ -323,7 +323,7 @@ export default function NetworkAnalysisPage() {
                       {networkData.risk_indicators.circular_flows.length >
                         0 && (
                         <div>
-                          <p className="text-sm font-medium text-red-800 dark:text-red-400 mb-2">
+                          <p className="text-sm font-medium text-red-800  mb-2">
                             Circular Transaction Flows (
                             {networkData.risk_indicators.circular_flows.length})
                           </p>
@@ -332,12 +332,12 @@ export default function NetworkAnalysisPage() {
                               (flow, idx: number) => (
                                 <div
                                   key={idx}
-                                  className="p-3 bg-white dark:bg-gray-800 rounded-lg"
+                                  className="p-3 bg-white  rounded-lg"
                                 >
-                                  <p className="text-sm text-gray-900 dark:text-white font-mono">
+                                  <p className="text-sm text-slate-900  font-mono">
                                     {flow.path.join(" → ")}
                                   </p>
-                                  <p className="text-xs text-gray-600 dark:text-gray-400 mt-1">
+                                  <p className="text-xs text-slate-600  mt-1">
                                     {flow.transaction_count} transactions,{" "}
                                     {flow.total_amount.toLocaleString()} EUR
                                   </p>
@@ -352,7 +352,7 @@ export default function NetworkAnalysisPage() {
                         networkData.risk_indicators.shared_attributes || {},
                       ).length > 0 && (
                         <div>
-                          <p className="text-sm font-medium text-red-800 dark:text-red-400 mb-2">
+                          <p className="text-sm font-medium text-red-800  mb-2">
                             Shared Attributes
                           </p>
                           <div className="space-y-4">
@@ -364,13 +364,13 @@ export default function NetworkAnalysisPage() {
                               ).map(([ip, users], idx) => (
                                 <div
                                   key={`ip-${idx}`}
-                                  className="p-3 bg-white dark:bg-gray-800 rounded-lg"
+                                  className="p-3 bg-white  rounded-lg"
                                 >
-                                  <p className="text-sm text-gray-900 dark:text-white">
+                                  <p className="text-sm text-slate-900 ">
                                     Shared IP:{" "}
                                     <span className="font-mono">{ip}</span>
                                   </p>
-                                  <p className="text-xs text-gray-600 dark:text-gray-400 mt-1">
+                                  <p className="text-xs text-slate-600  mt-1">
                                     Shared by: {users.join(", ")}
                                   </p>
                                 </div>
@@ -383,15 +383,15 @@ export default function NetworkAnalysisPage() {
                               ).map(([device, users], idx) => (
                                 <div
                                   key={`dev-${idx}`}
-                                  className="p-3 bg-white dark:bg-gray-800 rounded-lg"
+                                  className="p-3 bg-white  rounded-lg"
                                 >
-                                  <p className="text-sm text-gray-900 dark:text-white">
+                                  <p className="text-sm text-slate-900 ">
                                     Shared Device:{" "}
                                     <span className="font-mono text-[10px]">
                                       {device}
                                     </span>
                                   </p>
-                                  <p className="text-xs text-gray-600 dark:text-gray-400 mt-1">
+                                  <p className="text-xs text-slate-600  mt-1">
                                     Shared by: {users.join(", ")}
                                   </p>
                                 </div>
@@ -403,7 +403,7 @@ export default function NetworkAnalysisPage() {
                       {networkData.risk_indicators.suspicious_clusters.length >
                         0 && (
                         <div>
-                          <p className="text-sm font-medium text-red-800 dark:text-red-400 mb-2">
+                          <p className="text-sm font-medium text-red-800  mb-2">
                             Suspicious Clusters (
                             {
                               networkData.risk_indicators.suspicious_clusters
@@ -416,12 +416,12 @@ export default function NetworkAnalysisPage() {
                               (cluster, idx: number) => (
                                 <div
                                   key={idx}
-                                  className="p-3 bg-white dark:bg-gray-800 rounded-lg"
+                                  className="p-3 bg-white  rounded-lg"
                                 >
-                                  <p className="text-sm text-gray-900 dark:text-white">
+                                  <p className="text-sm text-slate-900 ">
                                     Cluster of {cluster.member_count} users
                                   </p>
-                                  <p className="text-xs text-gray-600 dark:text-gray-400 mt-1">
+                                  <p className="text-xs text-slate-600  mt-1">
                                     Risk Score:{" "}
                                     {cluster.cluster_risk_score.toFixed(0)}
                                   </p>
@@ -436,8 +436,8 @@ export default function NetworkAnalysisPage() {
                 )}
 
                 {/* Network Nodes */}
-                <div className="bg-white dark:bg-gray-800 rounded-lg shadow p-6">
-                  <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">
+                <div className="bg-white  rounded-lg shadow p-6">
+                  <h3 className="text-lg font-semibold text-slate-900  mb-4">
                     Network Nodes ({networkData.network.nodes.length})
                   </h3>
 
@@ -447,13 +447,13 @@ export default function NetworkAnalysisPage() {
                       return (
                         <div
                           key={idx}
-                          className="p-3 border border-gray-200 dark:border-gray-700 rounded-lg flex items-center justify-between"
+                          className="p-3 border border-slate-200  rounded-lg flex items-center justify-between"
                         >
                           <div>
-                            <p className="text-sm font-mono text-gray-900 dark:text-white">
+                            <p className="text-sm font-mono text-slate-900 ">
                               {nodeId}
                             </p>
-                            <p className="text-xs text-gray-600 dark:text-gray-400">
+                            <p className="text-xs text-slate-600 ">
                               Risk Level: {details?.risk_level || "unknown"}
                             </p>
                           </div>
@@ -483,9 +483,9 @@ export default function NetworkAnalysisPage() {
         {/* Fraud Ring Detection Tab */}
         {activeTab === "rings" && (
           <div className="space-y-6">
-            <div className="bg-white dark:bg-gray-800 rounded-lg shadow p-6">
+            <div className="bg-white  rounded-lg shadow p-6">
               <div className="flex items-center justify-between mb-4">
-                <h2 className="text-xl font-semibold text-gray-900 dark:text-white">
+                <h2 className="text-xl font-semibold text-slate-900 ">
                   Global Fraud Ring Detection
                 </h2>
                 <button
@@ -498,7 +498,7 @@ export default function NetworkAnalysisPage() {
                 </button>
               </div>
 
-              <p className="text-sm text-gray-600 dark:text-gray-400">
+              <p className="text-sm text-slate-600 ">
                 Detect organized fraud rings based on circular transaction
                 flows, shared attributes, and suspicious clustering patterns.
               </p>
@@ -508,7 +508,7 @@ export default function NetworkAnalysisPage() {
               <div className="flex items-center justify-center py-12">
                 <div className="text-center">
                   <Network className="h-12 w-12 animate-spin mx-auto mb-4 text-red-600" />
-                  <p className="text-lg text-gray-700 dark:text-gray-300">
+                  <p className="text-lg text-slate-700 ">
                     Scanning for fraud rings...
                   </p>
                 </div>
@@ -520,14 +520,14 @@ export default function NetworkAnalysisPage() {
                 {fraudRings.map((ring) => (
                   <div
                     key={ring.ring_id}
-                    className="bg-white dark:bg-gray-800 rounded-lg shadow p-6 border-l-4 border-red-500"
+                    className="bg-white  rounded-lg shadow p-6 border-l-4 border-red-500"
                   >
                     <div className="flex items-start justify-between mb-4">
                       <div>
-                        <h3 className="text-lg font-semibold text-gray-900 dark:text-white">
+                        <h3 className="text-lg font-semibold text-slate-900 ">
                           {ring.ring_id}
                         </h3>
-                        <p className="text-sm text-gray-600 dark:text-gray-400">
+                        <p className="text-sm text-slate-600 ">
                           {ring.size} members
                         </p>
                       </div>
@@ -535,48 +535,42 @@ export default function NetworkAnalysisPage() {
                         <p className="text-2xl font-bold text-red-600">
                           {ring.risk_score.toFixed(0)}
                         </p>
-                        <p className="text-xs text-gray-500 dark:text-gray-400">
-                          Risk Score
-                        </p>
+                        <p className="text-xs text-slate-500 ">Risk Score</p>
                       </div>
                     </div>
 
                     <div className="grid grid-cols-3 gap-4 mb-4">
                       <div>
-                        <p className="text-xs text-gray-600 dark:text-gray-400 mb-1">
-                          Members
-                        </p>
-                        <p className="text-sm font-semibold text-gray-900 dark:text-white">
+                        <p className="text-xs text-slate-600  mb-1">Members</p>
+                        <p className="text-sm font-semibold text-slate-900 ">
                           {ring.members.length}
                         </p>
                       </div>
                       <div>
-                        <p className="text-xs text-gray-600 dark:text-gray-400 mb-1">
+                        <p className="text-xs text-slate-600  mb-1">
                           Transactions
                         </p>
-                        <p className="text-sm font-semibold text-gray-900 dark:text-white">
+                        <p className="text-sm font-semibold text-slate-900 ">
                           {ring.transaction_count}
                         </p>
                       </div>
                       <div>
-                        <p className="text-xs text-gray-600 dark:text-gray-400 mb-1">
+                        <p className="text-xs text-slate-600  mb-1">
                           Total Volume
                         </p>
-                        <p className="text-sm font-semibold text-gray-900 dark:text-white">
+                        <p className="text-sm font-semibold text-slate-900 ">
                           {ring.total_volume.toLocaleString()}
                         </p>
                       </div>
                     </div>
 
                     <div className="mb-4">
-                      <p className="text-xs text-gray-600 dark:text-gray-400 mb-2">
-                        Members
-                      </p>
+                      <p className="text-xs text-slate-600  mb-2">Members</p>
                       <div className="flex flex-wrap gap-2">
                         {ring.members.map((member, idx) => (
                           <span
                             key={idx}
-                            className="px-3 py-1 bg-gray-100 dark:bg-gray-700 text-gray-900 dark:text-white text-xs font-mono rounded-full"
+                            className="px-3 py-1 bg-slate-100  text-slate-900  text-xs font-mono rounded-full"
                           >
                             {member}
                           </span>
@@ -585,14 +579,14 @@ export default function NetworkAnalysisPage() {
                     </div>
 
                     <div>
-                      <p className="text-xs text-gray-600 dark:text-gray-400 mb-2">
+                      <p className="text-xs text-slate-600  mb-2">
                         Risk Indicators
                       </p>
                       <div className="flex flex-wrap gap-2">
                         {ring.indicators.map((indicator, idx) => (
                           <span
                             key={idx}
-                            className="px-3 py-1 bg-red-100 dark:bg-red-900/20 text-red-800 dark:text-red-400 text-xs rounded-full"
+                            className="px-3 py-1 bg-red-100  text-red-800  text-xs rounded-full"
                           >
                             {indicator}
                           </span>
@@ -605,12 +599,12 @@ export default function NetworkAnalysisPage() {
             )}
 
             {fraudRings.length === 0 && !loading && (
-              <div className="bg-white dark:bg-gray-800 rounded-lg shadow p-12 text-center">
+              <div className="bg-white  rounded-lg shadow p-12 text-center">
                 <Network className="h-16 w-16 mx-auto mb-4 text-green-500" />
-                <p className="text-xl font-semibold text-gray-900 dark:text-white mb-2">
+                <p className="text-xl font-semibold text-slate-900  mb-2">
                   No fraud rings detected
                 </p>
-                <p className="text-gray-600 dark:text-gray-400">
+                <p className="text-slate-600 ">
                   Click &quot;Scan for Fraud Rings&quot; to run a global
                   analysis
                 </p>
@@ -635,23 +629,19 @@ function MetricCard({
   color: "blue" | "green" | "purple" | "orange" | "red";
 }) {
   const colorClasses = {
-    blue: "text-blue-600 bg-blue-50 dark:bg-blue-900/20",
-    green: "text-green-600 bg-green-50 dark:bg-green-900/20",
-    purple: "text-purple-600 bg-purple-50 dark:bg-purple-900/20",
-    orange: "text-orange-600 bg-orange-50 dark:bg-orange-900/20",
-    red: "text-red-600 bg-red-50 dark:bg-red-900/20",
+    blue: "text-blue-600 bg-blue-50 ",
+    green: "text-green-600 bg-green-50 ",
+    purple: "text-purple-600 bg-purple-50 ",
+    orange: "text-orange-600 bg-orange-50 ",
+    red: "text-red-600 bg-red-50 ",
   };
 
   return (
-    <div className="bg-white dark:bg-gray-800 rounded-lg shadow p-4">
+    <div className="bg-white  rounded-lg shadow p-4">
       <div className="flex items-center justify-between">
         <div>
-          <p className="text-sm text-gray-600 dark:text-gray-400 mb-1">
-            {title}
-          </p>
-          <p className="text-2xl font-bold text-gray-900 dark:text-white">
-            {value}
-          </p>
+          <p className="text-sm text-slate-600  mb-1">{title}</p>
+          <p className="text-2xl font-bold text-slate-900 ">{value}</p>
         </div>
         <div className={`p-3 rounded-lg ${colorClasses[color]}`}>{icon}</div>
       </div>

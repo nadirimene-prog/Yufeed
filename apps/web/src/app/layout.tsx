@@ -35,8 +35,8 @@ const calistoga = Calistoga({
 
 export const metadata: Metadata = {
   title: {
-    default: "YuFeed Sentinel | Compliance Command Center",
-    template: "%s | YuFeed Sentinel",
+    default: "YuFeed | Compliance Command Center",
+    template: "%s | YuFeed",
   },
   description:
     "AI-powered EU legal monitoring and AML compliance platform. Real-time regulatory intelligence, transaction monitoring, and investigation workflows.",
@@ -56,13 +56,13 @@ export const metadata: Metadata = {
   openGraph: {
     type: "website",
     locale: "en_US",
-    title: "YuFeed Sentinel | Compliance Command Center",
+    title: "YuFeed | Compliance Command Center",
     description: "AI-powered EU legal monitoring and AML compliance platform.",
-    siteName: "YuFeed Sentinel",
+    siteName: "YuFeed",
   },
   twitter: {
     card: "summary_large_image",
-    title: "YuFeed Sentinel | Compliance Command Center",
+    title: "YuFeed | Compliance Command Center",
     description: "AI-powered EU legal monitoring and AML compliance platform.",
   },
   robots: {

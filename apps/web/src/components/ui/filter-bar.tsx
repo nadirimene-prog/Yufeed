@@ -12,7 +12,7 @@ import { cn } from "@/lib/utils";
 
 /**
  * ===================================================================
- * FILTER BAR - Sentinel Design System
+ * FILTER BAR - Horizon Design System
  * Reusable filter bar with light theme for list pages
  * ===================================================================
  */
@@ -53,7 +53,7 @@ export interface FilterBarProps {
 
 /**
  * A reusable filter bar component that renders filter controls based on
- * FilterDefinition configurations. Styled with the Sentinel glass/dark theme.
+ * FilterDefinition configurations. Styled with the Horizon light theme.
  *
  * @example
  * ```tsx
@@ -193,7 +193,7 @@ function FilterControl({
 }
 
 /**
- * Search input filter with glass styling and animated icon.
+ * Search input filter with clean styling and animated icon.
  */
 function SearchFilter({
   definition,
@@ -253,7 +253,7 @@ function SearchFilter({
 }
 
 /**
- * Select dropdown filter with glass styling and custom chevron.
+ * Select dropdown filter with clean styling and custom chevron.
  */
 function SelectFilter({
   definition,

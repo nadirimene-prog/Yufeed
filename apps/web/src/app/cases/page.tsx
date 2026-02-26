@@ -166,7 +166,7 @@ export default function CasesPage() {
               />
               <div className="grid grid-cols-2 gap-2">
                 <select
-                  className="h-10 rounded-lg border border-border-default bg-bg-overlay px-3 text-sm"
+                  className="h-10 rounded-lg border border-border bg-background-overlay px-3 text-sm"
                   value={filters.status}
                   onChange={(event) =>
                     setFilters((current) => ({
@@ -186,7 +186,7 @@ export default function CasesPage() {
                 </select>
 
                 <select
-                  className="h-10 rounded-lg border border-border-default bg-bg-overlay px-3 text-sm"
+                  className="h-10 rounded-lg border border-border bg-background-overlay px-3 text-sm"
                   value={filters.severity}
                   onChange={(event) =>
                     setFilters((current) => ({
@@ -302,7 +302,7 @@ export default function CasesPage() {
                 </div>
 
                 {(selectedCase.summary || selectedCase.description) && (
-                  <div className="rounded-lg border border-border-subtle bg-bg-overlay p-3 text-sm text-foreground-secondary">
+                  <div className="rounded-lg border border-border-subtle bg-background-overlay p-3 text-sm text-foreground-secondary">
                     {selectedCase.summary ?? selectedCase.description}
                   </div>
                 )}
@@ -352,7 +352,7 @@ export default function CasesPage() {
 
 function Info({ label, value }: { label: string; value: ReactNode }) {
   return (
-    <div className="rounded-lg border border-border-subtle bg-bg-overlay p-3 text-sm">
+    <div className="rounded-lg border border-border-subtle bg-background-overlay p-3 text-sm">
       <p className="mb-1 text-xs uppercase tracking-wide text-foreground-tertiary">
         {label}
       </p>
@@ -377,7 +377,7 @@ function CaseQueueRow({
       className={`w-full rounded-lg border p-3 text-left transition ${
         active
           ? "border-primary/60 bg-primary/10"
-          : "border-border-subtle bg-bg-overlay hover:border-border-default"
+          : "border-border-subtle bg-background-overlay hover:border-border"
       }`}
     >
       <div className="space-y-1">

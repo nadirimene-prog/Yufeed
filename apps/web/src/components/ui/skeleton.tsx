@@ -303,7 +303,7 @@ function SkeletonList({
       {Array.from({ length: items }).map((_, index) => (
         <div
           key={index}
-          className="flex items-start gap-3 p-3 rounded-lg bg-bg-elevated"
+          className="flex items-start gap-3 p-3 rounded-lg bg-background-elevated"
         >
           {avatar && <SkeletonAvatar size="md" animate={animate} />}
           <div className="flex-1 min-w-0 space-y-2">

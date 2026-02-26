@@ -6,7 +6,7 @@ import { cn } from "@/lib/utils";
 
 /**
  * ═══════════════════════════════════════════════════════════════════
- * INPUT - Sentinel Design System
+ * INPUT - Horizon Design System
  * Clean inputs with focus ring and professional interactions
  * ═══════════════════════════════════════════════════════════════════
  */
@@ -56,7 +56,7 @@ const Input = React.forwardRef<HTMLInputElement, InputProps>(
         "focus:shadow-[0_0_0_3px_rgba(0,82,255,0.1)]",
       ),
       glass: cn(
-        "border-border-subtle bg-card/80 backdrop-blur-sm",
+        "border-border-subtle bg-card",
         "focus:border-primary focus:bg-card",
         "focus:shadow-[0_0_0_3px_rgba(0,82,255,0.1)]",
       ),
@@ -219,7 +219,7 @@ const Textarea = React.forwardRef<HTMLTextAreaElement, TextareaProps>(
         "focus:shadow-[0_0_0_3px_rgba(0,82,255,0.1)]",
       ),
       glass: cn(
-        "border-border-subtle bg-card/80 backdrop-blur-sm",
+        "border-border-subtle bg-card",
         "focus:border-primary focus:bg-card",
         "focus:shadow-[0_0_0_3px_rgba(0,82,255,0.1)]",
       ),

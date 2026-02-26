@@ -179,57 +179,57 @@ export default function ModelRegistryPage() {
       emptyMessage="No models registered"
       emptyDescription="Register your first model to start tracking versions"
     >
-      <div className="min-h-screen p-6 bg-gray-50 dark:bg-gray-900">
+      <div className="min-h-screen p-6 bg-slate-50 ">
         <div className="max-w-6xl mx-auto space-y-6">
           <div>
-            <h1 className="text-3xl font-bold text-gray-900 dark:text-white">
+            <h1 className="text-3xl font-bold text-slate-900 ">
               Model Registry
             </h1>
-            <p className="text-sm text-gray-600 dark:text-gray-400">
+            <p className="text-sm text-slate-600 ">
               Register models, track versions, and log drift.
             </p>
           </div>
 
           {error && (
-            <div className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700 dark:border-red-900/50 dark:bg-red-950/20 dark:text-red-300">
+            <div className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700   ">
               {error}
             </div>
           )}
 
           <div className="grid gap-6 lg:grid-cols-3">
-            <div className="rounded-2xl border border-gray-200 bg-white p-6 dark:border-gray-800 dark:bg-gray-950 space-y-4">
-              <h2 className="text-sm font-semibold text-gray-900 dark:text-white">
+            <div className="rounded-2xl border border-slate-200 bg-white p-6   space-y-4">
+              <h2 className="text-sm font-semibold text-slate-900 ">
                 Create Model
               </h2>
               <input
                 value={modelId}
                 onChange={(e) => setModelId(e.target.value)}
-                className="w-full rounded-lg border border-gray-200 bg-gray-50 px-3 py-2 text-sm dark:border-gray-800 dark:bg-gray-900"
+                className="w-full rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-sm  "
                 placeholder="model_id"
               />
               <input
                 value={modelName}
                 onChange={(e) => setModelName(e.target.value)}
-                className="w-full rounded-lg border border-gray-200 bg-gray-50 px-3 py-2 text-sm dark:border-gray-800 dark:bg-gray-900"
+                className="w-full rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-sm  "
                 placeholder="Name"
               />
               <input
                 value={modelType}
                 onChange={(e) => setModelType(e.target.value)}
-                className="w-full rounded-lg border border-gray-200 bg-gray-50 px-3 py-2 text-sm dark:border-gray-800 dark:bg-gray-900"
+                className="w-full rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-sm  "
                 placeholder="Type"
               />
               <input
                 value={modelOwner}
                 onChange={(e) => setModelOwner(e.target.value)}
-                className="w-full rounded-lg border border-gray-200 bg-gray-50 px-3 py-2 text-sm dark:border-gray-800 dark:bg-gray-900"
+                className="w-full rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-sm  "
                 placeholder="Owner"
               />
               <textarea
                 value={modelDescription}
                 onChange={(e) => setModelDescription(e.target.value)}
                 rows={3}
-                className="w-full rounded-lg border border-gray-200 bg-gray-50 px-3 py-2 text-sm dark:border-gray-800 dark:bg-gray-900"
+                className="w-full rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-sm  "
                 placeholder="Description"
               />
               <button
@@ -241,13 +241,13 @@ export default function ModelRegistryPage() {
               </button>
             </div>
 
-            <div className="lg:col-span-2 rounded-2xl border border-gray-200 bg-white p-6 dark:border-gray-800 dark:bg-gray-950 space-y-4">
+            <div className="lg:col-span-2 rounded-2xl border border-slate-200 bg-white p-6   space-y-4">
               <div className="flex items-center justify-between">
-                <h2 className="text-sm font-semibold text-gray-900 dark:text-white">
+                <h2 className="text-sm font-semibold text-slate-900 ">
                   Models
                 </h2>
                 {isLoading ? (
-                  <span className="text-xs text-gray-500">Loading...</span>
+                  <span className="text-xs text-slate-500">Loading...</span>
                 ) : null}
               </div>
               <div className="grid gap-2">
@@ -255,12 +255,12 @@ export default function ModelRegistryPage() {
                   <button
                     key={model.model_id}
                     onClick={() => setSelectedModel(model)}
-                    className={`w-full text-left rounded-lg border px-3 py-2 text-sm ${selectedModel?.model_id === model.model_id ? "border-blue-500 bg-blue-50 dark:bg-blue-900/20" : "border-gray-200 dark:border-gray-800"}`}
+                    className={`w-full text-left rounded-lg border px-3 py-2 text-sm ${selectedModel?.model_id === model.model_id ? "border-blue-500 bg-blue-50 " : "border-slate-200 "}`}
                   >
-                    <div className="font-medium text-gray-900 dark:text-white">
+                    <div className="font-medium text-slate-900 ">
                       {model.name}
                     </div>
-                    <div className="text-xs text-gray-500">
+                    <div className="text-xs text-slate-500">
                       {model.model_id}
                     </div>
                   </button>
@@ -271,39 +271,39 @@ export default function ModelRegistryPage() {
 
           {selectedModel && (
             <div className="grid gap-6 lg:grid-cols-2">
-              <div className="rounded-2xl border border-gray-200 bg-white p-6 dark:border-gray-800 dark:bg-gray-950 space-y-4">
-                <h2 className="text-sm font-semibold text-gray-900 dark:text-white">
+              <div className="rounded-2xl border border-slate-200 bg-white p-6   space-y-4">
+                <h2 className="text-sm font-semibold text-slate-900 ">
                   Create Version
                 </h2>
                 <input
                   value={versionValue}
                   onChange={(e) => setVersionValue(e.target.value)}
-                  className="w-full rounded-lg border border-gray-200 bg-gray-50 px-3 py-2 text-sm dark:border-gray-800 dark:bg-gray-900"
+                  className="w-full rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-sm  "
                   placeholder="Version"
                 />
                 <input
                   value={artifactUri}
                   onChange={(e) => setArtifactUri(e.target.value)}
-                  className="w-full rounded-lg border border-gray-200 bg-gray-50 px-3 py-2 text-sm dark:border-gray-800 dark:bg-gray-900"
+                  className="w-full rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-sm  "
                   placeholder="Artifact URI"
                 />
                 <input
                   value={featureHash}
                   onChange={(e) => setFeatureHash(e.target.value)}
-                  className="w-full rounded-lg border border-gray-200 bg-gray-50 px-3 py-2 text-sm dark:border-gray-800 dark:bg-gray-900"
+                  className="w-full rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-sm  "
                   placeholder="Feature set hash"
                 />
                 <input
                   value={trainingWindow}
                   onChange={(e) => setTrainingWindow(e.target.value)}
-                  className="w-full rounded-lg border border-gray-200 bg-gray-50 px-3 py-2 text-sm dark:border-gray-800 dark:bg-gray-900"
+                  className="w-full rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-sm  "
                   placeholder="Training window"
                 />
                 <textarea
                   value={metricsJson}
                   onChange={(e) => setMetricsJson(e.target.value)}
                   rows={3}
-                  className="w-full rounded-lg border border-gray-200 bg-gray-50 px-3 py-2 text-xs font-mono dark:border-gray-800 dark:bg-gray-900"
+                  className="w-full rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-xs font-mono  "
                 />
                 <button
                   onClick={handleCreateVersion}
@@ -314,8 +314,8 @@ export default function ModelRegistryPage() {
                 </button>
               </div>
 
-              <div className="rounded-2xl border border-gray-200 bg-white p-6 dark:border-gray-800 dark:bg-gray-950 space-y-4">
-                <h2 className="text-sm font-semibold text-gray-900 dark:text-white">
+              <div className="rounded-2xl border border-slate-200 bg-white p-6   space-y-4">
+                <h2 className="text-sm font-semibold text-slate-900 ">
                   Version History
                 </h2>
                 <div className="space-y-2">
@@ -323,13 +323,13 @@ export default function ModelRegistryPage() {
                     versions.map((version) => (
                       <div
                         key={version.id}
-                        className="rounded-lg border border-gray-100 px-3 py-2 dark:border-gray-800"
+                        className="rounded-lg border border-slate-100 px-3 py-2 "
                       >
                         <div className="flex items-center justify-between">
-                          <div className="font-medium text-gray-900 dark:text-white">
+                          <div className="font-medium text-slate-900 ">
                             {version.version}
                           </div>
-                          <span className="text-xs text-gray-500">
+                          <span className="text-xs text-slate-500">
                             {version.status}
                           </span>
                         </div>
@@ -345,7 +345,7 @@ export default function ModelRegistryPage() {
                       </div>
                     ))
                   ) : (
-                    <div className="text-xs text-gray-500">
+                    <div className="text-xs text-slate-500">
                       No versions yet.
                     </div>
                   )}
@@ -355,33 +355,33 @@ export default function ModelRegistryPage() {
           )}
 
           {selectedModel && (
-            <div className="rounded-2xl border border-gray-200 bg-white p-6 dark:border-gray-800 dark:bg-gray-950 space-y-4">
-              <h2 className="text-sm font-semibold text-gray-900 dark:text-white">
+            <div className="rounded-2xl border border-slate-200 bg-white p-6   space-y-4">
+              <h2 className="text-sm font-semibold text-slate-900 ">
                 Record Drift
               </h2>
               <div className="grid gap-3 md:grid-cols-3">
                 <input
                   value={driftScore}
                   onChange={(e) => setDriftScore(e.target.value)}
-                  className="rounded-lg border border-gray-200 bg-gray-50 px-3 py-2 text-sm dark:border-gray-800 dark:bg-gray-900"
+                  className="rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-sm  "
                   placeholder="Drift score"
                 />
                 <input
                   value={driftStatus}
                   onChange={(e) => setDriftStatus(e.target.value)}
-                  className="rounded-lg border border-gray-200 bg-gray-50 px-3 py-2 text-sm dark:border-gray-800 dark:bg-gray-900"
+                  className="rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-sm  "
                   placeholder="Status"
                 />
                 <textarea
                   value={driftMetrics}
                   onChange={(e) => setDriftMetrics(e.target.value)}
                   rows={2}
-                  className="rounded-lg border border-gray-200 bg-gray-50 px-3 py-2 text-xs font-mono dark:border-gray-800 dark:bg-gray-900"
+                  className="rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-xs font-mono  "
                 />
               </div>
               <button
                 onClick={handleRecordDrift}
-                className="inline-flex items-center gap-2 rounded-lg border border-gray-200 px-3 py-2 text-sm text-gray-600 hover:bg-gray-50 dark:border-gray-800 dark:text-gray-300 dark:hover:bg-gray-900"
+                className="inline-flex items-center gap-2 rounded-lg border border-slate-200 px-3 py-2 text-sm text-slate-600 hover:bg-slate-50   "
               >
                 <LineChart className="h-4 w-4" />
                 Record Drift

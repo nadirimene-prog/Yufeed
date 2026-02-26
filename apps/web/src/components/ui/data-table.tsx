@@ -42,8 +42,8 @@ import { transitions } from "@/lib/motion";
 
 /**
  * ═══════════════════════════════════════════════════════════════════
- * DATA TABLE - Sentinel Design System
- * Premium data table with glass effects and animations
+ * DATA TABLE - Horizon Design System
+ * Premium data table with clean surfaces and animations
  * ═══════════════════════════════════════════════════════════════════
  */
 

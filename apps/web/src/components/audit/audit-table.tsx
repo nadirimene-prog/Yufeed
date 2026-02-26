@@ -29,18 +29,18 @@ interface AuditTableProps {
 }
 
 const actionColors: Record<string, string> = {
-  post: "bg-blue-100 text-blue-800 dark:bg-blue-900/20 dark:text-blue-300",
-  patch: "bg-amber-100 text-amber-800 dark:bg-amber-900/20 dark:text-amber-300",
-  put: "bg-indigo-100 text-indigo-800 dark:bg-indigo-900/20 dark:text-indigo-300",
-  delete: "bg-red-100 text-red-800 dark:bg-red-900/20 dark:text-red-300",
+  post: "bg-blue-100 text-blue-800  ",
+  patch: "bg-amber-100 text-amber-800  ",
+  put: "bg-indigo-100 text-indigo-800  ",
+  delete: "bg-red-100 text-red-800  ",
 };
 
 export default function AuditTable({ logs, onSelect }: AuditTableProps) {
   return (
-    <div className="overflow-hidden rounded-lg border border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-950">
+    <div className="overflow-hidden rounded-lg border border-slate-200  bg-white ">
       <div className="overflow-x-auto">
         <table className="w-full text-left text-sm">
-          <thead className="bg-gray-50 dark:bg-gray-900 text-gray-600 dark:text-gray-400">
+          <thead className="bg-slate-50  text-slate-600 ">
             <tr>
               <th className="px-4 py-3 font-semibold">Time</th>
               <th className="px-4 py-3 font-semibold">Action</th>
@@ -50,14 +50,14 @@ export default function AuditTable({ logs, onSelect }: AuditTableProps) {
               <th className="px-4 py-3 font-semibold">Path</th>
             </tr>
           </thead>
-          <tbody className="divide-y divide-gray-200 dark:divide-gray-800">
+          <tbody className="divide-y divide-slate-200 ">
             {logs.map((log) => (
               <tr
                 key={log.audit_id}
                 onClick={() => onSelect(log)}
-                className="cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-900/40"
+                className="cursor-pointer hover:bg-slate-50 "
               >
-                <td className="px-4 py-3 text-gray-600 dark:text-gray-400 whitespace-nowrap">
+                <td className="px-4 py-3 text-slate-600  whitespace-nowrap">
                   {format(new Date(log.created_at), "yyyy-MM-dd HH:mm:ss")}
                 </td>
                 <td className="px-4 py-3">
@@ -65,32 +65,32 @@ export default function AuditTable({ logs, onSelect }: AuditTableProps) {
                     className={cn(
                       "inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium uppercase",
                       actionColors[log.action || ""] ??
-                        "bg-gray-100 text-gray-700 dark:bg-gray-800 dark:text-gray-300",
+                        "bg-slate-100 text-slate-700  ",
                     )}
                   >
                     {log.action || log.method || "n/a"}
                   </span>
                 </td>
                 <td className="px-4 py-3">
-                  <div className="text-gray-900 dark:text-gray-100 font-medium">
+                  <div className="text-slate-900  font-medium">
                     {log.entity_type || "unknown"}
                   </div>
-                  <div className="text-xs text-gray-500 dark:text-gray-400">
+                  <div className="text-xs text-slate-500 ">
                     {log.entity_id || "—"}
                   </div>
                 </td>
                 <td className="px-4 py-3">
-                  <div className="text-gray-900 dark:text-gray-100">
+                  <div className="text-slate-900 ">
                     {log.actor_email || log.actor_id || "anonymous"}
                   </div>
-                  <div className="text-xs text-gray-500 dark:text-gray-400">
+                  <div className="text-xs text-slate-500 ">
                     {log.actor_role || log.actor_type || "—"}
                   </div>
                 </td>
-                <td className="px-4 py-3 text-gray-700 dark:text-gray-300">
+                <td className="px-4 py-3 text-slate-700 ">
                   {log.status_code ?? "—"}
                 </td>
-                <td className="px-4 py-3 text-gray-500 dark:text-gray-400 max-w-[260px] truncate">
+                <td className="px-4 py-3 text-slate-500  max-w-[260px] truncate">
                   {log.path || "—"}
                 </td>
               </tr>
@@ -98,7 +98,7 @@ export default function AuditTable({ logs, onSelect }: AuditTableProps) {
             {logs.length === 0 && (
               <tr>
                 <td
-                  className="px-4 py-6 text-center text-gray-500 dark:text-gray-400"
+                  className="px-4 py-6 text-center text-slate-500 "
                   colSpan={6}
                 >
                   No audit entries found.

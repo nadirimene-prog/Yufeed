@@ -37,7 +37,7 @@ export default function CaseEvidencePage() {
       <div>
         <button
           onClick={() => router.push(`/cases/${caseId}`)}
-          className="flex items-center gap-1.5 text-sm text-gray-500 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white transition mb-4"
+          className="flex items-center gap-1.5 text-sm text-slate-500  hover:text-slate-900  transition mb-4"
         >
           <ArrowLeft className="h-4 w-4" />
           Back to Case {caseId}
@@ -45,11 +45,11 @@ export default function CaseEvidencePage() {
 
         <div className="flex items-center justify-between">
           <div>
-            <h1 className="text-2xl font-bold text-gray-900 dark:text-white tracking-tight flex items-center gap-2">
+            <h1 className="text-2xl font-bold text-slate-900  tracking-tight flex items-center gap-2">
               <Archive className="h-5 w-5 text-violet-500" />
               Evidence Packs
             </h1>
-            <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">
+            <p className="text-sm text-slate-500  mt-1">
               Immutable evidence snapshots for this case.
             </p>
           </div>
@@ -68,11 +68,11 @@ export default function CaseEvidencePage() {
       {/* Evidence Packs */}
       {packs.length === 0 ? (
         <div className="text-center py-16">
-          <PackageOpen className="h-12 w-12 mx-auto mb-3 text-gray-300 dark:text-gray-600" />
-          <p className="text-sm font-medium text-gray-900 dark:text-white">
+          <PackageOpen className="h-12 w-12 mx-auto mb-3 text-slate-300 " />
+          <p className="text-sm font-medium text-slate-900 ">
             No evidence packs yet
           </p>
-          <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+          <p className="text-xs text-slate-500  mt-1">
             Generate an evidence pack to create an immutable snapshot.
           </p>
         </div>

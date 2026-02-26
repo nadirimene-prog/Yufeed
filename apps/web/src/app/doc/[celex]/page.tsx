@@ -77,22 +77,22 @@ export default function DocPage({
       <div className="flex items-center gap-4">
         <Link
           href="/search"
-          className="rounded-full p-2 hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors"
+          className="rounded-full p-2 hover:bg-slate-100  transition-colors"
         >
-          <ArrowLeft className="h-6 w-6 text-gray-600 dark:text-gray-400" />
+          <ArrowLeft className="h-6 w-6 text-slate-600 " />
         </Link>
         <div className="flex-1">
           <div className="flex items-center gap-2 mb-1 flex-wrap">
             {document.type && (
-              <span className="rounded bg-blue-100 px-2 py-0.5 text-xs font-semibold text-blue-800 dark:bg-blue-900 dark:text-blue-200">
+              <span className="rounded bg-blue-100 px-2 py-0.5 text-xs font-semibold text-blue-800  ">
                 {document.type}
               </span>
             )}
-            <span className="rounded bg-green-100 px-2 py-0.5 text-xs font-semibold text-green-800 dark:bg-green-900 dark:text-green-200">
+            <span className="rounded bg-green-100 px-2 py-0.5 text-xs font-semibold text-green-800  ">
               {document.status || "Active"}
             </span>
             {document.compliance_domain && (
-              <span className="rounded bg-purple-100 px-2 py-0.5 text-xs font-semibold text-purple-800 dark:bg-purple-900 dark:text-purple-200 uppercase">
+              <span className="rounded bg-blue-100 px-2 py-0.5 text-xs font-semibold text-blue-800   uppercase">
                 {document.compliance_domain}
               </span>
             )}
@@ -100,20 +100,20 @@ export default function DocPage({
               <span
                 className={`rounded px-2 py-0.5 text-xs font-semibold uppercase ${
                   document.risk_level === "high"
-                    ? "bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200"
+                    ? "bg-red-100 text-red-800  "
                     : document.risk_level === "medium"
-                      ? "bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200"
-                      : "bg-gray-100 text-gray-800 dark:bg-gray-900 dark:text-gray-200"
+                      ? "bg-yellow-100 text-yellow-800  "
+                      : "bg-slate-100 text-slate-800  "
                 }`}
               >
                 {document.risk_level} Risk
               </span>
             )}
           </div>
-          <h1 className="text-2xl font-bold text-gray-900 dark:text-gray-100 sm:text-3xl">
+          <h1 className="text-2xl font-bold text-slate-900  sm:text-3xl">
             {document.title}
           </h1>
-          <p className="text-sm text-gray-500 mt-1">CELEX: {document.celex}</p>
+          <p className="text-sm text-slate-500 mt-1">CELEX: {document.celex}</p>
         </div>
       </div>
 

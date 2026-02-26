@@ -18,15 +18,14 @@ const cardVariants = cva("rounded-xl border transition-all duration-fast", {
   variants: {
     variant: {
       default:
-        "bg-card border-border-subtle hover:border-border-default hover:shadow-sm",
+        "bg-card border-border-subtle hover:border-border hover:shadow-sm",
       interactive:
-        "bg-card border-border-subtle cursor-pointer hover:border-border-default hover:shadow-xl hover:-translate-y-0.5",
+        "bg-card border-border-subtle cursor-pointer hover:border-border hover:shadow-xl hover:-translate-y-0.5",
       elevated: "bg-card border-border-subtle shadow-lg hover:shadow-xl",
       featured:
         "bg-card border-2 border-transparent bg-clip-padding relative z-0 before:absolute before:-inset-[2px] before:-z-10 before:rounded-[inherit] before:bg-gradient-to-br before:from-primary before:via-accent-secondary before:to-primary shadow-accent hover:shadow-accent-lg hover:-translate-y-0.5",
       ghost: "bg-transparent border-transparent hover:bg-muted",
-      outlined:
-        "bg-transparent border-border-default hover:border-border-strong",
+      outlined: "bg-transparent border-border hover:border-border-strong",
     },
     padding: {
       none: "",

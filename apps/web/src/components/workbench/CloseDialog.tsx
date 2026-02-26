@@ -54,7 +54,7 @@ export function CloseDialog({
             animate="animate"
             exit="exit"
             onClick={handleClose}
-            className="absolute inset-0 bg-black/40 backdrop-blur-sm"
+            className="absolute inset-0 bg-black/40"
           />
 
           {/* Dialog */}

@@ -27,29 +27,29 @@ import { cn } from "@/lib/utils";
 
 const severityConfig = {
   critical: {
-    color: "text-red-600 dark:text-red-400",
-    bg: "bg-red-50 dark:bg-red-950/30",
-    border: "border-red-200 dark:border-red-800",
+    color: "text-red-600 ",
+    bg: "bg-red-50 ",
+    border: "border-red-200 ",
   },
   high: {
-    color: "text-orange-600 dark:text-orange-400",
-    bg: "bg-orange-50 dark:bg-orange-950/30",
-    border: "border-orange-200 dark:border-orange-800",
+    color: "text-orange-600 ",
+    bg: "bg-orange-50 ",
+    border: "border-orange-200 ",
   },
   medium: {
-    color: "text-amber-600 dark:text-amber-400",
-    bg: "bg-amber-50 dark:bg-amber-950/30",
-    border: "border-amber-200 dark:border-amber-800",
+    color: "text-amber-600 ",
+    bg: "bg-amber-50 ",
+    border: "border-amber-200 ",
   },
   low: {
-    color: "text-blue-600 dark:text-blue-400",
-    bg: "bg-blue-50 dark:bg-blue-950/30",
-    border: "border-blue-200 dark:border-blue-800",
+    color: "text-blue-600 ",
+    bg: "bg-blue-50 ",
+    border: "border-blue-200 ",
   },
   info: {
-    color: "text-gray-600 dark:text-gray-400",
-    bg: "bg-gray-50 dark:bg-gray-800",
-    border: "border-gray-200 dark:border-gray-700",
+    color: "text-slate-600 ",
+    bg: "bg-slate-50 ",
+    border: "border-slate-200 ",
   },
 } as const;
 
@@ -78,9 +78,7 @@ export default function FindingDetailPage() {
       <div className="flex items-center justify-center min-h-[60vh]">
         <div className="text-center">
           <div className="h-8 w-8 border-2 border-blue-600 border-t-transparent rounded-full animate-spin mx-auto mb-3" />
-          <p className="text-sm text-gray-500 dark:text-gray-400">
-            Loading finding…
-          </p>
+          <p className="text-sm text-slate-500 ">Loading finding…</p>
         </div>
       </div>
     );
@@ -91,7 +89,7 @@ export default function FindingDetailPage() {
       <div className="flex items-center justify-center min-h-[60vh]">
         <div className="text-center">
           <XCircle className="h-12 w-12 mx-auto mb-3 text-red-400" />
-          <p className="text-sm font-medium text-gray-900 dark:text-white">
+          <p className="text-sm font-medium text-slate-900 ">
             Finding not found
           </p>
         </div>
@@ -113,7 +111,7 @@ export default function FindingDetailPage() {
         {/* Back button */}
         <button
           onClick={() => router.back()}
-          className="flex items-center gap-1.5 text-sm text-gray-500 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white transition"
+          className="flex items-center gap-1.5 text-sm text-slate-500  hover:text-slate-900  transition"
         >
           <ArrowLeft className="h-4 w-4" />
           Back to Findings
@@ -133,14 +131,14 @@ export default function FindingDetailPage() {
               >
                 {finding.severity.toUpperCase()}
               </span>
-              <span className="text-xs font-medium px-2.5 py-1 rounded-full bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-400">
+              <span className="text-xs font-medium px-2.5 py-1 rounded-full bg-slate-100  text-slate-600 ">
                 {statusLabels[finding.status] ?? finding.status}
               </span>
-              <span className="text-xs text-gray-400 dark:text-gray-500 font-mono">
+              <span className="text-xs text-slate-400  font-mono">
                 {finding.fingerprint}
               </span>
             </div>
-            <h1 className="text-xl font-bold text-gray-900 dark:text-white tracking-tight">
+            <h1 className="text-xl font-bold text-slate-900  tracking-tight">
               {finding.title}
             </h1>
           </div>
@@ -151,7 +149,7 @@ export default function FindingDetailPage() {
               {finding.status === "open" && (
                 <button
                   onClick={() => acknowledgeMutation.mutate(finding.id)}
-                  className="text-xs px-3 py-1.5 rounded-lg border border-gray-200 dark:border-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800 transition flex items-center gap-1"
+                  className="text-xs px-3 py-1.5 rounded-lg border border-slate-200  text-slate-700  hover:bg-slate-50  transition flex items-center gap-1"
                 >
                   <Eye className="h-3 w-3" />
                   Acknowledge
@@ -166,7 +164,7 @@ export default function FindingDetailPage() {
               </button>
               <button
                 onClick={() => setCloseDialogOpen(true)}
-                className="text-xs px-3 py-1.5 rounded-lg bg-gray-800 dark:bg-gray-200 text-white dark:text-gray-900 hover:bg-gray-900 dark:hover:bg-gray-100 transition flex items-center gap-1"
+                className="text-xs px-3 py-1.5 rounded-lg bg-slate-800  text-white  hover:bg-slate-900  transition flex items-center gap-1"
               >
                 <CheckCircle2 className="h-3 w-3" />
                 Close
@@ -180,25 +178,25 @@ export default function FindingDetailPage() {
           {/* Main content */}
           <div className="lg:col-span-2 space-y-6">
             {/* Summary */}
-            <div className="rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900/60 p-5">
-              <h2 className="text-sm font-semibold text-gray-900 dark:text-white mb-2">
+            <div className="rounded-xl border border-slate-200  bg-white  p-5">
+              <h2 className="text-sm font-semibold text-slate-900  mb-2">
                 Summary
               </h2>
-              <p className="text-sm text-gray-700 dark:text-gray-300 leading-relaxed">
+              <p className="text-sm text-slate-700  leading-relaxed">
                 {finding.summary}
               </p>
             </div>
 
             {/* Explainability */}
             {Object.keys(finding.explainability).length > 0 && (
-              <div className="rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900/60 p-5">
+              <div className="rounded-xl border border-slate-200  bg-white  p-5">
                 <div className="flex items-center gap-2 mb-3">
                   <Brain className="h-4 w-4 text-violet-500" />
-                  <h2 className="text-sm font-semibold text-gray-900 dark:text-white">
+                  <h2 className="text-sm font-semibold text-slate-900 ">
                     AI Explainability
                   </h2>
                 </div>
-                <pre className="text-xs text-gray-600 dark:text-gray-400 bg-gray-50 dark:bg-gray-800 rounded-lg p-3 overflow-x-auto">
+                <pre className="text-xs text-slate-600  bg-slate-50  rounded-lg p-3 overflow-x-auto">
                   {JSON.stringify(finding.explainability, null, 2)}
                 </pre>
               </div>
@@ -206,11 +204,11 @@ export default function FindingDetailPage() {
 
             {/* Source References */}
             {Object.keys(finding.source_refs).length > 0 && (
-              <div className="rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900/60 p-5">
-                <h2 className="text-sm font-semibold text-gray-900 dark:text-white mb-3">
+              <div className="rounded-xl border border-slate-200  bg-white  p-5">
+                <h2 className="text-sm font-semibold text-slate-900  mb-3">
                   Source References
                 </h2>
-                <pre className="text-xs text-gray-600 dark:text-gray-400 bg-gray-50 dark:bg-gray-800 rounded-lg p-3 overflow-x-auto">
+                <pre className="text-xs text-slate-600  bg-slate-50  rounded-lg p-3 overflow-x-auto">
                   {JSON.stringify(finding.source_refs, null, 2)}
                 </pre>
               </div>
@@ -220,45 +218,37 @@ export default function FindingDetailPage() {
           {/* Sidebar */}
           <div className="space-y-4">
             {/* Metadata card */}
-            <div className="rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900/60 p-5 space-y-3">
-              <h3 className="text-sm font-semibold text-gray-900 dark:text-white">
-                Details
-              </h3>
+            <div className="rounded-xl border border-slate-200  bg-white  p-5 space-y-3">
+              <h3 className="text-sm font-semibold text-slate-900 ">Details</h3>
 
               <div className="space-y-2.5">
                 <div className="flex items-center gap-2 text-sm">
-                  <Shield className="h-3.5 w-3.5 text-gray-400" />
-                  <span className="text-gray-500 dark:text-gray-400">Type</span>
-                  <span className="ml-auto font-medium text-gray-900 dark:text-white">
+                  <Shield className="h-3.5 w-3.5 text-slate-400" />
+                  <span className="text-slate-500 ">Type</span>
+                  <span className="ml-auto font-medium text-slate-900 ">
                     {finding.finding_type.toUpperCase()}
                   </span>
                 </div>
                 <div className="flex items-center gap-2 text-sm">
-                  <Clock className="h-3.5 w-3.5 text-gray-400" />
-                  <span className="text-gray-500 dark:text-gray-400">
-                    Created
-                  </span>
-                  <span className="ml-auto text-gray-900 dark:text-white">
+                  <Clock className="h-3.5 w-3.5 text-slate-400" />
+                  <span className="text-slate-500 ">Created</span>
+                  <span className="ml-auto text-slate-900 ">
                     {new Date(finding.created_at).toLocaleDateString()}
                   </span>
                 </div>
                 <div className="flex items-center gap-2 text-sm">
-                  <Clock className="h-3.5 w-3.5 text-gray-400" />
-                  <span className="text-gray-500 dark:text-gray-400">
-                    Updated
-                  </span>
-                  <span className="ml-auto text-gray-900 dark:text-white">
+                  <Clock className="h-3.5 w-3.5 text-slate-400" />
+                  <span className="text-slate-500 ">Updated</span>
+                  <span className="ml-auto text-slate-900 ">
                     {new Date(finding.updated_at).toLocaleDateString()}
                   </span>
                 </div>
                 {finding.assigned_to != null &&
                   finding.assigned_to.length > 0 && (
                     <div className="flex items-center gap-2 text-sm">
-                      <User className="h-3.5 w-3.5 text-gray-400" />
-                      <span className="text-gray-500 dark:text-gray-400">
-                        Assigned
-                      </span>
-                      <span className="ml-auto text-gray-900 dark:text-white">
+                      <User className="h-3.5 w-3.5 text-slate-400" />
+                      <span className="text-slate-500 ">Assigned</span>
+                      <span className="ml-auto text-slate-900 ">
                         {finding.assigned_to}
                       </span>
                     </div>
@@ -266,16 +256,14 @@ export default function FindingDetailPage() {
                 {finding.sla_due_at != null &&
                   finding.sla_due_at.length > 0 && (
                     <div className="flex items-center gap-2 text-sm">
-                      <Clock className="h-3.5 w-3.5 text-gray-400" />
-                      <span className="text-gray-500 dark:text-gray-400">
-                        SLA Due
-                      </span>
+                      <Clock className="h-3.5 w-3.5 text-slate-400" />
+                      <span className="text-slate-500 ">SLA Due</span>
                       <span
                         className={cn(
                           "ml-auto font-medium",
                           new Date(finding.sla_due_at) < new Date()
-                            ? "text-red-600 dark:text-red-400"
-                            : "text-gray-900 dark:text-white",
+                            ? "text-red-600 "
+                            : "text-slate-900 ",
                         )}
                       >
                         {new Date(finding.sla_due_at).toLocaleDateString()}
@@ -287,20 +275,20 @@ export default function FindingDetailPage() {
 
             {/* Closed info */}
             {finding.status === "closed" && (
-              <div className="rounded-xl border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800/50 p-5 space-y-2">
-                <h3 className="text-sm font-semibold text-gray-900 dark:text-white">
+              <div className="rounded-xl border border-slate-200  bg-slate-50  p-5 space-y-2">
+                <h3 className="text-sm font-semibold text-slate-900 ">
                   Closure Details
                 </h3>
                 {finding.closed_reason != null &&
                   finding.closed_reason.length > 0 && (
-                    <p className="text-sm text-gray-600 dark:text-gray-400">
+                    <p className="text-sm text-slate-600 ">
                       <span className="font-medium">Reason:</span>{" "}
                       {finding.closed_reason.replace(/_/g, " ")}
                     </p>
                   )}
                 {finding.closed_comment != null &&
                   finding.closed_comment.length > 0 && (
-                    <p className="text-sm text-gray-600 dark:text-gray-400">
+                    <p className="text-sm text-slate-600 ">
                       {finding.closed_comment}
                     </p>
                   )}

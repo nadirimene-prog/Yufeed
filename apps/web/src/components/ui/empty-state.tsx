@@ -94,7 +94,7 @@ const variantIconClasses: Record<string, string> = {
   search: "bg-info-500/10 text-info-400",
   data: "bg-foreground-tertiary/10 text-foreground-tertiary",
   inbox: "bg-foreground-tertiary/10 text-foreground-tertiary",
-  error: "bg-critical-500/10 text-critical-400",
+  error: "bg-risk-critical/10 text-risk-critical",
   "no-results": "bg-info-500/10 text-info-400", // Alias for backward compatibility
   "no-data": "bg-foreground-tertiary/10 text-foreground-tertiary", // Alias for backward compatibility
 };

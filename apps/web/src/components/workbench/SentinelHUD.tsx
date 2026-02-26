@@ -54,7 +54,7 @@ export function SentinelHUD({
           </div>
           <div className="flex flex-col">
             <span className="text-[10px] font-bold uppercase tracking-[0.2em] text-[#0052FF]">
-              Sentinel AI
+              Yufeed AI
             </span>
             <span className="text-[9px] text-slate-400 font-medium">
               Core Active •{" "}

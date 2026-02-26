@@ -28,18 +28,15 @@ export function ComplianceDomainBadge({
   className = "",
 }: ComplianceDomainBadgeProps) {
   const colors = {
-    aml: "bg-purple-100 text-purple-800 dark:bg-purple-900/30 dark:text-purple-400",
-    cft: "bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-400",
-    sanctions:
-      "bg-orange-100 text-orange-800 dark:bg-orange-900/30 dark:text-orange-400",
-    kyc: "bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-400",
-    cdd: "bg-cyan-100 text-cyan-800 dark:bg-cyan-900/30 dark:text-cyan-400",
-    payments:
-      "bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400",
-    crypto:
-      "bg-indigo-100 text-indigo-800 dark:bg-indigo-900/30 dark:text-indigo-400",
-    gdpr: "bg-pink-100 text-pink-800 dark:bg-pink-900/30 dark:text-pink-400",
-    other: "bg-gray-100 text-gray-800 dark:bg-gray-900/30 dark:text-gray-400",
+    aml: "bg-blue-100 text-blue-800  ",
+    cft: "bg-red-100 text-red-800  ",
+    sanctions: "bg-orange-100 text-orange-800  ",
+    kyc: "bg-blue-100 text-blue-800  ",
+    cdd: "bg-cyan-100 text-cyan-800  ",
+    payments: "bg-green-100 text-green-800  ",
+    crypto: "bg-indigo-100 text-indigo-800  ",
+    gdpr: "bg-pink-100 text-pink-800  ",
+    other: "bg-slate-100 text-slate-800  ",
   };
 
   const color =
