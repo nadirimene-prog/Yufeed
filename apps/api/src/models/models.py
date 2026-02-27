@@ -1,4 +1,16 @@
-from sqlalchemy import Column, Integer, String, DateTime, Enum, ForeignKey, Text, Table, ARRAY, JSON
+from sqlalchemy import (
+    Column,
+    Integer,
+    String,
+    DateTime,
+    Enum,
+    ForeignKey,
+    Text,
+    Table,
+    ARRAY,
+    JSON,
+    Index,
+)
 from sqlalchemy.orm import relationship
 from sqlalchemy.dialects.postgresql import JSONB
 import enum
@@ -51,6 +63,14 @@ class AlertEventType(str, enum.Enum):
 
 class LegalDocument(Base):
     __tablename__ = "legal_documents"
+    __table_args__ = (
+        Index(
+            "ix_legal_documents_scope_tags_gin",
+            "scope_tags",
+            postgresql_using="gin",
+            postgresql_ops={"scope_tags": "jsonb_path_ops"},
+        ),
+    )
 
     id = Column(Integer, primary_key=True, index=True)
     celex = Column(String, unique=True, index=True, nullable=False)

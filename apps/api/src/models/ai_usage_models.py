@@ -27,10 +27,10 @@ class AIUsageLog(Base):
 
     __tablename__ = "ai_usage_logs"
 
-    id = Column(Integer, primary_key=True, index=True)
+    id = Column(Integer, primary_key=True)
 
     # Tenant isolation
-    tenant_id = Column(String(36), ForeignKey("tenants.tenant_id"), nullable=False, index=True)
+    tenant_id = Column(String(36), ForeignKey("tenants.tenant_id"), nullable=False)
 
     # API details
     provider = Column(String(50), nullable=False)  # "openai", "anthropic", "azure"
@@ -61,7 +61,7 @@ class AIUsageLog(Base):
     )  # Response details (finish_reason, etc.)
 
     # Timestamps
-    created_at = Column(DateTime(timezone=True), default=utc_now, nullable=False, index=True)
+    created_at = Column(DateTime(timezone=True), default=utc_now, nullable=False)
 
     # Indexes for efficient querying
     __table_args__ = (

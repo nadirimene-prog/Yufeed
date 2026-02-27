@@ -2,7 +2,13 @@ import pytest
 from datetime import datetime, timezone, timedelta
 
 from src.models import models
-from src.models.impact_assessment import ActionItem, ImpactAssessment
+from src.models.impact_assessment import (
+    ActionItem,
+    ActionStatus,
+    BusinessArea,
+    ImpactAssessment,
+    ImpactLevel,
+)
 
 
 @pytest.mark.unit
@@ -117,3 +123,83 @@ class TestImpactAPI:
             headers=auth_headers,
         )
         assert resp.status_code == 404
+
+    def test_get_all_action_items_pagination_compatibility(self, client, db_session, auth_headers):
+        doc = models.LegalDocument(
+            celex="CELEX-IMPACT-PAGE",
+            title="Paged Impact Regulation",
+            publication_date=datetime(2024, 2, 1, tzinfo=timezone.utc),
+            compliance_domain="aml",
+            risk_level="medium",
+            implementation_deadline=datetime(2027, 1, 1, tzinfo=timezone.utc),
+        )
+        db_session.add(doc)
+        db_session.commit()
+
+        assessment = ImpactAssessment(
+            doc_id=doc.id,
+            overall_impact_level=ImpactLevel.HIGH,
+            executive_summary="summary",
+            affected_areas_json={"areas": ["onboarding"]},
+            key_changes={"changes": ["change"]},
+            estimated_effort_hours=24,
+            estimated_cost=2000,
+            requires_system_changes=True,
+            requires_process_changes=False,
+            requires_policy_updates=True,
+            assessed_at=datetime.now(timezone.utc),
+        )
+        db_session.add(assessment)
+        db_session.commit()
+
+        actions = [
+            ActionItem(
+                assessment_id=assessment.id,
+                title="Onboarding First",
+                business_area=BusinessArea.ONBOARDING,
+                priority=1,
+                status=ActionStatus.NOT_STARTED,
+                target_date=datetime.now(timezone.utc) + timedelta(days=1),
+            ),
+            ActionItem(
+                assessment_id=assessment.id,
+                title="Onboarding Second",
+                business_area=BusinessArea.ONBOARDING,
+                priority=2,
+                status=ActionStatus.NOT_STARTED,
+                target_date=datetime.now(timezone.utc) + timedelta(days=2),
+            ),
+            ActionItem(
+                assessment_id=assessment.id,
+                title="Governance Item",
+                business_area=BusinessArea.GOVERNANCE,
+                priority=3,
+                status=ActionStatus.NOT_STARTED,
+                target_date=datetime.now(timezone.utc) + timedelta(days=3),
+            ),
+        ]
+        db_session.add_all(actions)
+        db_session.commit()
+
+        legacy_resp = client.get(
+            "/api/impact/actions/all",
+            params={"business_area": "onboarding"},
+            headers=auth_headers,
+        )
+        assert legacy_resp.status_code == 200
+        legacy_payload = legacy_resp.json()
+        assert isinstance(legacy_payload, list)
+        assert len(legacy_payload) == 2
+
+        paged_resp = client.get(
+            "/api/impact/actions/all",
+            params={"business_area": "onboarding", "skip": 1, "limit": 1},
+            headers=auth_headers,
+        )
+        assert paged_resp.status_code == 200
+        paged_payload = paged_resp.json()
+        assert paged_payload["total"] == 2
+        assert paged_payload["skip"] == 1
+        assert paged_payload["limit"] == 1
+        assert len(paged_payload["items"]) == 1
+        assert paged_payload["items"][0]["title"] == "Onboarding Second"

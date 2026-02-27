@@ -24,6 +24,7 @@ from src.auth.dependencies import CurrentUser, get_current_user
 from src.models.transaction_models import Case, Alert, Transaction
 from src.models.models import LegalDocument
 from src.models.finding_models import Finding
+from src.models.associations import case_findings
 from src.models.case_note import CaseNote
 from src.schemas.transaction_schemas import CaseCreate, CaseUpdate, CaseResponse
 from src.audit.recorders import record_event, record_decision
@@ -724,7 +725,12 @@ def link_findings_to_case(
         get_tenant_filtered_query(Finding, db).filter(Finding.id.in_(payload.finding_ids)).all()
     )
 
-    existing_ids = {f.id for f in case.findings}
+    existing_ids = {
+        finding_id
+        for (finding_id,) in db.query(case_findings.c.finding_id)
+        .filter(case_findings.c.case_id == case.id)
+        .all()
+    }
     linked = 0
     for finding in findings:
         ensure_tenant_match(finding, tenant_id)

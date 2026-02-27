@@ -2,6 +2,7 @@
 API endpoints for Impact Assessment functionality.
 """
 
+import asyncio
 from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.orm import Session
 from typing import List, Optional
@@ -96,7 +97,7 @@ class AnalyzeRequest(BaseModel):
 
 
 @router.post("/documents/{celex}/analyze")
-def create_impact_assessment(
+async def create_impact_assessment(
     celex: str, request: AnalyzeRequest = AnalyzeRequest(), db: Session = Depends(get_db)
 ):
     """
@@ -132,7 +133,8 @@ def create_impact_assessment(
 
     # Run AI analysis
     analyzer = ImpactAnalyzer()
-    analysis = analyzer.analyze_impact(doc_data)
+    loop = asyncio.get_running_loop()
+    analysis = await loop.run_in_executor(None, analyzer.analyze_impact, doc_data)
 
     # Delete existing if force regeneration
     if existing and request.force:

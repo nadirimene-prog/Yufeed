@@ -272,7 +272,7 @@ class Case(Base):
         "Finding",
         secondary=case_findings,
         back_populates="cases",
-        lazy="selectin",
+        lazy="noload",
     )
 
 

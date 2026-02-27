@@ -17,6 +17,7 @@ from src.auth.dependencies import require_any_role, CurrentUser
 from src.audit.recorders import record_event
 from src.models.finding_models import Finding, FindingStatus
 from src.models.transaction_models import Case
+from src.models.associations import case_findings
 from src.schemas.finding_schemas import (
     FindingCreate,
     FindingUpdate,
@@ -254,9 +255,16 @@ def escalate_finding_to_case(
     if not finding:
         raise HTTPException(status_code=404, detail="Finding not found")
 
-    # Idempotency: if already linked to a case, return the first one
-    if finding.cases:
-        return finding.cases[0]
+    # Idempotency: if already linked to a case, return the first linked case.
+    existing_case = (
+        get_tenant_filtered_query(Case, db)
+        .join(case_findings, case_findings.c.case_id == Case.id)
+        .filter(case_findings.c.finding_id == finding.id)
+        .order_by(Case.id.asc())
+        .first()
+    )
+    if existing_case:
+        return existing_case
 
     # Link to existing case or create a new one
     if payload.existing_case_id:

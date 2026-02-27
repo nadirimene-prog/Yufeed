@@ -3,6 +3,7 @@ from datetime import datetime, timezone
 from fastapi import HTTPException
 
 from src.api import obligations as obligations_api
+from src.audit.models import EventRecord
 from src.auth.dependencies import CurrentUser
 from src.models.compliance_workflow import (
     RegulatoryObligation,
@@ -167,6 +168,71 @@ async def test_obligation_workflow_endpoints(db_session, monkeypatch):
 
     internal_rules = obligations_api.get_obligation_internal_rules(obligation.id, db_session, None)
     assert len(internal_rules["items"]) >= 1
+
+
+@pytest.mark.unit
+@pytest.mark.asyncio
+async def test_bulk_approve_commits_event_records_before_later_failure(db_session, monkeypatch):
+    async def dummy_send_notification(*args, **kwargs):
+        return None
+
+    monkeypatch.setattr(obligations_api.ws_manager, "send_notification", dummy_send_notification)
+
+    now = datetime.now(timezone.utc)
+    doc = LegalDocument(
+        celex="32024R8888",
+        title="Operational resilience regulation",
+        jurisdiction="EU",
+        source_system="eur-lex",
+        publication_date=now,
+        scope_tags=["psp"],
+    )
+    db_session.add(doc)
+    db_session.commit()
+
+    obligation = RegulatoryObligation(
+        obligation_id="OBL-BULK-1",
+        document=doc,
+        obligation_text="Institutions must keep documented controls.",
+        status="draft",
+        created_by="author@example.com",
+        scope_tags=["psp"],
+        updated_at=now,
+    )
+    db_session.add(obligation)
+    db_session.commit()
+
+    current_user = CurrentUser("user-2", "approver@example.com", "admin")
+    payload = obligations_api.BulkApproveRequest(
+        obligation_ids=[obligation.id, 999999],
+        status="in_review",
+        note="Bulk review",
+        create_internal_rule=False,
+        auto_link_best_suggestion=True,
+    )
+
+    result = await obligations_api.bulk_approve_obligations(
+        payload=payload,
+        db=db_session,
+        current_user=current_user,
+    )
+
+    assert result["succeeded"] == 1
+    assert result["failed"] == 1
+
+    db_session.refresh(obligation)
+    assert obligation.status == "in_review"
+
+    events = (
+        db_session.query(EventRecord)
+        .filter(
+            EventRecord.entity_type == "regulatory_obligation",
+            EventRecord.entity_id == str(obligation.id),
+            EventRecord.event_type == "compliance.obligation.updated",
+        )
+        .all()
+    )
+    assert len(events) == 1
 
 
 @pytest.mark.unit

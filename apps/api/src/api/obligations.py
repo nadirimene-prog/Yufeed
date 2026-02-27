@@ -8,7 +8,7 @@ def utc_now() -> datetime:
     return datetime.now(timezone.utc)
 
 
-from typing import Optional, List
+from typing import Optional, List, Any
 from pydantic import BaseModel, Field
 
 from fastapi import APIRouter, Depends, HTTPException, Query
@@ -1497,14 +1497,13 @@ async def update_obligation(
     return _obligation_to_dict(obligation, doc, db, tenant_id=effective_tenant_id)
 
 
-@router.patch("/{obligation_id}/approve")
-async def approve_obligation(
+def _approve_obligation_core(
     obligation_id: int,
     payload: ObligationApproval,
-    db: Session = Depends(get_db),
-    current_user: CurrentUser = Depends(require_any_role(["admin", "compliance", "aml_officer"])),
-):
-    """Enhanced approval with policy linking and internal rule creation."""
+    db: Session,
+    current_user: CurrentUser,
+) -> dict[str, Any]:
+    """Apply approval mutations without committing or emitting side effects."""
     effective_tenant_id = _effective_tenant_id(current_user)
     obligation = (
         db.query(RegulatoryObligation).filter(RegulatoryObligation.id == obligation_id).first()
@@ -1690,11 +1689,29 @@ async def approve_obligation(
             )
             db.add(link)
 
-    db.commit()
-    db.refresh(obligation)
+    return {
+        "obligation": obligation,
+        "doc": doc,
+        "internal_rule": internal_rule,
+        "internal_rule_created": internal_rule_created,
+        "new_status": new_status,
+        "effective_tenant_id": effective_tenant_id,
+    }
 
-    if internal_rule:
-        db.refresh(internal_rule)
+
+async def _emit_obligation_approval_side_effects(
+    *,
+    db: Session,
+    approval_ctx: dict[str, Any],
+    payload: ObligationApproval,
+    current_user: CurrentUser,
+) -> None:
+    """Emit metrics, audit events, and WebSocket notifications after commit."""
+    obligation = approval_ctx["obligation"]
+    internal_rule = approval_ctx["internal_rule"]
+    internal_rule_created = approval_ctx["internal_rule_created"]
+    new_status = approval_ctx["new_status"]
+    effective_tenant_id = approval_ctx["effective_tenant_id"]
 
     try:
         obligation_approval_total.labels(status=new_status).inc()
@@ -1729,10 +1746,10 @@ async def approve_obligation(
                     "linked_policy_id": obligation.linked_policy_id,
                 },
             )
+        db.commit()
     except Exception:
-        pass
+        db.rollback()
 
-    # Send WebSocket notifications
     try:
         event_type = (
             EventType.OBLIGATION_APPROVED
@@ -1776,6 +1793,40 @@ async def approve_obligation(
     except Exception:
         pass
 
+
+@router.patch("/{obligation_id}/approve")
+async def approve_obligation(
+    obligation_id: int,
+    payload: ObligationApproval,
+    db: Session = Depends(get_db),
+    current_user: CurrentUser = Depends(require_any_role(["admin", "compliance", "aml_officer"])),
+):
+    """Enhanced approval with policy linking and internal rule creation."""
+    approval_ctx = _approve_obligation_core(
+        obligation_id=obligation_id,
+        payload=payload,
+        db=db,
+        current_user=current_user,
+    )
+
+    obligation = approval_ctx["obligation"]
+    doc = approval_ctx["doc"]
+    internal_rule = approval_ctx["internal_rule"]
+    internal_rule_created = approval_ctx["internal_rule_created"]
+    effective_tenant_id = approval_ctx["effective_tenant_id"]
+
+    db.commit()
+    db.refresh(obligation)
+    if internal_rule:
+        db.refresh(internal_rule)
+
+    await _emit_obligation_approval_side_effects(
+        db=db,
+        approval_ctx=approval_ctx,
+        payload=payload,
+        current_user=current_user,
+    )
+
     result = _obligation_to_dict(obligation, doc, db, tenant_id=effective_tenant_id)
     if internal_rule and internal_rule_created:
         result["created_internal_rule"] = {
@@ -1793,12 +1844,12 @@ async def bulk_approve_obligations(
     db: Session = Depends(get_db),
     current_user: CurrentUser = Depends(require_any_role(["admin", "compliance", "aml_officer"])),
 ):
-    """Bulk approval endpoint with per-item partial success."""
+    """Bulk approval endpoint with savepoint isolation and deferred side effects."""
     results: List[BulkApproveItemResult] = []
-    succeeded = 0
-    failed = 0
+    successful_contexts: List[tuple[dict[str, Any], ObligationApproval]] = []
 
     for obligation_id in payload.obligation_ids:
+        savepoint = db.begin_nested()
         try:
             effective_auto_link = payload.auto_link_best_suggestion
             if payload.status.lower().strip() == "approved" and not effective_auto_link:
@@ -1811,21 +1862,18 @@ async def bulk_approve_obligations(
                 create_internal_rule=payload.create_internal_rule,
                 auto_link_best_suggestion=effective_auto_link,
             )
-            await approve_obligation(
+            approval_ctx = _approve_obligation_core(
                 obligation_id=obligation_id,
                 payload=approval_payload,
                 db=db,
                 current_user=current_user,
             )
-            succeeded += 1
+            savepoint.commit()
+            successful_contexts.append((approval_ctx, approval_payload))
             results.append(BulkApproveItemResult(obligation_id=obligation_id, status="approved"))
-            try:
-                obligation_approval_total.labels(status="approved").inc()
-            except Exception:
-                pass
 
         except HTTPException as exc:
-            failed += 1
+            savepoint.rollback()
             error_msg = (
                 str(exc.detail) if getattr(exc, "detail", None) else f"HTTP {exc.status_code}"
             )
@@ -1840,9 +1888,8 @@ async def bulk_approve_obligations(
                 obligation_approval_total.labels(status="failed").inc()
             except Exception:
                 pass
-            db.rollback()
         except Exception as exc:
-            failed += 1
+            savepoint.rollback()
             results.append(
                 BulkApproveItemResult(obligation_id=obligation_id, status="failed", error=str(exc))
             )
@@ -1850,7 +1897,38 @@ async def bulk_approve_obligations(
                 obligation_approval_total.labels(status="failed").inc()
             except Exception:
                 pass
+
+    if successful_contexts:
+        try:
+            db.commit()
+        except Exception as exc:
             db.rollback()
+            commit_error = f"Bulk commit failed: {exc}"
+            adjusted_results: List[BulkApproveItemResult] = []
+            for item in results:
+                if item.status == "approved":
+                    adjusted_results.append(
+                        BulkApproveItemResult(
+                            obligation_id=item.obligation_id,
+                            status="failed",
+                            error=commit_error,
+                        )
+                    )
+                else:
+                    adjusted_results.append(item)
+            results = adjusted_results
+            successful_contexts = []
+
+    for approval_ctx, approval_payload in successful_contexts:
+        await _emit_obligation_approval_side_effects(
+            db=db,
+            approval_ctx=approval_ctx,
+            payload=approval_payload,
+            current_user=current_user,
+        )
+
+    succeeded = sum(1 for item in results if item.status == "approved")
+    failed = len(results) - succeeded
 
     return {
         "total": len(payload.obligation_ids),

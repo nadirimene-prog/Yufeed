@@ -108,7 +108,7 @@ class Finding(Base):
         "Case",
         secondary=case_findings,
         back_populates="findings",
-        lazy="selectin",
+        lazy="noload",
     )
 
     @property

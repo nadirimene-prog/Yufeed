@@ -23,6 +23,7 @@ from src.audit.recorders import record_event
 from src.models.case_decision import CaseDecision, CaseDecisionStatus
 from src.models.evidence_pack import EvidencePack
 from src.models.finding_models import Finding
+from src.models.associations import case_findings
 from src.models.transaction_models import Alert, Case, Transaction
 from src.utils.time import utc_now
 
@@ -145,7 +146,13 @@ class EvidencePackBuilder:
         """Assemble the full evidence snapshot for a case."""
 
         # --- Findings ---
-        findings_data = [_model_to_dict(f) for f in (case.findings or [])]
+        findings = (
+            self.db.query(Finding)
+            .join(case_findings, case_findings.c.finding_id == Finding.id)
+            .filter(case_findings.c.case_id == case.id, Finding.tenant_id == tenant_id)
+            .all()
+        )
+        findings_data = [_model_to_dict(f) for f in findings]
 
         # --- Decision (latest approved) ---
         decision = (

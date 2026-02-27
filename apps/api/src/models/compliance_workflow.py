@@ -11,6 +11,7 @@ from sqlalchemy import (
     Date,
     Float,
     UniqueConstraint,
+    Index,
 )
 from sqlalchemy.orm import relationship
 from sqlalchemy.dialects.postgresql import JSONB
@@ -374,6 +375,14 @@ class SupervisoryAlert(Base):
     """Persisted supervisory authority publications (AMLA/ESMA/TRACFIN, etc.)."""
 
     __tablename__ = "supervisory_alerts"
+    __table_args__ = (
+        Index(
+            "ix_supervisory_alerts_topics_gin",
+            "topics",
+            postgresql_using="gin",
+            postgresql_ops={"topics": "jsonb_path_ops"},
+        ),
+    )
 
     id = Column(Integer, primary_key=True)
     dedup_key = Column(String(64), nullable=False, unique=True, index=True)
