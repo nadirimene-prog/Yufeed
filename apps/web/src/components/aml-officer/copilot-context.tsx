@@ -1,6 +1,13 @@
 "use client";
 
-import { createContext, useContext, useState, ReactNode } from "react";
+import {
+  createContext,
+  useContext,
+  useState,
+  ReactNode,
+  useCallback,
+  useMemo,
+} from "react";
 
 interface CopilotContextType {
   pageContext: string;
@@ -15,14 +22,14 @@ export function CopilotProvider({ children }: { children: ReactNode }) {
   const [pageContext, setPageContext] = useState<string>("");
   const [isWidgetOpen, setIsWidgetOpen] = useState(false);
 
-  const toggleWidget = () => setIsWidgetOpen((prev) => !prev);
+  const toggleWidget = useCallback(() => setIsWidgetOpen((prev) => !prev), []);
+  const value = useMemo(
+    () => ({ pageContext, setPageContext, isWidgetOpen, toggleWidget }),
+    [pageContext, isWidgetOpen, toggleWidget],
+  );
 
   return (
-    <CopilotContext.Provider
-      value={{ pageContext, setPageContext, isWidgetOpen, toggleWidget }}
-    >
-      {children}
-    </CopilotContext.Provider>
+    <CopilotContext.Provider value={value}>{children}</CopilotContext.Provider>
   );
 }
 

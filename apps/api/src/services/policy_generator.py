@@ -9,6 +9,7 @@ import json
 import logging
 import re
 import uuid
+import asyncio
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
 from decimal import Decimal, InvalidOperation
@@ -133,13 +134,22 @@ class PolicyGenerator:
             # 3. Update job status
             self._update_job_status(job_id, "generating")
 
-            # 4. Generate each section
-            generated_sections = []
-            for section in sections:
-                generated = await self._generate_section(
-                    section=section, obligations=obligations, variables=variables, template=template
-                )
-                generated_sections.append(generated)
+            # 4. Generate sections concurrently with bounded fan-out.
+            section_limit = min(4, max(len(sections), 1))
+            semaphore = asyncio.Semaphore(section_limit)
+
+            async def _generate_with_limit(section: Dict) -> GeneratedPolicySection:
+                async with semaphore:
+                    return await self._generate_section(
+                        section=section,
+                        obligations=obligations,
+                        variables=variables,
+                        template=template,
+                    )
+
+            generated_sections = await asyncio.gather(
+                *[_generate_with_limit(section) for section in sections]
+            )
 
             # 5. Combine into full policy
             full_content = self._combine_sections(generated_sections, template, variables)
@@ -379,6 +389,7 @@ class PolicyGenerator:
                 model="claude-3-haiku-20240307",
                 max_tokens=2000,
                 temperature=0.3,
+                timeout=settings.ANTHROPIC_TIMEOUT_SECONDS,
                 messages=[{"role": "user", "content": prompt}],
             )
 
@@ -746,29 +757,42 @@ The policy is {len(content.split())} words and estimated reading time is {len(co
         )
 
         # Update obligations and create explicit obligation->policy mappings.
-        for obl_id in result.obligations_covered:
-            obligation = (
-                self.db.query(RegulatoryObligation)
-                .filter(RegulatoryObligation.id == obl_id)
-                .first()
+        covered_ids = [obl_id for obl_id in result.obligations_covered if isinstance(obl_id, int)]
+        obligations = (
+            self.db.query(RegulatoryObligation)
+            .filter(RegulatoryObligation.id.in_(covered_ids))
+            .all()
+            if covered_ids
+            else []
+        )
+        obligations_by_id = {obligation.id: obligation for obligation in obligations}
+        existing_mappings = (
+            self.db.query(ObligationPolicyMapping)
+            .filter(
+                ObligationPolicyMapping.obligation_id.in_(covered_ids),
+                ObligationPolicyMapping.policy_id == policy.id,
             )
+            .all()
+            if covered_ids
+            else []
+        )
+        existing_mappings_by_key = {
+            (mapping.obligation_id, mapping.policy_id): mapping for mapping in existing_mappings
+        }
+
+        for obl_id in covered_ids:
+            obligation = obligations_by_id.get(obl_id)
             if obligation:
                 obligation.linked_policy_id = policy.id
 
-            mapping = (
-                self.db.query(ObligationPolicyMapping)
-                .filter(
-                    ObligationPolicyMapping.obligation_id == obl_id,
-                    ObligationPolicyMapping.policy_id == policy.id,
-                )
-                .first()
-            )
+            mapping = existing_mappings_by_key.get((obl_id, policy.id))
             if not mapping:
                 mapping = ObligationPolicyMapping(
                     obligation_id=obl_id,
                     policy_id=policy.id,
                 )
                 self.db.add(mapping)
+                existing_mappings_by_key[(obl_id, policy.id)] = mapping
             mapping.mapped_by = f"user:{reviewed_by}"
             mapping.mapping_confidence = 1.0
             mapping.notes = "Auto-mapped from approved policy generation"

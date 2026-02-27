@@ -19,6 +19,7 @@ from sqlalchemy import and_, func, select
 from sqlalchemy.orm import Session
 
 from src.cache.cache_manager import CacheManager
+from src.config import settings
 from src.models.transaction_models import FeatureValue, Transaction, UserRiskProfile
 from src.tenancy.context import get_current_tenant
 
@@ -28,14 +29,14 @@ def utc_now() -> datetime:
     return datetime.now(timezone.utc)
 
 
-REDIS_URL = os.getenv("REDIS_URL", "redis://localhost:6379/0")
+REDIS_URL = settings.REDIS_URL
 if not REDIS_URL:
     from unittest.mock import AsyncMock
 
     redis = AsyncMock()
     redis.get.return_value = None
 else:
-    redis = redis_async.from_url(REDIS_URL, encoding="utf-8", decode_responses=True)
+    redis = redis_async.from_url(REDIS_URL, **settings.redis_connection_kwargs)
 
 CACHE_TTL = int(os.getenv("FEATURE_CACHE_TTL", "60"))
 

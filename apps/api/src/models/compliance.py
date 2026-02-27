@@ -1,4 +1,4 @@
-from sqlalchemy import Column, Integer, String, DateTime, ForeignKey, Text, JSON
+from sqlalchemy import Column, Integer, String, DateTime, ForeignKey, Text, JSON, Index
 from sqlalchemy.orm import relationship
 from sqlalchemy.dialects.postgresql import JSONB
 import enum
@@ -27,6 +27,7 @@ class RiskLevel(str, enum.Enum):
 
 class ComplianceProfile(Base):
     __tablename__ = "compliance_profiles"
+    __table_args__ = (Index("ix_compliance_profiles_tenant_status", "tenant_id", "status"),)
 
     id = Column(Integer, primary_key=True, index=True)
     tenant_id = Column(String(255), nullable=False, default="default", index=True)

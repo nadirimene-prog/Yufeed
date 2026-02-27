@@ -1,6 +1,7 @@
 import logging
 import os
 from sqlalchemy import create_engine, event
+from sqlalchemy.engine import Engine
 from sqlalchemy.orm import Session
 from sqlalchemy.ext.asyncio import (
     AsyncEngine,
@@ -47,10 +48,10 @@ if not _is_sqlite:
     _async_engine_kwargs.update(
         {
             "pool_pre_ping": True,
-            "pool_size": 20,
-            "max_overflow": 10,
-            "pool_recycle": 3600,
-            "pool_timeout": 30,
+            "pool_size": settings.DB_POOL_SIZE,
+            "max_overflow": settings.DB_MAX_OVERFLOW,
+            "pool_recycle": settings.DB_POOL_RECYCLE,
+            "pool_timeout": settings.DB_POOL_TIMEOUT,
         }
     )
 
@@ -78,15 +79,60 @@ if not _is_sqlite:
     _sync_engine_kwargs.update(
         {
             "pool_pre_ping": True,
-            "pool_size": 5,
-            "max_overflow": 10,
-            "pool_recycle": 3600,
+            "pool_size": settings.DB_POOL_SIZE,
+            "max_overflow": settings.DB_MAX_OVERFLOW,
+            "pool_recycle": settings.DB_POOL_RECYCLE,
+            "pool_timeout": settings.DB_POOL_TIMEOUT,
         }
     )
 
-sync_engine = create_engine(DATABASE_URL, **_sync_engine_kwargs)
+_sync_engine: Engine | None = None
 
-SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=sync_engine)
+
+def get_sync_engine() -> Engine:
+    """Lazily initialize sync engine to reduce import-time side effects."""
+    global _sync_engine
+    if _sync_engine is None:
+        _sync_engine = create_engine(DATABASE_URL, **_sync_engine_kwargs)
+    return _sync_engine
+
+
+class _SyncEngineProxy:
+    """Backwards-compatible proxy that resolves the sync engine on first use."""
+
+    def __getattr__(self, item):
+        return getattr(get_sync_engine(), item)
+
+    def __repr__(self) -> str:
+        return repr(get_sync_engine())
+
+
+sync_engine = _SyncEngineProxy()
+
+
+class _LazySessionFactory:
+    """Session factory that binds lazily to the sync engine."""
+
+    def __init__(self) -> None:
+        self._factory = sessionmaker(autocommit=False, autoflush=False)
+
+    def _ensure_bind(self) -> None:
+        if self._factory.kw.get("bind") is None:
+            self._factory.configure(bind=get_sync_engine())
+
+    def __call__(self, *args, **kwargs):
+        self._ensure_bind()
+        return self._factory(*args, **kwargs)
+
+    def configure(self, **kwargs) -> None:
+        self._factory.configure(**kwargs)
+
+    @property
+    def kw(self):
+        return self._factory.kw
+
+
+SessionLocal = _LazySessionFactory()
 
 Base = declarative_base()
 
@@ -104,7 +150,7 @@ def _ensure_schema() -> None:
         # Import models to register all tables before creating schema.
         import src.models  # noqa: F401
 
-        Base.metadata.create_all(bind=sync_engine)
+        Base.metadata.create_all(bind=get_sync_engine())
         _schema_initialized = True
     except Exception as e:
         log.warning("Failed to initialize test schema: %s", e)

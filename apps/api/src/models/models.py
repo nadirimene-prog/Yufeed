@@ -146,7 +146,7 @@ class LegalVersion(Base):
     __tablename__ = "legal_versions"
 
     id = Column(Integer, primary_key=True, index=True)
-    doc_id = Column(Integer, ForeignKey("legal_documents.id"))
+    doc_id = Column(Integer, ForeignKey("legal_documents.id"), index=True)
     kind = Column(String, default=VersionKind.INITIAL)
     language = Column(String, default="en")
     source_url = Column(String, nullable=True)
@@ -160,9 +160,9 @@ class LegalRelation(Base):
     __tablename__ = "legal_relations"
 
     id = Column(Integer, primary_key=True, index=True)
-    from_doc_id = Column(Integer, ForeignKey("legal_documents.id"), nullable=False)
+    from_doc_id = Column(Integer, ForeignKey("legal_documents.id"), nullable=False, index=True)
     relation_type = Column(String, nullable=False)
-    to_doc_id = Column(Integer, ForeignKey("legal_documents.id"), nullable=False)
+    to_doc_id = Column(Integer, ForeignKey("legal_documents.id"), nullable=False, index=True)
 
     from_document = relationship(
         "LegalDocument", foreign_keys=[from_doc_id], back_populates="relations_from"

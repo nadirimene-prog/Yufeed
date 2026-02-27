@@ -48,10 +48,7 @@ class TokenBlacklist:
         try:
             self._client = redis.from_url(
                 self._redis_url,
-                encoding="utf-8",
-                decode_responses=True,
-                socket_connect_timeout=2,
-                socket_timeout=2,
+                **settings.redis_connection_kwargs,
             )
             # Verify connectivity
             self._client.ping()

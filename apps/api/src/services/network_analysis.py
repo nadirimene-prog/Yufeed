@@ -88,66 +88,44 @@ class NetworkAnalyzer:
 
         for level in range(depth):
             next_level = set()
-
-            for current_user in current_level:
-                # Find transactions from this user
-                outgoing = (
-                    self.db.query(Transaction)
-                    .filter(
-                        and_(
-                            Transaction.user_id == current_user,
-                            Transaction.timestamp >= start_date,
-                            Transaction.counterparty_id.isnot(None),
-                        )
+            level_transactions = (
+                self.db.query(Transaction)
+                .filter(
+                    and_(
+                        or_(
+                            Transaction.user_id.in_(list(current_level)),
+                            Transaction.counterparty_id.in_(list(current_level)),
+                        ),
+                        Transaction.timestamp >= start_date,
                     )
-                    .all()
                 )
+                .all()
+            )
 
-                for tx in outgoing:
-                    counterparty = tx.counterparty_id
-                    if counterparty and counterparty not in nodes:
-                        next_level.add(counterparty)
+            for tx in level_transactions:
+                source = tx.user_id
+                target = tx.counterparty_id or "UNKNOWN"
 
-                    edges.append(
-                        {
-                            "source": current_user,
-                            "target": counterparty or "UNKNOWN",
-                            "type": "transaction",
-                            "amount": float(tx.amount),
-                            "currency": tx.currency,
-                            "timestamp": tx.timestamp.isoformat(),
-                            "transaction_id": tx.transaction_id,
-                        }
-                    )
+                if (
+                    tx.user_id in current_level
+                    and tx.counterparty_id
+                    and tx.counterparty_id not in nodes
+                ):
+                    next_level.add(tx.counterparty_id)
+                if tx.counterparty_id in current_level and tx.user_id and tx.user_id not in nodes:
+                    next_level.add(tx.user_id)
 
-                # Find transactions to this user
-                incoming = (
-                    self.db.query(Transaction)
-                    .filter(
-                        and_(
-                            Transaction.counterparty_id == current_user,
-                            Transaction.timestamp >= start_date,
-                        )
-                    )
-                    .all()
+                edges.append(
+                    {
+                        "source": source,
+                        "target": target,
+                        "type": "transaction",
+                        "amount": float(tx.amount),
+                        "currency": tx.currency,
+                        "timestamp": tx.timestamp.isoformat(),
+                        "transaction_id": tx.transaction_id,
+                    }
                 )
-
-                for tx in incoming:
-                    sender = tx.user_id
-                    if sender not in nodes:
-                        next_level.add(sender)
-
-                    edges.append(
-                        {
-                            "source": sender,
-                            "target": current_user,
-                            "type": "transaction",
-                            "amount": float(tx.amount),
-                            "currency": tx.currency,
-                            "timestamp": tx.timestamp.isoformat(),
-                            "transaction_id": tx.transaction_id,
-                        }
-                    )
 
             nodes.update(next_level)
             current_level = next_level
@@ -407,16 +385,15 @@ class NetworkAnalyzer:
         - "all": Any relationship
         """
         related = set()
+        seed_transactions = (
+            self.db.query(Transaction)
+            .filter(or_(Transaction.user_id == user_id, Transaction.counterparty_id == user_id))
+            .all()
+        )
 
         if relationship_type in ["transaction", "all"]:
             # Find via transactions
-            transactions = (
-                self.db.query(Transaction)
-                .filter(or_(Transaction.user_id == user_id, Transaction.counterparty_id == user_id))
-                .all()
-            )
-
-            for tx in transactions:
+            for tx in seed_transactions:
                 if tx.user_id != user_id:
                     related.add(tx.user_id)
                 if tx.counterparty_id and tx.counterparty_id != user_id:
@@ -424,9 +401,9 @@ class NetworkAnalyzer:
 
         if relationship_type in ["ip", "all"]:
             # Find via shared IP
-            user_txs = self.db.query(Transaction).filter(Transaction.user_id == user_id).all()
-
-            user_ips = {tx.ip_address for tx in user_txs if tx.ip_address}
+            user_ips = {
+                tx.ip_address for tx in seed_transactions if tx.user_id == user_id and tx.ip_address
+            }
 
             if user_ips:
                 ip_matches = (
@@ -437,9 +414,11 @@ class NetworkAnalyzer:
 
         if relationship_type in ["device", "all"]:
             # Find via shared device
-            user_txs = self.db.query(Transaction).filter(Transaction.user_id == user_id).all()
-
-            user_devices = {tx.device_fingerprint for tx in user_txs if tx.device_fingerprint}
+            user_devices = {
+                tx.device_fingerprint
+                for tx in seed_transactions
+                if tx.user_id == user_id and tx.device_fingerprint
+            }
 
             if user_devices:
                 device_matches = (

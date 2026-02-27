@@ -17,6 +17,8 @@ import logging
 from typing import Optional, Dict, Any, List
 from datetime import datetime, timedelta
 
+from src.config import settings
+
 logger = logging.getLogger(__name__)
 
 
@@ -46,7 +48,7 @@ class CelexCache:
             key_prefix: Prefix for all cache keys
         """
         try:
-            self.redis_client = redis.from_url(redis_url, decode_responses=True)
+            self.redis_client = redis.from_url(redis_url, **settings.redis_connection_kwargs)
             self.ttl = timedelta(hours=ttl_hours)
             self.key_prefix = key_prefix
 

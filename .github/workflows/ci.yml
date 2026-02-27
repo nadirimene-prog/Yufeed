@@ -81,7 +81,7 @@ jobs:
           DATABASE_URL: postgresql://yufeed:yufeed123@localhost:5432/yufeed_test
           REDIS_URL: redis://localhost:6379/0
         run: |
-          pytest --cov=src --cov-report=xml --cov-report=term
+          pytest -n auto --dist=loadfile --cov=src --cov-report=xml --cov-report=term --cov-fail-under=70
 
       - name: Test database migrations
         working-directory: ./apps/api
@@ -149,6 +149,9 @@ jobs:
         with:
           scan-type: 'fs'
           scan-ref: '.'
+          severity: 'HIGH,CRITICAL'
+          ignore-unfixed: true
+          exit-code: '1'
           format: 'sarif'
           output: 'trivy-results.sarif'
 
@@ -157,8 +160,8 @@ jobs:
         with:
           sarif_file: 'trivy-results.sarif'
 
-  docker-build:
-    name: Docker Build Test
+  docker-build-backend:
+    name: Docker Build Backend
     runs-on: ubuntu-latest
 
     steps:
@@ -177,6 +180,17 @@ jobs:
           tags: yufeed-api:test
           cache-from: type=gha
           cache-to: type=gha,mode=max
+
+  docker-build-frontend:
+    name: Docker Build Frontend
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v6
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
 
       - name: Build frontend image
         uses: docker/build-push-action@v6
@@ -208,6 +222,12 @@ jobs:
       - uses: actions/setup-python@v6
         with:
           python-version: '3.12'
+          cache: 'pip'
+
+      - uses: actions/cache@v4
+        with:
+          path: ~/.cache/pre-commit
+          key: pre-commit-${{ hashFiles('.pre-commit-config.yaml') }}
 
       - run: pip install pre-commit
 

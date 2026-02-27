@@ -278,6 +278,8 @@ def get_all_action_items(
     status: Optional[str] = None,
     business_area: Optional[str] = None,
     assigned_to: Optional[str] = None,
+    skip: Optional[int] = Query(None, ge=0),
+    limit: Optional[int] = Query(None, ge=1, le=500),
     db: Session = Depends(get_db),
 ):
     """
@@ -295,11 +297,16 @@ def get_all_action_items(
     # Use eager loading to avoid N+1 query problem
     from sqlalchemy.orm import joinedload
 
-    actions = (
-        query.options(joinedload(ActionItem.assessment).joinedload(ImpactAssessment.document))
-        .order_by(ActionItem.priority.asc(), ActionItem.target_date.asc())
-        .all()
-    )
+    paginated = skip is not None or limit is not None
+    effective_skip = skip or 0
+    effective_limit = limit or 100
+    total = query.count() if paginated else None
+    query = query.options(
+        joinedload(ActionItem.assessment).joinedload(ImpactAssessment.document)
+    ).order_by(ActionItem.priority.asc(), ActionItem.target_date.asc())
+    if paginated:
+        query = query.offset(effective_skip).limit(effective_limit)
+    actions = query.all()
 
     # Build response with pre-loaded relationships
     results = []
@@ -315,7 +322,15 @@ def get_all_action_items(
             }
             results.append(result)
 
-    return results
+    if not paginated:
+        return results
+
+    return {
+        "total": total,
+        "items": results,
+        "skip": effective_skip,
+        "limit": effective_limit,
+    }
 
 
 @router.get("/dashboard/stats")

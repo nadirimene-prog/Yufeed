@@ -42,6 +42,13 @@ export interface ActionItemWithDoc extends ActionItem {
   } | null;
 }
 
+export interface ActionItemsPage {
+  total: number;
+  items: ActionItemWithDoc[];
+  skip: number;
+  limit: number;
+}
+
 export interface ImpactStats {
   total_assessments: number;
   critical_high_impact: number;
@@ -108,6 +115,31 @@ export async function getAllActionItems(filters?: {
   if (filters?.business_area)
     params.append("business_area", filters.business_area);
   if (filters?.assigned_to) params.append("assigned_to", filters.assigned_to);
+
+  const response = await apiClient.get(
+    `/api/impact/actions/all?${params.toString()}`,
+  );
+  return response.data;
+}
+
+export async function getAllActionItemsPage(
+  filters?: {
+    status?: string;
+    business_area?: string;
+    assigned_to?: string;
+  },
+  page?: {
+    skip?: number;
+    limit?: number;
+  },
+): Promise<ActionItemsPage> {
+  const params = new URLSearchParams();
+  if (filters?.status) params.append("status", filters.status);
+  if (filters?.business_area)
+    params.append("business_area", filters.business_area);
+  if (filters?.assigned_to) params.append("assigned_to", filters.assigned_to);
+  params.append("skip", String(page?.skip ?? 0));
+  params.append("limit", String(page?.limit ?? 100));
 
   const response = await apiClient.get(
     `/api/impact/actions/all?${params.toString()}`,

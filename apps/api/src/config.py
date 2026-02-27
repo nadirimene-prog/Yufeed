@@ -24,12 +24,24 @@ else:
 
 class Settings(BaseSettings):
     model_config = SettingsConfigDict(
+        env_file=".env",
+        extra="allow",
         env_file_encoding="utf-8",
         case_sensitive=False,
     )
 
-    DATABASE_URL: str = "sqlite:///./compliance.db"
+    DATABASE_URL: str = ""
+    DB_POOL_SIZE: int = 10
+    DB_MAX_OVERFLOW: int = 5
+    DB_POOL_TIMEOUT: int = 10
+    DB_POOL_RECYCLE: int = 300
+
     REDIS_URL: str = "redis://localhost:6379/0"
+    REDIS_SOCKET_TIMEOUT: float = 5.0
+    REDIS_SOCKET_CONNECT_TIMEOUT: float = 2.0
+    REDIS_MAX_CONNECTIONS: int = 50
+    REDIS_RETRY_ON_TIMEOUT: bool = True
+
     OPENSEARCH_URL: str = "http://localhost:9200"
     SMTP_HOST: str = "localhost"
     SMTP_PORT: int = 1025
@@ -91,6 +103,7 @@ class Settings(BaseSettings):
     ANTHROPIC_MODEL: str = "claude-sonnet-4-20250514"
     ANTHROPIC_MAX_TOKENS_POLICY: int = 2000
     ANTHROPIC_MAX_TOKENS_EXTRACTION: int = 4000
+    ANTHROPIC_TIMEOUT_SECONDS: float = 120.0
     # AI Configuration (OpenAI fallback)
     OPENAI_API_KEY: str = ""
     OPENAI_BASE_URL: str = "https://api.openai.com/v1"
@@ -98,7 +111,7 @@ class Settings(BaseSettings):
     OPENAI_RETRIES: int = 2
     OPENAI_BACKOFF_SECONDS: float = 2.0
     OPENAI_DELAY_SECONDS: float = 0.0
-    OPENAI_TIMEOUT_SECONDS: float = 60.0
+    OPENAI_TIMEOUT_SECONDS: float = 120.0
     AI_DAILY_COST_THRESHOLD_USD: float = 10.0
     AI_COST_CHECK_SCHEDULE: str = "0 7 * * *"
     CONTENT_BACKFILL_SCHEDULE: str = "0 2 1 * *"
@@ -109,8 +122,9 @@ class Settings(BaseSettings):
     RAG_EMBEDDING_PROVIDER: str = "sentence_transformers"  # sentence_transformers | disabled
     RAG_EMBEDDING_MODEL: str = "BAAI/bge-m3"
     RAG_EMBEDDING_DIM: int = 1024
-    RAG_CHUNK_SIZE: int = 2000  # characters
-    RAG_CHUNK_OVERLAP: int = 200  # characters
+    RAG_CHUNK_SIZE: int = 1500  # characters
+    RAG_CHUNK_OVERLAP: int = 300  # characters
+    RAG_MAX_CHUNK_CHARS: int = 2000
     RAG_HYBRID_ALPHA: float = 0.5  # 0=vector only, 1=BM25 only
 
     # Policy matcher configuration
@@ -162,12 +176,19 @@ class Settings(BaseSettings):
         """Get MLRO email for escalation."""
         return self.MLRO_EMAIL
 
-    model_config = SettingsConfigDict(env_file=".env", extra="allow")
-
     @model_validator(mode="after")
     def validate_security_settings(self):
         """Validate security-critical settings."""
         is_production = self.ENVIRONMENT.lower() == "production"
+
+        # Database URL validation/defaulting
+        if not self.DATABASE_URL:
+            if is_production:
+                raise ValueError("DATABASE_URL is required in production")
+            self.DATABASE_URL = (
+                "postgresql://postgres:postgres@localhost:5432/yufeed"  # pragma: allowlist secret
+            )
+            warnings.warn("DATABASE_URL not set. Using local development default.", UserWarning)
 
         # SECRET_KEY validation
         if not self.SECRET_KEY:
@@ -188,6 +209,18 @@ class Settings(BaseSettings):
             warnings.warn("SECRET_KEY is too short. Use at least 32 characters.", UserWarning)
 
         return self
+
+    @property
+    def redis_connection_kwargs(self) -> dict:
+        """Shared Redis connection kwargs for sync clients."""
+        return {
+            "encoding": "utf-8",
+            "decode_responses": True,
+            "socket_timeout": self.REDIS_SOCKET_TIMEOUT,
+            "socket_connect_timeout": self.REDIS_SOCKET_CONNECT_TIMEOUT,
+            "max_connections": self.REDIS_MAX_CONNECTIONS,
+            "retry_on_timeout": self.REDIS_RETRY_ON_TIMEOUT,
+        }
 
 
 settings = Settings()

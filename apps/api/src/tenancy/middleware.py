@@ -14,6 +14,8 @@ Tenant extraction order:
 import logging
 import os
 import asyncio
+import threading
+import time
 from concurrent.futures import ThreadPoolExecutor
 from functools import partial
 from typing import Optional
@@ -31,6 +33,9 @@ from src.models.tenant_models import Tenant
 
 # Thread pool for running sync DB operations without blocking the event loop
 _db_executor = ThreadPoolExecutor(max_workers=4, thread_name_prefix="tenant_db_")
+_TENANT_CACHE_TTL_SECONDS = 300.0
+_tenant_cache: dict[str, tuple[bool, float]] = {}
+_tenant_cache_lock = threading.Lock()
 
 logger = logging.getLogger(__name__)
 
@@ -250,6 +255,13 @@ class TenantMiddleware(BaseHTTPMiddleware):
 
     def _validate_tenant_sync(self, tenant_id: str) -> bool:
         """Sync helper to validate tenant in database."""
+        now = time.monotonic()
+        with _tenant_cache_lock:
+            cached = _tenant_cache.get(tenant_id)
+            if cached and cached[1] > now:
+                logger.debug("tenant_cache_hit tenant_id=%s", tenant_id)
+                return cached[0]
+
         db = SessionLocal()
         try:
             tenant = (
@@ -260,10 +272,18 @@ class TenantMiddleware(BaseHTTPMiddleware):
                 )
                 .first()
             )
-
-            return tenant is not None
+            is_valid = tenant is not None
         finally:
             db.close()
+
+        with _tenant_cache_lock:
+            if len(_tenant_cache) > 1024:
+                expired_keys = [key for key, (_, expiry) in _tenant_cache.items() if expiry <= now]
+                for key in expired_keys:
+                    _tenant_cache.pop(key, None)
+            _tenant_cache[tenant_id] = (is_valid, now + _TENANT_CACHE_TTL_SECONDS)
+        logger.debug("tenant_cache_miss tenant_id=%s valid=%s", tenant_id, is_valid)
+        return is_valid
 
     def _requires_tenant(self, request: Request) -> bool:
         """

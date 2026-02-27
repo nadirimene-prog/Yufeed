@@ -13,6 +13,7 @@ from src.models.audit import AuditLog
 from src.tenancy.context import get_current_tenant
 
 logger = logging.getLogger(__name__)
+MAX_AUDIT_BODY = 64 * 1024  # 64KB
 
 
 def utc_now() -> datetime:
@@ -29,10 +30,13 @@ class AuditLogMiddleware(BaseHTTPMiddleware):
         request.state.request_id = request_id
 
         body_bytes = await request.body()
-        try:
-            payload = json.loads(body_bytes) if body_bytes else {}
-        except Exception:
-            payload = {"raw": body_bytes.decode(errors="ignore")}
+        if len(body_bytes) > MAX_AUDIT_BODY:
+            payload = {"_truncated": True, "_size": len(body_bytes)}
+        else:
+            try:
+                payload = json.loads(body_bytes) if body_bytes else {}
+            except Exception:
+                payload = {"raw": body_bytes.decode(errors="ignore")}
 
         for key in ("password", "secret", "token", "api_key"):
             if key in payload:

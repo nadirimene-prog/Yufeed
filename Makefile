@@ -1,4 +1,4 @@
-.PHONY: help setup setup-api setup-web lint lint-api lint-web test test-api test-web build-web build-images docker-up docker-down ci
+.PHONY: help setup setup-api setup-web lint lint-api lint-web test test-api test-web build-web build-images docker-up docker-up-build docker-down ci
 
 API_DIR := apps/api
 WEB_DIR := apps/web
@@ -13,6 +13,7 @@ help:
 	@echo "  make build-web    Build Next.js frontend bundle"
 	@echo "  make build-images Build backend and frontend Docker images"
 	@echo "  make docker-up    Start local stack with Docker Compose"
+	@echo "  make docker-up-build Start local stack with Docker Compose and rebuild images"
 	@echo "  make docker-down  Stop local Docker Compose stack"
 	@echo "  make ci           Run pre-commit checks on all files"
 
@@ -47,6 +48,9 @@ build-images:
 	docker compose build api web
 
 docker-up:
+	docker compose up
+
+docker-up-build:
 	docker compose up --build
 
 docker-down:

@@ -28,6 +28,7 @@ router = APIRouter(prefix="/api/dashboard", tags=["dashboard"])
 
 DashboardView = Literal["operations", "compliance", "monitoring"]
 DashboardTimeRange = Literal["24h", "7d", "30d"]
+SAR_DEADLINE_HOURS = 72
 
 
 def _parse_time_range(value: DashboardTimeRange) -> timedelta:
@@ -144,6 +145,207 @@ def _freshness_meta(
         "stale_after_seconds": stale_after_seconds,
         "source_watermark_at": source_watermark_at.isoformat() if source_watermark_at else None,
         "source_lag_seconds": source_lag_seconds,
+    }
+
+
+def _alert_open_as_of_filter(as_of: datetime):
+    return and_(
+        Alert.created_at.isnot(None),
+        Alert.created_at <= as_of,
+        or_(Alert.resolved_at.is_(None), Alert.resolved_at > as_of),
+    )
+
+
+def _case_open_as_of_filter(as_of: datetime):
+    return and_(
+        Case.opened_at.isnot(None),
+        Case.opened_at <= as_of,
+        or_(Case.closed_at.is_(None), Case.closed_at > as_of),
+    )
+
+
+def _decision_pending_as_of_filter(as_of: datetime):
+    submitted_at = func.coalesce(CaseDecision.submitted_at, CaseDecision.created_at)
+    return and_(
+        submitted_at.isnot(None),
+        submitted_at <= as_of,
+        or_(CaseDecision.approved_at.is_(None), CaseDecision.approved_at > as_of),
+    )
+
+
+def _sar_due_within_24h_count(db: Session, *, as_of: datetime) -> int:
+    due_by = as_of + timedelta(hours=24)
+    candidates = (
+        db.query(Case.opened_at)
+        .filter(
+            and_(
+                _case_open_as_of_filter(as_of),
+                Case.outcome == "sar_required",
+                Case.opened_at > as_of - timedelta(hours=SAR_DEADLINE_HOURS),
+                Case.opened_at <= as_of,
+            )
+        )
+        .all()
+    )
+    count = 0
+    for (opened_at,) in candidates:
+        opened = _as_utc(opened_at)
+        if not opened:
+            continue
+        due_at = opened + timedelta(hours=SAR_DEADLINE_HOURS)
+        if as_of <= due_at <= due_by:
+            count += 1
+    return count
+
+
+def _queue_summary_snapshot(db: Session, *, as_of: datetime) -> dict[str, int]:
+    return {
+        "alerts_open": (
+            db.query(func.count(Alert.id)).filter(_alert_open_as_of_filter(as_of)).scalar() or 0
+        ),
+        "cases_open": (
+            db.query(func.count(Case.id)).filter(_case_open_as_of_filter(as_of)).scalar() or 0
+        ),
+        "approvals_pending": (
+            db.query(func.count(CaseDecision.id))
+            .filter(_decision_pending_as_of_filter(as_of))
+            .scalar()
+            or 0
+        ),
+        "reg_tasks_due": (
+            db.query(func.count(Case.id))
+            .filter(and_(_case_open_as_of_filter(as_of), Case.outcome == "sar_required"))
+            .scalar()
+            or 0
+        ),
+    }
+
+
+def _critical_bar_snapshot(
+    db: Session, *, as_of: datetime, latest_transaction_ts: datetime | None
+) -> dict[str, int]:
+    p1_threshold = as_of - timedelta(hours=2)
+    p2_threshold = as_of - timedelta(hours=8)
+    unresolved_alert_as_of = _alert_open_as_of_filter(as_of)
+    return {
+        "p1_sla_breaches": (
+            db.query(func.count(Alert.id))
+            .filter(
+                and_(
+                    unresolved_alert_as_of,
+                    Alert.created_at < p1_threshold,
+                    or_(Alert.priority == 1, Alert.severity == "critical"),
+                )
+            )
+            .scalar()
+            or 0
+        ),
+        "p2_sla_breaches": (
+            db.query(func.count(Alert.id))
+            .filter(
+                and_(
+                    unresolved_alert_as_of,
+                    Alert.created_at < p2_threshold,
+                    Alert.severity.in_(["high", "medium"]),
+                )
+            )
+            .scalar()
+            or 0
+        ),
+        "sanctions_hits_unreviewed": (
+            db.query(func.count(Alert.id))
+            .filter(
+                and_(
+                    unresolved_alert_as_of,
+                    or_(Alert.alert_type.ilike("%sanction%"), Alert.alert_type.ilike("%pep%")),
+                )
+            )
+            .scalar()
+            or 0
+        ),
+        "sar_due_24h": _sar_due_within_24h_count(db, as_of=as_of),
+        "high_risk_cases_unassigned": (
+            db.query(func.count(Case.id))
+            .filter(
+                and_(
+                    _case_open_as_of_filter(as_of),
+                    Case.priority.in_(["high", "critical", "urgent", "p1"]),
+                    or_(Case.assigned_to.is_(None), Case.assigned_to == ""),
+                )
+            )
+            .scalar()
+            or 0
+        ),
+        "ingestion_lag_minutes": (
+            max(0, int((as_of - latest_transaction_ts).total_seconds() // 60))
+            if latest_transaction_ts
+            else 0
+        ),
+    }
+
+
+def _governance_snapshot(
+    db: Session, *, window_start: datetime, as_of: datetime
+) -> dict[str, float]:
+    pending_alerts = (
+        db.query(func.count(Alert.id)).filter(_alert_open_as_of_filter(as_of)).scalar() or 0
+    )
+    open_cases = db.query(func.count(Case.id)).filter(_case_open_as_of_filter(as_of)).scalar() or 0
+    high_pressure_alerts = (
+        db.query(func.count(Alert.id))
+        .filter(and_(_alert_open_as_of_filter(as_of), Alert.severity.in_(["high", "critical"])))
+        .scalar()
+        or 0
+    )
+    resolved_alert_total = (
+        db.query(func.count(Alert.id))
+        .filter(
+            and_(
+                Alert.resolved_at.isnot(None),
+                Alert.resolved_at >= window_start,
+                Alert.resolved_at < as_of,
+            )
+        )
+        .scalar()
+        or 0
+    )
+    resolved_alert_false_positive = (
+        db.query(func.count(Alert.id))
+        .filter(
+            and_(
+                Alert.resolved_at.isnot(None),
+                Alert.resolved_at >= window_start,
+                Alert.resolved_at < as_of,
+                Alert.resolution_status.in_(["false_positive", "dismissed"]),
+            )
+        )
+        .scalar()
+        or 0
+    )
+    closed_cases = (
+        db.query(Case)
+        .filter(
+            and_(
+                Case.closed_at.isnot(None),
+                Case.opened_at.isnot(None),
+                Case.closed_at >= window_start,
+                Case.closed_at < as_of,
+            )
+        )
+        .all()
+    )
+    audit_complete = [
+        case
+        for case in closed_cases
+        if (case.outcome or "").strip() and (case.outcome_notes or "").strip()
+    ]
+    return {
+        "rule_drift_score": min(
+            100.0, round(high_pressure_alerts / max(pending_alerts, 1) * 100, 2)
+        ),
+        "alert_to_case_rate": round(open_cases / max(pending_alerts + open_cases, 1), 4),
+        "fp_proxy_rate": round(resolved_alert_false_positive / max(resolved_alert_total, 1), 4),
+        "audit_completeness_rate": round(len(audit_complete) / max(len(closed_cases), 1), 4),
     }
 
 
@@ -279,6 +481,8 @@ def get_dashboard_overview(
         "median_time_to_first_action_history": None,
         "median_case_resolution_history": None,
     }
+    queue_summary_previous = None
+    critical_bar_previous = None
 
     if settings.DASHBOARD_AMLCO_V3_ENABLED:
         p1_threshold = now - timedelta(hours=2)
@@ -321,19 +525,7 @@ def get_dashboard_overview(
             .scalar()
             or 0
         )
-        critical_bar["sar_due_24h"] = (
-            db.query(func.count(Case.id))
-            .filter(
-                and_(
-                    Case.status.in_(["open", "in_progress"]),
-                    Case.outcome == "sar_required",
-                    Case.opened_at <= now - timedelta(hours=48),
-                    Case.opened_at > now - timedelta(hours=72),
-                )
-            )
-            .scalar()
-            or 0
-        )
+        critical_bar["sar_due_24h"] = _sar_due_within_24h_count(db, as_of=now)
         critical_bar["high_risk_cases_unassigned"] = (
             db.query(func.count(Case.id))
             .filter(
@@ -456,6 +648,45 @@ def get_dashboard_overview(
                 for bucket_start, bucket_end in buckets
             ]
 
+        governance.update(_governance_snapshot(db, window_start=start, as_of=now))
+        governance_buckets = _bucket_ranges(start, now, 7)
+        if governance_buckets:
+            governance_snapshots = [
+                _governance_snapshot(db, window_start=bucket_start, as_of=bucket_end)
+                for bucket_start, bucket_end in governance_buckets
+            ]
+            governance["rule_drift_score_history"] = [
+                snapshot["rule_drift_score"] for snapshot in governance_snapshots
+            ]
+            governance["alert_to_case_rate_history"] = [
+                snapshot["alert_to_case_rate"] for snapshot in governance_snapshots
+            ]
+            governance["fp_proxy_rate_history"] = [
+                snapshot["fp_proxy_rate"] for snapshot in governance_snapshots
+            ]
+            governance["audit_completeness_rate_history"] = [
+                snapshot["audit_completeness_rate"] for snapshot in governance_snapshots
+            ]
+
+        critical_bar = _critical_bar_snapshot(
+            db,
+            as_of=now,
+            latest_transaction_ts=latest_transaction_ts,
+        )
+        queue_summary = _queue_summary_snapshot(db, as_of=now)
+
+        previous_latest_transaction_ts = _as_utc(
+            db.query(func.max(Transaction.timestamp))
+            .filter(Transaction.timestamp <= start)
+            .scalar()
+        )
+        critical_bar_previous = _critical_bar_snapshot(
+            db,
+            as_of=start,
+            latest_transaction_ts=previous_latest_transaction_ts,
+        )
+        queue_summary_previous = _queue_summary_snapshot(db, as_of=start)
+
     return {
         "view": view,
         "time_range": time_range,
@@ -488,8 +719,8 @@ def get_dashboard_overview(
         },
         "critical_bar": critical_bar,
         "queue_summary": queue_summary,
-        "queue_summary_previous": None,
-        "critical_bar_previous": None,
+        "queue_summary_previous": queue_summary_previous,
+        "critical_bar_previous": critical_bar_previous,
         "governance": governance,
         "throughput": throughput,
     }

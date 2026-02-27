@@ -36,7 +36,7 @@ end
 
 
 def _redis_client():
-    return redis.from_url(settings.REDIS_URL, decode_responses=True)
+    return redis.from_url(settings.REDIS_URL, **settings.redis_connection_kwargs)
 
 
 def acquire_manual_ingestion_lock(owner_token: str) -> bool:

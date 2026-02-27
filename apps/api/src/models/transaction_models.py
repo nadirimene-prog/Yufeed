@@ -358,6 +358,10 @@ class RuleHit(Base):
     """Records specific rule hits for an alert/transaction."""
 
     __tablename__ = "rule_hits"
+    __table_args__ = (
+        Index("ix_rule_hits_alert_id", "alert_id"),
+        Index("ix_rule_hits_rule_id", "rule_id"),
+    )
 
     id = Column(Integer, primary_key=True)
     tenant_id = Column(String(255), nullable=False, index=True)  # Multi-tenancy support
@@ -381,6 +385,7 @@ class UserRiskProfile(Base):
     __tablename__ = "user_risk_profiles"
     __table_args__ = (
         UniqueConstraint("tenant_id", "user_id", name="uq_user_risk_profiles_tenant_user_id"),
+        Index("ix_user_risk_tenant_risk_level", "tenant_id", "risk_level"),
     )
 
     id = Column(Integer, primary_key=True)

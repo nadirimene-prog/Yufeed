@@ -11,6 +11,7 @@ from fastapi.responses import JSONResponse
 import structlog
 import time
 import os
+import asyncio
 import logging
 
 from src.middleware import limiter, custom_rate_limit_handler, configure_redis_storage
@@ -27,14 +28,22 @@ from opentelemetry.sdk.trace import TracerProvider
 from opentelemetry.sdk.trace.export import BatchSpanProcessor, ConsoleSpanExporter
 from opentelemetry.instrumentation.fastapi import FastAPIInstrumentor
 
-# --------------------------------------------------------------
-# OpenTelemetry configuration (Console exporter – replace with OTLP in prod)
-# --------------------------------------------------------------
-trace.set_tracer_provider(TracerProvider())
-# Avoid BatchSpanProcessor in tests: it spawns a worker thread that can try to
-# write to closed stdout/stderr after pytest exits.
-if os.getenv("ENVIRONMENT", "development").lower() not in {"test", "testing"}:
-    trace.get_tracer_provider().add_span_processor(BatchSpanProcessor(ConsoleSpanExporter()))
+_otel_configured = False
+
+
+def _configure_otel() -> None:
+    """Configure tracing once to avoid duplicate providers on reload/imports."""
+    global _otel_configured
+    if _otel_configured:
+        return
+    provider = TracerProvider()
+    trace.set_tracer_provider(provider)
+    if os.getenv("ENVIRONMENT", "development").lower() not in {"test", "testing"}:
+        provider.add_span_processor(BatchSpanProcessor(ConsoleSpanExporter()))
+    _otel_configured = True
+
+
+_configure_otel()
 
 logger = logging.getLogger(__name__)
 
@@ -56,15 +65,16 @@ async def lifespan(app: FastAPI):
     if settings.POLICY_TEMPLATES_AUTO_SEED:
         try:
             from src.services.policy_templates import seed_policy_templates
+            from src.services.policy_library import ensure_master_policies
 
-            result = seed_policy_templates()
+            loop = asyncio.get_running_loop()
+            result = await loop.run_in_executor(None, seed_policy_templates)
             logger.info(
                 "Policy templates seeded: "
                 f"{result.get('created', 0)} created, {result.get('updated', 0)} updated"
             )
-            from src.services.policy_library import ensure_master_policies
 
-            master_result = ensure_master_policies()
+            master_result = await loop.run_in_executor(None, ensure_master_policies)
             logger.info(
                 "Master policies synced: "
                 f"{master_result.get('created', 0)} created, "
@@ -75,9 +85,9 @@ async def lifespan(app: FastAPI):
             logger.warning(f"Policy template seeding failed: {exc}")
 
     if os.getenv("ENVIRONMENT", "").lower() in {"test", "testing"}:
-        from src.database import Base, sync_engine
+        from src.database import Base, get_sync_engine
 
-        Base.metadata.create_all(bind=sync_engine)
+        Base.metadata.create_all(bind=get_sync_engine())
 
     yield
 
@@ -176,9 +186,6 @@ app.include_router(policy_generator_router)
 
 logger.info("Registered compliance routers: reminders, gap_analysis, policy_generator")
 
-Instrumentator().instrument(app).expose(app, endpoint="/metrics", include_in_schema=False)
-FastAPIInstrumentor().instrument_app(app)
-
 # Register tenant context middleware before audit logging
 app.add_middleware(TenantMiddleware)
 
@@ -213,6 +220,10 @@ if environment in {"development", "dev", "test", "testing"}:
     )
 
 app.add_middleware(CORSMiddleware, **cors_kwargs)
+
+# Instrument after middleware registration so latency captures full request lifecycle.
+Instrumentator().instrument(app).expose(app, endpoint="/metrics", include_in_schema=False)
+FastAPIInstrumentor().instrument_app(app)
 
 
 # ----------------------------------------------------------------------

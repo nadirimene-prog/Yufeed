@@ -2,7 +2,6 @@
 
 import * as React from "react";
 import { usePathname, useRouter } from "next/navigation";
-import { motion, AnimatePresence } from "framer-motion";
 import { cn } from "@/lib/utils";
 import { getAuthToken } from "@/lib/auth";
 import Sidebar from "./sidebar";
@@ -36,19 +35,7 @@ function SkipLink() {
    ───────────────────────────────────────────────────────────────────────────── */
 
 function PageTransition({ children }: { children: React.ReactNode }) {
-  return (
-    <motion.div
-      initial={{ opacity: 0, y: 8 }}
-      animate={{ opacity: 1, y: 0 }}
-      exit={{ opacity: 0, y: 8 }}
-      transition={{
-        duration: 0.2,
-        ease: [0, 0, 0.2, 1],
-      }}
-    >
-      {children}
-    </motion.div>
-  );
+  return <div className="animate-in fade-in duration-200">{children}</div>;
 }
 
 /* ─────────────────────────────────────────────────────────────────────────────
@@ -90,7 +77,6 @@ export default function AppShell({ children }: AppShellProps) {
   const breadcrumbs = useBreadcrumbs(pathname);
   const [mobileSidebarOpen, setMobileSidebarOpen] = React.useState(false);
   const [sidebarCollapsed, setSidebarCollapsed] = React.useState(true);
-  const [authChecked, setAuthChecked] = React.useState(false);
 
   // Chromeless routes (no sidebar/header)
   const isChromeless = [
@@ -99,20 +85,13 @@ export default function AppShell({ children }: AppShellProps) {
     "/forgot-password",
     "/request-access",
   ].includes(pathname);
+  const hasToken = Boolean(getAuthToken());
 
   React.useEffect(() => {
-    if (isChromeless) {
-      setAuthChecked(true);
-      return;
-    }
-
-    if (!getAuthToken()) {
+    if (!isChromeless && !hasToken) {
       router.replace("/");
-      return;
     }
-
-    setAuthChecked(true);
-  }, [isChromeless, pathname, router]);
+  }, [hasToken, isChromeless, router]);
 
   if (isChromeless) {
     return (
@@ -122,14 +101,8 @@ export default function AppShell({ children }: AppShellProps) {
     );
   }
 
-  if (!authChecked) {
-    return (
-      <div className="flex min-h-screen items-center justify-center bg-background">
-        <div className="text-sm text-muted-foreground animate-pulse">
-          Checking session...
-        </div>
-      </div>
-    );
+  if (!hasToken) {
+    return <div className="min-h-screen bg-background" />;
   }
 
   return (
@@ -143,29 +116,17 @@ export default function AppShell({ children }: AppShellProps) {
         </div>
 
         {/* Sidebar - Mobile */}
-        <AnimatePresence>
-          {mobileSidebarOpen && (
-            <>
-              <motion.div
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-                exit={{ opacity: 0 }}
-                transition={{ duration: 0.2 }}
-                className="fixed inset-0 z-40 bg-black/50 lg:hidden"
-                onClick={() => setMobileSidebarOpen(false)}
-              />
-              <motion.div
-                initial={{ x: "-100%" }}
-                animate={{ x: 0 }}
-                exit={{ x: "-100%" }}
-                transition={{ type: "spring", damping: 25, stiffness: 200 }}
-                className="fixed left-0 top-0 z-50 h-screen w-64 lg:hidden"
-              >
-                <Sidebar forceExpanded />
-              </motion.div>
-            </>
-          )}
-        </AnimatePresence>
+        {mobileSidebarOpen ? (
+          <>
+            <div
+              className="fixed inset-0 z-40 bg-black/50 animate-in fade-in duration-200 lg:hidden"
+              onClick={() => setMobileSidebarOpen(false)}
+            />
+            <div className="fixed left-0 top-0 z-50 h-screen w-64 animate-in slide-in-from-left duration-200 lg:hidden">
+              <Sidebar forceExpanded />
+            </div>
+          </>
+        ) : null}
 
         {/* Main Content Area */}
         <div className={cn(sidebarCollapsed ? "lg:ml-16" : "lg:ml-64")}>

@@ -12,7 +12,6 @@ Adds composite indexes for:
 """
 
 from alembic import op
-import sqlalchemy as sa
 
 
 # revision identifiers, used by Alembic.
@@ -115,29 +114,20 @@ def upgrade():
     # Feature Values Table Indexes
     # ============================================================================
 
-    # Composite index for feature lookups (if not already exists from Week 2 B7)
-    # Check if index exists first
-    connection = op.get_bind()
-    inspector = sa.inspect(connection)
-    existing_indexes = [idx["name"] for idx in inspector.get_indexes("feature_values")]
+    # Composite index for feature lookups.
+    op.execute(
+        """
+        CREATE INDEX IF NOT EXISTS idx_feature_tenant_entity
+        ON feature_values (tenant_id, entity_type, entity_id)
+        """
+    )
 
-    if "idx_feature_tenant_entity" not in existing_indexes:
-        op.create_index(
-            "idx_feature_tenant_entity",
-            "feature_values",
-            ["tenant_id", "entity_type", "entity_id"],
-            postgresql_using="btree",
-            unique=False,
-        )
-
-    if "idx_feature_tenant_updated" not in existing_indexes:
-        op.create_index(
-            "idx_feature_tenant_updated",
-            "feature_values",
-            ["tenant_id", "calculated_at"],
-            postgresql_using="btree",
-            unique=False,
-        )
+    op.execute(
+        """
+        CREATE INDEX IF NOT EXISTS idx_feature_tenant_updated
+        ON feature_values (tenant_id, calculated_at)
+        """
+    )
 
     # ============================================================================
     # Cases Table Indexes (Case Management)
@@ -188,16 +178,9 @@ def downgrade():
     op.drop_index("idx_reg_obligations_status", "regulatory_obligations")
     op.drop_index("idx_cases_tenant_status", "cases")
 
-    # Feature values indexes (only if we created them)
-    connection = op.get_bind()
-    inspector = sa.inspect(connection)
-    existing_indexes = [idx["name"] for idx in inspector.get_indexes("feature_values")]
-
-    if "idx_feature_tenant_updated" in existing_indexes:
-        op.drop_index("idx_feature_tenant_updated", "feature_values")
-
-    if "idx_feature_tenant_entity" in existing_indexes:
-        op.drop_index("idx_feature_tenant_entity", "feature_values")
+    # Feature values indexes
+    op.execute("DROP INDEX IF EXISTS idx_feature_tenant_updated")
+    op.execute("DROP INDEX IF EXISTS idx_feature_tenant_entity")
 
     op.drop_index("idx_rules_tenant_active", "monitoring_rules")
     op.drop_index("idx_alert_tenant_severity", "alerts")

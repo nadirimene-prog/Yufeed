@@ -274,7 +274,11 @@ class GapAnalyzer:
         return ObligationCategory.OTHER
 
     def calculate_severity(
-        self, obligation: RegulatoryObligation, category: ObligationCategory
+        self,
+        obligation: RegulatoryObligation,
+        category: ObligationCategory,
+        *,
+        document_risk_level: Optional[str] = None,
     ) -> GapSeverity:
         """
         Calculate gap severity based on multiple factors.
@@ -302,11 +306,10 @@ class GapAnalyzer:
         else:
             severity_score += 50  # Unknown deadline = medium priority
 
-        # Factor 2: Risk level from AI analysis
-        doc = self.db.query(LegalDocument).get(obligation.doc_id)
-        if doc and doc.risk_level:
+        # Factor 2: Risk level from joined document row (avoid per-obligation lookup).
+        if document_risk_level:
             risk_scores = {"critical": 50, "high": 40, "medium": 25, "low": 10}
-            severity_score += risk_scores.get(doc.risk_level.lower(), 20)
+            severity_score += risk_scores.get(document_risk_level.lower(), 20)
 
         # Factor 3: Category criticality
         critical_categories = [
@@ -414,10 +417,25 @@ class GapAnalyzer:
         partial_count = 0
         uncovered_count = 0
 
+        suggested_template_ids = {
+            template_id
+            for template_ids in self.TEMPLATE_SUGGESTIONS.values()
+            for template_id in template_ids
+        }
+        templates_by_id = {}
+        if suggested_template_ids:
+            templates = (
+                self.db.query(PolicyTemplate)
+                .filter(PolicyTemplate.template_id.in_(list(suggested_template_ids)))
+                .all()
+            )
+            templates_by_id = {template.template_id: template for template in templates}
+
         for obl_row in obligations:
             obligation = obl_row[0]
             celex = obl_row[1]
             doc_title = obl_row[2]
+            doc_risk_level = obl_row[3]
 
             # Auto-categorize if no persisted category attribute is present.
             raw_category = getattr(obligation, "category", None)
@@ -444,7 +462,11 @@ class GapAnalyzer:
                 category_stats[category]["uncovered"] += 1
 
                 # Calculate severity
-                severity = self.calculate_severity(obligation, category)
+                severity = self.calculate_severity(
+                    obligation,
+                    category,
+                    document_risk_level=doc_risk_level,
+                )
 
                 # Calculate days until effective
                 days_until = None
@@ -457,11 +479,7 @@ class GapAnalyzer:
                 suggested_template_name = None
 
                 if suggested_template_id:
-                    template = (
-                        self.db.query(PolicyTemplate)
-                        .filter(PolicyTemplate.template_id == suggested_template_id)
-                        .first()
-                    )
+                    template = templates_by_id.get(suggested_template_id)
                     if template:
                         suggested_template_name = template.name
 

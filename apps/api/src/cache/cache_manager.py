@@ -57,10 +57,7 @@ class CacheManager:
             try:
                 self._client = redis.from_url(
                     self.redis_url,
-                    decode_responses=True,
-                    socket_connect_timeout=2,
-                    socket_timeout=2,
-                    retry_on_timeout=True,
+                    **settings.redis_connection_kwargs,
                     health_check_interval=30,
                 )
                 # Test connection
@@ -70,7 +67,9 @@ class CacheManager:
                 logger.warning(f"Redis connection failed: {e}. Caching disabled.")
                 self.enabled = False
                 # Return a mock client that does nothing
-                self._client = redis.from_url("redis://localhost:6379/0", decode_responses=True)
+                self._client = redis.from_url(
+                    "redis://localhost:6379/0", **settings.redis_connection_kwargs
+                )
 
         return self._client
 

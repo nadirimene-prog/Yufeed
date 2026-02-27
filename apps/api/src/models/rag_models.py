@@ -3,7 +3,7 @@ RAG Chunk Models
 Stores document chunks for retrieval and auditing.
 """
 
-from sqlalchemy import Column, Integer, String, DateTime, Text, ForeignKey, JSON
+from sqlalchemy import Column, Integer, String, DateTime, Text, ForeignKey, JSON, Index
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import relationship
 from datetime import datetime, timezone
@@ -20,6 +20,10 @@ class LegalChunk(Base):
     """Chunked legal document content for RAG retrieval."""
 
     __tablename__ = "legal_chunks"
+    __table_args__ = (
+        Index("ix_legal_chunks_doc_chunk_order", "doc_id", "chunk_index"),
+        Index("ix_legal_chunks_celex_language", "celex", "language"),
+    )
 
     id = Column(Integer, primary_key=True)
     chunk_id = Column(String(255), unique=True, nullable=False, index=True)

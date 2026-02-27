@@ -15,7 +15,7 @@ class Annotation(Base):
     __tablename__ = "annotations"
 
     id = Column(Integer, primary_key=True, index=True)
-    doc_id = Column(Integer, ForeignKey("legal_documents.id"), nullable=False)
+    doc_id = Column(Integer, ForeignKey("legal_documents.id"), nullable=False, index=True)
     user_email = Column(String, nullable=False)  # User who created the annotation
     content = Column(Text, nullable=False)
     article_reference = Column(String, nullable=True)  # e.g., "Article 5(3)"

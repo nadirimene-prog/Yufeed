@@ -12,7 +12,7 @@ from typing import Optional, List
 from pydantic import BaseModel, Field
 
 from fastapi import APIRouter, Depends, HTTPException, Query
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, joinedload
 from sqlalchemy import or_
 import sqlalchemy as sa
 from sqlalchemy.dialects import postgresql
@@ -103,12 +103,15 @@ def _obligation_to_dict(
     doc: LegalDocument,
     db: Session = None,
     tenant_id: Optional[str] = None,
+    linked_policy_override: Optional[dict] = None,
+    linked_risks_count_override: Optional[int] = None,
+    internal_rules_count_override: Optional[int] = None,
 ) -> dict:
     title = doc.title or doc.celex or doc.source_reference or "Untitled document"
 
     # Get linked policy info if available
-    linked_policy = None
-    if obligation.linked_policy_id and db:
+    linked_policy = linked_policy_override
+    if linked_policy is None and obligation.linked_policy_id and db:
         policy = (
             db.query(PolicyDocument)
             .filter(PolicyDocument.id == obligation.linked_policy_id)
@@ -123,8 +126,10 @@ def _obligation_to_dict(
             }
 
     # Get linked risks count
-    linked_risks_count = 0
-    if db:
+    linked_risks_count = linked_risks_count_override
+    if linked_risks_count is None:
+        linked_risks_count = 0
+    if linked_risks_count_override is None and db:
         linked_risks_count = (
             db.query(ObligationRiskLink)
             .filter(ObligationRiskLink.obligation_id == obligation.id)
@@ -132,8 +137,10 @@ def _obligation_to_dict(
         )
 
     # Get internal rules count
-    internal_rules_count = 0
-    if db:
+    internal_rules_count = internal_rules_count_override
+    if internal_rules_count is None:
+        internal_rules_count = 0
+    if internal_rules_count_override is None and db:
         rule_query = db.query(InternalRule).filter(InternalRule.obligation_id == obligation.id)
         if tenant_id:
             rule_query = rule_query.filter(
@@ -174,6 +181,82 @@ def _obligation_to_dict(
             "scope_tags": doc.scope_tags,
         },
     }
+
+
+def _build_obligation_dicts_batch(
+    rows: List[tuple[RegulatoryObligation, LegalDocument]],
+    db: Session,
+    tenant_id: Optional[str],
+) -> List[dict]:
+    if not rows:
+        return []
+
+    obligations = [obligation for obligation, _ in rows]
+    docs_by_obligation_id = {obligation.id: doc for obligation, doc in rows}
+    obligation_ids = [obligation.id for obligation in obligations]
+    policy_ids = {
+        obligation.linked_policy_id
+        for obligation in obligations
+        if obligation.linked_policy_id is not None
+    }
+
+    policies_by_id: dict[int, PolicyDocument] = {}
+    if policy_ids:
+        policy_query = db.query(PolicyDocument).filter(PolicyDocument.id.in_(policy_ids))
+        if tenant_id:
+            policy_query = policy_query.filter(
+                or_(PolicyDocument.tenant_id.is_(None), PolicyDocument.tenant_id == tenant_id)
+            )
+        policies_by_id = {policy.id: policy for policy in policy_query.all()}
+
+    linked_risk_counts = dict(
+        db.query(ObligationRiskLink.obligation_id, sa.func.count(ObligationRiskLink.id))
+        .filter(ObligationRiskLink.obligation_id.in_(obligation_ids))
+        .group_by(ObligationRiskLink.obligation_id)
+        .all()
+    )
+
+    internal_rule_query = db.query(
+        InternalRule.obligation_id, sa.func.count(InternalRule.id)
+    ).filter(InternalRule.obligation_id.in_(obligation_ids))
+    if tenant_id:
+        internal_rule_query = internal_rule_query.filter(
+            or_(InternalRule.tenant_id.is_(None), InternalRule.tenant_id == tenant_id)
+        )
+    internal_rule_counts = dict(internal_rule_query.group_by(InternalRule.obligation_id).all())
+
+    items: List[dict] = []
+    for obligation in obligations:
+        doc = docs_by_obligation_id.get(obligation.id)
+        if not doc:
+            continue
+        policy = (
+            policies_by_id.get(obligation.linked_policy_id)
+            if obligation.linked_policy_id is not None
+            else None
+        )
+        linked_policy = (
+            {
+                "id": policy.id,
+                "policy_id": policy.policy_id,
+                "name": policy.name,
+                "status": policy.status,
+            }
+            if policy
+            else None
+        )
+        items.append(
+            _obligation_to_dict(
+                obligation,
+                doc,
+                db=None,
+                tenant_id=tenant_id,
+                linked_policy_override=linked_policy,
+                linked_risks_count_override=int(linked_risk_counts.get(obligation.id, 0)),
+                internal_rules_count_override=int(internal_rule_counts.get(obligation.id, 0)),
+            )
+        )
+    return items
 
 
 @router.get("/coverage-stats", include_in_schema=False)
@@ -708,10 +791,7 @@ def list_obligations(
 
     response = {
         "total": total,
-        "items": [
-            _obligation_to_dict(obligation, doc, db, tenant_id=effective_tenant_id)
-            for obligation, doc in rows
-        ],
+        "items": _build_obligation_dicts_batch(rows, db, effective_tenant_id),
     }
     if status_counts is not None:
         response["status_counts"] = status_counts
@@ -1077,6 +1157,12 @@ def get_policy_template_suggestions(
                 db.query(PolicyDocument).filter(PolicyDocument.policy_id.in_(template_ids)).all()
             ):
                 master_policies[policy.policy_id] = policy
+        policies_by_template_id = {}
+        all_policies = db.query(PolicyDocument).all()
+        for policy_doc in all_policies:
+            template_id = (policy_doc.metadata_json or {}).get("template_id")
+            if template_id and template_id not in policies_by_template_id:
+                policies_by_template_id[template_id] = policy_doc
 
         scored = []
         for template in templates:
@@ -1092,14 +1178,7 @@ def get_policy_template_suggestions(
         for score, template in scored[:limit]:
             policy = master_policies.get(template.template_id)
             if not policy:
-                policy = next(
-                    (
-                        p
-                        for p in db.query(PolicyDocument).all()
-                        if (p.metadata_json or {}).get("template_id") == template.template_id
-                    ),
-                    None,
-                )
+                policy = policies_by_template_id.get(template.template_id)
             if not policy:
                 continue
             suggestions.append(
@@ -1292,12 +1371,12 @@ async def update_obligation(
 
     if new_status == "in_review":
         obligation.reviewed_by = current_user.email
+    doc = db.query(LegalDocument).filter(LegalDocument.id == obligation.doc_id).first()
+    if not doc:
+        raise HTTPException(status_code=404, detail="Linked document not found")
+
     if new_status == "approved":
         # Ensure an approved obligation is mapped into a policy and has an internal rule.
-        doc = db.query(LegalDocument).filter(LegalDocument.id == obligation.doc_id).first()
-        if not doc:
-            raise HTTPException(status_code=404, detail="Linked document not found")
-
         linked_policy: Optional[PolicyDocument] = None
         if obligation.linked_policy_id:
             linked_policy = (
@@ -1386,10 +1465,6 @@ async def update_obligation(
 
     db.commit()
     db.refresh(obligation)
-
-    doc = db.query(LegalDocument).filter(LegalDocument.id == obligation.doc_id).first()
-    if not doc:
-        raise HTTPException(status_code=404, detail="Linked document not found")
 
     # Send WebSocket notification
     try:
@@ -1749,27 +1824,6 @@ async def bulk_approve_obligations(
             except Exception:
                 pass
 
-            try:
-                tenant_id = _effective_tenant_id(current_user) or "default"
-                record_event(
-                    db=db,
-                    tenant_id=tenant_id,
-                    event_type="compliance.obligation.bulk_approved",
-                    entity_type="regulatory_obligation",
-                    entity_id=str(obligation_id),
-                    source="api.obligations.bulk_approve",
-                    payload={"status": "approved"},
-                    metadata={"actor_id": current_user.user_id, "actor_email": current_user.email},
-                )
-                record_decision(
-                    db=db,
-                    tenant_id=tenant_id,
-                    decision="allow",
-                    reason_codes=["bulk_approval"],
-                    metadata={"obligation_id": obligation_id, "status": "approved"},
-                )
-            except Exception:
-                pass
         except HTTPException as exc:
             failed += 1
             error_msg = (
@@ -1794,20 +1848,6 @@ async def bulk_approve_obligations(
             )
             try:
                 obligation_approval_total.labels(status="failed").inc()
-            except Exception:
-                pass
-            try:
-                tenant_id = _effective_tenant_id(current_user) or "default"
-                record_event(
-                    db=db,
-                    tenant_id=tenant_id,
-                    event_type="compliance.obligation.bulk_approval_failed",
-                    entity_type="regulatory_obligation",
-                    entity_id=str(obligation_id),
-                    source="api.obligations.bulk_approve",
-                    payload={"status": "failed", "error": str(exc)},
-                    metadata={"actor_id": current_user.user_id, "actor_email": current_user.email},
-                )
             except Exception:
                 pass
             db.rollback()
@@ -1839,49 +1879,73 @@ def get_obligation_coverage_stats(
         )
 
     total = base_query.count()
-    linked_count = base_query.filter(RegulatoryObligation.linked_policy_id.isnot(None)).count()
-    unlinked_count = max(total - linked_count, 0)
-
-    ai_suggested_count = (
-        db.query(sa.func.count(sa.func.distinct(ObligationPolicyMapping.obligation_id)))
-        .filter(ObligationPolicyMapping.mapped_by.ilike("ai:%"))
-        .scalar()
+    linked_count = (
+        base_query.with_entities(
+            sa.func.sum(sa.case((RegulatoryObligation.linked_policy_id.isnot(None), 1), else_=0))
+        ).scalar()
         or 0
     )
+    unlinked_count = max(total - linked_count, 0)
 
     high_t = float(getattr(settings, "POLICY_MATCH_HIGH_CONFIDENCE", 0.70))
     med_t = float(getattr(settings, "POLICY_MATCH_MEDIUM_CONFIDENCE", 0.45))
-    high_count = (
-        db.query(sa.func.count(ObligationPolicyMapping.id))
-        .filter(
-            ObligationPolicyMapping.mapped_by.ilike("ai:%"),
-            ObligationPolicyMapping.mapping_confidence >= high_t,
-        )
-        .scalar()
-        or 0
-    )
-    medium_count = (
-        db.query(sa.func.count(ObligationPolicyMapping.id))
-        .filter(
-            ObligationPolicyMapping.mapped_by.ilike("ai:%"),
-            ObligationPolicyMapping.mapping_confidence < high_t,
-            ObligationPolicyMapping.mapping_confidence >= med_t,
-        )
-        .scalar()
-        or 0
-    )
-    low_count = (
-        db.query(sa.func.count(ObligationPolicyMapping.id))
-        .filter(
-            ObligationPolicyMapping.mapped_by.ilike("ai:%"),
-            or_(
-                ObligationPolicyMapping.mapping_confidence < med_t,
-                ObligationPolicyMapping.mapping_confidence.is_(None),
-            ),
-        )
-        .scalar()
-        or 0
-    )
+    ai_suggested_count, high_count, medium_count, low_count = db.query(
+        sa.func.count(
+            sa.func.distinct(
+                sa.case(
+                    (
+                        ObligationPolicyMapping.mapped_by.ilike("ai:%"),
+                        ObligationPolicyMapping.obligation_id,
+                    ),
+                    else_=None,
+                )
+            )
+        ),
+        sa.func.sum(
+            sa.case(
+                (
+                    sa.and_(
+                        ObligationPolicyMapping.mapped_by.ilike("ai:%"),
+                        ObligationPolicyMapping.mapping_confidence >= high_t,
+                    ),
+                    1,
+                ),
+                else_=0,
+            )
+        ),
+        sa.func.sum(
+            sa.case(
+                (
+                    sa.and_(
+                        ObligationPolicyMapping.mapped_by.ilike("ai:%"),
+                        ObligationPolicyMapping.mapping_confidence < high_t,
+                        ObligationPolicyMapping.mapping_confidence >= med_t,
+                    ),
+                    1,
+                ),
+                else_=0,
+            )
+        ),
+        sa.func.sum(
+            sa.case(
+                (
+                    sa.and_(
+                        ObligationPolicyMapping.mapped_by.ilike("ai:%"),
+                        sa.or_(
+                            ObligationPolicyMapping.mapping_confidence < med_t,
+                            ObligationPolicyMapping.mapping_confidence.is_(None),
+                        ),
+                    ),
+                    1,
+                ),
+                else_=0,
+            )
+        ),
+    ).one()
+    ai_suggested_count = int(ai_suggested_count or 0)
+    high_count = int(high_count or 0)
+    medium_count = int(medium_count or 0)
+    low_count = int(low_count or 0)
 
     return {
         "total": total,
@@ -1912,12 +1976,15 @@ def get_obligation_risks(
         raise HTTPException(status_code=404, detail="Obligation not found")
 
     links = (
-        db.query(ObligationRiskLink).filter(ObligationRiskLink.obligation_id == obligation_id).all()
+        db.query(ObligationRiskLink)
+        .options(joinedload(ObligationRiskLink.risk_entry))
+        .filter(ObligationRiskLink.obligation_id == obligation_id)
+        .all()
     )
 
     result = []
     for link in links:
-        risk_entry = db.query(RiskEntry).filter(RiskEntry.id == link.risk_entry_id).first()
+        risk_entry = link.risk_entry
         if risk_entry:
             result.append(
                 {

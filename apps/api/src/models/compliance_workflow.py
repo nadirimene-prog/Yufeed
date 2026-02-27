@@ -44,7 +44,7 @@ class IngestionRun(Base):
     __tablename__ = "ingestion_runs"
 
     id = Column(Integer, primary_key=True)
-    source_id = Column(Integer, ForeignKey("regulatory_sources.id"), nullable=False)
+    source_id = Column(Integer, ForeignKey("regulatory_sources.id"), nullable=False, index=True)
     status = Column(String(50), default="running")  # running | completed | failed
     started_at = Column(DateTime, default=utc_now)
     completed_at = Column(DateTime, nullable=True)

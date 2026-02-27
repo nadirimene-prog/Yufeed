@@ -15,6 +15,7 @@ from sqlalchemy import (
     ForeignKey,
     JSON,
     UniqueConstraint,
+    Index,
 )
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import relationship
@@ -201,6 +202,7 @@ class TenantAuditLog(Base):
     """
 
     __tablename__ = "tenant_audit_logs"
+    __table_args__ = (Index("ix_tenant_audit_logs_tenant_created", "tenant_id", "created_at"),)
 
     id = Column(Integer, primary_key=True)
     tenant_id = Column(Integer, ForeignKey("tenants.id"), nullable=False, index=True)

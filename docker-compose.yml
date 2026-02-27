@@ -12,6 +12,26 @@ services:
       POSTGRES_DB: yufeed
       POSTGRES_USER: postgres
       POSTGRES_PASSWORD: postgres
+    command:
+      - postgres
+      - -c
+      - shared_buffers=256MB
+      - -c
+      - work_mem=16MB
+      - -c
+      - maintenance_work_mem=128MB
+      - -c
+      - effective_cache_size=1GB
+      - -c
+      - max_connections=100
+      - -c
+      - checkpoint_completion_target=0.9
+      - -c
+      - random_page_cost=1.1
+      - -c
+      - log_min_duration_statement=1000
+      - -c
+      - autovacuum_vacuum_scale_factor=0.05
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U postgres"]
       interval: 5s
@@ -21,6 +41,8 @@ services:
       - "127.0.0.1:5432:5432"
     volumes:
       - postgres_data:/var/lib/postgresql/data
+    mem_limit: 1g
+    cpus: 1.0
     networks:
       - default
     restart: always
@@ -31,6 +53,10 @@ services:
     command: >
       redis-server
       --appendonly yes
+      --save ""
+      --timeout 300
+      --tcp-keepalive 60
+      --maxclients 500
       --maxmemory 512mb
       --maxmemory-policy allkeys-lru
     healthcheck:
@@ -42,6 +68,8 @@ services:
       - "127.0.0.1:6379:6379"
     volumes:
       - redis_data:/data
+    mem_limit: 768m
+    cpus: 1.0
     networks:
       - default
     restart: always
@@ -52,7 +80,7 @@ services:
     environment:
       - discovery.type=single-node
       - bootstrap.memory_lock=true
-      - OPENSEARCH_JAVA_OPTS=-Xms512m -Xmx512m
+      - OPENSEARCH_JAVA_OPTS=-Xms1g -Xmx1g
       - DISABLE_SECURITY_PLUGIN=true
     ulimits:
       memlock:
@@ -63,8 +91,16 @@ services:
         hard: 65536
     ports:
       - "127.0.0.1:9200:9200"
+    healthcheck:
+      test: ["CMD-SHELL", "curl -sf http://localhost:9200/_cluster/health?wait_for_status=yellow&timeout=5s >/dev/null"]
+      interval: 15s
+      timeout: 10s
+      retries: 8
+      start_period: 20s
     volumes:
       - opensearch_data:/usr/share/opensearch/data
+    mem_limit: 2g
+    cpus: 2.0
     networks:
       - default
     restart: always
@@ -78,14 +114,14 @@ services:
       context: ./apps/api
       dockerfile: Dockerfile
     container_name: yufeed-api
-    command: uvicorn src.main:app --host 0.0.0.0 --port 8000 --reload
+    command: uvicorn src.main:app --host 0.0.0.0 --port 8000 --workers 4 --timeout-keep-alive 65
     depends_on:
       db:
         condition: service_healthy
       redis:
         condition: service_healthy
       opensearch:
-        condition: service_started
+        condition: service_healthy
     environment:
       # Database
       DATABASE_URL: postgresql://postgres:postgres@db:5432/yufeed
@@ -143,9 +179,9 @@ services:
       retries: 3
       start_period: 40s
     ports:
-      - "8000:8000"
-    volumes:
-      - ./apps/api:/app
+      - "127.0.0.1:8000:8000"
+    mem_limit: 2g
+    cpus: 2.0
     networks:
       - default
       - monitoring
@@ -156,7 +192,7 @@ services:
       context: ./apps/api
       dockerfile: Dockerfile
     container_name: yufeed-worker
-    command: python -m celery -A src.worker.celery_app worker --loglevel=info
+    command: python -m celery -A src.worker.celery_app worker --loglevel=info --concurrency=4 --prefetch-multiplier=1 --max-tasks-per-child=100
     depends_on:
       db:
         condition: service_healthy
@@ -205,8 +241,8 @@ services:
       # Other
       RSS_USER_AGENT: Yufeed/1.0
       REGULATORY_SCOPE_FILTER: ${REGULATORY_SCOPE_FILTER:-psp,eme,vasp}
-    volumes:
-      - ./apps/api:/app
+    mem_limit: 4g
+    cpus: 4.0
     networks:
       - default
     restart: always
@@ -265,8 +301,8 @@ services:
       # Other
       RSS_USER_AGENT: Yufeed/1.0
       REGULATORY_SCOPE_FILTER: ${REGULATORY_SCOPE_FILTER:-psp,eme,vasp}
-    volumes:
-      - ./apps/api:/app
+    mem_limit: 1g
+    cpus: 1.0
     networks:
       - default
     restart: always
@@ -276,21 +312,19 @@ services:
       context: ./apps/web
       dockerfile: Dockerfile
     container_name: yufeed-web
-    command: ./node_modules/.bin/next dev --webpack
+    command: node server.js
     depends_on:
       api:
         condition: service_healthy
     environment:
-      NODE_ENV: development
+      NODE_ENV: production
       NEXT_DISABLE_TURBOPACK: "1"
       NEXT_PUBLIC_API_URL: http://localhost:8000
       API_INTERNAL_URL: http://api:8000
     ports:
-      - "3000:3000"
-    volumes:
-      - ./apps/web:/app
-      - /app/node_modules
-      - /app/.next
+      - "127.0.0.1:3000:3000"
+    mem_limit: 1g
+    cpus: 1.0
     networks:
       - default
     restart: always
@@ -325,7 +359,7 @@ services:
       - --web.enable-lifecycle
       - --storage.tsdb.retention.time=30d
     ports:
-      - "9090:9090"
+      - "127.0.0.1:9090:9090"
     volumes:
       - ./monitoring/prometheus/prometheus.yml:/etc/prometheus/prometheus.yml
       - ./monitoring/prometheus/alerts.yml:/etc/prometheus/alerts.yml
@@ -346,7 +380,7 @@ services:
       GF_SERVER_ROOT_URL: http://localhost:3001
       GF_INSTALL_PLUGINS: grafana-piechart-panel
     ports:
-      - "3001:3000"
+      - "127.0.0.1:3001:3000"
     volumes:
       - grafana_data:/var/lib/grafana
       - ./monitoring/grafana/provisioning:/etc/grafana/provisioning
@@ -377,15 +411,8 @@ services:
       COLLECTOR_ZIPKIN_HOST_PORT: ":9411"
       COLLECTOR_OTLP_ENABLED: "true"
     ports:
-      - "5775:5775/udp"
-      - "6831:6831/udp"
-      - "6832:6832/udp"
-      - "5778:5778"
-      - "16686:16686"
-      - "14250:14250"
-      - "14268:14268"
-      - "14269:14269"
-      - "9411:9411"
+      - "127.0.0.1:16686:16686"
+      - "127.0.0.1:14268:14268"
     networks:
       - monitoring
     restart: unless-stopped

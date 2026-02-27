@@ -74,6 +74,51 @@ def test_dashboard_overview_returns_expected_contract(db_session):
     assert payload["freshness"]["stale_after_seconds"] == 120
     assert "median_time_to_first_action_delta_minutes" in payload["throughput"]
     assert "median_case_resolution_history" in payload["throughput"]
+    assert isinstance(payload["queue_summary_previous"], dict)
+    assert isinstance(payload["critical_bar_previous"], dict)
+    assert "rule_drift_score_history" in payload["governance"]
+    assert isinstance(payload["governance"]["rule_drift_score_history"], list)
+
+
+@pytest.mark.unit
+def test_dashboard_overview_sar_due_24h_counts_future_due_window(db_session):
+    now = datetime.now(timezone.utc)
+    due_soon_case = Case(
+        tenant_id="default",
+        case_id="case_sar_due_soon",
+        status="open",
+        priority="high",
+        outcome="sar_required",
+        opened_at=now - timedelta(hours=60),  # due in 12h when SLA deadline = 72h
+    )
+    not_due_soon_case = Case(
+        tenant_id="default",
+        case_id="case_sar_not_due",
+        status="open",
+        priority="high",
+        outcome="sar_required",
+        opened_at=now - timedelta(hours=20),  # due in >24h
+    )
+    expired_case = Case(
+        tenant_id="default",
+        case_id="case_sar_expired",
+        status="open",
+        priority="high",
+        outcome="sar_required",
+        opened_at=now - timedelta(hours=90),  # already past implied deadline
+    )
+    db_session.add_all([due_soon_case, not_due_soon_case, expired_case])
+    db_session.commit()
+
+    payload = overview_api.get_dashboard_overview(
+        view="operations",
+        time_range="7d",
+        limit=12,
+        db=db_session,
+        _=None,
+    )
+
+    assert payload["critical_bar"]["sar_due_24h"] >= 1
 
 
 @pytest.mark.unit
