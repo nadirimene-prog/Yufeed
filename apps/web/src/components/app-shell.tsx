@@ -85,7 +85,8 @@ export default function AppShell({ children }: AppShellProps) {
     "/forgot-password",
     "/request-access",
   ].includes(pathname);
-  const hasToken = Boolean(getAuthToken());
+  // eslint-disable-next-line react-hooks/exhaustive-deps -- Re-evaluate token on route changes to avoid auth FOUC.
+  const hasToken = React.useMemo(() => Boolean(getAuthToken()), [pathname]);
 
   React.useEffect(() => {
     if (!isChromeless && !hasToken) {
