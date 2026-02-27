@@ -1,7 +1,7 @@
 """Drop redundant ai_usage single-column indexes.
 
-Revision ID: 20260227_drop_redundant_ai_usage_indexes
-Revises: 20260227_drop_duplicate_transaction_index
+Revision ID: 20260227_drop_ai_usage_idx
+Revises: 20260227_drop_dup_txn_idx
 Create Date: 2026-02-27 12:20:00.000000
 """
 
@@ -9,8 +9,8 @@ from alembic import op
 
 
 # revision identifiers, used by Alembic.
-revision = "20260227_drop_redundant_ai_usage_indexes"
-down_revision = "20260227_drop_duplicate_transaction_index"
+revision = "20260227_drop_ai_usage_idx"
+down_revision = "20260227_drop_dup_txn_idx"
 branch_labels = None
 depends_on = None
 
