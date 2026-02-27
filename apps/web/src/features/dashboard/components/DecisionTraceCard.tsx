@@ -14,6 +14,13 @@ export function DecisionTraceCard({
   compact = false,
   className,
 }: DecisionTraceCardProps) {
+  const facts = trace?.facts_used ?? [];
+  const visibleFacts = facts.slice(0, 6);
+  const hiddenFactCount = Math.max(0, facts.length - visibleFacts.length);
+  const rules = trace?.policy_rules_triggered ?? [];
+  const visibleRules = rules.slice(0, 6);
+  const hiddenRuleCount = Math.max(0, rules.length - visibleRules.length);
+
   return (
     <section
       className={`rounded-xl border border-border bg-slate-50 p-3 ${className ?? ""}`.trim()}
@@ -66,11 +73,16 @@ export function DecisionTraceCard({
             <div className="grid grid-cols-1 gap-2 md:grid-cols-2">
               <div className="rounded-lg border border-border bg-white p-2">
                 <p className="mb-1 text-muted-foreground">Facts used</p>
-                {(trace.facts_used ?? []).length > 0 ? (
+                {facts.length > 0 ? (
                   <ul className="space-y-1 text-foreground">
-                    {(trace.facts_used ?? []).slice(0, 6).map((fact) => (
+                    {visibleFacts.map((fact) => (
                       <li key={fact}>• {fact}</li>
                     ))}
+                    {hiddenFactCount > 0 ? (
+                      <li className="text-muted-foreground">
+                        • …and {hiddenFactCount} more
+                      </li>
+                    ) : null}
                   </ul>
                 ) : (
                   <p className="text-muted-foreground">No facts listed</p>
@@ -78,13 +90,16 @@ export function DecisionTraceCard({
               </div>
               <div className="rounded-lg border border-border bg-white p-2">
                 <p className="mb-1 text-muted-foreground">Policy triggers</p>
-                {(trace.policy_rules_triggered ?? []).length > 0 ? (
+                {rules.length > 0 ? (
                   <ul className="space-y-1 text-foreground">
-                    {(trace.policy_rules_triggered ?? [])
-                      .slice(0, 6)
-                      .map((rule) => (
-                        <li key={rule}>• {rule.replaceAll("_", " ")}</li>
-                      ))}
+                    {visibleRules.map((rule) => (
+                      <li key={rule}>• {rule.replaceAll("_", " ")}</li>
+                    ))}
+                    {hiddenRuleCount > 0 ? (
+                      <li className="text-muted-foreground">
+                        • …and {hiddenRuleCount} more
+                      </li>
+                    ) : null}
                   </ul>
                 ) : (
                   <p className="text-muted-foreground">

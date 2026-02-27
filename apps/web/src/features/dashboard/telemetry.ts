@@ -6,7 +6,8 @@ export type DashboardTelemetryEventName =
   | "dashboard_action_submit"
   | "dashboard_action_next"
   | "dashboard_shortcut_used"
-  | "dashboard_autosave_result";
+  | "dashboard_autosave_result"
+  | "dashboard_ui_timing";
 
 export type DashboardTelemetryPayload = Record<string, unknown>;
 

@@ -157,7 +157,7 @@ export function useDashboardDraftAutosave({
 
       inFlightRef.current = true;
       if (currentItemIdRef.current === targetItemId) {
-        setStatus(options.source === "autosave" ? "saving" : "saving");
+        setStatus("saving");
       }
 
       try {

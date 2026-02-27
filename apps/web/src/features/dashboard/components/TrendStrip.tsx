@@ -1,6 +1,7 @@
 "use client";
 
 import { AlertTriangle, BarChart3, Clock, FileWarning } from "lucide-react";
+import { memo } from "react";
 import { Sparkline } from "@/components/ui/sparkline";
 import {
   CriticalDecisionBar,
@@ -13,10 +14,13 @@ import DataFreshnessBadge from "@/features/dashboard/components/DataFreshnessBad
 
 interface TrendStripProps {
   queueSummary: DashboardQueueSummary | undefined;
+  queueSummaryPrevious?: DashboardQueueSummary | null;
   throughput: DashboardThroughputSnapshot | undefined;
   criticalBar: CriticalDecisionBar | undefined;
+  criticalBarPrevious?: CriticalDecisionBar | null;
   timeRange: "24h" | "7d" | "30d";
   freshness?: DashboardFreshnessMeta | null;
+  nowMs?: number | null;
   loading?: boolean;
 }
 
@@ -44,10 +48,13 @@ function formatDelta(value?: number | null, suffix = "") {
 
 export function TrendStrip({
   queueSummary,
+  queueSummaryPrevious = null,
   throughput,
   criticalBar,
+  criticalBarPrevious = null,
   timeRange,
   freshness = null,
+  nowMs = null,
   loading = false,
 }: TrendStripProps) {
   const q =
@@ -74,17 +81,34 @@ export function TrendStrip({
       high_risk_cases_unassigned: 0,
       ingestion_lag_minutes: 0,
     } satisfies CriticalDecisionBar);
+  const backlogDelta =
+    queueSummaryPrevious != null
+      ? q.alerts_open +
+        q.cases_open -
+        (queueSummaryPrevious.alerts_open + queueSummaryPrevious.cases_open)
+      : null;
+  const slaBreachesDelta =
+    criticalBarPrevious != null
+      ? c.p1_sla_breaches +
+        c.p2_sla_breaches -
+        (criticalBarPrevious.p1_sla_breaches +
+          criticalBarPrevious.p2_sla_breaches)
+      : null;
+  const sarPressureDelta =
+    queueSummaryPrevious != null && criticalBarPrevious != null
+      ? q.reg_tasks_due +
+        c.sar_due_24h -
+        (queueSummaryPrevious.reg_tasks_due + criticalBarPrevious.sar_due_24h)
+      : null;
 
-  // TODO(api-contract): wire these deltas to backend-provided previous-period values
-  // once DashboardThroughputSnapshot includes optional comparison metrics.
   const cards = [
     {
       id: "backlog",
       label: "Backlog",
       value: q.alerts_open + q.cases_open,
       valueSuffix: "",
-      helper: "No comparison data",
-      delta: null,
+      helper: backlogDelta !== null ? "vs last period" : "No comparison data",
+      delta: formatDelta(backlogDelta),
       icon: BarChart3,
       tone: toneClass(q.alerts_open + q.cases_open, 50, 100),
       history: null,
@@ -94,10 +118,11 @@ export function TrendStrip({
       label: "SLA Breaches",
       value: c.p1_sla_breaches + c.p2_sla_breaches,
       valueSuffix: "",
-      helper: "No comparison data",
-      delta: null,
+      helper:
+        slaBreachesDelta !== null ? "vs last period" : "No comparison data",
+      delta: formatDelta(slaBreachesDelta),
       icon: AlertTriangle,
-      tone: toneClass(c.p1_sla_breaches + c.p2_sla_breaches, 1, 1),
+      tone: toneClass(c.p1_sla_breaches + c.p2_sla_breaches, 1, 3),
       history: null,
     },
     {
@@ -105,8 +130,9 @@ export function TrendStrip({
       label: "SAR Pressure",
       value: q.reg_tasks_due + c.sar_due_24h,
       valueSuffix: "",
-      helper: "No comparison data",
-      delta: null,
+      helper:
+        sarPressureDelta !== null ? "vs last period" : "No comparison data",
+      delta: formatDelta(sarPressureDelta),
       icon: FileWarning,
       tone: toneClass(q.reg_tasks_due + c.sar_due_24h, 1, 2),
       history: null,
@@ -160,7 +186,12 @@ export function TrendStrip({
             Window: {formatRangeLabel(timeRange)}
           </p>
         </div>
-        <DataFreshnessBadge freshness={freshness} label="Updated" compact />
+        <DataFreshnessBadge
+          freshness={freshness}
+          label="Updated"
+          compact
+          nowMs={nowMs}
+        />
       </div>
 
       <div className="grid grid-cols-1 gap-2">
@@ -215,4 +246,4 @@ export function TrendStrip({
   );
 }
 
-export default TrendStrip;
+export default memo(TrendStrip);

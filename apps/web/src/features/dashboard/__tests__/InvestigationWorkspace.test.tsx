@@ -31,9 +31,13 @@ vi.mock("@/features/dashboard/components/ReviewGateBanner", () => ({
   default: () => <div data-testid="review-gate-banner" />,
 }));
 
+const caseCommentsSpy = vi.fn();
 vi.mock("@/components/workbench/CaseComments", () => ({
   __esModule: true,
-  default: () => <div data-testid="case-comments" />,
+  default: (props: any) => {
+    caseCommentsSpy(props);
+    return <div data-testid="case-comments" />;
+  },
 }));
 
 vi.mock("@/features/dashboard/components/WorkspaceTabs", () => ({
@@ -116,13 +120,14 @@ function makeDetail(
 describe("InvestigationWorkspace", () => {
   beforeEach(() => {
     localStorage.clear();
+    caseCommentsSpy.mockReset();
   });
 
   afterEach(() => {
     vi.useRealTimers();
   });
 
-  it("does not reset Actions tab or notes on same-item detail updates", () => {
+  it("does not reset Actions tab or notes on same-item detail updates", async () => {
     const props = {
       selectedItem: makeSelectedItem("analyst_1"),
       detail: makeDetail("analyst_1"),
@@ -151,6 +156,9 @@ describe("InvestigationWorkspace", () => {
         detail={makeDetail("analyst_2")}
       />,
     );
+    await act(async () => {
+      await Promise.resolve();
+    });
 
     expect(screen.getByRole("tab", { name: "Actions" })).toHaveAttribute(
       "aria-selected",
@@ -209,6 +217,9 @@ describe("InvestigationWorkspace", () => {
         })}
       />,
     );
+    await act(async () => {
+      await Promise.resolve();
+    });
 
     expect(
       screen.getByDisplayValue("Server narrative item two"),
@@ -224,11 +235,95 @@ describe("InvestigationWorkspace", () => {
     );
 
     rerender(<InvestigationWorkspace {...props} />);
+    await act(async () => {
+      await Promise.resolve();
+    });
 
     expect(screen.getByDisplayValue("Draft for item one")).toBeInTheDocument();
     expect(
       screen.queryByDisplayValue("Draft for item two"),
     ).not.toBeInTheDocument();
+  });
+
+  it("shows a stale detail warning when freshness metadata is stale", () => {
+    render(
+      <InvestigationWorkspace
+        selectedItem={makeSelectedItem("analyst_1")}
+        detail={makeDetail("analyst_1", {
+          freshness: {
+            generated_at: "2020-01-01T00:00:00Z",
+            stale_after_seconds: 30,
+          },
+        })}
+        onAction={vi.fn()}
+        onReview={vi.fn()}
+        onSaveDraft={vi.fn()}
+        onSnoozeAlert={vi.fn()}
+      />,
+    );
+
+    expect(
+      screen.getByText(/Detail context may be stale/i),
+    ).toBeInTheDocument();
+  });
+
+  it("passes the case record id to case comments tab", () => {
+    const selectedCase = makeSelectedItem("analyst_1", {
+      kind: "case",
+      record_id: "case_record_123",
+      ref_id: "CASE-123",
+    });
+    render(
+      <InvestigationWorkspace
+        selectedItem={selectedCase}
+        detail={makeDetail("analyst_1", { work_item: selectedCase })}
+        onAction={vi.fn()}
+        onReview={vi.fn()}
+        onSaveDraft={vi.fn()}
+      />,
+    );
+
+    fireEvent.click(screen.getByRole("tab", { name: "Comments" }));
+
+    expect(caseCommentsSpy).toHaveBeenCalled();
+    const lastCall =
+      caseCommentsSpy.mock.calls[caseCommentsSpy.mock.calls.length - 1];
+    expect(lastCall?.[0]).toEqual(
+      expect.objectContaining({
+        caseId: "case_record_123",
+      }),
+    );
+  });
+
+  it("keeps triage summary visible and offers retry when detail load fails", () => {
+    const onRetryDetail = vi.fn();
+    render(
+      <InvestigationWorkspace
+        selectedItem={makeSelectedItem("analyst_1")}
+        detail={null}
+        error="Failed to load work item detail"
+        message={{
+          text: "Action completed, but detail panel failed to refresh. Retry detail.",
+          type: "warning",
+        }}
+        onRetryDetail={onRetryDetail}
+        onAction={vi.fn()}
+        onReview={vi.fn()}
+        onSaveDraft={vi.fn()}
+        onSnoozeAlert={vi.fn()}
+      />,
+    );
+
+    expect(screen.getByText("ALERT-001")).toBeInTheDocument();
+    expect(
+      screen.getByText(/detail panel failed to refresh/i),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByText("Failed to load work item detail"),
+    ).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("button", { name: "Retry Detail" }));
+    expect(onRetryDetail).toHaveBeenCalledTimes(1);
   });
 
   it("flushes dirty draft immediately on tab switch before debounce window", async () => {

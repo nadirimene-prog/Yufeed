@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { memo } from "react";
 import {
   BarChart3,
   ClipboardCheck,
@@ -24,8 +25,24 @@ interface GovernancePanelProps {
   queueSummary: DashboardQueueSummary | undefined;
   health: SystemHealthSnapshot | undefined;
   freshness?: DashboardFreshnessMeta | null;
+  nowMs?: number | null;
   loading?: boolean;
 }
+
+const GOVERNANCE_THRESHOLDS = {
+  alertToCaseRate: {
+    warning: 0.2,
+    critical: 0.1,
+  },
+  falsePositiveProxyRate: {
+    warning: 0.2,
+    critical: 0.35,
+  },
+  auditCompletenessRate: {
+    warning: 0.9,
+    critical: 0.75,
+  },
+} as const;
 
 function percent(value: number) {
   return `${Math.round(Math.max(0, Math.min(1, value)) * 100)}%`;
@@ -80,6 +97,7 @@ export function GovernancePanel({
   queueSummary,
   health,
   freshness = null,
+  nowMs = null,
   loading = false,
 }: GovernancePanelProps) {
   const safeGovernance: DashboardGovernanceSnapshot =
@@ -120,7 +138,11 @@ export function GovernancePanel({
       title: "Alert→Case Conversion",
       icon: BarChart3,
       value: percent(safeGovernance.alert_to_case_rate),
-      tone: highIsGoodTone(safeGovernance.alert_to_case_rate, 0.2, 0.1),
+      tone: highIsGoodTone(
+        safeGovernance.alert_to_case_rate,
+        GOVERNANCE_THRESHOLDS.alertToCaseRate.warning,
+        GOVERNANCE_THRESHOLDS.alertToCaseRate.critical,
+      ),
       href: "/cases",
       history: toSparklineData(safeGovernance.alert_to_case_rate_history),
     },
@@ -128,7 +150,11 @@ export function GovernancePanel({
       title: "False Positive Proxy",
       icon: ClipboardCheck,
       value: percent(safeGovernance.fp_proxy_rate),
-      tone: lowIsGoodTone(safeGovernance.fp_proxy_rate, 0.2, 0.35),
+      tone: lowIsGoodTone(
+        safeGovernance.fp_proxy_rate,
+        GOVERNANCE_THRESHOLDS.falsePositiveProxyRate.warning,
+        GOVERNANCE_THRESHOLDS.falsePositiveProxyRate.critical,
+      ),
       href: "/transaction-alerts",
       history: toSparklineData(safeGovernance.fp_proxy_rate_history),
     },
@@ -136,7 +162,11 @@ export function GovernancePanel({
       title: "Audit Completeness",
       icon: FileCheck2,
       value: percent(safeGovernance.audit_completeness_rate),
-      tone: highIsGoodTone(safeGovernance.audit_completeness_rate, 0.9, 0.75),
+      tone: highIsGoodTone(
+        safeGovernance.audit_completeness_rate,
+        GOVERNANCE_THRESHOLDS.auditCompletenessRate.warning,
+        GOVERNANCE_THRESHOLDS.auditCompletenessRate.critical,
+      ),
       href: "/audit",
       history: toSparklineData(safeGovernance.audit_completeness_rate_history),
     },
@@ -168,7 +198,12 @@ export function GovernancePanel({
         <h2 className="text-sm font-semibold text-foreground">
           Governance & Controls
         </h2>
-        <DataFreshnessBadge freshness={freshness} label="Updated" compact />
+        <DataFreshnessBadge
+          freshness={freshness}
+          label="Updated"
+          compact
+          nowMs={nowMs}
+        />
       </div>
       <div className="space-y-2">
         {loading
@@ -237,4 +272,4 @@ export function GovernancePanel({
   );
 }
 
-export default GovernancePanel;
+export default memo(GovernancePanel);

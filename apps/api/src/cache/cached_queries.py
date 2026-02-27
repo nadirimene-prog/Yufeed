@@ -3,7 +3,10 @@ Cached query functions for hot endpoints.
 Phase 4A: Task 3.2 & 3.3 - Implement Caching for Hot Endpoints
 """
 
+import hashlib
+import json
 from typing import List, Optional, Dict, Any
+from sqlalchemy import and_, case, func
 from sqlalchemy.orm import Session
 from datetime import datetime, timedelta, timezone
 
@@ -20,6 +23,14 @@ from src.models.models import LegalDocument
 # ============================================================================
 # USER RISK PROFILES (5min TTL)
 # ============================================================================
+
+
+def _as_utc(value: datetime | None) -> datetime | None:
+    if value is None:
+        return None
+    if value.tzinfo is None:
+        return value.replace(tzinfo=timezone.utc)
+    return value.astimezone(timezone.utc)
 
 
 def get_cached_user_risk_profile(db: Session, user_id: str) -> Optional[Dict[str, Any]]:
@@ -177,25 +188,26 @@ def get_cached_user_features(db: Session, user_id: str) -> Dict[str, Any]:
 def _compute_user_features(db: Session, user_id: str) -> Dict[str, Any]:
     """Compute user features from transactions."""
     now = utc_now()
+    cutoff_24h = now - timedelta(hours=24)
+    cutoff_7d = now - timedelta(days=7)
+    cutoff_30d = now - timedelta(days=30)
 
-    # Get transactions for different windows
-    txns_24h = (
-        db.query(Transaction)
-        .filter(Transaction.user_id == user_id, Transaction.timestamp >= now - timedelta(hours=24))
-        .all()
-    )
-
-    txns_7d = (
-        db.query(Transaction)
-        .filter(Transaction.user_id == user_id, Transaction.timestamp >= now - timedelta(days=7))
-        .all()
-    )
-
+    # Fetch once for 30 days and partition in-memory for smaller windows.
     txns_30d = (
         db.query(Transaction)
-        .filter(Transaction.user_id == user_id, Transaction.timestamp >= now - timedelta(days=30))
+        .filter(Transaction.user_id == user_id, Transaction.timestamp >= cutoff_30d)
         .all()
     )
+    txns_7d = []
+    txns_24h = []
+    for txn in txns_30d:
+        timestamp = _as_utc(txn.timestamp)
+        if not timestamp:
+            continue
+        if timestamp >= cutoff_7d:
+            txns_7d.append(txn)
+        if timestamp >= cutoff_24h:
+            txns_24h.append(txn)
 
     return {
         "user_id": user_id,
@@ -331,35 +343,42 @@ def get_cached_dashboard_stats(db: Session) -> Dict[str, Any]:
 def _compute_dashboard_stats(db: Session) -> Dict[str, Any]:
     """Compute dashboard statistics."""
     now = utc_now()
+    tx_24h_cutoff = now - timedelta(hours=24)
 
-    # Alert counts
-    total_alerts = db.query(Alert).count()
-    pending_alerts = db.query(Alert).filter(Alert.status == "pending").count()
-    critical_alerts = db.query(Alert).filter(Alert.severity == "critical").count()
+    alert_stats = db.query(
+        func.count(Alert.id).label("total_alerts"),
+        func.sum(case((Alert.status == "pending", 1), else_=0)).label("pending_alerts"),
+        func.sum(case((Alert.severity == "critical", 1), else_=0)).label("critical_alerts"),
+        func.count(
+            func.distinct(
+                case(
+                    (
+                        and_(
+                            Alert.severity.in_(["high", "critical"]),
+                            Alert.status.in_(["pending", "in_review"]),
+                        ),
+                        Alert.user_id,
+                    ),
+                    else_=None,
+                )
+            )
+        ).label("high_risk_users"),
+    ).one()
 
-    # Transaction counts
-    total_transactions = db.query(Transaction).count()
-    transactions_24h = (
-        db.query(Transaction).filter(Transaction.timestamp >= now - timedelta(hours=24)).count()
-    )
-
-    # High-risk users
-    high_risk_users = (
-        db.query(Alert.user_id)
-        .filter(
-            Alert.severity.in_(["high", "critical"]), Alert.status.in_(["pending", "in_review"])
-        )
-        .distinct()
-        .count()
-    )
+    transaction_stats = db.query(
+        func.count(Transaction.id).label("total_transactions"),
+        func.sum(case((Transaction.timestamp >= tx_24h_cutoff, 1), else_=0)).label(
+            "transactions_24h"
+        ),
+    ).one()
 
     return {
-        "total_alerts": total_alerts,
-        "pending_alerts": pending_alerts,
-        "critical_alerts": critical_alerts,
-        "total_transactions": total_transactions,
-        "transactions_24h": transactions_24h,
-        "high_risk_users": high_risk_users,
+        "total_alerts": int(alert_stats.total_alerts or 0),
+        "pending_alerts": int(alert_stats.pending_alerts or 0),
+        "critical_alerts": int(alert_stats.critical_alerts or 0),
+        "total_transactions": int(transaction_stats.total_transactions or 0),
+        "transactions_24h": int(transaction_stats.transactions_24h or 0),
+        "high_risk_users": int(alert_stats.high_risk_users or 0),
         "computed_at": now.isoformat(),
     }
 
@@ -384,11 +403,7 @@ def get_cached_search_results(
     Returns:
         Cached search results or None
     """
-    import hashlib
-
-    # Create cache key from query parameters
-    cache_key_data = f"{query}:{filters}:{page}:{page_size}"
-    cache_key = hashlib.md5(cache_key_data.encode()).hexdigest()
+    cache_key = _build_search_cache_key(query, filters, page, page_size)
 
     return cache_manager.get("search", cache_key, "search")
 
@@ -404,10 +419,7 @@ def cache_search_results(
     """
     Cache search results.
     """
-    import hashlib
-
-    cache_key_data = f"{query}:{filters}:{page}:{page_size}"
-    cache_key = hashlib.md5(cache_key_data.encode()).hexdigest()
+    cache_key = _build_search_cache_key(query, filters, page, page_size)
 
     cache_manager.set("search", cache_key, results, ttl, "search")
 
@@ -415,3 +427,15 @@ def cache_search_results(
 def invalidate_search_cache():
     """Invalidate all cached search results."""
     cache_manager.clear_namespace("search")
+
+
+def _build_search_cache_key(query: str, filters: Dict[str, Any], page: int, page_size: int) -> str:
+    """Build canonical cache keys to avoid non-deterministic dict ordering."""
+    payload = {
+        "query": query,
+        "filters": filters or {},
+        "page": page,
+        "page_size": page_size,
+    }
+    canonical = json.dumps(payload, sort_keys=True, separators=(",", ":"))
+    return hashlib.blake2b(canonical.encode("utf-8"), digest_size=16).hexdigest()

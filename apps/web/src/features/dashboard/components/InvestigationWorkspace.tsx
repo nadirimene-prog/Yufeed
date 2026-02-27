@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useEffectEvent, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import {
   Clock3,
@@ -38,18 +38,31 @@ import { cn } from "@/lib/utils";
 import { useWorkspaceUsers } from "@/hooks/queries/useSpecializedData";
 import CaseComments from "@/components/workbench/CaseComments";
 
+export type WorkspaceTabKey =
+  | "overview"
+  | "actions"
+  | "timeline"
+  | "evidence"
+  | "ai"
+  | "comments";
+
 interface InvestigationWorkspaceProps {
   selectedItem: DashboardWorkQueueItem | null;
   detail: WorkItemDetailResponse | null;
   loading?: boolean;
   error?: string | null;
-  message?: { text: string; type: "success" | "error" } | null;
+  message?: { text: string; type: "success" | "warning" | "error" } | null;
   actionPending?: boolean;
   reviewPending?: boolean;
   draftPending?: boolean;
+  detailRefreshPending?: boolean;
+  defaultTab?: WorkspaceTabKey;
+  nowMs?: number | null;
   mobileOpen?: boolean;
   onCloseMobile?: () => void;
   currentUserId?: string | null;
+  onRetryDetail?: () => void;
+  onWorkspaceTabChange?: (tab: WorkspaceTabKey) => void;
   onAction: (payload: WorkItemActionRequest) => void;
   onReview: (payload: ReviewActionRequest) => void;
   onActionAndNext?: (payload: WorkItemActionRequest) => void;
@@ -79,6 +92,19 @@ function relativeTime(value: string) {
   return `${Math.floor(hours / 24)}d ago`;
 }
 
+function isFreshnessStale(
+  freshness:
+    | { generated_at?: string | null; stale_after_seconds?: number | null }
+    | null
+    | undefined,
+) {
+  if (!freshness?.generated_at) return false;
+  const generatedAt = new Date(freshness.generated_at);
+  if (Number.isNaN(generatedAt.valueOf())) return false;
+  const staleAfter = Math.max(1, freshness.stale_after_seconds ?? 30);
+  return Date.now() - generatedAt.getTime() > staleAfter * 1000;
+}
+
 function formatAutosaveStatusLabel(
   status: "idle" | "saved" | "saving" | "retrying" | "error",
   lastSavedAt: string | null,
@@ -95,6 +121,22 @@ function formatAutosaveStatusLabel(
   return "Draft changes are local";
 }
 
+function entityHrefForWorkspace(
+  selectedItem: DashboardWorkQueueItem | null,
+  entity: string,
+) {
+  const rawType = (selectedItem?.entity_type ?? "user").trim().toLowerCase();
+  const type =
+    rawType === "user" ||
+    rawType === "business" ||
+    rawType === "account" ||
+    rawType === "transaction" ||
+    rawType === "pattern"
+      ? rawType
+      : "user";
+  return `/entities/${type}/${encodeURIComponent(entity)}`;
+}
+
 export function InvestigationWorkspace({
   selectedItem,
   detail,
@@ -104,9 +146,14 @@ export function InvestigationWorkspace({
   actionPending = false,
   reviewPending = false,
   draftPending = false,
+  detailRefreshPending = false,
+  defaultTab = "overview",
+  nowMs = null,
   mobileOpen = false,
   onCloseMobile,
   currentUserId,
+  onRetryDetail,
+  onWorkspaceTabChange,
   onAction,
   onReview,
   onActionAndNext,
@@ -119,7 +166,7 @@ export function InvestigationWorkspace({
   const [narrativeDraft, setNarrativeDraft] = useState(detail?.narrative ?? "");
   const [submittedBy, setSubmittedBy] = useState("");
   const [reviewNotes, setReviewNotes] = useState("");
-  const [activeTab, setActiveTab] = useState("overview");
+  const [activeTab, setActiveTab] = useState<WorkspaceTabKey>(defaultTab);
   const [proposedAction, setProposedAction] = useState<"close" | "approve">(
     "close",
   );
@@ -128,54 +175,55 @@ export function InvestigationWorkspace({
   const [narrativeDirty, setNarrativeDirty] = useState(false);
   const [notesDirty, setNotesDirty] = useState(false);
   const hasLocalDraftForCurrentItemRef = useRef(false);
+  const defaultTabRef = useRef(defaultTab);
+  const selectedItemOwnerRef = useRef(selectedItem?.owner ?? "");
   const workspaceUsersQuery = useWorkspaceUsers();
   const selectedItemId = selectedItem?.item_id ?? null;
   const selectedItemOwner = selectedItem?.owner ?? "";
   const detailOwner = detail?.work_item.owner ?? "";
   const detailNarrative = detail?.narrative ?? "";
+  const detailIsStale = isFreshnessStale(detail?.freshness ?? null);
 
   useEffect(() => {
+    defaultTabRef.current = defaultTab;
+  }, [defaultTab]);
+
+  useEffect(() => {
+    selectedItemOwnerRef.current = selectedItemOwner;
+  }, [selectedItemOwner]);
+
+  const resetLocalStateForSelectedItem = useEffectEvent(() => {
     const persistedDraft = readDashboardLocalDraft(selectedItemId);
     hasLocalDraftForCurrentItemRef.current = Boolean(persistedDraft);
-    let cancelled = false;
+    setSubmittedBy("");
+    setReviewNotes("");
+    setActiveTab(defaultTabRef.current);
+    setProposedAction("close");
+    setSnoozeHours(24);
+    setSnoozeReason("");
+    setAssignee(selectedItemOwnerRef.current);
+    setNarrativeDraft(persistedDraft?.narrative ?? "");
+    setNotes(persistedDraft?.notes ?? "");
+    setNarrativeDirty(Boolean(persistedDraft));
+    setNotesDirty(Boolean(persistedDraft));
+  });
 
-    queueMicrotask(() => {
-      if (cancelled) return;
-      setSubmittedBy("");
-      setReviewNotes("");
-      setActiveTab("overview");
-      setProposedAction("close");
-      setSnoozeHours(24);
-      setSnoozeReason("");
-      setAssignee(selectedItemOwner);
-      setNarrativeDraft(persistedDraft?.narrative ?? "");
-      setNotes(persistedDraft?.notes ?? "");
-      setNarrativeDirty(Boolean(persistedDraft));
-      setNotesDirty(Boolean(persistedDraft));
+  const syncDetailState = useEffectEvent(() => {
+    if (!selectedItemId || !detail) return;
+    setAssignee(detailOwner || selectedItemOwner);
+    setNarrativeDraft((current) => {
+      if (hasLocalDraftForCurrentItemRef.current) return current;
+      if (narrativeDirty) return current;
+      return detailNarrative;
     });
-
-    return () => {
-      cancelled = true;
-    };
-  }, [selectedItemId, selectedItemOwner]);
+  });
 
   useEffect(() => {
-    if (!selectedItemId || !detail) return;
+    resetLocalStateForSelectedItem();
+  }, [selectedItemId]);
 
-    let cancelled = false;
-    queueMicrotask(() => {
-      if (cancelled) return;
-      setAssignee(detailOwner || selectedItemOwner);
-      setNarrativeDraft((current) => {
-        if (hasLocalDraftForCurrentItemRef.current) return current;
-        if (narrativeDirty) return current;
-        return detailNarrative;
-      });
-    });
-
-    return () => {
-      cancelled = true;
-    };
+  useEffect(() => {
+    syncDetailState();
   }, [
     detail,
     detailNarrative,
@@ -210,7 +258,8 @@ export function InvestigationWorkspace({
         source: "autosave",
       });
     }
-    setActiveTab(nextTab);
+    setActiveTab(nextTab as WorkspaceTabKey);
+    onWorkspaceTabChange?.(nextTab as WorkspaceTabKey);
   };
 
   const allowedActions = useMemo(
@@ -250,6 +299,7 @@ export function InvestigationWorkspace({
             freshness={detail?.freshness ?? null}
             label="Detail"
             compact
+            nowMs={nowMs}
           />
           {mobileOpen && onCloseMobile ? (
             <Button variant="outline" size="sm" onClick={onCloseMobile}>
@@ -271,8 +321,81 @@ export function InvestigationWorkspace({
           Loading workspace...
         </div>
       ) : error ? (
-        <div className="rounded-xl border border-red-200 bg-red-50 p-3 text-sm text-red-600">
-          {error}
+        <div className="flex min-h-0 flex-1 flex-col">
+          <div className="mb-3 rounded-xl border border-border bg-slate-50 p-3">
+            <div className="mb-2 flex flex-wrap items-center gap-2">
+              <p className="text-sm font-semibold text-foreground">
+                {selectedItem.ref_id}
+              </p>
+              <span
+                className={cn(
+                  "rounded-full px-2 py-1 text-[10px] uppercase border border-border/50 bg-white",
+                  severityBadgeClass(selectedItem.severity),
+                )}
+              >
+                {selectedItem.severity}
+              </span>
+              <span
+                className={cn(
+                  "rounded-full px-2 py-1 text-[10px] uppercase border border-border/50 bg-white",
+                  slaBadgeClass(selectedItem.sla_status),
+                )}
+              >
+                SLA {selectedItem.sla_status}
+              </span>
+            </div>
+            <div className="grid grid-cols-2 gap-2 text-[11px] text-foreground">
+              <div className="rounded-lg border border-border bg-white p-2">
+                <p className="text-muted-foreground font-medium">Status</p>
+                <p>{selectedItem.status}</p>
+              </div>
+              <div className="rounded-lg border border-border bg-white p-2">
+                <p className="text-muted-foreground font-medium">Type</p>
+                <p>{selectedItem.type_label}</p>
+              </div>
+              <div className="rounded-lg border border-border bg-white p-2">
+                <p className="text-muted-foreground font-medium">Timer</p>
+                <p>{formatAgeMinutes(selectedItem.age_minutes)}</p>
+              </div>
+              <div className="rounded-lg border border-border bg-white p-2">
+                <p className="text-muted-foreground font-medium">Owner</p>
+                <p>{selectedItem.owner ?? "Unassigned"}</p>
+              </div>
+            </div>
+          </div>
+          {message ? (
+            <div
+              className={cn(
+                "mb-3 rounded-lg border p-2 text-xs",
+                message.type === "success"
+                  ? "border-green-200 bg-green-50 text-green-700"
+                  : message.type === "warning"
+                    ? "border-amber-200 bg-amber-50 text-amber-800"
+                    : "border-red-200 bg-red-50 text-red-600",
+              )}
+              aria-live="polite"
+            >
+              {message.text}
+            </div>
+          ) : null}
+          <div className="rounded-xl border border-red-200 bg-red-50 p-3 text-sm text-red-700">
+            <p>{error}</p>
+            <p className="mt-1 text-xs text-red-700/90">
+              Queue triage remains available. Retry loading detail to continue
+              investigation actions.
+            </p>
+            {onRetryDetail ? (
+              <Button
+                variant="outline"
+                size="sm"
+                className="mt-2"
+                onClick={onRetryDetail}
+                disabled={detailRefreshPending}
+              >
+                {detailRefreshPending ? "Retrying..." : "Retry Detail"}
+              </Button>
+            ) : null}
+          </div>
         </div>
       ) : (
         <div className="flex min-h-0 flex-1 flex-col">
@@ -324,11 +447,19 @@ export function InvestigationWorkspace({
                 "mb-3 rounded-lg border p-2 text-xs",
                 message.type === "success"
                   ? "border-green-200 bg-green-50 text-green-700"
-                  : "border-red-200 bg-red-50 text-red-600",
+                  : message.type === "warning"
+                    ? "border-amber-200 bg-amber-50 text-amber-800"
+                    : "border-red-200 bg-red-50 text-red-600",
               )}
               aria-live="assertive"
             >
               {message.text}
+            </div>
+          ) : null}
+          {detailIsStale ? (
+            <div className="mb-3 rounded-lg border border-orange-200 bg-orange-50 p-2 text-xs text-orange-900">
+              Detail context may be stale. Refresh before high-impact decisions
+              if timestamps or linked evidence look outdated.
             </div>
           ) : null}
 
@@ -352,7 +483,10 @@ export function InvestigationWorkspace({
                             detail?.linked_entities.map((entity) => (
                               <Link
                                 key={entity}
-                                href={`/entities/user/${entity}`}
+                                href={entityHrefForWorkspace(
+                                  selectedItem,
+                                  entity,
+                                )}
                                 className="block truncate text-primary hover:underline"
                               >
                                 • {entity}
@@ -771,7 +905,7 @@ export function InvestigationWorkspace({
                 label: "Comments",
                 content:
                   selectedItem.kind === "case" ? (
-                    <CaseComments caseId={selectedItem.ref_id} />
+                    <CaseComments caseId={selectedItem.record_id} />
                   ) : (
                     <div className="rounded-xl border border-border bg-slate-50 p-3 text-xs text-muted-foreground text-center">
                       Comments are available for case work items.

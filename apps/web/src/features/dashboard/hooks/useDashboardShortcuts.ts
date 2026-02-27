@@ -3,6 +3,40 @@
 import { useEffect, useRef } from "react";
 import trackDashboardEvent from "@/features/dashboard/telemetry";
 
+export interface DashboardShortcutHelpSection {
+  title: string;
+  items: Array<{ keys: string; description: string }>;
+}
+
+export const DASHBOARD_SHORTCUT_HELP_SECTIONS: DashboardShortcutHelpSection[] =
+  [
+    {
+      title: "Navigation",
+      items: [
+        { keys: "j / k", description: "Move to next/previous queue item" },
+        { keys: "g then q", description: "Focus queue search" },
+        { keys: "g then d", description: "Focus workspace panel" },
+        { keys: "i", description: "Toggle insights rail" },
+      ],
+    },
+    {
+      title: "Actions",
+      items: [
+        { keys: "a", description: "Focus assignee field in Actions tab" },
+        { keys: "e", description: "Run Escalate action (if available)" },
+        { keys: "n", description: "Run first available '+ Next' action" },
+        { keys: "x", description: "Toggle selection for current queue item" },
+      ],
+    },
+    {
+      title: "Help",
+      items: [
+        { keys: "?", description: "Open shortcut help" },
+        { keys: "Ctrl/Cmd + K", description: "Open command palette" },
+      ],
+    },
+  ];
+
 interface DashboardShortcutHandlers {
   enabled?: boolean;
   onOpenShortcutHelp: () => void;
@@ -63,6 +97,41 @@ export function useDashboardShortcuts({
 }: DashboardShortcutHandlers) {
   const pendingPrefixRef = useRef<"g" | null>(null);
   const prefixTimeoutRef = useRef<number | null>(null);
+  const handlersRef = useRef({
+    enabled,
+    onOpenShortcutHelp,
+    onOpenCommandPalette,
+    onFocusQueueSearch,
+    onFocusWorkspacePanel,
+    onToggleInsights,
+    onFocusAssign,
+    onEscalate,
+    onActionNext,
+  });
+
+  useEffect(() => {
+    handlersRef.current = {
+      enabled,
+      onOpenShortcutHelp,
+      onOpenCommandPalette,
+      onFocusQueueSearch,
+      onFocusWorkspacePanel,
+      onToggleInsights,
+      onFocusAssign,
+      onEscalate,
+      onActionNext,
+    };
+  }, [
+    enabled,
+    onActionNext,
+    onEscalate,
+    onFocusAssign,
+    onFocusQueueSearch,
+    onFocusWorkspacePanel,
+    onOpenCommandPalette,
+    onOpenShortcutHelp,
+    onToggleInsights,
+  ]);
 
   useEffect(() => {
     if (!enabled) return;
@@ -85,7 +154,8 @@ export function useDashboardShortcuts({
     };
 
     const onKeyDown = (event: KeyboardEvent) => {
-      if (!enabled) return;
+      const handlers = handlersRef.current;
+      if (!handlers.enabled) return;
 
       const key = event.key;
       const lowerKey = key.toLowerCase();
@@ -101,12 +171,12 @@ export function useDashboardShortcuts({
         trackDashboardEvent("dashboard_shortcut_used", {
           shortcut: "mod+k",
         });
-        onOpenCommandPalette();
+        handlers.onOpenCommandPalette();
         clearPrefix();
         return;
       }
 
-      if (isTargetBlocked || (hasOpenDialog() && !isTargetBlocked)) {
+      if (isTargetBlocked || hasOpenDialog()) {
         clearPrefix();
         return;
       }
@@ -114,7 +184,7 @@ export function useDashboardShortcuts({
       if (key === "?" && !hasModifierKey(event)) {
         event.preventDefault();
         trackDashboardEvent("dashboard_shortcut_used", { shortcut: "?" });
-        onOpenShortcutHelp();
+        handlers.onOpenShortcutHelp();
         clearPrefix();
         return;
       }
@@ -123,14 +193,14 @@ export function useDashboardShortcuts({
         if (lowerKey === "q") {
           event.preventDefault();
           trackDashboardEvent("dashboard_shortcut_used", { shortcut: "g q" });
-          onFocusQueueSearch?.();
+          handlers.onFocusQueueSearch?.();
           clearPrefix();
           return;
         }
         if (lowerKey === "d") {
           event.preventDefault();
           trackDashboardEvent("dashboard_shortcut_used", { shortcut: "g d" });
-          onFocusWorkspacePanel?.();
+          handlers.onFocusWorkspacePanel?.();
           clearPrefix();
           return;
         }
@@ -151,28 +221,28 @@ export function useDashboardShortcuts({
       if (lowerKey === "i") {
         event.preventDefault();
         trackDashboardEvent("dashboard_shortcut_used", { shortcut: "i" });
-        onToggleInsights?.();
+        handlers.onToggleInsights?.();
         return;
       }
 
       if (lowerKey === "a") {
         event.preventDefault();
         trackDashboardEvent("dashboard_shortcut_used", { shortcut: "a" });
-        onFocusAssign?.();
+        handlers.onFocusAssign?.();
         return;
       }
 
       if (lowerKey === "e") {
         event.preventDefault();
         trackDashboardEvent("dashboard_shortcut_used", { shortcut: "e" });
-        onEscalate?.();
+        handlers.onEscalate?.();
         return;
       }
 
       if (lowerKey === "n") {
         event.preventDefault();
         trackDashboardEvent("dashboard_shortcut_used", { shortcut: "n" });
-        onActionNext?.();
+        handlers.onActionNext?.();
       }
     };
 
@@ -181,17 +251,7 @@ export function useDashboardShortcuts({
       window.removeEventListener("keydown", onKeyDown);
       clearPrefix();
     };
-  }, [
-    enabled,
-    onActionNext,
-    onEscalate,
-    onFocusAssign,
-    onFocusQueueSearch,
-    onFocusWorkspacePanel,
-    onOpenCommandPalette,
-    onOpenShortcutHelp,
-    onToggleInsights,
-  ]);
+  }, [enabled]);
 }
 
 export default useDashboardShortcuts;

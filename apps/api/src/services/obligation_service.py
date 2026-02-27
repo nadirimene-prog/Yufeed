@@ -47,7 +47,8 @@ def normalize_obligations(raw: Any, fallback_title: str) -> List[dict]:
     for item in items:
         if isinstance(item, dict):
             text = (
-                item.get("obligation")
+                item.get("obligation_text")
+                or item.get("obligation")
                 or item.get("text")
                 or item.get("summary")
                 or item.get("requirement")

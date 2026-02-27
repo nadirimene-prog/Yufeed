@@ -59,6 +59,9 @@ def register_routers(app: FastAPI) -> None:
     from .api.dashboard_overview import router as dashboard_overview_router
 
     include_with_api_prefix(dashboard_overview_router)
+    from .api.dashboard_preferences import router as dashboard_preferences_router
+
+    include_with_api_prefix(dashboard_preferences_router)
     from .api.dashboard_telemetry import router as dashboard_telemetry_router
 
     include_with_api_prefix(dashboard_telemetry_router)

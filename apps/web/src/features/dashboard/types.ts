@@ -32,7 +32,7 @@ export interface AlertQueueItem {
   id: number;
   alert_id: string;
   alert_type: string;
-  severity: "low" | "medium" | "high" | "critical" | string;
+  severity: "low" | "medium" | "high" | "critical";
   status: string;
   priority: number;
   user_id: string;
@@ -139,6 +139,7 @@ export interface DashboardWorkQueueItem {
   type_label: string;
   severity: string;
   entity: string;
+  entity_type?: string | null;
   typology: string;
   jurisdiction: string;
   age_minutes: number;
@@ -271,5 +272,68 @@ export interface DashboardWorkQueueParams {
 
 export interface WorkspaceMessage {
   text: string;
-  type: "success" | "error";
+  type: "success" | "warning" | "error";
+}
+
+export type DashboardSavedViewScope = "private" | "team";
+export type DashboardSavedViewRole =
+  | "analyst"
+  | "reviewer"
+  | "manager"
+  | "qa_audit";
+export type DashboardQueueDensityPreference = "comfortable" | "compact";
+
+export interface DashboardLayoutPreferences {
+  queueDensity?: DashboardQueueDensityPreference | null;
+  insightsOpen?: boolean | null;
+  defaultWorkspaceTab?: string | null;
+}
+
+export interface DashboardSavedViewRecord {
+  id: string;
+  name: string;
+  scope: DashboardSavedViewScope;
+  owner_user_id: string;
+  team_id?: string | null;
+  is_default_for_role?: boolean;
+  role?: DashboardSavedViewRole | null;
+  filters: DashboardWorkQueueParams;
+  layout_prefs?: DashboardLayoutPreferences | null;
+  created_at: string;
+  updated_at: string;
+  updated_by_user_id?: string | null;
+}
+
+export interface DashboardSavedViewsResponse {
+  items: DashboardSavedViewRecord[];
+  resolved_default_view_id?: string | null;
+}
+
+export interface DashboardPreferencesResponse {
+  layout_prefs: DashboardLayoutPreferences;
+  default_saved_view_id?: string | null;
+  updated_at?: string | null;
+}
+
+export interface DashboardSavedViewCreateRequest {
+  name: string;
+  scope: DashboardSavedViewScope;
+  is_default_for_role?: boolean;
+  role?: DashboardSavedViewRole | null;
+  filters: DashboardWorkQueueParams;
+  layout_prefs?: DashboardLayoutPreferences | null;
+}
+
+export interface DashboardSavedViewUpdateRequest {
+  name?: string;
+  scope?: DashboardSavedViewScope;
+  is_default_for_role?: boolean;
+  role?: DashboardSavedViewRole | null;
+  filters?: DashboardWorkQueueParams;
+  layout_prefs?: DashboardLayoutPreferences | null;
+}
+
+export interface DashboardPreferencesUpdateRequest {
+  layout_prefs?: DashboardLayoutPreferences;
+  default_saved_view_id?: string | null;
 }

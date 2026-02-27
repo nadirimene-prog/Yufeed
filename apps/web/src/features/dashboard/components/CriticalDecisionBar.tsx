@@ -9,6 +9,7 @@ import {
   ShieldAlert,
   UserX,
 } from "lucide-react";
+import { memo } from "react";
 import { cn } from "@/lib/utils";
 import { CriticalDecisionBar as CriticalDecisionBarData } from "@/features/dashboard/types";
 
@@ -105,7 +106,7 @@ export function CriticalDecisionBar({
       value: safe.sanctions_hits_unreviewed,
       icon: ShieldAlert,
       tone: tileTone(safe.sanctions_hits_unreviewed, 1, 5),
-      filter: { queue: "alerts", search: "sanctions" },
+      filter: { queue: "alerts", search: "sanction pep" },
       description: "Sanctions/PEP hits pending analyst review.",
     },
     {
@@ -195,4 +196,4 @@ export function CriticalDecisionBar({
   );
 }
 
-export default CriticalDecisionBar;
+export default memo(CriticalDecisionBar);

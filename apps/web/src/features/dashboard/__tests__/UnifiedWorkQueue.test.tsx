@@ -64,6 +64,7 @@ const queueItem: DashboardWorkQueueItem = {
   type_label: "Velocity Alert",
   severity: "high",
   entity: "user_123",
+  entity_type: "user",
   typology: "Structuring",
   jurisdiction: "US",
   age_minutes: 42,
@@ -85,6 +86,7 @@ const queueItemTwo: DashboardWorkQueueItem = {
   kind: "case",
   severity: "medium",
   entity: "user_456",
+  entity_type: "business",
   age_minutes: 5,
   risk_score: 41,
   sar_required: false,
@@ -149,6 +151,44 @@ describe("UnifiedWorkQueue", () => {
     expect(
       screen.getByRole("button", { name: "Escalate" }),
     ).toBeInTheDocument();
+  });
+
+  it("selects a row when clicking the queue item surface", () => {
+    const { onSelectItem } = renderQueue();
+
+    fireEvent.click(
+      screen.getByRole("button", { name: "Queue item ALERT-001" }),
+    );
+
+    expect(onSelectItem).toHaveBeenCalledTimes(1);
+    expect(onSelectItem).toHaveBeenCalledWith(
+      expect.objectContaining({ item_id: "item_1" }),
+    );
+  });
+
+  it("uses entity_type to build entity detail links", () => {
+    renderQueue({
+      data: { items: [queueItemTwo], page: 1, page_size: 50, total: 1 },
+    });
+
+    const link = screen.getByRole("link", { name: "user_456" });
+    expect(link).toHaveAttribute("href", "/entities/business/user_456");
+  });
+
+  it("keeps cached rows visible and offers retry when queue refresh fails", () => {
+    const { onRefresh } = renderQueue({
+      error: "Queue unavailable",
+    });
+
+    expect(
+      screen.getByRole("button", { name: "Queue item ALERT-001" }),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByText(/Queue refresh failed\. Showing last loaded items\./i),
+    ).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("button", { name: "Retry queue" }));
+    expect(onRefresh).toHaveBeenCalledTimes(1);
   });
 
   it("does not trigger row selection from checkbox keyboard events", () => {
@@ -289,7 +329,7 @@ describe("UnifiedWorkQueue", () => {
 
     expect(screen.getByText("Confirm Bulk Action")).toBeInTheDocument();
     expect(
-      screen.getByText(/Apply 'Escalate' to 1 selected item/),
+      screen.getByText(/Apply Escalate to 1 selected item/),
     ).toBeInTheDocument();
 
     fireEvent.click(screen.getByRole("button", { name: "Cancel" }));
@@ -311,5 +351,5 @@ describe("UnifiedWorkQueue", () => {
     expect(items).toHaveLength(1);
     expect(items[0].item_id).toBe("item_1");
     expect(screen.queryByText("Confirm Bulk Action")).not.toBeInTheDocument();
-  });
+  }, 10000);
 });

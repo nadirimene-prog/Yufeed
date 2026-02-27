@@ -69,6 +69,17 @@ Typical payload:
 - `has_narrative`: boolean (when applicable)
 - `has_notes`: boolean (when applicable)
 
+### `dashboard_ui_timing`
+Emitted for UI completion timings used by Sprint 5 performance gates.
+
+Typical payload:
+- `metric`: `"queue_render_complete" | "detail_refresh_complete"`
+- `success`: boolean
+- `latency_ms`: number
+- `trigger`: string (for detail refresh; e.g. `"post_action"`, `"post_review"`, `"snooze"`, `"manual_retry"`)
+- `visible_count` / `total` / `density` (queue render metric)
+- `has_error`: boolean
+
 ## Privacy / Data Minimization
 - Do not emit free-text narrative/notes content.
 - Do not emit entity names, reference IDs, or analyst notes.

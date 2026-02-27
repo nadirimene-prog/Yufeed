@@ -8,6 +8,12 @@ from pydantic import BaseModel, Field
 
 WorkItemKind = Literal["alert", "case", "approval", "reg_task"]
 SlaStatus = Literal["breached", "warning", "ok", "none"]
+DashboardQueueFilter = Literal["all", "alerts", "cases", "approvals", "reg_tasks"]
+DashboardSeverityFilter = Literal["all", "low", "medium", "high", "critical"]
+DashboardSavedViewPreset = Literal["all", "my_queue", "team_queue", "escalations"]
+DashboardRole = Literal["analyst", "reviewer", "manager", "qa_audit"]
+DashboardSavedViewScope = Literal["private", "team"]
+QueueDensity = Literal["comfortable", "compact"]
 
 
 class CriticalDecisionBar(BaseModel):
@@ -66,6 +72,7 @@ class DashboardWorkQueueItem(BaseModel):
     type_label: str
     severity: str
     entity: str
+    entity_type: str | None = None
     typology: str
     jurisdiction: str
     age_minutes: int
@@ -200,3 +207,69 @@ class WorkspaceUser(BaseModel):
     user_id: str
     role: str
     is_active: bool
+
+
+class DashboardSavedViewFilters(BaseModel):
+    page: int = 1
+    pageSize: int = 50
+    queue: DashboardQueueFilter = "all"
+    severity: DashboardSeverityFilter = "all"
+    jurisdiction: str = ""
+    sla: Literal["all", "breached", "warning", "ok", "none"] = "all"
+    search: str = ""
+    savedView: DashboardSavedViewPreset = "all"
+
+
+class DashboardLayoutPreferences(BaseModel):
+    queueDensity: QueueDensity | None = None
+    insightsOpen: bool | None = None
+    defaultWorkspaceTab: str | None = None
+
+
+class DashboardSavedViewRecord(BaseModel):
+    id: str
+    name: str
+    scope: DashboardSavedViewScope
+    owner_user_id: str
+    team_id: str | None = None
+    is_default_for_role: bool = False
+    role: DashboardRole | None = None
+    filters: DashboardSavedViewFilters
+    layout_prefs: DashboardLayoutPreferences | None = None
+    created_at: datetime
+    updated_at: datetime
+    updated_by_user_id: str | None = None
+
+
+class DashboardSavedViewsResponse(BaseModel):
+    items: list[DashboardSavedViewRecord] = Field(default_factory=list)
+    resolved_default_view_id: str | None = None
+
+
+class DashboardSavedViewCreateRequest(BaseModel):
+    name: str = Field(min_length=1, max_length=80)
+    scope: DashboardSavedViewScope = "private"
+    is_default_for_role: bool = False
+    role: DashboardRole | None = None
+    filters: DashboardSavedViewFilters
+    layout_prefs: DashboardLayoutPreferences | None = None
+
+
+class DashboardSavedViewUpdateRequest(BaseModel):
+    name: str | None = Field(default=None, min_length=1, max_length=80)
+    scope: DashboardSavedViewScope | None = None
+    is_default_for_role: bool | None = None
+    role: DashboardRole | None = None
+    filters: DashboardSavedViewFilters | None = None
+    layout_prefs: DashboardLayoutPreferences | None = None
+
+
+class DashboardPreferencesResponse(BaseModel):
+    layout_prefs: DashboardLayoutPreferences = Field(default_factory=DashboardLayoutPreferences)
+    default_saved_view_id: str | None = None
+    updated_at: datetime | None = None
+
+
+class DashboardPreferencesUpdateRequest(BaseModel):
+    layout_prefs: DashboardLayoutPreferences | None = None
+    default_saved_view_id: str | None = None

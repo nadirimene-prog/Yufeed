@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { FileWarning } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -48,6 +48,10 @@ interface UnifiedWorkQueueProps {
   onSelectItem: (item: DashboardWorkQueueItem) => void;
   onFiltersChange: (patch: Partial<DashboardWorkQueueParams>) => void;
   onRefresh: () => void;
+  nowMs?: number | null;
+  canExport?: boolean;
+  serverDensityPreference?: QueueDensity | null;
+  onDensityPreferenceChange?: (value: QueueDensity) => void;
   onBulkAction?: (
     items: DashboardWorkQueueItem[],
     action: Exclude<WorkItemActionType, "create_case" | "close">,
@@ -77,6 +81,12 @@ function readDensityPref(fallback: QueueDensity): QueueDensity {
   return raw === "compact" || raw === "comfortable" ? raw : fallback;
 }
 
+function hasDensityPrefInStorage(): boolean {
+  if (typeof window === "undefined") return false;
+  const raw = window.localStorage.getItem(QUEUE_DENSITY_PREF_KEY);
+  return raw === "compact" || raw === "comfortable";
+}
+
 function severityRank(severity: string) {
   const normalized = severity.toLowerCase();
   if (normalized === "critical") return 4;
@@ -92,6 +102,19 @@ function riskToneClass(score: number) {
   return "text-risk-low";
 }
 
+function entityDetailsHref(item: DashboardWorkQueueItem) {
+  const rawType = (item.entity_type ?? "user").trim().toLowerCase();
+  const type =
+    rawType === "user" ||
+    rawType === "business" ||
+    rawType === "account" ||
+    rawType === "transaction" ||
+    rawType === "pattern"
+      ? rawType
+      : "user";
+  return `/entities/${type}/${encodeURIComponent(item.entity)}`;
+}
+
 export function UnifiedWorkQueue({
   data,
   filters,
@@ -101,6 +124,10 @@ export function UnifiedWorkQueue({
   onSelectItem,
   onFiltersChange,
   onRefresh,
+  nowMs = null,
+  canExport = false,
+  serverDensityPreference = null,
+  onDensityPreferenceChange,
   onBulkAction,
 }: UnifiedWorkQueueProps) {
   const [selectedRows, setSelectedRows] = useState<Set<string>>(new Set());
@@ -119,8 +146,14 @@ export function UnifiedWorkQueue({
   const [pendingBulkAction, setPendingBulkAction] =
     useState<PendingBulkAction>(null);
   const rowRefs = useRef<Array<HTMLDivElement | null>>([]);
+  const onSelectItemRef = useRef(onSelectItem);
+  const sortedItemsRef = useRef<DashboardWorkQueueItem[]>([]);
+  const selectedRowsRef = useRef<Set<string>>(new Set());
   const searchDebounceRef = useRef<number | null>(null);
   const jurisdictionDebounceRef = useRef<number | null>(null);
+  const hadLocalDensityPrefAtMountRef = useRef(hasDensityPrefInStorage());
+  const densityPreferenceReportedRef = useRef<QueueDensity | null>(null);
+  const queueRenderTelemetrySignatureRef = useRef<string>("");
   const workspaceUsersQuery = useWorkspaceUsers();
 
   useEffect(() => {
@@ -137,15 +170,39 @@ export function UnifiedWorkQueue({
   }, [density]);
 
   useEffect(() => {
-    queueMicrotask(() => {
-      setSearchDraft(filters.search);
-    });
+    if (
+      hadLocalDensityPrefAtMountRef.current ||
+      !serverDensityPreference ||
+      serverDensityPreference === density
+    ) {
+      return;
+    }
+    /* eslint-disable react-hooks/set-state-in-effect */
+    setDensity(serverDensityPreference);
+    /* eslint-enable react-hooks/set-state-in-effect */
+  }, [density, serverDensityPreference]);
+
+  useEffect(() => {
+    if (!onDensityPreferenceChange) return;
+    if (densityPreferenceReportedRef.current === density) return;
+    densityPreferenceReportedRef.current = density;
+    onDensityPreferenceChange(density);
+  }, [density, onDensityPreferenceChange]);
+
+  useEffect(() => {
+    /* eslint-disable react-hooks/set-state-in-effect */
+    setSearchDraft((current) =>
+      current === filters.search ? current : filters.search,
+    );
+    /* eslint-enable react-hooks/set-state-in-effect */
   }, [filters.search]);
 
   useEffect(() => {
-    queueMicrotask(() => {
-      setJurisdictionDraft(filters.jurisdiction);
-    });
+    /* eslint-disable react-hooks/set-state-in-effect */
+    setJurisdictionDraft((current) =>
+      current === filters.jurisdiction ? current : filters.jurisdiction,
+    );
+    /* eslint-enable react-hooks/set-state-in-effect */
   }, [filters.jurisdiction]);
 
   useEffect(() => {
@@ -185,22 +242,22 @@ export function UnifiedWorkQueue({
   const items = useMemo(() => data?.items ?? [], [data?.items]);
 
   useEffect(() => {
-    queueMicrotask(() => {
-      setSelectedRows((current) => {
-        if (current.size === 0) return current;
-        const visibleIds = new Set(items.map((item) => item.item_id));
-        let changed = false;
-        const next = new Set<string>();
-        for (const id of current) {
-          if (visibleIds.has(id)) {
-            next.add(id);
-          } else {
-            changed = true;
-          }
+    /* eslint-disable react-hooks/set-state-in-effect */
+    setSelectedRows((current) => {
+      if (current.size === 0) return current;
+      const visibleIds = new Set(items.map((item) => item.item_id));
+      let changed = false;
+      const next = new Set<string>();
+      for (const id of current) {
+        if (visibleIds.has(id)) {
+          next.add(id);
+        } else {
+          changed = true;
         }
-        return changed ? next : current;
-      });
+      }
+      return changed ? next : current;
     });
+    /* eslint-enable react-hooks/set-state-in-effect */
   }, [items]);
 
   const sortedItems = useMemo(() => {
@@ -215,17 +272,37 @@ export function UnifiedWorkQueue({
     return copy;
   }, [items, sortBy]);
 
-  const toggleSelected = (itemId: string, checked: boolean) => {
+  // eslint-disable-next-line react-hooks/preserve-manual-memoization -- needed to keep stable ref callbacks per row index.
+  const rowRefCallbacks = useMemo(
+    () =>
+      Array.from(
+        { length: sortedItems.length },
+        (_, index) => (element: HTMLDivElement | null) => {
+          rowRefs.current[index] = element;
+        },
+      ),
+    [sortedItems.length],
+  );
+
+  useEffect(() => {
+    onSelectItemRef.current = onSelectItem;
+    sortedItemsRef.current = sortedItems;
+    selectedRowsRef.current = selectedRows;
+  }, [onSelectItem, selectedRows, sortedItems]);
+
+  const toggleSelected = useCallback((itemId: string, checked: boolean) => {
     setSelectedRows((current) => {
       const next = new Set(current);
       if (checked) next.add(itemId);
       else next.delete(itemId);
       return next;
     });
-  };
+  }, []);
 
   useEffect(() => {
     const onKeyDown = (event: KeyboardEvent) => {
+      const currentItems = sortedItemsRef.current;
+      const currentSelectedRows = selectedRowsRef.current;
       if (event.metaKey || event.ctrlKey || event.altKey || event.shiftKey) {
         return;
       }
@@ -235,7 +312,7 @@ export function UnifiedWorkQueue({
       if (document.querySelector("[role='dialog']")) {
         return;
       }
-      if (sortedItems.length === 0) {
+      if (currentItems.length === 0) {
         return;
       }
 
@@ -245,7 +322,7 @@ export function UnifiedWorkQueue({
       }
 
       const currentIndex = selectedItemId
-        ? sortedItems.findIndex((item) => item.item_id === selectedItemId)
+        ? currentItems.findIndex((item) => item.item_id === selectedItemId)
         : -1;
 
       if (lowerKey === "j" || lowerKey === "k") {
@@ -254,13 +331,13 @@ export function UnifiedWorkQueue({
         const nextIndex =
           lowerKey === "j"
             ? Math.min(
-                sortedItems.length - 1,
+                currentItems.length - 1,
                 currentIndex >= 0 ? currentIndex + 1 : 0,
               )
             : Math.max(0, currentIndex >= 0 ? currentIndex - 1 : 0);
-        const nextItem = sortedItems[nextIndex];
+        const nextItem = currentItems[nextIndex];
         if (!nextItem) return;
-        onSelectItem(nextItem);
+        onSelectItemRef.current(nextItem);
         window.requestAnimationFrame(() => {
           rowRefs.current[nextIndex]?.focus();
         });
@@ -268,16 +345,16 @@ export function UnifiedWorkQueue({
       }
 
       const targetItem =
-        (currentIndex >= 0 ? sortedItems[currentIndex] : sortedItems[0]) ??
+        (currentIndex >= 0 ? currentItems[currentIndex] : currentItems[0]) ??
         null;
       if (!targetItem) return;
 
       event.preventDefault();
       trackDashboardEvent("dashboard_shortcut_used", { shortcut: "x" });
-      const isCurrentlySelected = selectedRows.has(targetItem.item_id);
+      const isCurrentlySelected = currentSelectedRows.has(targetItem.item_id);
       toggleSelected(targetItem.item_id, !isCurrentlySelected);
       window.requestAnimationFrame(() => {
-        const focusIndex = sortedItems.findIndex(
+        const focusIndex = currentItems.findIndex(
           (item) => item.item_id === targetItem.item_id,
         );
         if (focusIndex >= 0) {
@@ -290,7 +367,7 @@ export function UnifiedWorkQueue({
     return () => {
       window.removeEventListener("keydown", onKeyDown);
     };
-  }, [onSelectItem, selectedItemId, selectedRows, sortedItems]);
+  }, [selectedItemId, toggleSelected]);
 
   const selectedItems = useMemo(
     () => sortedItems.filter((item) => selectedRows.has(item.item_id)),
@@ -360,6 +437,33 @@ export function UnifiedWorkQueue({
   };
 
   const compactRows = density === "compact";
+  const hasVisibleRows = sortedItems.length > 0;
+
+  useEffect(() => {
+    const signature = JSON.stringify({
+      loading,
+      error: Boolean(error),
+      visible: sortedItems.length,
+      total,
+      density,
+    });
+    if (queueRenderTelemetrySignatureRef.current === signature) {
+      return;
+    }
+    queueRenderTelemetrySignatureRef.current = signature;
+    const raf = window.requestAnimationFrame(() => {
+      trackDashboardEvent("dashboard_ui_timing", {
+        metric: "queue_render_complete",
+        success: !error,
+        has_error: Boolean(error),
+        latency_ms: 0,
+        visible_count: sortedItems.length,
+        total,
+        density,
+      });
+    });
+    return () => window.cancelAnimationFrame(raf);
+  }, [density, error, loading, sortedItems.length, total]);
 
   return (
     <section className="flex h-full min-h-0 flex-col rounded-2xl border border-border bg-white p-3 shadow-sm sm:p-4">
@@ -372,6 +476,8 @@ export function UnifiedWorkQueue({
         advancedFiltersOpen={advancedFiltersOpen}
         loading={loading}
         freshness={data?.freshness ?? null}
+        nowMs={nowMs}
+        canExport={canExport}
         total={total}
         from={from}
         to={to}
@@ -417,16 +523,41 @@ export function UnifiedWorkQueue({
           <div className="rounded-xl border border-border bg-slate-50 p-6 text-center text-sm text-muted-foreground">
             Loading queue...
           </div>
-        ) : error ? (
+        ) : error && !hasVisibleRows ? (
           <div className="rounded-xl border border-red-200 bg-red-50 p-4 text-sm text-red-600">
-            {error}
+            <p>{error}</p>
+            <Button
+              type="button"
+              size="sm"
+              variant="outline"
+              className="mt-3 border-red-200 bg-white text-red-700 hover:bg-red-100 hover:text-red-800"
+              onClick={onRefresh}
+            >
+              Retry queue
+            </Button>
           </div>
-        ) : sortedItems.length === 0 ? (
+        ) : !hasVisibleRows ? (
           <div className="rounded-xl border border-border bg-slate-50 p-6 text-center text-sm text-muted-foreground">
             No queue items for current filters.
           </div>
         ) : (
           <div className={cn("space-y-2", compactRows && "space-y-1")}>
+            {error ? (
+              <div className="flex flex-wrap items-center justify-between gap-2 rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-800">
+                <span>
+                  Queue refresh failed. Showing last loaded items. {error}
+                </span>
+                <Button
+                  type="button"
+                  size="sm"
+                  variant="outline"
+                  className="h-7 border-amber-300 bg-white px-2 text-xs text-amber-800 hover:bg-amber-100 hover:text-amber-900"
+                  onClick={onRefresh}
+                >
+                  Retry queue
+                </Button>
+              </div>
+            ) : null}
             {sortedItems.map((item, index) => {
               const selected = selectedRows.has(item.item_id);
               const rowSelected = item.item_id === selectedItemId;
@@ -434,9 +565,7 @@ export function UnifiedWorkQueue({
               return (
                 <div
                   key={item.item_id}
-                  ref={(element) => {
-                    rowRefs.current[index] = element;
-                  }}
+                  ref={rowRefCallbacks[index]}
                   data-dashboard-queue-row
                   data-queue-item-id={item.item_id}
                   tabIndex={0}
@@ -551,7 +680,7 @@ export function UnifiedWorkQueue({
                       {item.jurisdiction}
                     </span>
                     <Link
-                      href={`/entities/user/${encodeURIComponent(item.entity)}`}
+                      href={entityDetailsHref(item)}
                       className="min-w-0 truncate font-medium text-foreground hover:text-primary hover:underline"
                       onClick={(event) => event.stopPropagation()}
                     >
@@ -617,7 +746,7 @@ export function UnifiedWorkQueue({
             <DialogTitle>Confirm Bulk Action</DialogTitle>
             <DialogDescription>
               {pendingBulkAction
-                ? `Apply '${pendingBulkAction.label}' to ${selectedItems.length} selected item(s)?`
+                ? `Apply ${pendingBulkAction.label} to ${selectedItems.length} selected item(s)?`
                 : "Review the bulk action before continuing."}
             </DialogDescription>
           </DialogHeader>

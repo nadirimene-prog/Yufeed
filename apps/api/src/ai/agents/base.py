@@ -263,6 +263,7 @@ class AgentResult:
 
 
 T = TypeVar("T", bound=AgentResult)
+_API_KEY_UNSET = object()
 
 
 class BaseAgent(ABC, Generic[T]):
@@ -289,12 +290,17 @@ class BaseAgent(ABC, Generic[T]):
 
     def __init__(
         self,
-        api_key: Optional[str] = None,
+        api_key: Optional[str] | object = _API_KEY_UNSET,
         model: Optional[str] = None,
         enable_caching: bool = True,
     ):
         """Initialize the agent with Claude API client."""
-        self.api_key = api_key or os.getenv("ANTHROPIC_API_KEY")
+        resolved_api_key = os.getenv("ANTHROPIC_API_KEY") if api_key is _API_KEY_UNSET else api_key
+        self.api_key = (
+            resolved_api_key.strip()
+            if isinstance(resolved_api_key, str) and resolved_api_key.strip()
+            else None
+        )
         self.is_configured = bool(self.api_key)
 
         if not self.is_configured:

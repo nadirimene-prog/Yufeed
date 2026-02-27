@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { memo, useState } from "react";
 import { BarChart3, ChevronLeft, PanelRight, Shield } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
@@ -23,12 +23,17 @@ interface InsightsPanelProps {
   onToggle: () => void;
   governance: DashboardGovernanceSnapshot | undefined;
   queueSummary: DashboardQueueSummary | undefined;
+  queueSummaryPrevious?: DashboardQueueSummary | null;
   health: SystemHealthSnapshot | undefined;
   throughput: DashboardThroughputSnapshot | undefined;
   criticalBar: CriticalDecisionBar | undefined;
+  criticalBarPrevious?: CriticalDecisionBar | null;
   timeRange: DashboardTimeRange;
   freshness?: DashboardFreshnessMeta | null;
+  nowMs?: number | null;
   loading?: boolean;
+  warning?: string | null;
+  onRetryWarning?: (() => void) | null;
 }
 
 export function InsightsPanel({
@@ -36,12 +41,17 @@ export function InsightsPanel({
   onToggle,
   governance,
   queueSummary,
+  queueSummaryPrevious = null,
   health,
   throughput,
   criticalBar,
+  criticalBarPrevious = null,
   timeRange,
   freshness = null,
+  nowMs = null,
   loading = false,
+  warning = null,
+  onRetryWarning = null,
 }: InsightsPanelProps) {
   const [activeTab, setActiveTab] = useState<InsightsTab>("governance");
 
@@ -137,6 +147,23 @@ export function InsightsPanel({
         </div>
       </div>
 
+      {warning ? (
+        <div className="mb-2 flex flex-wrap items-center justify-between gap-2 rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-900">
+          <span>{warning}</span>
+          {onRetryWarning ? (
+            <Button
+              type="button"
+              size="sm"
+              variant="outline"
+              className="h-7 border-amber-300 bg-white px-2 text-xs text-amber-900 hover:bg-amber-100 hover:text-amber-950"
+              onClick={onRetryWarning}
+            >
+              Retry overview
+            </Button>
+          ) : null}
+        </div>
+      ) : null}
+
       <div className="min-h-0 flex-1 overflow-auto">
         {activeTab === "governance" ? (
           <div
@@ -150,6 +177,7 @@ export function InsightsPanel({
               queueSummary={queueSummary}
               health={health}
               freshness={freshness}
+              nowMs={nowMs}
               loading={loading}
             />
           </div>
@@ -162,10 +190,13 @@ export function InsightsPanel({
           >
             <TrendStrip
               queueSummary={queueSummary}
+              queueSummaryPrevious={queueSummaryPrevious}
               throughput={throughput}
               criticalBar={criticalBar}
+              criticalBarPrevious={criticalBarPrevious}
               timeRange={timeRange}
               freshness={freshness}
+              nowMs={nowMs}
               loading={loading}
             />
           </div>
@@ -175,4 +206,4 @@ export function InsightsPanel({
   );
 }
 
-export default InsightsPanel;
+export default memo(InsightsPanel);

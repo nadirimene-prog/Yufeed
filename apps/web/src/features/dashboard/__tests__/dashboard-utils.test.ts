@@ -123,7 +123,18 @@ describe("dashboard utils", () => {
         page: 1,
         queue: "all",
       }),
-    ).toEqual(["dashboard", "work-queue", { page: 1, queue: "all" }]);
+    ).toEqual([
+      "dashboard",
+      "work-queue",
+      1,
+      null,
+      "all",
+      null,
+      null,
+      null,
+      null,
+      null,
+    ]);
     expect(dashboardKeys.workItem("alert", "123")).toEqual([
       "dashboard",
       "work-item",
@@ -147,16 +158,14 @@ describe("dashboard utils", () => {
     ).toEqual([
       "dashboard",
       "work-queue",
-      {
-        page: 3,
-        pageSize: 25,
-        queue: "alerts",
-        severity: "critical",
-        sla: "breached",
-        search: "entity_123",
-        jurisdiction: "US",
-        savedView: "team_queue",
-      },
+      3,
+      25,
+      "alerts",
+      "critical",
+      "breached",
+      "entity_123",
+      "US",
+      "team_queue",
     ]);
   });
 

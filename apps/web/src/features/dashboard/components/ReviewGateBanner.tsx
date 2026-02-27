@@ -56,8 +56,8 @@ export function ReviewGateBanner({
       </div>
 
       <p className="mb-2 text-xs font-medium">
-        Action `{proposedAction}` is gated. Reviewer decision is required before
-        final disposition.
+        Action &quot;{proposedAction}&quot; is gated. Reviewer decision is
+        required before final disposition.
       </p>
       <p className="mb-2 text-[11px] opacity-90">
         Reasons: {requirement.reasons.join(", ").replaceAll("_", " ")}

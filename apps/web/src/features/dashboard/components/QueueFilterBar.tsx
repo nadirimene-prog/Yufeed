@@ -27,6 +27,8 @@ interface QueueFilterBarProps {
   advancedFiltersOpen: boolean;
   loading?: boolean;
   freshness?: DashboardFreshnessMeta | null;
+  nowMs?: number | null;
+  canExport?: boolean;
   total: number;
   from: number;
   to: number;
@@ -86,6 +88,8 @@ export function QueueFilterBar({
   advancedFiltersOpen,
   loading = false,
   freshness = null,
+  nowMs = null,
+  canExport = false,
   total,
   from,
   to,
@@ -108,7 +112,12 @@ export function QueueFilterBar({
             <h2 className="text-sm font-semibold text-foreground">
               Unified Work Queue
             </h2>
-            <DataFreshnessBadge freshness={freshness} label="Queue" compact />
+            <DataFreshnessBadge
+              freshness={freshness}
+              label="Queue"
+              compact
+              nowMs={nowMs}
+            />
           </div>
           <p className="text-xs text-muted-foreground">
             Prioritized triage queue grouped for analyst action.
@@ -316,23 +325,25 @@ export function QueueFilterBar({
                 <span className="text-foreground">{sortBy}</span>
               </button>
 
-              <ExportButton
-                data={sortedItems as unknown as Record<string, unknown>[]}
-                filename="dashboard-work-queue"
-                pdfTitle="Dashboard Work Queue"
-                variant="outline"
-                size="sm"
-                loading={loading}
-                columns={[
-                  { key: "ref_id", label: "Reference" },
-                  { key: "kind", label: "Kind" },
-                  { key: "severity", label: "Severity" },
-                  { key: "entity", label: "Entity" },
-                  { key: "jurisdiction", label: "Jurisdiction" },
-                  { key: "risk_score", label: "Risk Score" },
-                  { key: "status", label: "Status" },
-                ]}
-              />
+              {canExport ? (
+                <ExportButton
+                  data={sortedItems as unknown as Record<string, unknown>[]}
+                  filename="dashboard-work-queue"
+                  pdfTitle="Dashboard Work Queue"
+                  variant="outline"
+                  size="sm"
+                  loading={loading}
+                  columns={[
+                    { key: "ref_id", label: "Reference" },
+                    { key: "kind", label: "Kind" },
+                    { key: "severity", label: "Severity" },
+                    { key: "entity", label: "Entity" },
+                    { key: "jurisdiction", label: "Jurisdiction" },
+                    { key: "risk_score", label: "Risk Score" },
+                    { key: "status", label: "Status" },
+                  ]}
+                />
+              ) : null}
             </div>
           </div>
         </div>

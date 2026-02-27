@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { memo, useEffect, useState } from "react";
 import { Clock3, Database } from "lucide-react";
 import { DashboardFreshnessMeta } from "@/features/dashboard/types";
 import { cn } from "@/lib/utils";
@@ -10,6 +10,7 @@ interface DataFreshnessBadgeProps {
   label?: string;
   className?: string;
   compact?: boolean;
+  nowMs?: number | null;
 }
 
 function parseDate(value?: string | null) {
@@ -39,15 +40,19 @@ export function DataFreshnessBadge({
   label = "Updated",
   className,
   compact = false,
+  nowMs = null,
 }: DataFreshnessBadgeProps) {
-  const [nowMs, setNowMs] = useState<number | null>(null);
+  const [localNowMs, setLocalNowMs] = useState<number | null>(null);
 
   useEffect(() => {
-    const updateNow = () => setNowMs(Date.now());
+    if (nowMs !== null) return;
+    const updateNow = () => setLocalNowMs(Date.now());
     updateNow();
     const timer = window.setInterval(updateNow, 30_000);
     return () => window.clearInterval(timer);
-  }, []);
+  }, [nowMs]);
+
+  const effectiveNowMs = nowMs ?? localNowMs;
 
   if (!freshness) {
     return (
@@ -67,7 +72,7 @@ export function DataFreshnessBadge({
   const sourceWatermark = parseDate(freshness.source_watermark_at ?? null);
   const staleAfter = Math.max(1, freshness.stale_after_seconds ?? 60);
   const isStale = generatedAt
-    ? (nowMs ?? generatedAt.getTime()) - generatedAt.getTime() >
+    ? (effectiveNowMs ?? generatedAt.getTime()) - generatedAt.getTime() >
       staleAfter * 1000
     : false;
   const sourceLag =
@@ -91,7 +96,7 @@ export function DataFreshnessBadge({
       }
       aria-label={
         generatedAt
-          ? `${label} ${formatRelativeShort(generatedAt, nowMs)}${isStale ? ", stale" : ""}`
+          ? `${label} ${formatRelativeShort(generatedAt, effectiveNowMs)}${isStale ? ", stale" : ""}`
           : `${label} unavailable`
       }
     >
@@ -101,7 +106,7 @@ export function DataFreshnessBadge({
       </span>
       {generatedAt ? (
         <span className={cn(compact && "hidden sm:inline")}>
-          {formatRelativeShort(generatedAt, nowMs)}
+          {formatRelativeShort(generatedAt, effectiveNowMs)}
         </span>
       ) : (
         <span className={cn(compact && "hidden sm:inline")}>unknown</span>
@@ -121,11 +126,11 @@ export function DataFreshnessBadge({
         <span
           className={cn("text-foreground/60", compact && "hidden xl:inline")}
         >
-          src {formatRelativeShort(sourceWatermark, nowMs)}
+          src {formatRelativeShort(sourceWatermark, effectiveNowMs)}
         </span>
       ) : null}
     </div>
   );
 }
 
-export default DataFreshnessBadge;
+export default memo(DataFreshnessBadge);

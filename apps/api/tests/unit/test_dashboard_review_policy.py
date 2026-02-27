@@ -94,6 +94,7 @@ def test_review_endpoint_blocks_same_user_approval(db_session):
         priority=1,
         risk_score=90,
         created_at=now - timedelta(hours=3),
+        assigned_to="analyst_2",
     )
     db_session.add_all([txn, alert])
     db_session.commit()
@@ -105,7 +106,7 @@ def test_review_endpoint_blocks_same_user_approval(db_session):
             payload=ReviewActionRequest(
                 proposed_action="close",
                 decision="approve",
-                submitted_by="analyst_2",
+                submitted_by="spoofed_other_user",
                 review_notes="Approved",
             ),
             db=db_session,
@@ -143,6 +144,7 @@ def test_review_endpoint_allows_independent_reviewer(db_session):
         priority=2,
         risk_score=85,
         created_at=now - timedelta(hours=2),
+        assigned_to="analyst_maker",
     )
     db_session.add_all([txn, alert])
     db_session.commit()

@@ -1,5 +1,6 @@
 "use client";
 
+import { memo } from "react";
 import {
   Dialog,
   DialogContent,
@@ -7,42 +8,12 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import { DASHBOARD_SHORTCUT_HELP_SECTIONS } from "@/features/dashboard/hooks/useDashboardShortcuts";
 
 interface ShortcutHelpDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
 }
-
-const SHORTCUT_SECTIONS: Array<{
-  title: string;
-  items: Array<{ keys: string; description: string }>;
-}> = [
-  {
-    title: "Navigation",
-    items: [
-      { keys: "j / k", description: "Move to next/previous queue item" },
-      { keys: "g then q", description: "Focus queue search" },
-      { keys: "g then d", description: "Focus workspace panel" },
-      { keys: "i", description: "Toggle insights rail" },
-    ],
-  },
-  {
-    title: "Actions",
-    items: [
-      { keys: "a", description: "Focus assignee field in Actions tab" },
-      { keys: "e", description: "Run Escalate action (if available)" },
-      { keys: "n", description: "Run first available '+ Next' action" },
-      { keys: "x", description: "Toggle selection for current queue item" },
-    ],
-  },
-  {
-    title: "Help",
-    items: [
-      { keys: "?", description: "Open shortcut help" },
-      { keys: "Ctrl/Cmd + K", description: "Open command palette" },
-    ],
-  },
-];
 
 export function ShortcutHelpDialog({
   open,
@@ -59,7 +30,7 @@ export function ShortcutHelpDialog({
         </DialogHeader>
 
         <div className="space-y-4">
-          {SHORTCUT_SECTIONS.map((section) => (
+          {DASHBOARD_SHORTCUT_HELP_SECTIONS.map((section) => (
             <section key={section.title}>
               <h3 className="mb-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
                 {section.title}
@@ -87,4 +58,4 @@ export function ShortcutHelpDialog({
   );
 }
 
-export default ShortcutHelpDialog;
+export default memo(ShortcutHelpDialog);
