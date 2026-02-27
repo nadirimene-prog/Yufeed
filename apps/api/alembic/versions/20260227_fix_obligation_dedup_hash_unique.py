@@ -1,6 +1,6 @@
 """Replace obligation dedup unique index with partial unique index.
 
-Revision ID: 20260227_fix_obligation_dedup_hash_unique
+Revision ID: 20260227_fix_dedup_hash_uq
 Revises: 20260227_add_missing_fk_indexes
 Create Date: 2026-02-27 10:10:00.000000
 """
@@ -10,7 +10,7 @@ import sqlalchemy as sa
 
 
 # revision identifiers, used by Alembic.
-revision = "20260227_fix_obligation_dedup_hash_unique"
+revision = "20260227_fix_dedup_hash_uq"
 down_revision = "20260227_add_missing_fk_indexes"
 branch_labels = None
 depends_on = None

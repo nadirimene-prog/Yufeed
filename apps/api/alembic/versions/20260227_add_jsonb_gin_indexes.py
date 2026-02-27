@@ -1,7 +1,7 @@
 """Add JSONB GIN indexes for containment queries.
 
 Revision ID: 20260227_add_jsonb_gin_indexes
-Revises: 20260227_fix_obligation_dedup_hash_unique
+Revises: 20260227_fix_dedup_hash_uq
 Create Date: 2026-02-27 12:00:00.000000
 """
 
@@ -10,7 +10,7 @@ from alembic import op
 
 # revision identifiers, used by Alembic.
 revision = "20260227_add_jsonb_gin_indexes"
-down_revision = "20260227_fix_obligation_dedup_hash_unique"
+down_revision = "20260227_fix_dedup_hash_uq"
 branch_labels = None
 depends_on = None
 
