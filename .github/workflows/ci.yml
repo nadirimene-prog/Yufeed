@@ -81,7 +81,7 @@ jobs:
           DATABASE_URL: postgresql://yufeed:yufeed123@localhost:5432/yufeed_test
           REDIS_URL: redis://localhost:6379/0
         run: |
-          pytest -n auto --dist=loadfile --cov=src --cov-report=xml --cov-report=term --cov-fail-under=70
+          pytest --cov=src --cov-report=xml --cov-report=term --cov-fail-under=70
 
       - name: Test database migrations
         working-directory: ./apps/api
@@ -95,7 +95,7 @@ jobs:
       - name: Upload coverage to Codecov
         uses: codecov/codecov-action@v5
         with:
-          file: ./apps/api/coverage.xml
+          files: ./apps/api/coverage.xml
           flags: backend
           fail_ci_if_error: false
 
@@ -132,7 +132,7 @@ jobs:
       - name: Upload coverage to Codecov
         uses: codecov/codecov-action@v5
         with:
-          file: ./apps/web/coverage/coverage-final.json
+          files: ./apps/web/coverage/coverage-final.json
           flags: frontend
           fail_ci_if_error: false
 
