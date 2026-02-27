@@ -16,7 +16,7 @@ export default function QueryPage() {
             <div>
               <h1 className="text-3xl font-bold text-slate-900 ">Ask Yufeed</h1>
               <p className="text-slate-600 ">
-                Natural language query interface powered by AI
+                Ask regulatory questions in plain language and get cited answers
               </p>
             </div>
           </div>
@@ -25,18 +25,18 @@ export default function QueryPage() {
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
             <FeatureCard
               icon={<Brain className="h-5 w-5 text-blue-600" />}
-              title="AI-Powered"
-              description="Uses Claude Sonnet 4 for accurate, context-aware answers"
+              title="Context-Aware"
+              description="Understands regulatory context and provides nuanced, jurisdiction-aware answers"
             />
             <FeatureCard
               icon={<Zap className="h-5 w-5 text-blue-600" />}
-              title="RAG Technology"
-              description="Retrieves relevant documents and generates precise answers"
+              title="Document-Grounded"
+              description="Answers are derived from your ingested regulatory corpus, not general knowledge"
             />
             <FeatureCard
               icon={<Target className="h-5 w-5 text-green-600" />}
-              title="Source Citations"
-              description="Every answer includes CELEX references for verification"
+              title="Fully Cited"
+              description="Every answer links back to specific CELEX references you can verify"
             />
           </div>
         </div>
@@ -50,24 +50,25 @@ export default function QueryPage() {
         <div className="max-w-4xl mx-auto mt-8">
           <div className="bg-blue-50  border border-blue-200  rounded-lg p-4">
             <h3 className="text-sm font-semibold text-blue-900  mb-2">
-              💡 Tips for better results:
+              Tips for better results
             </h3>
             <ul className="text-sm text-blue-800  space-y-1">
               <li>
-                • Be specific: &quot;What are the KYC requirements for high-risk
-                customers?&quot; works better than &quot;Tell me about KYC&quot;
+                • Be specific &mdash; &quot;What are the KYC requirements for
+                high-risk customers under MLD6?&quot; works better than
+                &quot;Tell me about KYC&quot;
               </li>
               <li>
-                • Ask about implementation: &quot;How do I implement the 6th AML
-                Directive?&quot;
+                • Ask about implementation &mdash; &quot;How should we implement
+                customer due diligence under the 6th AML Directive?&quot;
               </li>
               <li>
-                • Request comparisons: &quot;What changed between the 5th and
-                6th AML Directives?&quot;
+                • Compare regulations &mdash; &quot;What changed between the 5th
+                and 6th AML Directives?&quot;
               </li>
               <li>
-                • Inquire about deadlines: &quot;What are the upcoming
-                compliance deadlines for 2026?&quot;
+                • Check deadlines &mdash; &quot;What are the upcoming compliance
+                deadlines for 2026?&quot;
               </li>
             </ul>
           </div>

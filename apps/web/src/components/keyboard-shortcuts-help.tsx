@@ -8,13 +8,13 @@ interface KeyboardShortcut {
 }
 
 const shortcuts: KeyboardShortcut[] = [
-  { key: "/", description: "Focus search" },
-  { key: "g d", description: "Go to Dashboard" },
-  { key: "g a", description: "Go to Alerts" },
+  { key: "/", description: "Jump to search" },
+  { key: "g d", description: "Go to Command Center" },
+  { key: "g a", description: "Go to Transaction Alerts" },
   { key: "g c", description: "Go to Cases" },
   { key: "g n", description: "Go to Network Analysis" },
-  { key: "?", description: "Show keyboard shortcuts" },
-  { key: "Esc", description: "Close dialogs" },
+  { key: "?", description: "Open this shortcut reference" },
+  { key: "Esc", description: "Close dialog or panel" },
 ];
 
 export function KeyboardShortcutsHelp() {

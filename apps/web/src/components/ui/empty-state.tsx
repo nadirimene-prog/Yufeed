@@ -208,8 +208,8 @@ export function EmptySearch({
   return (
     <EmptyState
       variant="search"
-      title={query ? `No results for "${query}"` : "No results found"}
-      description="Try adjusting your search terms or filters to find what you're looking for."
+      title={query ? `No matches for "${query}"` : "No results found"}
+      description="Try broadening your search or adjusting filters. You can also check for typos in your query."
       action={
         onClear
           ? {
@@ -227,8 +227,8 @@ export function EmptySearch({
  * Empty state for data tables/lists
  */
 export function EmptyData({
-  title = "No data available",
-  description = "There are no items to display at the moment.",
+  title = "Nothing here yet",
+  description = "Items will appear here once they're created or imported.",
   onCreate,
   createLabel = "Create new",
   className,
@@ -262,8 +262,8 @@ export function EmptyData({
  * Empty state for inbox/notifications
  */
 export function EmptyInbox({
-  title = "All caught up!",
-  description = "You have no pending notifications or messages.",
+  title = "You're all caught up",
+  description = "No pending items right now. New notifications will appear here.",
   className,
 }: {
   title?: string;
@@ -284,8 +284,8 @@ export function EmptyInbox({
  * Empty state for errors
  */
 export function EmptyError({
-  title = "Something went wrong",
-  description = "We couldn't load the data. Please try again.",
+  title = "Unable to load data",
+  description = "Something went wrong on our end. Please try again, and contact support if the issue persists.",
   onRetry,
   className,
 }: {
@@ -316,7 +316,7 @@ export function EmptyError({
  * Compact inline empty state (for tables, lists)
  */
 export function EmptyInline({
-  message = "No items",
+  message = "No items to display",
   className,
 }: {
   message?: string;

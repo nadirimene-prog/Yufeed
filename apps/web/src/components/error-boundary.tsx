@@ -136,10 +136,12 @@ function DefaultErrorFallback({
           <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-risk-critical/10">
             <AlertTriangle className="h-8 w-8 text-risk-critical" />
           </div>
-          <CardTitle className="text-xl">Something went wrong</CardTitle>
+          <CardTitle className="text-xl">
+            Something didn&apos;t load correctly
+          </CardTitle>
           <CardDescription>
-            We apologize for the inconvenience. The error has been logged and
-            our team has been notified.
+            This error has been logged and our team has been notified. You can
+            try again or return to the dashboard.
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
@@ -149,7 +151,8 @@ function DefaultErrorFallback({
               {error?.name || "Error"}
             </p>
             <p className="mt-1 text-sm text-foreground-secondary">
-              {error?.message || "An unexpected error occurred"}
+              {error?.message ||
+                "An unexpected error occurred. Please try again."}
             </p>
           </div>
 
@@ -195,7 +198,7 @@ function DefaultErrorFallback({
 
           {/* Support Link */}
           <p className="text-center text-xs text-foreground-tertiary">
-            If this problem persists, please{" "}
+            Still seeing this error?{" "}
             <a
               href="mailto:support@yufeed.com"
               className="text-primary hover:underline"
@@ -223,8 +226,8 @@ interface SectionErrorBoundaryProps {
 
 export function SectionErrorBoundary({
   children,
-  title = "Failed to load section",
-  description = "There was an error loading this section. You can try refreshing it.",
+  title = "This section couldn't load",
+  description = "An error occurred while loading this content. Try refreshing, or contact support if the problem continues.",
   onReset,
   className,
 }: SectionErrorBoundaryProps) {

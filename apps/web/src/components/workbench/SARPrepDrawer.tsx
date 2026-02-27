@@ -86,7 +86,7 @@ export function SARPrepDrawer({
         <Dialog.Content className="fixed right-0 top-0 z-50 h-screen w-[min(680px,92vw)] border-l border-border-subtle bg-background-elevated p-5 shadow-xl">
           <div className="mb-4 flex items-center justify-between">
             <Dialog.Title className="text-lg font-semibold text-foreground">
-              Prepare SAR
+              Prepare SAR Filing
             </Dialog.Title>
             <Dialog.Close asChild>
               <button
@@ -149,7 +149,7 @@ export function SARPrepDrawer({
                 Cancel
               </Button>
               <Button type="submit" loading={submitting}>
-                Save SAR Draft
+                Save draft
               </Button>
             </div>
           </form>

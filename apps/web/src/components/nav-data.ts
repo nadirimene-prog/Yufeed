@@ -22,38 +22,45 @@ const OPERATIONS_ITEMS: NavItem[] = [
   {
     label: "Command Center",
     href: "/dashboard",
-    description: "Daily overview and KPIs.",
+    description: "Real-time overview of alerts, cases, and key risk metrics.",
   },
   {
     label: "Analyst Performance",
     href: "/dashboard/operations",
-    description: "Team throughput and SLA performance.",
+    description:
+      "Track team throughput, SLA compliance, and workload distribution.",
   },
   {
     label: "Findings Triage",
     href: "/findings",
-    description: "Triage, acknowledge, escalate.",
+    description: "Review, prioritize, and escalate compliance findings.",
   },
-  { label: "Cases", href: "/cases", description: "Investigation workspace." },
+  {
+    label: "Cases",
+    href: "/cases",
+    description: "Manage investigations from intake through resolution.",
+  },
   {
     label: "Transaction Alerts",
     href: "/transaction-alerts",
-    description: "AML transaction alert queue.",
+    description: "Monitor and triage AML transaction alerts by risk level.",
   },
   {
     label: "Entities",
     href: "/entities",
-    description: "Unified entity intelligence profiles.",
+    description:
+      "View consolidated profiles with risk context and activity history.",
   },
   {
     label: "Regulatory Alerts",
     href: "/regulatory-alerts",
-    description: "Document and regulatory update alerts.",
+    description:
+      "Stay current on regulatory changes that affect your obligations.",
   },
   {
     label: "SAR Filing",
     href: "/sar/prepare",
-    description: "SAR preparation workflow.",
+    description: "Draft, review, and submit Suspicious Activity Reports.",
   },
 ];
 
@@ -62,42 +69,45 @@ const COMPLIANCE_ITEMS: NavItem[] = [
   {
     label: "Compliance Command",
     href: "/dashboard?view=compliance",
-    description: "AMLCO triage and governance.",
+    description:
+      "Central hub for AMLCO triage, governance actions, and oversight.",
   },
   {
     label: "Obligations",
     href: "/compliance/obligations",
-    description: "Regulatory obligations.",
+    description:
+      "Track regulatory obligations and their implementation status.",
   },
   {
     label: "Policies",
     href: "/compliance/policies",
-    description: "Policy library and mapping.",
+    description: "Maintain and version your internal policy library.",
   },
   {
     label: "Risk Map",
     href: "/compliance/risk-map",
-    description: "Risk inventory.",
+    description: "Visualize and assess your organization's risk landscape.",
   },
   {
     label: "KYC / KYB",
     href: "/compliance",
-    description: "Onboarding reviews.",
+    description: "Review and approve customer onboarding applications.",
   },
   {
     label: "AML Scope",
     href: "/compliance/aml-scope",
-    description: "Scope configuration.",
+    description:
+      "Define which entities and activities fall under AML monitoring.",
   },
   {
     label: "Monitoring Rules",
     href: "/transaction-monitoring/rules",
-    description: "Rule management.",
+    description: "Configure and manage transaction monitoring rule sets.",
   },
   {
     label: "Monitoring Dashboard",
     href: "/dashboard?view=monitoring",
-    description: "Live metrics.",
+    description: "Live view of monitoring rule performance and alert volumes.",
   },
 ];
 
@@ -106,39 +116,46 @@ const INTELLIGENCE_ITEMS: NavItem[] = [
   {
     label: "Global Search",
     href: "/search",
-    description: "Documents and entities.",
+    description: "Search across regulations, entities, and internal documents.",
   },
   {
     label: "AI Officer",
     href: "/aml-officer",
-    description: "AI compliance assistant.",
+    description: "AI-assisted compliance briefings and proactive risk alerts.",
   },
   {
     label: "AI Investigations",
     href: "/aml-officer/investigations",
-    description: "AI-powered alert analysis.",
+    description:
+      "Automated alert analysis with risk scoring and recommendations.",
   },
   {
     label: "SAR Management",
     href: "/aml-officer/sar",
-    description: "Suspicious Activity Reports.",
+    description: "Track SAR lifecycle from draft through submission.",
   },
   {
     label: "Query Lab",
     href: "/query",
-    description: "Natural-language research.",
+    description:
+      "Ask regulatory questions in plain language, backed by source citations.",
   },
   {
     label: "Reports",
     href: "/compliance-report",
-    description: "Compliance reporting.",
+    description: "Generate and export compliance reports for stakeholders.",
   },
   {
     label: "Network Analysis",
     href: "/network-analysis",
-    description: "Graph investigations.",
+    description:
+      "Explore entity relationships and transaction patterns visually.",
   },
-  { label: "Audit Trail", href: "/audit", description: "Activity log." },
+  {
+    label: "Audit Trail",
+    href: "/audit",
+    description: "Full history of actions, decisions, and system events.",
+  },
 ];
 
 /* ─── 4. SETTINGS ───────────────────────────────────────────────── */
@@ -146,32 +163,34 @@ const SETTINGS_ITEMS: NavItem[] = [
   {
     label: "Preferences",
     href: "/settings",
-    description: "User and system preferences.",
+    description: "Manage your profile, notifications, and workspace settings.",
   },
   {
     label: "Model Registry",
     href: "/model-registry",
-    description: "Models and versioning.",
+    description: "View and manage AI model versions and deployments.",
   },
   {
     label: "Watchlists",
     href: "/watchlists",
-    description: "Watchlist management.",
+    description: "Set up automated monitoring feeds and alert subscriptions.",
   },
   {
     label: "Decisioning",
     href: "/decisioning",
-    description: "Scoring configuration.",
+    description: "Configure risk scoring thresholds and decision logic.",
   },
   {
     label: "Travel Rule",
     href: "/travel-rule",
-    description: "Travel rule compliance.",
+    description:
+      "Manage travel rule data exchange for virtual asset transfers.",
   },
   {
     label: "On-chain Risk",
     href: "/onchain-risk",
-    description: "Crypto exposure analysis.",
+    description:
+      "Assess wallet risk exposure using on-chain intelligence providers.",
   },
 ];
 

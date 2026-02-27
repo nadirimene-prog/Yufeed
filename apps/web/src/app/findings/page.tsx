@@ -69,7 +69,7 @@ export default function FindingsPage() {
       <div className="flex items-center justify-center min-h-[60vh]">
         <div className="text-center">
           <div className="h-8 w-8 border-2 border-blue-600 border-t-transparent rounded-full animate-spin mx-auto mb-3" />
-          <p className="text-sm text-slate-500 ">Loading findings…</p>
+          <p className="text-sm text-slate-500 ">Loading findings</p>
         </div>
       </div>
     );

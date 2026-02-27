@@ -72,7 +72,8 @@ export function EscalateDialog({
             </div>
 
             <p className="text-sm text-slate-500 mb-4">
-              Link this finding to an existing case for further investigation.
+              Associate this finding with an existing case to continue the
+              investigation there.
             </p>
 
             <div>
@@ -84,7 +85,7 @@ export function EscalateDialog({
                 value={caseId}
                 onChange={(e) => setCaseId(e.target.value)}
                 className="w-full rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-sm text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-orange-500/30 focus:border-orange-500"
-                placeholder="Enter case ID (e.g., CASE-001)"
+                placeholder="e.g., CASE-001"
               />
             </div>
 
@@ -105,7 +106,7 @@ export function EscalateDialog({
                     : "bg-slate-300 cursor-not-allowed",
                 )}
               >
-                Escalate
+                Escalate finding
               </button>
             </div>
           </motion.div>

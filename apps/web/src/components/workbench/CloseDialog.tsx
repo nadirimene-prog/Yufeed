@@ -78,7 +78,7 @@ export function CloseDialog({
             <div className="space-y-4">
               <div>
                 <label className="block text-sm font-medium text-slate-700 mb-1.5">
-                  Reason
+                  Closure reason
                 </label>
                 <div className="flex flex-wrap gap-2">
                   {CLOSE_REASONS.map((r) => (
@@ -107,7 +107,7 @@ export function CloseDialog({
                   onChange={(e) => setComment(e.target.value)}
                   rows={3}
                   className="w-full rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-sm text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-[#0052FF]/30 focus:border-[#0052FF]"
-                  placeholder="Optional comment..."
+                  placeholder="Add context for the audit trail (optional)"
                 />
               </div>
             </div>
@@ -129,7 +129,7 @@ export function CloseDialog({
                     : "bg-slate-300 cursor-not-allowed",
                 )}
               >
-                Confirm
+                Close finding
               </button>
             </div>
           </motion.div>

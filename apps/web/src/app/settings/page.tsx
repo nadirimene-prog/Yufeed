@@ -15,7 +15,8 @@ export default function SettingsPage() {
           Settings
         </h1>
         <p className="mt-2 text-sm text-muted-foreground">
-          Manage your account, notifications, and system preferences.
+          Configure your profile, notification preferences, integrations, and
+          workspace defaults.
         </p>
       </div>
 
@@ -27,11 +28,11 @@ export default function SettingsPage() {
               Account
             </CardTitle>
             <CardDescription>
-              Profile details, security, and session controls.
+              Manage your profile details, login security, and active sessions.
             </CardDescription>
           </CardHeader>
           <CardContent className="text-sm text-muted-foreground">
-            Coming soon.
+            Available soon.
           </CardContent>
         </Card>
 
@@ -42,11 +43,12 @@ export default function SettingsPage() {
               Notifications
             </CardTitle>
             <CardDescription>
-              Real-time alerts and email preferences.
+              Choose which alerts you receive in-app and by email, and set quiet
+              hours.
             </CardDescription>
           </CardHeader>
           <CardContent className="text-sm text-muted-foreground">
-            Coming soon.
+            Available soon.
           </CardContent>
         </Card>
 
@@ -57,11 +59,11 @@ export default function SettingsPage() {
               API
             </CardTitle>
             <CardDescription>
-              API keys and integration settings.
+              Generate API keys and configure third-party integrations.
             </CardDescription>
           </CardHeader>
           <CardContent className="text-sm text-muted-foreground">
-            Coming soon.
+            Available soon.
           </CardContent>
         </Card>
 
@@ -72,11 +74,11 @@ export default function SettingsPage() {
               System
             </CardTitle>
             <CardDescription>
-              Workspace defaults and administrative preferences.
+              Set workspace-wide defaults, roles, and administrative controls.
             </CardDescription>
           </CardHeader>
           <CardContent className="text-sm text-muted-foreground">
-            Coming soon.
+            Available soon.
           </CardContent>
         </Card>
       </div>

@@ -7,7 +7,8 @@ export default function ComplianceDeadlinesPage() {
         Compliance Deadlines
       </h1>
       <p className="mt-2 text-sm text-slate-500">
-        This view is not yet implemented.
+        Deadline tracking is coming soon. You&apos;ll be able to view upcoming
+        regulatory deadlines, set reminders, and track completion status here.
       </p>
     </div>
   );

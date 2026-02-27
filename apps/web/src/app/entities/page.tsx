@@ -10,12 +10,12 @@ export default function EntitiesIndexPage() {
     <Card className="border-border shadow-sm bg-white">
       <CardContent className="pt-6">
         <EmptyState
-          title="Entity Profile"
-          description="Open an entity profile from a case, alert, or dashboard queue item."
+          title="No entity selected"
+          description="Select an entity from a case, alert, or the dashboard to view their full profile here."
           variant="no-results"
         >
           <Link href="/cases">
-            <Button variant="outline">Browse Cases</Button>
+            <Button variant="outline">Go to Cases</Button>
           </Link>
         </EmptyState>
       </CardContent>

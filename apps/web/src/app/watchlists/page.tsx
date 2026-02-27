@@ -53,7 +53,7 @@ export default function WatchlistsPage() {
       });
     } catch (error) {
       logger.error("Failed to create watchlist:", error);
-      alert("Failed to create watchlist. Please try again.");
+      alert("Watchlist couldn't be created. Check your inputs and try again.");
     }
   };
 
@@ -65,7 +65,8 @@ export default function WatchlistsPage() {
             Watchlists
           </h1>
           <p className="mt-2 text-lg text-slate-600 ">
-            Manage your legal monitoring feeds and alerts.
+            Set up automated feeds to monitor regulatory changes and receive
+            timely alerts.
           </p>
         </div>
         <div className="flex items-center gap-3">
@@ -80,7 +81,7 @@ export default function WatchlistsPage() {
             className="flex items-center rounded-lg bg-blue-600 px-5 py-2.5 text-sm font-medium text-white hover:bg-blue-700 transition-colors"
           >
             <Plus className="mr-2 h-4 w-4" />
-            New Watchlist
+            Create watchlist
           </button>
         </div>
       </div>

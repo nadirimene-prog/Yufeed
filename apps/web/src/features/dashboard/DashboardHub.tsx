@@ -635,17 +635,17 @@ export function DashboardHub() {
     [filters, pathname, range, router, searchParamsString, view],
   );
 
-  const updateViewRange = (
-    nextView: DashboardView = view,
-    nextRange: DashboardTimeRange = range,
-  ) => {
-    const params = new URLSearchParams(searchParamsString);
-    params.set("view", nextView);
-    params.set("range", nextRange);
-    startTransition(() => {
-      router.replace(`${pathname}?${params.toString()}`);
-    });
-  };
+  const updateViewRange = useCallback(
+    (nextView: DashboardView = view, nextRange: DashboardTimeRange = range) => {
+      const params = new URLSearchParams(searchParamsString);
+      params.set("view", nextView);
+      params.set("range", nextRange);
+      startTransition(() => {
+        router.replace(`${pathname}?${params.toString()}`);
+      });
+    },
+    [pathname, range, router, searchParamsString, view],
+  );
 
   const applySavedViewRecord = useCallback(
     (
@@ -748,52 +748,66 @@ export function DashboardHub() {
     applySavedViewRecord,
   ]);
 
-  const applyQueueFilterPatch = (
-    patch: Partial<DashboardWorkQueueParams>,
-    source:
-      | "queue_controls"
-      | "critical_tile"
-      | "pagination" = "queue_controls",
-  ) => {
-    setActiveSavedViewId(null);
-    const keys = Object.keys(patch).sort();
-    pendingQueueFilterTelemetryRef.current = {
-      source,
-      keys,
-      startedAt: getTelemetryNow(),
-    };
-    trackDashboardEvent("dashboard_filter_apply", {
-      source,
-      keys,
-      phase: "submitted",
-    });
-    updateSearch(patch);
-  };
+  const applyQueueFilterPatch = useCallback(
+    (
+      patch: Partial<DashboardWorkQueueParams>,
+      source:
+        | "queue_controls"
+        | "critical_tile"
+        | "pagination" = "queue_controls",
+    ) => {
+      setActiveSavedViewId(null);
+      const keys = Object.keys(patch).sort();
+      pendingQueueFilterTelemetryRef.current = {
+        source,
+        keys,
+        startedAt: getTelemetryNow(),
+      };
+      trackDashboardEvent("dashboard_filter_apply", {
+        source,
+        keys,
+        phase: "submitted",
+      });
+      updateSearch(patch);
+    },
+    [setActiveSavedViewId, updateSearch],
+  );
 
-  const applyCriticalFilter = (patch: CriticalTileFilter) => {
-    applyQueueFilterPatch(
-      {
-        page: 1,
-        queue: (patch.queue ?? filters.queue) as DashboardQueueFilter,
-        severity: (patch.severity ??
-          filters.severity) as DashboardSeverityFilter,
-        sla: (patch.sla ?? filters.sla) as DashboardSlaFilter,
-        savedView: (patch.savedView ?? filters.savedView) as DashboardSavedView,
-        search: patch.search ?? filters.search,
-      },
-      "critical_tile",
-    );
-  };
+  const applyCriticalFilter = useCallback(
+    (patch: CriticalTileFilter) => {
+      applyQueueFilterPatch(
+        {
+          page: 1,
+          queue: (patch.queue ?? filters.queue) as DashboardQueueFilter,
+          severity: (patch.severity ??
+            filters.severity) as DashboardSeverityFilter,
+          sla: (patch.sla ?? filters.sla) as DashboardSlaFilter,
+          savedView: (patch.savedView ??
+            filters.savedView) as DashboardSavedView,
+          search: patch.search ?? filters.search,
+        },
+        "critical_tile",
+      );
+    },
+    [
+      applyQueueFilterPatch,
+      filters.queue,
+      filters.savedView,
+      filters.search,
+      filters.severity,
+      filters.sla,
+    ],
+  );
 
-  const openWorkspaceActionsTab = () => {
+  const openWorkspaceActionsTab = useCallback(() => {
     if (typeof document === "undefined") return;
     const actionTab = Array.from(
       document.querySelectorAll<HTMLElement>("[role='tab']"),
     ).find((node) => node.textContent?.trim() === "Actions");
     actionTab?.click();
-  };
+  }, []);
 
-  const focusQueueSearchInput = () => {
+  const focusQueueSearchInput = useCallback(() => {
     if (typeof document === "undefined") return;
     const input = document.querySelector<HTMLInputElement>(
       "[data-dashboard-queue-search-input]",
@@ -801,17 +815,17 @@ export function DashboardHub() {
     if (!input) return;
     input.focus();
     input.select();
-  };
+  }, []);
 
-  const focusWorkspacePanel = () => {
+  const focusWorkspacePanel = useCallback(() => {
     if (typeof document === "undefined") return;
     const panel = document.querySelector<HTMLElement>(
       "[data-dashboard-workspace-panel]",
     );
     panel?.focus();
-  };
+  }, []);
 
-  const focusWorkspaceAssignee = () => {
+  const focusWorkspaceAssignee = useCallback(() => {
     openWorkspaceActionsTab();
     window.requestAnimationFrame(() => {
       const input = document.querySelector<HTMLInputElement>(
@@ -820,23 +834,26 @@ export function DashboardHub() {
       input?.focus();
       input?.select();
     });
-  };
+  }, [openWorkspaceActionsTab]);
 
-  const clickWorkspaceAction = (action: string) => {
-    openWorkspaceActionsTab();
-    window.requestAnimationFrame(() => {
-      const button = document.querySelector<HTMLButtonElement>(
-        `[data-dashboard-action="${action}"]:not([disabled])`,
-      );
-      button?.click();
-    });
-  };
+  const clickWorkspaceAction = useCallback(
+    (action: string) => {
+      openWorkspaceActionsTab();
+      window.requestAnimationFrame(() => {
+        const button = document.querySelector<HTMLButtonElement>(
+          `[data-dashboard-action="${action}"]:not([disabled])`,
+        );
+        button?.click();
+      });
+    },
+    [openWorkspaceActionsTab],
+  );
 
-  const retryOverviewPanels = () => {
+  const retryOverviewPanels = useCallback(() => {
     overviewQuery.refetch();
-  };
+  }, [overviewQuery]);
 
-  const clickActionNext = () => {
+  const clickActionNext = useCallback(() => {
     openWorkspaceActionsTab();
     window.requestAnimationFrame(() => {
       const primary = document.querySelector<HTMLButtonElement>(
@@ -851,51 +868,59 @@ export function DashboardHub() {
       );
       fallback?.click();
     });
-  };
+  }, [openWorkspaceActionsTab]);
 
-  const selectNextQueueItem = (preferredItemId?: string | null) => {
-    const items = queueQuery.data?.items ?? [];
-    if (items.length === 0 || !selectedItem) return false;
+  const selectNextQueueItem = useCallback(
+    (preferredItemId?: string | null) => {
+      const items = queueQuery.data?.items ?? [];
+      if (items.length === 0 || !selectedItem) return false;
 
-    if (preferredItemId) {
-      const preferred = items.find((item) => item.item_id === preferredItemId);
-      if (preferred && preferred.item_id !== selectedItem.item_id) {
-        setSelectedItemId(preferred.item_id);
-        return true;
+      if (preferredItemId) {
+        const preferred = items.find(
+          (item) => item.item_id === preferredItemId,
+        );
+        if (preferred && preferred.item_id !== selectedItem.item_id) {
+          setSelectedItemId(preferred.item_id);
+          return true;
+        }
       }
-    }
 
-    const currentIndex = items.findIndex(
-      (item) => item.item_id === selectedItem.item_id,
-    );
-    if (currentIndex === -1) return false;
-    const fallback = items[currentIndex + 1] ?? items[currentIndex - 1];
-    if (!fallback || fallback.item_id === selectedItem.item_id) return false;
-    setSelectedItemId(fallback.item_id);
-    return true;
-  };
+      const currentIndex = items.findIndex(
+        (item) => item.item_id === selectedItem.item_id,
+      );
+      if (currentIndex === -1) return false;
+      const fallback = items[currentIndex + 1] ?? items[currentIndex - 1];
+      if (!fallback || fallback.item_id === selectedItem.item_id) return false;
+      setSelectedItemId(fallback.item_id);
+      return true;
+    },
+    [queueQuery.data?.items, selectedItem, setSelectedItemId],
+  );
 
-  const handleQueueItemSelect = (
-    item: DashboardWorkQueueItem,
-    source: "desktop_queue" | "mobile_queue",
-  ) => {
-    pendingRowSelectTelemetryRef.current = {
-      source,
-      kind: item.kind,
-      severity: item.severity,
-      reviewRequired: item.review_requirement?.required ?? false,
-      itemId: item.item_id,
-      startedAt: getTelemetryNow(),
-    };
-    trackDashboardEvent("dashboard_row_select", {
-      source,
-      kind: item.kind,
-      severity: item.severity,
-      review_required: item.review_requirement?.required ?? false,
-      phase: "selected",
-    });
-    setSelectedItemId(item.item_id);
-  };
+  const handleQueueItemSelect = useCallback(
+    (
+      item: DashboardWorkQueueItem,
+      source: "desktop_queue" | "mobile_queue",
+    ) => {
+      pendingRowSelectTelemetryRef.current = {
+        source,
+        kind: item.kind,
+        severity: item.severity,
+        reviewRequired: item.review_requirement?.required ?? false,
+        itemId: item.item_id,
+        startedAt: getTelemetryNow(),
+      };
+      trackDashboardEvent("dashboard_row_select", {
+        source,
+        kind: item.kind,
+        severity: item.severity,
+        review_required: item.review_requirement?.required ?? false,
+        phase: "selected",
+      });
+      setSelectedItemId(item.item_id);
+    },
+    [setSelectedItemId],
+  );
 
   const refreshSelectedDetailWithWarning = async (options?: {
     onFailureMessage?: string;
@@ -1209,60 +1234,81 @@ export function DashboardHub() {
     });
   };
 
-  const handleSetUserDefaultSavedView = async (viewId: string | null) => {
-    await updatePreferences.mutateAsync({
-      default_saved_view_id: viewId,
-    });
-  };
+  const handleSetUserDefaultSavedView = useCallback(
+    async (viewId: string | null) => {
+      await updatePreferences.mutateAsync({
+        default_saved_view_id: viewId,
+      });
+    },
+    [updatePreferences],
+  );
 
-  const handleCreateSavedView = async (
-    payload: DashboardSavedViewCreateRequest,
-    options?: { setAsUserDefault?: boolean },
-  ) => {
-    const created = await createSavedView.mutateAsync(payload);
-    if (options?.setAsUserDefault) {
-      await handleSetUserDefaultSavedView(created.id);
-    }
-    setActiveSavedViewId(created.id);
-  };
+  const handleCreateSavedView = useCallback(
+    async (
+      payload: DashboardSavedViewCreateRequest,
+      options?: { setAsUserDefault?: boolean },
+    ) => {
+      const created = await createSavedView.mutateAsync(payload);
+      if (options?.setAsUserDefault) {
+        await handleSetUserDefaultSavedView(created.id);
+      }
+      setActiveSavedViewId(created.id);
+    },
+    [createSavedView, handleSetUserDefaultSavedView, setActiveSavedViewId],
+  );
 
-  const handleUpdateSavedView = async (
-    viewId: string,
-    payload: Partial<DashboardSavedViewCreateRequest>,
-    options?: { setAsUserDefault?: boolean },
-  ) => {
-    const updated = await updateSavedView.mutateAsync({
-      id: viewId,
-      patch: payload,
-    });
-    if (options?.setAsUserDefault) {
-      await handleSetUserDefaultSavedView(updated.id);
-    } else if (preferencesQuery.data?.default_saved_view_id === updated.id) {
-      await handleSetUserDefaultSavedView(null);
-    }
-    setActiveSavedViewId(updated.id);
-  };
+  const handleUpdateSavedView = useCallback(
+    async (
+      viewId: string,
+      payload: Partial<DashboardSavedViewCreateRequest>,
+      options?: { setAsUserDefault?: boolean },
+    ) => {
+      const updated = await updateSavedView.mutateAsync({
+        id: viewId,
+        patch: payload,
+      });
+      if (options?.setAsUserDefault) {
+        await handleSetUserDefaultSavedView(updated.id);
+      } else if (preferencesQuery.data?.default_saved_view_id === updated.id) {
+        await handleSetUserDefaultSavedView(null);
+      }
+      setActiveSavedViewId(updated.id);
+    },
+    [
+      handleSetUserDefaultSavedView,
+      preferencesQuery.data?.default_saved_view_id,
+      setActiveSavedViewId,
+      updateSavedView,
+    ],
+  );
 
-  const handleDeleteSavedView = async (viewId: string) => {
-    await deleteSavedView.mutateAsync(viewId);
-    setActiveSavedViewId((current) => (current === viewId ? null : current));
-  };
+  const handleDeleteSavedView = useCallback(
+    async (viewId: string) => {
+      await deleteSavedView.mutateAsync(viewId);
+      setActiveSavedViewId((current) => (current === viewId ? null : current));
+    },
+    [deleteSavedView, setActiveSavedViewId],
+  );
 
   const currentLayoutPrefsForSave: DashboardLayoutPreferences = {
     queueDensity: queueDensityPreference,
     insightsOpen,
     defaultWorkspaceTab: workspaceDefaultTab,
   };
-  const handleQueueDensityPreferenceChange = (
-    value: "comfortable" | "compact",
-  ) => {
-    setQueueDensityPreference(value);
-    saveLayoutPreferencesPatch({ queueDensity: value });
-  };
-  const handleWorkspaceTabPreferenceChange = (tab: WorkspaceTabKey) => {
-    setWorkspaceDefaultTab(tab);
-    saveLayoutPreferencesPatch({ defaultWorkspaceTab: tab });
-  };
+  const handleQueueDensityPreferenceChange = useCallback(
+    (value: "comfortable" | "compact") => {
+      setQueueDensityPreference(value);
+      saveLayoutPreferencesPatch({ queueDensity: value });
+    },
+    [saveLayoutPreferencesPatch, setQueueDensityPreference],
+  );
+  const handleWorkspaceTabPreferenceChange = useCallback(
+    (tab: WorkspaceTabKey) => {
+      setWorkspaceDefaultTab(tab);
+      saveLayoutPreferencesPatch({ defaultWorkspaceTab: tab });
+    },
+    [saveLayoutPreferencesPatch, setWorkspaceDefaultTab],
+  );
   const dashboardSavedViews = savedViewsQuery.data?.items ?? [];
   const savedViewsPending =
     savedViewsQuery.isFetching ||
@@ -1271,75 +1317,104 @@ export function DashboardHub() {
     deleteSavedView.isPending ||
     updatePreferences.isPending;
 
+  const openShortcutHelp = useCallback(() => {
+    setShortcutHelpOpen(true);
+  }, [setShortcutHelpOpen]);
+  const openCommandPalette = useCallback(() => {
+    setCommandPaletteOpen(true);
+  }, [setCommandPaletteOpen]);
+  const toggleInsights = useCallback(() => {
+    setInsightsOpen((current) => !current);
+  }, [setInsightsOpen]);
+  const runEscalateShortcut = useCallback(() => {
+    clickWorkspaceAction("escalate");
+  }, [clickWorkspaceAction]);
+  const openSavedViewsDialog = useCallback(() => {
+    setSavedViewsDialogOpen(true);
+  }, [setSavedViewsDialogOpen]);
+
   useDashboardShortcuts({
     enabled: dashboardEnabled,
-    onOpenShortcutHelp: () => setShortcutHelpOpen(true),
-    onOpenCommandPalette: () => setCommandPaletteOpen(true),
+    onOpenShortcutHelp: openShortcutHelp,
+    onOpenCommandPalette: openCommandPalette,
     onFocusQueueSearch: focusQueueSearchInput,
     onFocusWorkspacePanel: focusWorkspacePanel,
-    onToggleInsights: () => setInsightsOpen((current) => !current),
+    onToggleInsights: toggleInsights,
     onFocusAssign: focusWorkspaceAssignee,
-    onEscalate: () => clickWorkspaceAction("escalate"),
+    onEscalate: runEscalateShortcut,
     onActionNext: clickActionNext,
   });
 
-  const commandPaletteActions: DashboardCommandAction[] = [
-    {
-      id: "focus-queue-search",
-      label: "Focus queue search",
-      shortcut: "g q",
-      group: "Navigation",
-      onSelect: focusQueueSearchInput,
-    },
-    {
-      id: "focus-workspace",
-      label: "Focus workspace panel",
-      shortcut: "g d",
-      group: "Navigation",
-      onSelect: focusWorkspacePanel,
-    },
-    {
-      id: "toggle-insights",
-      label: insightsOpen ? "Hide insights rail" : "Show insights rail",
-      shortcut: "i",
-      group: "Layout",
-      onSelect: () => setInsightsOpen((current) => !current),
-    },
-    {
-      id: "focus-assignee",
-      label: "Focus assignee field",
-      shortcut: "a",
-      group: "Actions",
-      onSelect: focusWorkspaceAssignee,
-    },
-    {
-      id: "escalate",
-      label: "Run escalate action",
-      shortcut: "e",
-      group: "Actions",
-      onSelect: () => clickWorkspaceAction("escalate"),
-    },
-    {
-      id: "action-next",
-      label: "Run first available + Next action",
-      shortcut: "n",
-      group: "Actions",
-      onSelect: clickActionNext,
-    },
-    {
-      id: "open-shortcuts-help",
-      label: "Open keyboard shortcuts",
-      shortcut: "?",
-      group: "Help",
-      onSelect: () => setShortcutHelpOpen(true),
-    },
-    {
-      id: "open-saved-views",
-      label: "Open saved views manager",
-      group: "Layout",
-      onSelect: () => setSavedViewsDialogOpen(true),
-    },
-  ];
+  const commandPaletteActions: DashboardCommandAction[] = useMemo(
+    () => [
+      {
+        id: "focus-queue-search",
+        label: "Focus queue search",
+        shortcut: "g q",
+        group: "Navigation",
+        onSelect: focusQueueSearchInput,
+      },
+      {
+        id: "focus-workspace",
+        label: "Focus workspace panel",
+        shortcut: "g d",
+        group: "Navigation",
+        onSelect: focusWorkspacePanel,
+      },
+      {
+        id: "toggle-insights",
+        label: insightsOpen ? "Hide insights rail" : "Show insights rail",
+        shortcut: "i",
+        group: "Layout",
+        onSelect: toggleInsights,
+      },
+      {
+        id: "focus-assignee",
+        label: "Focus assignee field",
+        shortcut: "a",
+        group: "Actions",
+        onSelect: focusWorkspaceAssignee,
+      },
+      {
+        id: "escalate",
+        label: "Run escalate action",
+        shortcut: "e",
+        group: "Actions",
+        onSelect: runEscalateShortcut,
+      },
+      {
+        id: "action-next",
+        label: "Run first available + Next action",
+        shortcut: "n",
+        group: "Actions",
+        onSelect: clickActionNext,
+      },
+      {
+        id: "open-shortcuts-help",
+        label: "Open keyboard shortcuts",
+        shortcut: "?",
+        group: "Help",
+        onSelect: openShortcutHelp,
+      },
+      {
+        id: "open-saved-views",
+        label: "Open saved views manager",
+        group: "Layout",
+        onSelect: openSavedViewsDialog,
+      },
+    ],
+    [
+      clickActionNext,
+      focusQueueSearchInput,
+      focusWorkspaceAssignee,
+      focusWorkspacePanel,
+      insightsOpen,
+      openSavedViewsDialog,
+      openShortcutHelp,
+      runEscalateShortcut,
+      toggleInsights,
+    ],
+  );
 
   const handleDesktopQueueSelect = (item: DashboardWorkQueueItem) => {
     handleQueueItemSelect(item, "desktop_queue");
@@ -1350,10 +1425,10 @@ export function DashboardHub() {
     setMobileWorkspaceOpen(true);
   };
 
-  const refreshQueueAndOverview = () => {
+  const refreshQueueAndOverview = useCallback(() => {
     queueQuery.refetch();
     overviewQuery.refetch();
-  };
+  }, [overviewQuery, queueQuery]);
 
   if (!hasToken) {
     return (
@@ -1470,11 +1545,7 @@ export function DashboardHub() {
               <RefreshCw className="h-3.5 w-3.5 mr-1" />
               Refresh
             </Button>
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => setSavedViewsDialogOpen(true)}
-            >
+            <Button variant="outline" size="sm" onClick={openSavedViewsDialog}>
               <Bookmark className="h-3.5 w-3.5 mr-1" />
               Views
             </Button>
@@ -1482,7 +1553,7 @@ export function DashboardHub() {
               className="hidden lg:inline-flex"
               variant="outline"
               size="sm"
-              onClick={() => setInsightsOpen((current) => !current)}
+              onClick={toggleInsights}
               aria-expanded={insightsOpen}
               aria-controls="dashboard-insights-panel"
             >
@@ -1638,7 +1709,7 @@ export function DashboardHub() {
 
             <InsightsPanel
               open={insightsOpen}
-              onToggle={() => setInsightsOpen((current) => !current)}
+              onToggle={toggleInsights}
               governance={overviewQuery.data?.governance}
               queueSummary={overviewQuery.data?.queue_summary}
               queueSummaryPrevious={overviewQuery.data?.queue_summary_previous}
