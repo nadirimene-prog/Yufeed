@@ -43,5 +43,5 @@ joblib==1.5.3
 shap==0.50.0
 
 # WebSocket (for Phase 4B Task 6)
-websockets==12.0
+websockets==16.0
 email-validator>=2.0.0
