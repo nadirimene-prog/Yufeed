@@ -93,7 +93,7 @@ jobs:
           alembic upgrade head
 
       - name: Upload coverage to Codecov
-        uses: codecov/codecov-action@v5
+        uses: codecov/codecov-action@v6
         with:
           files: ./apps/api/coverage.xml
           flags: backend
@@ -130,7 +130,7 @@ jobs:
           npm run test:coverage
 
       - name: Upload coverage to Codecov
-        uses: codecov/codecov-action@v5
+        uses: codecov/codecov-action@v6
         with:
           files: ./apps/web/coverage/coverage-final.json
           flags: frontend
