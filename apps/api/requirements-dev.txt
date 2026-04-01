@@ -19,7 +19,7 @@ locust==2.43.3
 # Code quality
 black==24.1.1
 flake8==7.1.1
-ruff==0.1.14
+ruff==0.15.8
 mypy==1.8.0
 setuptools==80.9.0
 
